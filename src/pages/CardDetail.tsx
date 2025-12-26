@@ -3,12 +3,36 @@ import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Save, Sparkles, TrendingUp, Calendar, Star, Tag } from "lucide-react";
+import { ArrowLeft, Save, Sparkles, TrendingUp, TrendingDown, Minus, Calendar, Star, Tag, DollarSign, BarChart3, ShoppingCart } from "lucide-react";
 import { toast } from "sonner";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from "recharts";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Card = Tables<"cards">;
+
+interface EbayData {
+  description?: string;
+  averagePrice?: number;
+  lowPrice?: number;
+  highPrice?: number;
+  recentSalesCount?: string;
+  notableSales?: string[];
+}
+
+interface TCGPlayerData {
+  marketPrice?: number;
+  lowPrice?: number;
+  midPrice?: number;
+  highPrice?: number;
+  description?: string;
+}
+
+interface PSAData {
+  description?: string;
+  estimatedPopulation?: string;
+  gradedPremium?: string;
+  recentGradedSales?: string[];
+}
 
 interface AIAnalysis {
   cardName?: string;
@@ -23,9 +47,16 @@ interface AIAnalysis {
   estimatedValueLow?: number;
   estimatedValueHigh?: number;
   valueCurrency?: string;
+  ebayRecentSales?: EbayData;
+  tcgplayerPrice?: TCGPlayerData;
+  psaPopulation?: PSAData;
   priceFactors?: string[];
-  marketTrend?: string;
-  confidence?: number;
+  valueTrend?: "rising" | "stable" | "falling" | "unknown";
+  trendReason?: string;
+  confidence?: "high" | "medium" | "low";
+  confidenceReason?: string;
+  investmentOutlook?: string;
+  additionalNotes?: string;
 }
 
 // Mock price history data (in a real app, this would come from an API)
@@ -219,29 +250,213 @@ export default function CardDetail() {
                 )}
 
                 {/* Market Trend */}
-                {analysis?.marketTrend && (
+                {analysis?.valueTrend && analysis.valueTrend !== "unknown" && (
                   <div className="flex items-center gap-2 text-sm">
-                    <TrendingUp className="w-4 h-4 text-green-500" />
+                    {analysis.valueTrend === "rising" ? (
+                      <TrendingUp className="w-4 h-4 text-green-500" />
+                    ) : analysis.valueTrend === "falling" ? (
+                      <TrendingDown className="w-4 h-4 text-red-500" />
+                    ) : (
+                      <Minus className="w-4 h-4 text-yellow-500" />
+                    )}
                     <span className="text-muted-foreground">Market Trend:</span>
-                    <span className="font-medium text-foreground">{analysis.marketTrend}</span>
+                    <span className={`font-medium ${
+                      analysis.valueTrend === "rising" ? "text-green-500" :
+                      analysis.valueTrend === "falling" ? "text-red-500" : "text-yellow-500"
+                    }`}>
+                      {analysis.valueTrend.charAt(0).toUpperCase() + analysis.valueTrend.slice(1)}
+                    </span>
                   </div>
+                )}
+                {analysis?.trendReason && (
+                  <p className="text-xs text-muted-foreground bg-muted/50 rounded p-2">
+                    {analysis.trendReason}
+                  </p>
                 )}
 
                 {/* Confidence */}
                 {analysis?.confidence && (
                   <div className="flex items-center gap-2 text-sm">
                     <span className="text-muted-foreground">AI Confidence:</span>
-                    <div className="flex-1 bg-muted rounded-full h-2 max-w-[200px]">
-                      <div
-                        className="bg-gradient-primary h-full rounded-full"
-                        style={{ width: `${analysis.confidence}%` }}
-                      />
-                    </div>
-                    <span className="font-medium text-foreground">{analysis.confidence}%</span>
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                      analysis.confidence === "high" ? "bg-green-500/20 text-green-500" :
+                      analysis.confidence === "medium" ? "bg-yellow-500/20 text-yellow-500" :
+                      "bg-red-500/20 text-red-500"
+                    }`}>
+                      {analysis.confidence.toUpperCase()}
+                    </span>
                   </div>
+                )}
+                {analysis?.confidenceReason && (
+                  <p className="text-xs text-muted-foreground">
+                    {analysis.confidenceReason}
+                  </p>
                 )}
               </div>
             </div>
+
+            {/* eBay Market Data */}
+            {analysis?.ebayRecentSales && (
+              <div className="bg-card border border-border rounded-2xl p-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <ShoppingCart className="w-5 h-5 text-blue-500" />
+                  <h2 className="font-display font-bold text-lg">eBay Market Data</h2>
+                </div>
+                
+                <div className="space-y-4">
+                  {/* Price Range */}
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="text-center p-3 bg-muted/50 rounded-lg">
+                      <p className="text-xs text-muted-foreground">Low</p>
+                      <p className="text-lg font-bold text-foreground">
+                        ${analysis.ebayRecentSales.lowPrice?.toFixed(2) || "—"}
+                      </p>
+                    </div>
+                    <div className="text-center p-3 bg-primary/10 rounded-lg border border-primary/20">
+                      <p className="text-xs text-primary">Average</p>
+                      <p className="text-lg font-bold text-primary">
+                        ${analysis.ebayRecentSales.averagePrice?.toFixed(2) || "—"}
+                      </p>
+                    </div>
+                    <div className="text-center p-3 bg-muted/50 rounded-lg">
+                      <p className="text-xs text-muted-foreground">High</p>
+                      <p className="text-lg font-bold text-foreground">
+                        ${analysis.ebayRecentSales.highPrice?.toFixed(2) || "—"}
+                      </p>
+                    </div>
+                  </div>
+
+                  {analysis.ebayRecentSales.recentSalesCount && (
+                    <p className="text-sm text-muted-foreground">
+                      <span className="font-medium text-foreground">Activity: </span>
+                      {analysis.ebayRecentSales.recentSalesCount}
+                    </p>
+                  )}
+
+                  {analysis.ebayRecentSales.description && (
+                    <p className="text-sm text-muted-foreground">
+                      {analysis.ebayRecentSales.description}
+                    </p>
+                  )}
+
+                  {analysis.ebayRecentSales.notableSales && analysis.ebayRecentSales.notableSales.length > 0 && (
+                    <div>
+                      <p className="text-sm font-medium text-foreground mb-2">Notable Sales</p>
+                      <ul className="space-y-1">
+                        {analysis.ebayRecentSales.notableSales.map((sale, i) => (
+                          <li key={i} className="text-sm text-muted-foreground flex items-start gap-2">
+                            <DollarSign className="w-3 h-3 mt-1 text-green-500" />
+                            {sale}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* TCGPlayer Pricing */}
+            {analysis?.tcgplayerPrice && (
+              <div className="bg-card border border-border rounded-2xl p-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <BarChart3 className="w-5 h-5 text-orange-500" />
+                  <h2 className="font-display font-bold text-lg">TCGPlayer Pricing</h2>
+                </div>
+                
+                <div className="space-y-4">
+                  {/* Price Range */}
+                  <div className="grid grid-cols-4 gap-3">
+                    <div className="text-center p-3 bg-muted/50 rounded-lg">
+                      <p className="text-xs text-muted-foreground">Low</p>
+                      <p className="text-base font-bold text-foreground">
+                        ${analysis.tcgplayerPrice.lowPrice?.toFixed(2) || "—"}
+                      </p>
+                    </div>
+                    <div className="text-center p-3 bg-muted/50 rounded-lg">
+                      <p className="text-xs text-muted-foreground">Mid</p>
+                      <p className="text-base font-bold text-foreground">
+                        ${analysis.tcgplayerPrice.midPrice?.toFixed(2) || "—"}
+                      </p>
+                    </div>
+                    <div className="text-center p-3 bg-orange-500/10 rounded-lg border border-orange-500/20">
+                      <p className="text-xs text-orange-500">Market</p>
+                      <p className="text-base font-bold text-orange-500">
+                        ${analysis.tcgplayerPrice.marketPrice?.toFixed(2) || "—"}
+                      </p>
+                    </div>
+                    <div className="text-center p-3 bg-muted/50 rounded-lg">
+                      <p className="text-xs text-muted-foreground">High</p>
+                      <p className="text-base font-bold text-foreground">
+                        ${analysis.tcgplayerPrice.highPrice?.toFixed(2) || "—"}
+                      </p>
+                    </div>
+                  </div>
+
+                  {analysis.tcgplayerPrice.description && (
+                    <p className="text-sm text-muted-foreground">
+                      {analysis.tcgplayerPrice.description}
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* PSA Population Data */}
+            {analysis?.psaPopulation && (
+              <div className="bg-card border border-border rounded-2xl p-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <Star className="w-5 h-5 text-purple-500" />
+                  <h2 className="font-display font-bold text-lg">Graded Card Data</h2>
+                </div>
+                
+                <div className="space-y-3">
+                  {analysis.psaPopulation.estimatedPopulation && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-muted-foreground">Est. Population</span>
+                      <span className="font-medium text-foreground">{analysis.psaPopulation.estimatedPopulation}</span>
+                    </div>
+                  )}
+                  
+                  {analysis.psaPopulation.gradedPremium && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-muted-foreground">Graded Premium</span>
+                      <span className="font-medium text-foreground">{analysis.psaPopulation.gradedPremium}</span>
+                    </div>
+                  )}
+
+                  {analysis.psaPopulation.description && (
+                    <p className="text-sm text-muted-foreground pt-2 border-t border-border">
+                      {analysis.psaPopulation.description}
+                    </p>
+                  )}
+
+                  {analysis.psaPopulation.recentGradedSales && analysis.psaPopulation.recentGradedSales.length > 0 && (
+                    <div className="pt-2">
+                      <p className="text-sm font-medium text-foreground mb-2">Recent Graded Sales</p>
+                      <ul className="space-y-1">
+                        {analysis.psaPopulation.recentGradedSales.map((sale, i) => (
+                          <li key={i} className="text-sm text-muted-foreground">• {sale}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Investment Outlook */}
+            {analysis?.investmentOutlook && (
+              <div className="bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20 rounded-2xl p-6">
+                <div className="flex items-center gap-2 mb-3">
+                  <TrendingUp className="w-5 h-5 text-primary" />
+                  <h2 className="font-display font-bold text-lg">Investment Outlook</h2>
+                </div>
+                <p className="text-sm text-foreground">
+                  {analysis.investmentOutlook}
+                </p>
+              </div>
+            )}
 
             {/* Price History Chart */}
             <div className="bg-card border border-border rounded-2xl p-6">
@@ -281,7 +496,7 @@ export default function CardDetail() {
                 </ResponsiveContainer>
               </div>
               <p className="text-xs text-muted-foreground mt-2 text-center">
-                Based on similar card sales and market data
+                Based on AI market research and similar card sales
               </p>
             </div>
 
@@ -319,3 +534,4 @@ function InfoItem({ icon, label, value }: { icon: React.ReactNode; label: string
     </div>
   );
 }
+
