@@ -8,6 +8,7 @@ import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Scan from "./pages/Scan";
 import Collection from "./pages/Collection";
+import CardDetail from "./pages/CardDetail";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -24,6 +25,7 @@ const App = () => (
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/scan" element={<Scan />} />
           <Route path="/collection" element={<Collection />} />
+          <Route path="/card/:id" element={<CardDetail />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
