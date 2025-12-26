@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Save, Sparkles, TrendingUp, TrendingDown, Minus, Calendar, Star, Tag, DollarSign, BarChart3, ShoppingCart, Award, CheckCircle, XCircle } from "lucide-react";
+import { ArrowLeft, Save, Sparkles, TrendingUp, TrendingDown, Minus, Calendar, Star, Tag, DollarSign, BarChart3, ShoppingCart, Award, CheckCircle, XCircle, Calculator } from "lucide-react";
 import { toast } from "sonner";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from "recharts";
 import type { Tables } from "@/integrations/supabase/types";
@@ -592,6 +592,14 @@ export default function CardDetail() {
               </div>
             )}
 
+            {/* Grading ROI Calculator */}
+            {analysis?.gradedValueEstimates && (
+              <GradingROICalculator 
+                rawValue={avgValue}
+                gradedEstimates={analysis.gradedValueEstimates}
+              />
+            )}
+
             {/* Investment Outlook */}
             {analysis?.investmentOutlook && (
               <div className="bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20 rounded-2xl p-6">
@@ -746,6 +754,148 @@ function GraderCard({ name, color, grader, grades, extra }: GraderCardProps) {
       {extra && (
         <p className="mt-2 text-xs text-muted-foreground italic">{extra}</p>
       )}
+    </div>
+  );
+}
+
+interface ROIData {
+  grader: string;
+  color: string;
+  gradingCost: number;
+  valueAtGrade: number;
+  profit: number;
+  roi: number;
+}
+
+function GradingROICalculator({ 
+  rawValue, 
+  gradedEstimates 
+}: { 
+  rawValue: number; 
+  gradedEstimates: GradedValueEstimates;
+}) {
+  const calculateROI = (): ROIData[] => {
+    const results: ROIData[] = [];
+    
+    const graders = [
+      { key: 'psa', name: 'PSA', color: 'red' },
+      { key: 'bgs', name: 'BGS', color: 'blue' },
+      { key: 'cgc', name: 'CGC', color: 'yellow' },
+      { key: 'sgc', name: 'SGC', color: 'green' },
+    ] as const;
+
+    graders.forEach(({ key, name, color }) => {
+      const grader = gradedEstimates[key];
+      if (grader?.valueAtGrade && grader.gradingCost) {
+        const gradingCost = grader.gradingCost;
+        const valueAtGrade = grader.valueAtGrade;
+        const profit = valueAtGrade - rawValue - gradingCost;
+        const roi = ((profit) / (rawValue + gradingCost)) * 100;
+        
+        results.push({
+          grader: name,
+          color,
+          gradingCost,
+          valueAtGrade,
+          profit,
+          roi,
+        });
+      }
+    });
+
+    return results.sort((a, b) => b.roi - a.roi);
+  };
+
+  const roiData = calculateROI();
+  const bestOption = roiData[0];
+
+  if (roiData.length === 0) return null;
+
+  const getColorClasses = (color: string, isPositive: boolean) => {
+    const colors: Record<string, { bg: string; border: string; text: string }> = {
+      red: { bg: 'bg-red-500/10', border: 'border-red-500/20', text: 'text-red-500' },
+      blue: { bg: 'bg-blue-500/10', border: 'border-blue-500/20', text: 'text-blue-500' },
+      yellow: { bg: 'bg-yellow-500/10', border: 'border-yellow-500/20', text: 'text-yellow-500' },
+      green: { bg: 'bg-green-500/10', border: 'border-green-500/20', text: 'text-green-500' },
+    };
+    return colors[color] || colors.green;
+  };
+
+  return (
+    <div className="bg-card border border-border rounded-2xl p-6">
+      <div className="flex items-center gap-2 mb-4">
+        <Calculator className="w-5 h-5 text-emerald-500" />
+        <h2 className="font-display font-bold text-lg">Grading ROI Calculator</h2>
+      </div>
+
+      {/* Summary */}
+      <div className="mb-6 p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl">
+        <p className="text-sm text-muted-foreground">Current Raw Value</p>
+        <p className="text-2xl font-bold text-foreground">${rawValue.toFixed(2)}</p>
+        {bestOption && bestOption.profit > 0 && (
+          <p className="text-sm text-emerald-500 mt-2">
+            Best ROI: <span className="font-bold">{bestOption.grader}</span> with {bestOption.roi.toFixed(0)}% return
+          </p>
+        )}
+      </div>
+
+      {/* ROI Comparison Table */}
+      <div className="space-y-3">
+        {roiData.map((data) => {
+          const colors = getColorClasses(data.color, data.profit > 0);
+          const isProfit = data.profit > 0;
+          
+          return (
+            <div 
+              key={data.grader}
+              className={`p-4 rounded-xl border ${colors.bg} ${colors.border}`}
+            >
+              <div className="flex items-center justify-between mb-3">
+                <span className={`font-bold text-lg ${colors.text}`}>{data.grader}</span>
+                <div className={`px-3 py-1 rounded-full text-sm font-bold ${
+                  isProfit 
+                    ? 'bg-green-500/20 text-green-500' 
+                    : 'bg-red-500/20 text-red-500'
+                }`}>
+                  {isProfit ? '+' : ''}{data.roi.toFixed(0)}% ROI
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-4 text-center">
+                <div>
+                  <p className="text-xs text-muted-foreground">Grading Cost</p>
+                  <p className="font-medium text-foreground">${data.gradingCost}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Graded Value</p>
+                  <p className="font-medium text-foreground">${data.valueAtGrade.toLocaleString()}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Net Profit</p>
+                  <p className={`font-bold ${isProfit ? 'text-green-500' : 'text-red-500'}`}>
+                    {isProfit ? '+' : ''}${data.profit.toFixed(2)}
+                  </p>
+                </div>
+              </div>
+
+              {/* Profit Breakdown */}
+              <div className="mt-3 pt-3 border-t border-border/50">
+                <p className="text-xs text-muted-foreground">
+                  ${data.valueAtGrade.toLocaleString()} (graded) - ${rawValue.toFixed(2)} (raw) - ${data.gradingCost} (cost) = 
+                  <span className={`font-medium ${isProfit ? 'text-green-500' : 'text-red-500'}`}>
+                    {' '}{isProfit ? '+' : ''}${data.profit.toFixed(2)}
+                  </span>
+                </p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Disclaimer */}
+      <p className="text-xs text-muted-foreground mt-4 text-center">
+        * ROI estimates based on AI analysis. Actual grades and values may vary.
+      </p>
     </div>
   );
 }
