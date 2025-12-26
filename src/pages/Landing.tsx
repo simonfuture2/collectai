@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Camera, Sparkles, TrendingUp, Wallet } from "lucide-react";
+import PoweredByW3AI from "@/components/PoweredByW3AI";
 
 const Landing = () => {
   return (
@@ -53,6 +54,10 @@ const Landing = () => {
           ))}
         </div>
       </main>
+
+      <footer className="container mx-auto px-4 py-8 text-center border-t border-border/30">
+        <PoweredByW3AI />
+      </footer>
     </div>
   );
 };

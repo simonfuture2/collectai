@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Camera, LogOut, Wallet, TrendingUp, Layers, BarChart3 } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
 import PortfolioAnalytics from "@/components/PortfolioAnalytics";
+import PoweredByW3AI from "@/components/PoweredByW3AI";
 
 interface Card {
   id: string;
@@ -124,6 +125,10 @@ const Dashboard = () => {
           </div>
         )}
       </main>
+
+      <footer className="container mx-auto px-4 py-6 text-center">
+        <PoweredByW3AI />
+      </footer>
     </div>
   );
 };
