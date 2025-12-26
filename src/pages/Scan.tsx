@@ -61,6 +61,13 @@ const Scan = () => {
 
     setAnalyzing(true);
     try {
+      // Ensure we have a fresh token (prevents "Invalid JWT" when a token is stale)
+      const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
+      if (refreshError) throw refreshError;
+
+      const accessTokenFresh = refreshedSession?.access_token ?? session?.access_token;
+      if (!accessTokenFresh) throw new Error("You must be logged in to analyze a card.");
+
       const filePath = `${user.id}/${Date.now()}-${file.name}`;
       const { error: uploadError } = await supabase.storage.from("card-images").upload(filePath, file);
       if (uploadError) throw uploadError;
@@ -75,7 +82,7 @@ const Scan = () => {
 
       const { data, error } = await supabase.functions.invoke("analyze-card", {
         body: { imageUrl },
-        headers: { authorization: `Bearer ${accessToken}` },
+        headers: { Authorization: `Bearer ${accessTokenFresh}` },
       });
       if (error) throw error;
 
