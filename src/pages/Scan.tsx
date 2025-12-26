@@ -40,12 +40,18 @@ const Scan = () => {
       const { error: uploadError } = await supabase.storage.from("card-images").upload(filePath, file);
       if (uploadError) throw uploadError;
 
-      const { data: { publicUrl } } = supabase.storage.from("card-images").getPublicUrl(filePath);
+      // Use signed URL instead of public URL for security
+      const { data: signedUrlData, error: urlError } = await supabase.storage
+        .from("card-images")
+        .createSignedUrl(filePath, 3600); // 1 hour expiry
+      
+      if (urlError) throw urlError;
+      const imageUrl = signedUrlData.signedUrl;
 
-      const { data, error } = await supabase.functions.invoke("analyze-card", { body: { imageUrl: publicUrl } });
+      const { data, error } = await supabase.functions.invoke("analyze-card", { body: { imageUrl } });
       if (error) throw error;
 
-      setResult({ ...data, imageUrl: publicUrl, filePath });
+      setResult({ ...data, imageUrl, filePath });
       toast({ title: "Analysis complete!", description: `Identified: ${data.cardName}` });
     } catch (error: any) {
       toast({ title: "Analysis failed", description: error.message, variant: "destructive" });
