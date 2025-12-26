@@ -1,4 +1,4 @@
 project_id = "irncxwszrawrndsdaqel"
 
 [functions.analyze-card]
-verify_jwt = true
+verify_jwt = false
