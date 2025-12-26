@@ -45,14 +45,22 @@ const Scan = () => {
   };
 
   const analyzeCard = async () => {
-    if (!file || !user) return;
+    if (!file) return;
+
+    // If the user opened /scan in a different domain/session, force re-auth
+    const accessToken = session?.access_token;
+    if (!accessToken || !user) {
+      toast({
+        title: "Please sign in",
+        description: "Your session isn't available in this tab. Sign in again to analyze cards.",
+        variant: "destructive",
+      });
+      navigate("/auth");
+      return;
+    }
+
     setAnalyzing(true);
     try {
-      const { data: { session: freshSession }, error: sessionError } = await supabase.auth.getSession();
-      if (sessionError) throw sessionError;
-      const accessToken = freshSession?.access_token;
-      if (!accessToken) throw new Error("You must be logged in to analyze a card.");
-
       const filePath = `${user.id}/${Date.now()}-${file.name}`;
       const { error: uploadError } = await supabase.storage.from("card-images").upload(filePath, file);
       if (uploadError) throw uploadError;
@@ -67,7 +75,7 @@ const Scan = () => {
 
       const { data, error } = await supabase.functions.invoke("analyze-card", {
         body: { imageUrl },
-        headers: { Authorization: `Bearer ${accessToken}` },
+        headers: { authorization: `Bearer ${accessToken}` },
       });
       if (error) throw error;
 
