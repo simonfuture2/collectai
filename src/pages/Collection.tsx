@@ -73,7 +73,11 @@ const Collection = () => {
         ) : (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {cards.map(card => (
-              <div key={card.id} className="bg-card border border-border rounded-xl overflow-hidden hover-lift group">
+              <div 
+                key={card.id} 
+                className="bg-card border border-border rounded-xl overflow-hidden hover-lift group cursor-pointer"
+                onClick={() => navigate(`/card/${card.id}`)}
+              >
                 <div className="aspect-[3/4] bg-muted">
                   <img src={card.image_url} alt={card.card_name || "Card"} className="w-full h-full object-contain" />
                 </div>
@@ -84,7 +88,12 @@ const Collection = () => {
                     <span className="text-sm font-medium text-gradient-primary">
                       ${((card.estimated_value_low || 0) + (card.estimated_value_high || 0)) / 2}
                     </span>
-                    <Button variant="ghost" size="icon" className="opacity-0 group-hover:opacity-100" onClick={() => deleteCard(card.id)}>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="opacity-0 group-hover:opacity-100" 
+                      onClick={(e) => { e.stopPropagation(); deleteCard(card.id); }}
+                    >
                       <Trash2 className="w-4 h-4 text-destructive" />
                     </Button>
                   </div>
