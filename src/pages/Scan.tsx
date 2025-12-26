@@ -4,9 +4,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Upload, Loader2, Check, Sparkles } from "lucide-react";
-import type { User } from "@supabase/supabase-js";
+import type { Session, User } from "@supabase/supabase-js";
 
 const Scan = () => {
+  const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
@@ -17,10 +18,21 @@ const Scan = () => {
   const { toast } = useToast();
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session?.user) navigate("/auth");
-      else setUser(session.user);
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_, nextSession) => {
+      setSession(nextSession);
+      setUser(nextSession?.user ?? null);
+      if (!nextSession?.user) navigate("/auth");
     });
+
+    supabase.auth.getSession().then(({ data: { session: existingSession } }) => {
+      setSession(existingSession);
+      setUser(existingSession?.user ?? null);
+      if (!existingSession?.user) navigate("/auth");
+    });
+
+    return () => subscription.unsubscribe();
   }, [navigate]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -36,6 +48,11 @@ const Scan = () => {
     if (!file || !user) return;
     setAnalyzing(true);
     try {
+      const { data: { session: freshSession }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) throw sessionError;
+      const accessToken = freshSession?.access_token;
+      if (!accessToken) throw new Error("You must be logged in to analyze a card.");
+
       const filePath = `${user.id}/${Date.now()}-${file.name}`;
       const { error: uploadError } = await supabase.storage.from("card-images").upload(filePath, file);
       if (uploadError) throw uploadError;
@@ -44,11 +61,14 @@ const Scan = () => {
       const { data: signedUrlData, error: urlError } = await supabase.storage
         .from("card-images")
         .createSignedUrl(filePath, 3600); // 1 hour expiry
-      
+
       if (urlError) throw urlError;
       const imageUrl = signedUrlData.signedUrl;
 
-      const { data, error } = await supabase.functions.invoke("analyze-card", { body: { imageUrl } });
+      const { data, error } = await supabase.functions.invoke("analyze-card", {
+        body: { imageUrl },
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
       if (error) throw error;
 
       setResult({ ...data, imageUrl, filePath });
