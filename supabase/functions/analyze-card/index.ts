@@ -88,6 +88,15 @@ serve(async (req) => {
    - Historical significance
    - Current meta relevance (for playable cards)
 
+6. GRADED VALUE ESTIMATES - Provide estimated values if this card were professionally graded:
+   For each major grading company (PSA, BGS/Beckett, CGC, SGC), provide:
+   - Estimated value at the grade you assessed (raw card grade equivalent)
+   - Estimated value at PSA 10/BGS 10 (Gem Mint)
+   - Estimated value at PSA 9/BGS 9.5 (Mint)
+   - Estimated value at PSA 8/BGS 8.5 (Near Mint-Mint)
+   - Grading cost vs. potential value increase (is it worth grading?)
+   - Which grading company would maximize value for this specific card
+
 Respond in JSON format with this structure:
 {
   "cardName": "string",
@@ -122,6 +131,50 @@ Respond in JSON format with this structure:
     "estimatedPopulation": "string",
     "gradedPremium": "string describing premium for graded copies",
     "recentGradedSales": ["array of recent graded sales if known"]
+  },
+  "gradedValueEstimates": {
+    "currentGradeEstimate": "string describing what grade this card would likely receive",
+    "worthGrading": boolean,
+    "worthGradingReason": "string explaining if grading is worth the cost",
+    "recommendedGrader": "PSA" | "BGS" | "CGC" | "SGC",
+    "recommendedGraderReason": "string explaining why this grader is recommended",
+    "psa": {
+      "estimatedGrade": number,
+      "valueAtGrade": number,
+      "valueAtPSA10": number,
+      "valueAtPSA9": number,
+      "valueAtPSA8": number,
+      "gradingCost": number,
+      "turnaroundTime": "string"
+    },
+    "bgs": {
+      "estimatedGrade": number,
+      "valueAtGrade": number,
+      "valueAtBGS10": number,
+      "valueAtBGS9_5": number,
+      "valueAtBGS9": number,
+      "gradingCost": number,
+      "turnaroundTime": "string",
+      "blackLabelPotential": "string describing chance of black label"
+    },
+    "cgc": {
+      "estimatedGrade": number,
+      "valueAtGrade": number,
+      "valueAtCGC10": number,
+      "valueAtCGC9_5": number,
+      "valueAtCGC9": number,
+      "gradingCost": number,
+      "turnaroundTime": "string"
+    },
+    "sgc": {
+      "estimatedGrade": number,
+      "valueAtGrade": number,
+      "valueAtSGC10": number,
+      "valueAtSGC9_5": number,
+      "valueAtSGC9": number,
+      "gradingCost": number,
+      "turnaroundTime": "string"
+    }
   },
   "priceFactors": ["array of factors influencing the price"],
   "valueTrend": "rising" | "stable" | "falling" | "unknown",

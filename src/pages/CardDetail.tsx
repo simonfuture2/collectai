@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Save, Sparkles, TrendingUp, TrendingDown, Minus, Calendar, Star, Tag, DollarSign, BarChart3, ShoppingCart } from "lucide-react";
+import { ArrowLeft, Save, Sparkles, TrendingUp, TrendingDown, Minus, Calendar, Star, Tag, DollarSign, BarChart3, ShoppingCart, Award, CheckCircle, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from "recharts";
 import type { Tables } from "@/integrations/supabase/types";
@@ -34,6 +34,38 @@ interface PSAData {
   recentGradedSales?: string[];
 }
 
+interface GraderValues {
+  estimatedGrade?: number;
+  valueAtGrade?: number;
+  valueAtPSA10?: number;
+  valueAtPSA9?: number;
+  valueAtPSA8?: number;
+  valueAtBGS10?: number;
+  valueAtBGS9_5?: number;
+  valueAtBGS9?: number;
+  valueAtCGC10?: number;
+  valueAtCGC9_5?: number;
+  valueAtCGC9?: number;
+  valueAtSGC10?: number;
+  valueAtSGC9_5?: number;
+  valueAtSGC9?: number;
+  gradingCost?: number;
+  turnaroundTime?: string;
+  blackLabelPotential?: string;
+}
+
+interface GradedValueEstimates {
+  currentGradeEstimate?: string;
+  worthGrading?: boolean;
+  worthGradingReason?: string;
+  recommendedGrader?: "PSA" | "BGS" | "CGC" | "SGC";
+  recommendedGraderReason?: string;
+  psa?: GraderValues;
+  bgs?: GraderValues;
+  cgc?: GraderValues;
+  sgc?: GraderValues;
+}
+
 interface AIAnalysis {
   cardName?: string;
   cardSet?: string;
@@ -50,6 +82,7 @@ interface AIAnalysis {
   ebayRecentSales?: EbayData;
   tcgplayerPrice?: TCGPlayerData;
   psaPopulation?: PSAData;
+  gradedValueEstimates?: GradedValueEstimates;
   priceFactors?: string[];
   valueTrend?: "rising" | "stable" | "falling" | "unknown";
   trendReason?: string;
@@ -445,6 +478,120 @@ export default function CardDetail() {
               </div>
             )}
 
+            {/* Graded Value Estimates */}
+            {analysis?.gradedValueEstimates && (
+              <div className="bg-card border border-border rounded-2xl p-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <Award className="w-5 h-5 text-amber-500" />
+                  <h2 className="font-display font-bold text-lg">Estimated Value After Grading</h2>
+                </div>
+                
+                <div className="space-y-4">
+                  {/* Worth Grading Assessment */}
+                  <div className={`flex items-start gap-3 p-4 rounded-xl ${
+                    analysis.gradedValueEstimates.worthGrading 
+                      ? "bg-green-500/10 border border-green-500/20" 
+                      : "bg-yellow-500/10 border border-yellow-500/20"
+                  }`}>
+                    {analysis.gradedValueEstimates.worthGrading ? (
+                      <CheckCircle className="w-5 h-5 text-green-500 mt-0.5" />
+                    ) : (
+                      <XCircle className="w-5 h-5 text-yellow-500 mt-0.5" />
+                    )}
+                    <div>
+                      <p className={`font-medium ${
+                        analysis.gradedValueEstimates.worthGrading ? "text-green-500" : "text-yellow-500"
+                      }`}>
+                        {analysis.gradedValueEstimates.worthGrading ? "Worth Grading" : "Consider Carefully"}
+                      </p>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {analysis.gradedValueEstimates.worthGradingReason}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Recommended Grader */}
+                  {analysis.gradedValueEstimates.recommendedGrader && (
+                    <div className="p-4 bg-primary/10 border border-primary/20 rounded-xl">
+                      <p className="text-sm text-muted-foreground">Recommended Grader</p>
+                      <p className="text-xl font-bold text-primary">{analysis.gradedValueEstimates.recommendedGrader}</p>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {analysis.gradedValueEstimates.recommendedGraderReason}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Current Grade Estimate */}
+                  {analysis.gradedValueEstimates.currentGradeEstimate && (
+                    <p className="text-sm text-muted-foreground">
+                      <span className="font-medium text-foreground">Expected Grade: </span>
+                      {analysis.gradedValueEstimates.currentGradeEstimate}
+                    </p>
+                  )}
+
+                  {/* Grader Cards Grid */}
+                  <div className="grid grid-cols-2 gap-4">
+                    {/* PSA */}
+                    {analysis.gradedValueEstimates.psa && (
+                      <GraderCard
+                        name="PSA"
+                        color="red"
+                        grader={analysis.gradedValueEstimates.psa}
+                        grades={[
+                          { label: "PSA 10", value: analysis.gradedValueEstimates.psa.valueAtPSA10 },
+                          { label: "PSA 9", value: analysis.gradedValueEstimates.psa.valueAtPSA9 },
+                          { label: "PSA 8", value: analysis.gradedValueEstimates.psa.valueAtPSA8 },
+                        ]}
+                      />
+                    )}
+
+                    {/* BGS */}
+                    {analysis.gradedValueEstimates.bgs && (
+                      <GraderCard
+                        name="BGS"
+                        color="blue"
+                        grader={analysis.gradedValueEstimates.bgs}
+                        grades={[
+                          { label: "BGS 10", value: analysis.gradedValueEstimates.bgs.valueAtBGS10 },
+                          { label: "BGS 9.5", value: analysis.gradedValueEstimates.bgs.valueAtBGS9_5 },
+                          { label: "BGS 9", value: analysis.gradedValueEstimates.bgs.valueAtBGS9 },
+                        ]}
+                        extra={analysis.gradedValueEstimates.bgs.blackLabelPotential}
+                      />
+                    )}
+
+                    {/* CGC */}
+                    {analysis.gradedValueEstimates.cgc && (
+                      <GraderCard
+                        name="CGC"
+                        color="yellow"
+                        grader={analysis.gradedValueEstimates.cgc}
+                        grades={[
+                          { label: "CGC 10", value: analysis.gradedValueEstimates.cgc.valueAtCGC10 },
+                          { label: "CGC 9.5", value: analysis.gradedValueEstimates.cgc.valueAtCGC9_5 },
+                          { label: "CGC 9", value: analysis.gradedValueEstimates.cgc.valueAtCGC9 },
+                        ]}
+                      />
+                    )}
+
+                    {/* SGC */}
+                    {analysis.gradedValueEstimates.sgc && (
+                      <GraderCard
+                        name="SGC"
+                        color="green"
+                        grader={analysis.gradedValueEstimates.sgc}
+                        grades={[
+                          { label: "SGC 10", value: analysis.gradedValueEstimates.sgc.valueAtSGC10 },
+                          { label: "SGC 9.5", value: analysis.gradedValueEstimates.sgc.valueAtSGC9_5 },
+                          { label: "SGC 9", value: analysis.gradedValueEstimates.sgc.valueAtSGC9 },
+                        ]}
+                      />
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Investment Outlook */}
             {analysis?.investmentOutlook && (
               <div className="bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20 rounded-2xl p-6">
@@ -535,3 +682,70 @@ function InfoItem({ icon, label, value }: { icon: React.ReactNode; label: string
   );
 }
 
+interface GraderCardProps {
+  name: string;
+  color: "red" | "blue" | "yellow" | "green";
+  grader: GraderValues;
+  grades: { label: string; value?: number }[];
+  extra?: string;
+}
+
+function GraderCard({ name, color, grader, grades, extra }: GraderCardProps) {
+  const colorClasses = {
+    red: "bg-red-500/10 border-red-500/20 text-red-500",
+    blue: "bg-blue-500/10 border-blue-500/20 text-blue-500",
+    yellow: "bg-yellow-500/10 border-yellow-500/20 text-yellow-500",
+    green: "bg-green-500/10 border-green-500/20 text-green-500",
+  };
+
+  return (
+    <div className={`p-4 rounded-xl border ${colorClasses[color].split(" ").slice(0, 2).join(" ")}`}>
+      <div className="flex items-center justify-between mb-3">
+        <span className={`font-bold text-lg ${colorClasses[color].split(" ")[2]}`}>{name}</span>
+        {grader.estimatedGrade && (
+          <span className="text-xs text-muted-foreground">Est. Grade: {grader.estimatedGrade}</span>
+        )}
+      </div>
+      
+      <div className="space-y-2">
+        {grades.map((grade) => (
+          <div key={grade.label} className="flex justify-between items-center">
+            <span className="text-xs text-muted-foreground">{grade.label}</span>
+            <span className="font-medium text-foreground">
+              {grade.value ? `$${grade.value.toLocaleString()}` : "—"}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      {grader.valueAtGrade && (
+        <div className="mt-3 pt-3 border-t border-border">
+          <div className="flex justify-between items-center">
+            <span className="text-xs text-muted-foreground">At Est. Grade</span>
+            <span className={`font-bold ${colorClasses[color].split(" ")[2]}`}>
+              ${grader.valueAtGrade.toLocaleString()}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {grader.gradingCost && (
+        <div className="mt-2 flex justify-between items-center text-xs">
+          <span className="text-muted-foreground">Grading Cost</span>
+          <span className="text-foreground">${grader.gradingCost}</span>
+        </div>
+      )}
+
+      {grader.turnaroundTime && (
+        <div className="flex justify-between items-center text-xs">
+          <span className="text-muted-foreground">Turnaround</span>
+          <span className="text-foreground">{grader.turnaroundTime}</span>
+        </div>
+      )}
+
+      {extra && (
+        <p className="mt-2 text-xs text-muted-foreground italic">{extra}</p>
+      )}
+    </div>
+  );
+}
