@@ -3,10 +3,11 @@ import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Save, Sparkles, TrendingUp, TrendingDown, Minus, Calendar, Star, Tag, DollarSign, BarChart3, ShoppingCart, Award, CheckCircle, XCircle, Calculator } from "lucide-react";
+import { ArrowLeft, Save, Sparkles, TrendingUp, TrendingDown, Minus, Calendar, Star, Tag, DollarSign, BarChart3, ShoppingCart, Award, CheckCircle, XCircle, Calculator, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from "recharts";
 import type { Tables } from "@/integrations/supabase/types";
+import PreGradingAnalysis from "@/components/PreGradingAnalysis";
 
 type Card = Tables<"cards">;
 
@@ -66,6 +67,55 @@ interface GradedValueEstimates {
   sgc?: GraderValues;
 }
 
+interface PreGradingData {
+  centering?: {
+    score?: number;
+    frontLeftRight?: string;
+    frontTopBottom?: string;
+    backLeftRight?: string;
+    backTopBottom?: string;
+    notes?: string;
+    psa10Eligible?: boolean;
+  };
+  corners?: {
+    score?: number;
+    topLeft?: string;
+    topRight?: string;
+    bottomLeft?: string;
+    bottomRight?: string;
+    notes?: string;
+  };
+  edges?: {
+    score?: number;
+    top?: string;
+    bottom?: string;
+    left?: string;
+    right?: string;
+    notes?: string;
+  };
+  surface?: {
+    score?: number;
+    front?: string;
+    back?: string;
+    holoCondition?: string;
+    notes?: string;
+  };
+  overallScore?: number;
+  predictedGrades?: {
+    psa?: number;
+    bgs?: number;
+    cgc?: number;
+    sgc?: number;
+  };
+  bgsSubgrades?: {
+    centering?: number;
+    corners?: number;
+    edges?: number;
+    surface?: number;
+  };
+  gradingRecommendation?: string;
+}
+
 interface AIAnalysis {
   cardName?: string;
   cardSet?: string;
@@ -73,8 +123,10 @@ interface AIAnalysis {
   edition?: string;
   rarity?: string;
   cardNumber?: string;
+  parallelVariant?: string;
   conditionGrade?: string;
   conditionNotes?: string;
+  preGradingAnalysis?: PreGradingData;
   specialFeatures?: string[];
   estimatedValueLow?: number;
   estimatedValueHigh?: number;
@@ -224,6 +276,11 @@ export default function CardDetail() {
 
           {/* Right: Details */}
           <div className="space-y-6">
+            {/* Pre-Grading Analysis - Like CardGrader.AI and Card Boss */}
+            {analysis?.preGradingAnalysis && (
+              <PreGradingAnalysis data={analysis.preGradingAnalysis} />
+            )}
+
             {/* AI Analysis Section */}
             <div className="bg-card border border-border rounded-2xl p-6">
               <div className="flex items-center gap-2 mb-4">

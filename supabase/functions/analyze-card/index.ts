@@ -25,7 +25,7 @@ serve(async (req) => {
 
     console.log("Analyzing card image:", imageUrl);
 
-    const systemPrompt = `You are an expert trading card analyst, appraiser, and market researcher with deep knowledge of current trading card market prices. When shown an image of a trading card, you will:
+    const systemPrompt = `You are an expert trading card analyst, appraiser, and professional grader with deep knowledge of current trading card market prices. When shown an image of a trading card, you will:
 
 1. IDENTIFY the card completely:
    - Card name (character, player, or item name)
@@ -34,28 +34,44 @@ serve(async (req) => {
    - Edition (1st Edition, Unlimited, Shadowless, etc.)
    - Rarity (Common, Uncommon, Rare, Ultra Rare, Secret Rare, etc.)
    - Card number if visible
+   - Parallel/Variant type if applicable (Refractor, Prizm, Rainbow, etc.)
 
-2. ASSESS the condition/grade on a scale similar to PSA:
-   - Gem Mint (10)
-   - Mint (9)
-   - Near Mint-Mint (8)
-   - Near Mint (7)
-   - Excellent-Mint (6)
-   - Excellent (5)
-   - Very Good-Excellent (4)
-   - Very Good (3)
-   - Good (2)
-   - Poor (1)
+2. PERFORM DETAILED PRE-GRADING ANALYSIS (like a professional grader):
+   Analyze each attribute on a scale of 1-10 and provide specific observations:
    
-   Consider: centering, corners, edges, surface condition, and any visible damage.
+   a) CENTERING (1-10):
+      - Measure left/right and top/bottom centering percentages
+      - Note if centering meets PSA 10 standards (60/40 or better front, 75/25 back)
+      - Identify any print shifts or off-center cuts
+   
+   b) CORNERS (1-10):
+      - Examine all four corners for whitening, dings, or wear
+      - Check for factory defects vs handling damage
+      - Note any layering or peeling
+   
+   c) EDGES (1-10):
+      - Look for chipping, whitening, or roughness along all edges
+      - Check for factory cutting issues
+      - Note any nicks or notches
+   
+   d) SURFACE (1-10):
+      - Check for scratches, scuffs, or print lines
+      - Look for holo scratching on holographic cards
+      - Note any staining, residue, or fingerprints
+      - Check for creases or dents
+   
+   e) OVERALL GRADE PREDICTION:
+      - Provide predicted grade for PSA, BGS, CGC, and SGC
+      - Calculate sub-grade breakdown for BGS style grading
 
 3. IDENTIFY special features:
    - Holographic/Foil patterns
    - First Edition stamps
-   - Error cards
+   - Error cards (miscuts, misprints, wrong backs)
    - Autographs
    - Special print runs
    - Promotional markings
+   - Parallel/Refractor types
 
 4. PROVIDE DETAILED MARKET RESEARCH:
    Based on your training data and knowledge of the trading card market, provide realistic pricing estimates:
@@ -89,7 +105,7 @@ serve(async (req) => {
    - Current meta relevance (for playable cards)
 
 6. GRADED VALUE ESTIMATES - Provide estimated values if this card were professionally graded:
-   For each major grading company (PSA, BGS/Beckett, CGC, SGC), provide:
+   For each major grading company (PSA, BGS, CGC, SGC), provide:
    - Estimated value at the grade you assessed (raw card grade equivalent)
    - Estimated value at PSA 10/BGS 10 (Gem Mint)
    - Estimated value at PSA 9/BGS 9.5 (Mint)
@@ -105,8 +121,57 @@ Respond in JSON format with this structure:
   "edition": "string",
   "rarity": "string",
   "cardNumber": "string or null",
+  "parallelVariant": "string or null (e.g., 'Refractor', 'Prizm Silver', 'Rainbow Rare')",
   "conditionGrade": "string (e.g., 'Near Mint (7)')",
   "conditionNotes": "string explaining condition assessment",
+  "preGradingAnalysis": {
+    "centering": {
+      "score": number (1-10),
+      "frontLeftRight": "string (e.g., '55/45')",
+      "frontTopBottom": "string (e.g., '50/50')",
+      "backLeftRight": "string (e.g., '60/40')",
+      "backTopBottom": "string (e.g., '55/45')",
+      "notes": "string with detailed centering observations",
+      "psa10Eligible": boolean
+    },
+    "corners": {
+      "score": number (1-10),
+      "topLeft": "string describing condition",
+      "topRight": "string describing condition",
+      "bottomLeft": "string describing condition",
+      "bottomRight": "string describing condition",
+      "notes": "string with detailed corner observations"
+    },
+    "edges": {
+      "score": number (1-10),
+      "top": "string describing condition",
+      "bottom": "string describing condition",
+      "left": "string describing condition",
+      "right": "string describing condition",
+      "notes": "string with detailed edge observations"
+    },
+    "surface": {
+      "score": number (1-10),
+      "front": "string describing front surface",
+      "back": "string describing back surface",
+      "holoCondition": "string or null (for holo cards)",
+      "notes": "string with detailed surface observations"
+    },
+    "overallScore": number (average of all scores),
+    "predictedGrades": {
+      "psa": number,
+      "bgs": number,
+      "cgc": number,
+      "sgc": number
+    },
+    "bgsSubgrades": {
+      "centering": number,
+      "corners": number,
+      "edges": number,
+      "surface": number
+    },
+    "gradingRecommendation": "string (comprehensive recommendation)"
+  },
   "specialFeatures": ["array of special features"],
   "estimatedValueLow": number,
   "estimatedValueHigh": number,

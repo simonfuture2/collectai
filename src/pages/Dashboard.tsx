@@ -2,12 +2,25 @@ import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Camera, LogOut, Wallet, TrendingUp, Layers } from "lucide-react";
+import { Camera, LogOut, Wallet, TrendingUp, Layers, BarChart3 } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
+import PortfolioAnalytics from "@/components/PortfolioAnalytics";
+
+interface Card {
+  id: string;
+  card_name: string | null;
+  card_set: string | null;
+  rarity: string | null;
+  estimated_value_low: number | null;
+  estimated_value_high: number | null;
+  created_at: string;
+}
 
 const Dashboard = () => {
   const [user, setUser] = useState<User | null>(null);
+  const [cards, setCards] = useState<Card[]>([]);
   const [stats, setStats] = useState({ totalCards: 0, totalValue: 0 });
+  const [showAnalytics, setShowAnalytics] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -24,9 +37,13 @@ const Dashboard = () => {
 
   useEffect(() => {
     if (user) {
-      supabase.from("cards").select("estimated_value_low, estimated_value_high").eq("user_id", user.id)
+      supabase.from("cards")
+        .select("id, card_name, card_set, rarity, estimated_value_low, estimated_value_high, created_at")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
         .then(({ data }) => {
           if (data) {
+            setCards(data);
             const total = data.reduce((sum, c) => sum + ((c.estimated_value_low || 0) + (c.estimated_value_high || 0)) / 2, 0);
             setStats({ totalCards: data.length, totalValue: total });
           }
@@ -52,13 +69,25 @@ const Dashboard = () => {
       </header>
 
       <main className="container mx-auto px-4 py-8">
-        <h2 className="text-3xl font-display font-bold mb-8">Your Collection</h2>
+        <div className="flex items-center justify-between mb-8">
+          <h2 className="text-3xl font-display font-bold">Your Collection</h2>
+          {cards.length > 0 && (
+            <Button 
+              variant={showAnalytics ? "default" : "outline"} 
+              onClick={() => setShowAnalytics(!showAnalytics)}
+              className={showAnalytics ? "gradient-primary" : ""}
+            >
+              <BarChart3 className="mr-2 w-4 h-4" />
+              {showAnalytics ? "Hide Analytics" : "View Analytics"}
+            </Button>
+          )}
+        </div>
 
         <div className="grid sm:grid-cols-3 gap-6 mb-10">
           {[
             { icon: Layers, label: "Total Cards", value: stats.totalCards, color: "text-primary" },
             { icon: Wallet, label: "Est. Value", value: `$${stats.totalValue.toFixed(0)}`, color: "text-secondary" },
-            { icon: TrendingUp, label: "Trend", value: "—", color: "text-accent" },
+            { icon: TrendingUp, label: "Avg Value", value: stats.totalCards > 0 ? `$${(stats.totalValue / stats.totalCards).toFixed(2)}` : "—", color: "text-accent" },
           ].map((s, i) => (
             <div key={i} className="bg-card border border-border rounded-xl p-6 flex items-center gap-4">
               <s.icon className={`w-10 h-10 ${s.color}`} />
@@ -69,6 +98,13 @@ const Dashboard = () => {
             </div>
           ))}
         </div>
+
+        {/* Portfolio Analytics Section */}
+        {showAnalytics && cards.length > 0 && (
+          <div className="mb-10">
+            <PortfolioAnalytics cards={cards} />
+          </div>
+        )}
 
         <div className="flex flex-wrap gap-4 mb-10">
           <Link to="/scan">
