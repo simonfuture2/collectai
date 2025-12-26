@@ -1,5 +1,6 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -12,6 +13,38 @@ serve(async (req) => {
   }
 
   try {
+    // Authenticate the request
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      console.error("Missing authorization header");
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized - missing authorization header' }), 
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const token = authHeader.replace('Bearer ', '');
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
+    
+    if (!supabaseUrl || !supabaseAnonKey) {
+      console.error("Missing Supabase configuration");
+      throw new Error("Server configuration error");
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseAnonKey);
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    
+    if (authError || !user) {
+      console.error("Auth error:", authError?.message || "Invalid token");
+      return new Response(
+        JSON.stringify({ error: 'Invalid authentication' }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    console.log("Authenticated user:", user.id);
+
     const { imageUrl } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 
@@ -20,10 +53,62 @@ serve(async (req) => {
     }
 
     if (!imageUrl) {
-      throw new Error("Image URL is required");
+      return new Response(
+        JSON.stringify({ error: "Image URL is required" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
-    console.log("Analyzing card image:", imageUrl);
+    // Validate URL origin - must be from our Supabase storage
+    const ALLOWED_BUCKET = 'card-images';
+    const signedUrlPattern = `${supabaseUrl}/storage/v1/object/sign/${ALLOWED_BUCKET}/`;
+    
+    if (!imageUrl.startsWith(signedUrlPattern)) {
+      console.error("Invalid image URL origin:", imageUrl.substring(0, 100));
+      return new Response(
+        JSON.stringify({ error: 'Invalid image URL - must be from card-images bucket' }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Validate that the image belongs to the authenticated user
+    // URL pattern: .../sign/card-images/{userId}/...
+    try {
+      const url = new URL(imageUrl);
+      const pathParts = url.pathname.split('/');
+      const bucketIndex = pathParts.indexOf('card-images');
+      if (bucketIndex === -1 || bucketIndex + 1 >= pathParts.length) {
+        throw new Error("Invalid path structure");
+      }
+      const imageUserId = pathParts[bucketIndex + 1];
+      
+      if (imageUserId !== user.id) {
+        console.error("User ID mismatch - image belongs to:", imageUserId, "authenticated user:", user.id);
+        return new Response(
+          JSON.stringify({ error: 'Unauthorized - can only analyze your own images' }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    } catch (urlParseError) {
+      console.error("Failed to parse image URL for ownership validation:", urlParseError);
+      return new Response(
+        JSON.stringify({ error: 'Invalid image URL format' }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Validate file extension
+    const validExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
+    const urlPath = new URL(imageUrl).pathname.toLowerCase();
+    const hasValidExt = validExtensions.some(ext => urlPath.includes(ext));
+    if (!hasValidExt) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid file type - must be an image (jpg, jpeg, png, gif, webp)' }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    console.log("Analyzing card image for user:", user.id);
 
     const systemPrompt = `You are an expert trading card analyst, appraiser, and professional grader with deep knowledge of current trading card market prices. When shown an image of a trading card, you will:
 
@@ -304,7 +389,7 @@ Respond in JSON format with this structure:
       throw new Error("No response from AI");
     }
 
-    console.log("AI response received:", content.substring(0, 200));
+    console.log("AI response received for user:", user.id);
 
     // Parse the JSON response from the AI
     let analysis;
@@ -334,7 +419,6 @@ Respond in JSON format with this structure:
         valueTrend: "unknown",
         confidence: "low",
         additionalNotes: "The AI was unable to properly analyze this image. Please ensure the card is clearly visible and try again.",
-        rawResponse: content,
       };
     }
 
@@ -344,7 +428,7 @@ Respond in JSON format with this structure:
   } catch (error) {
     console.error("Error in analyze-card function:", error);
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error occurred" }),
+      JSON.stringify({ error: "An error occurred while analyzing the card" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
