@@ -1,15 +1,61 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Save, Sparkles, TrendingUp, TrendingDown, Minus, Calendar, Star, Tag, DollarSign, BarChart3, ShoppingCart, Award, CheckCircle, XCircle, Calculator, RefreshCw } from "lucide-react";
+import {
+  ArrowLeft,
+  Save,
+  Sparkles,
+  TrendingUp,
+  TrendingDown,
+  Minus,
+  Calendar,
+  Star,
+  Tag,
+  DollarSign,
+  BarChart3,
+  ShoppingCart,
+  Award,
+  CheckCircle,
+  XCircle,
+  Calculator,
+  RefreshCw,
+} from "lucide-react";
 import { toast } from "sonner";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from "recharts";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Area,
+  AreaChart,
+} from "recharts";
 import type { Tables } from "@/integrations/supabase/types";
 import PreGradingAnalysis from "@/components/PreGradingAnalysis";
 
 type Card = Tables<"cards">;
+
+const getSignedImageUrl = async (imageUrlOrPath: string) => {
+  // New format: DB stores file path like "userId/filename.png"
+  if (!imageUrlOrPath.startsWith("http")) {
+    const { data } = await supabase.storage.from("card-images").createSignedUrl(imageUrlOrPath, 3600);
+    return data?.signedUrl || imageUrlOrPath;
+  }
+
+  // Legacy format: DB may store an (expired) signed URL or public URL
+  const match = imageUrlOrPath.match(/card-images\/(.+?)(\?|$)/);
+  if (match?.[1]) {
+    const { data } = await supabase.storage.from("card-images").createSignedUrl(match[1], 3600);
+    return data?.signedUrl || imageUrlOrPath;
+  }
+
+  return imageUrlOrPath;
+};
+
 
 interface EbayData {
   description?: string;
@@ -160,6 +206,7 @@ export default function CardDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [card, setCard] = useState<Card | null>(null);
+  const [cardImageUrl, setCardImageUrl] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
@@ -191,6 +238,10 @@ export default function CardDetail() {
       setCard(data);
       setNotes(data.notes || "");
       setPriceHistory(generatePriceHistory(data.estimated_value_low || 10, data.estimated_value_high || 50));
+
+      const signed = await getSignedImageUrl(data.image_url);
+      setCardImageUrl(signed);
+
       setLoading(false);
     };
 
@@ -246,8 +297,9 @@ export default function CardDetail() {
             <div className="bg-card border border-border rounded-2xl p-4 overflow-hidden">
               <div className="aspect-[3/4] rounded-xl overflow-hidden bg-muted">
                 <img
-                  src={card.image_url}
+                  src={cardImageUrl || card.image_url}
                   alt={card.card_name || "Card"}
+                  loading="lazy"
                   className="w-full h-full object-contain"
                 />
               </div>
