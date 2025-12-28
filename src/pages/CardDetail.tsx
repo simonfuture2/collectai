@@ -292,7 +292,7 @@ export default function CardDetail() {
 
       <main className="container mx-auto px-4 py-8">
         <div className="grid lg:grid-cols-2 gap-8">
-          {/* Left: Card Image */}
+          {/* Left: Card Image + Grading Value Sections (on desktop) */}
           <div className="space-y-6">
             <div className="bg-card border border-border rounded-2xl p-4 overflow-hidden">
               <div className="aspect-[3/4] rounded-xl overflow-hidden bg-muted">
@@ -322,6 +322,202 @@ export default function CardDetail() {
                   {card.condition_grade || "Unknown"}
                 </p>
                 <p className="text-xs text-muted-foreground">AI Assessed</p>
+              </div>
+            </div>
+
+            {/* Graded Value Estimates - Desktop only under photo */}
+            <div className="hidden lg:block space-y-6">
+              {analysis?.gradedValueEstimates && (
+                <div className="bg-card border border-border rounded-2xl p-6">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Award className="w-5 h-5 text-amber-500" />
+                    <h2 className="font-display font-bold text-lg">Estimated Value After Grading</h2>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    {/* Worth Grading Assessment */}
+                    <div className={`flex items-start gap-3 p-4 rounded-xl ${
+                      analysis.gradedValueEstimates.worthGrading 
+                        ? "bg-green-500/10 border border-green-500/20" 
+                        : "bg-yellow-500/10 border border-yellow-500/20"
+                    }`}>
+                      {analysis.gradedValueEstimates.worthGrading ? (
+                        <CheckCircle className="w-5 h-5 text-green-500 mt-0.5" />
+                      ) : (
+                        <XCircle className="w-5 h-5 text-yellow-500 mt-0.5" />
+                      )}
+                      <div>
+                        <p className={`font-medium ${
+                          analysis.gradedValueEstimates.worthGrading ? "text-green-500" : "text-yellow-500"
+                        }`}>
+                          {analysis.gradedValueEstimates.worthGrading ? "Worth Grading" : "Consider Carefully"}
+                        </p>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {analysis.gradedValueEstimates.worthGradingReason}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Recommended Grader */}
+                    {analysis.gradedValueEstimates.recommendedGrader && (
+                      <div className="p-4 bg-primary/10 border border-primary/20 rounded-xl">
+                        <p className="text-sm text-muted-foreground">Recommended Grader</p>
+                        <p className="text-xl font-bold text-primary">{analysis.gradedValueEstimates.recommendedGrader}</p>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {analysis.gradedValueEstimates.recommendedGraderReason}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Current Grade Estimate */}
+                    {analysis.gradedValueEstimates.currentGradeEstimate && (
+                      <p className="text-sm text-muted-foreground">
+                        <span className="font-medium text-foreground">Expected Grade: </span>
+                        {analysis.gradedValueEstimates.currentGradeEstimate}
+                      </p>
+                    )}
+
+                    {/* Grader Cards Grid */}
+                    <div className="grid grid-cols-2 gap-4">
+                      {/* PSA */}
+                      {analysis.gradedValueEstimates.psa && (
+                        <GraderCard
+                          name="PSA"
+                          color="red"
+                          grader={analysis.gradedValueEstimates.psa}
+                          grades={[
+                            { label: "PSA 10", value: analysis.gradedValueEstimates.psa.valueAtPSA10 },
+                            { label: "PSA 9", value: analysis.gradedValueEstimates.psa.valueAtPSA9 },
+                            { label: "PSA 8", value: analysis.gradedValueEstimates.psa.valueAtPSA8 },
+                          ]}
+                        />
+                      )}
+
+                      {/* BGS */}
+                      {analysis.gradedValueEstimates.bgs && (
+                        <GraderCard
+                          name="BGS"
+                          color="blue"
+                          grader={analysis.gradedValueEstimates.bgs}
+                          grades={[
+                            { label: "BGS 10", value: analysis.gradedValueEstimates.bgs.valueAtBGS10 },
+                            { label: "BGS 9.5", value: analysis.gradedValueEstimates.bgs.valueAtBGS9_5 },
+                            { label: "BGS 9", value: analysis.gradedValueEstimates.bgs.valueAtBGS9 },
+                          ]}
+                          extra={analysis.gradedValueEstimates.bgs.blackLabelPotential}
+                        />
+                      )}
+
+                      {/* CGC */}
+                      {analysis.gradedValueEstimates.cgc && (
+                        <GraderCard
+                          name="CGC"
+                          color="yellow"
+                          grader={analysis.gradedValueEstimates.cgc}
+                          grades={[
+                            { label: "CGC 10", value: analysis.gradedValueEstimates.cgc.valueAtCGC10 },
+                            { label: "CGC 9.5", value: analysis.gradedValueEstimates.cgc.valueAtCGC9_5 },
+                            { label: "CGC 9", value: analysis.gradedValueEstimates.cgc.valueAtCGC9 },
+                          ]}
+                        />
+                      )}
+
+                      {/* SGC */}
+                      {analysis.gradedValueEstimates.sgc && (
+                        <GraderCard
+                          name="SGC"
+                          color="green"
+                          grader={analysis.gradedValueEstimates.sgc}
+                          grades={[
+                            { label: "SGC 10", value: analysis.gradedValueEstimates.sgc.valueAtSGC10 },
+                            { label: "SGC 9.5", value: analysis.gradedValueEstimates.sgc.valueAtSGC9_5 },
+                            { label: "SGC 9", value: analysis.gradedValueEstimates.sgc.valueAtSGC9 },
+                          ]}
+                        />
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Grading ROI Calculator - Desktop */}
+              {analysis?.gradedValueEstimates && (
+                <GradingROICalculator 
+                  rawValue={avgValue}
+                  gradedEstimates={analysis.gradedValueEstimates}
+                />
+              )}
+
+              {/* Investment Outlook - Desktop */}
+              {analysis?.investmentOutlook && (
+                <div className="bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20 rounded-2xl p-6">
+                  <div className="flex items-center gap-2 mb-3">
+                    <TrendingUp className="w-5 h-5 text-primary" />
+                    <h2 className="font-display font-bold text-lg">Investment Outlook</h2>
+                  </div>
+                  <p className="text-sm text-foreground">
+                    {analysis.investmentOutlook}
+                  </p>
+                </div>
+              )}
+
+              {/* Price History Chart - Desktop */}
+              <div className="bg-card border border-border rounded-2xl p-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <TrendingUp className="w-5 h-5 text-primary" />
+                  <h2 className="font-display font-bold text-lg">Price History</h2>
+                </div>
+                <div className="h-[200px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={priceHistory}>
+                      <defs>
+                        <linearGradient id="priceGradientDesktop" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
+                          <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                      <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                      <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickFormatter={(v) => `$${v}`} />
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: "hsl(var(--card))",
+                          border: "1px solid hsl(var(--border))",
+                          borderRadius: "8px",
+                        }}
+                        labelStyle={{ color: "hsl(var(--foreground))" }}
+                        formatter={(value: number) => [`$${value.toFixed(2)}`, "Price"]}
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="price"
+                        stroke="hsl(var(--primary))"
+                        strokeWidth={2}
+                        fill="url(#priceGradientDesktop)"
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+                <p className="text-xs text-muted-foreground mt-2 text-center">
+                  Based on AI market research and similar card sales
+                </p>
+              </div>
+
+              {/* Personal Notes - Desktop */}
+              <div className="bg-card border border-border rounded-2xl p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="font-display font-bold text-lg">Personal Notes</h2>
+                  <Button onClick={saveNotes} disabled={saving} size="sm" className="gap-2">
+                    <Save className="w-4 h-4" />
+                    {saving ? "Saving..." : "Save"}
+                  </Button>
+                </div>
+                <Textarea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Add your personal notes about this card... (purchase price, location, memories, etc.)"
+                  className="min-h-[120px] resize-none"
+                />
               </div>
             </div>
           </div>
@@ -587,198 +783,201 @@ export default function CardDetail() {
               </div>
             )}
 
-            {/* Graded Value Estimates */}
-            {analysis?.gradedValueEstimates && (
+            {/* Mobile-only: Graded Value Estimates and sections below */}
+            <div className="lg:hidden space-y-6">
+              {/* Graded Value Estimates */}
+              {analysis?.gradedValueEstimates && (
+                <div className="bg-card border border-border rounded-2xl p-6">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Award className="w-5 h-5 text-amber-500" />
+                    <h2 className="font-display font-bold text-lg">Estimated Value After Grading</h2>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    {/* Worth Grading Assessment */}
+                    <div className={`flex items-start gap-3 p-4 rounded-xl ${
+                      analysis.gradedValueEstimates.worthGrading 
+                        ? "bg-green-500/10 border border-green-500/20" 
+                        : "bg-yellow-500/10 border border-yellow-500/20"
+                    }`}>
+                      {analysis.gradedValueEstimates.worthGrading ? (
+                        <CheckCircle className="w-5 h-5 text-green-500 mt-0.5" />
+                      ) : (
+                        <XCircle className="w-5 h-5 text-yellow-500 mt-0.5" />
+                      )}
+                      <div>
+                        <p className={`font-medium ${
+                          analysis.gradedValueEstimates.worthGrading ? "text-green-500" : "text-yellow-500"
+                        }`}>
+                          {analysis.gradedValueEstimates.worthGrading ? "Worth Grading" : "Consider Carefully"}
+                        </p>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {analysis.gradedValueEstimates.worthGradingReason}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Recommended Grader */}
+                    {analysis.gradedValueEstimates.recommendedGrader && (
+                      <div className="p-4 bg-primary/10 border border-primary/20 rounded-xl">
+                        <p className="text-sm text-muted-foreground">Recommended Grader</p>
+                        <p className="text-xl font-bold text-primary">{analysis.gradedValueEstimates.recommendedGrader}</p>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {analysis.gradedValueEstimates.recommendedGraderReason}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Current Grade Estimate */}
+                    {analysis.gradedValueEstimates.currentGradeEstimate && (
+                      <p className="text-sm text-muted-foreground">
+                        <span className="font-medium text-foreground">Expected Grade: </span>
+                        {analysis.gradedValueEstimates.currentGradeEstimate}
+                      </p>
+                    )}
+
+                    {/* Grader Cards Grid */}
+                    <div className="grid grid-cols-2 gap-4">
+                      {/* PSA */}
+                      {analysis.gradedValueEstimates.psa && (
+                        <GraderCard
+                          name="PSA"
+                          color="red"
+                          grader={analysis.gradedValueEstimates.psa}
+                          grades={[
+                            { label: "PSA 10", value: analysis.gradedValueEstimates.psa.valueAtPSA10 },
+                            { label: "PSA 9", value: analysis.gradedValueEstimates.psa.valueAtPSA9 },
+                            { label: "PSA 8", value: analysis.gradedValueEstimates.psa.valueAtPSA8 },
+                          ]}
+                        />
+                      )}
+
+                      {/* BGS */}
+                      {analysis.gradedValueEstimates.bgs && (
+                        <GraderCard
+                          name="BGS"
+                          color="blue"
+                          grader={analysis.gradedValueEstimates.bgs}
+                          grades={[
+                            { label: "BGS 10", value: analysis.gradedValueEstimates.bgs.valueAtBGS10 },
+                            { label: "BGS 9.5", value: analysis.gradedValueEstimates.bgs.valueAtBGS9_5 },
+                            { label: "BGS 9", value: analysis.gradedValueEstimates.bgs.valueAtBGS9 },
+                          ]}
+                          extra={analysis.gradedValueEstimates.bgs.blackLabelPotential}
+                        />
+                      )}
+
+                      {/* CGC */}
+                      {analysis.gradedValueEstimates.cgc && (
+                        <GraderCard
+                          name="CGC"
+                          color="yellow"
+                          grader={analysis.gradedValueEstimates.cgc}
+                          grades={[
+                            { label: "CGC 10", value: analysis.gradedValueEstimates.cgc.valueAtCGC10 },
+                            { label: "CGC 9.5", value: analysis.gradedValueEstimates.cgc.valueAtCGC9_5 },
+                            { label: "CGC 9", value: analysis.gradedValueEstimates.cgc.valueAtCGC9 },
+                          ]}
+                        />
+                      )}
+
+                      {/* SGC */}
+                      {analysis.gradedValueEstimates.sgc && (
+                        <GraderCard
+                          name="SGC"
+                          color="green"
+                          grader={analysis.gradedValueEstimates.sgc}
+                          grades={[
+                            { label: "SGC 10", value: analysis.gradedValueEstimates.sgc.valueAtSGC10 },
+                            { label: "SGC 9.5", value: analysis.gradedValueEstimates.sgc.valueAtSGC9_5 },
+                            { label: "SGC 9", value: analysis.gradedValueEstimates.sgc.valueAtSGC9 },
+                          ]}
+                        />
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Grading ROI Calculator */}
+              {analysis?.gradedValueEstimates && (
+                <GradingROICalculator 
+                  rawValue={avgValue}
+                  gradedEstimates={analysis.gradedValueEstimates}
+                />
+              )}
+
+              {/* Investment Outlook */}
+              {analysis?.investmentOutlook && (
+                <div className="bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20 rounded-2xl p-6">
+                  <div className="flex items-center gap-2 mb-3">
+                    <TrendingUp className="w-5 h-5 text-primary" />
+                    <h2 className="font-display font-bold text-lg">Investment Outlook</h2>
+                  </div>
+                  <p className="text-sm text-foreground">
+                    {analysis.investmentOutlook}
+                  </p>
+                </div>
+              )}
+
+              {/* Price History Chart */}
               <div className="bg-card border border-border rounded-2xl p-6">
                 <div className="flex items-center gap-2 mb-4">
-                  <Award className="w-5 h-5 text-amber-500" />
-                  <h2 className="font-display font-bold text-lg">Estimated Value After Grading</h2>
-                </div>
-                
-                <div className="space-y-4">
-                  {/* Worth Grading Assessment */}
-                  <div className={`flex items-start gap-3 p-4 rounded-xl ${
-                    analysis.gradedValueEstimates.worthGrading 
-                      ? "bg-green-500/10 border border-green-500/20" 
-                      : "bg-yellow-500/10 border border-yellow-500/20"
-                  }`}>
-                    {analysis.gradedValueEstimates.worthGrading ? (
-                      <CheckCircle className="w-5 h-5 text-green-500 mt-0.5" />
-                    ) : (
-                      <XCircle className="w-5 h-5 text-yellow-500 mt-0.5" />
-                    )}
-                    <div>
-                      <p className={`font-medium ${
-                        analysis.gradedValueEstimates.worthGrading ? "text-green-500" : "text-yellow-500"
-                      }`}>
-                        {analysis.gradedValueEstimates.worthGrading ? "Worth Grading" : "Consider Carefully"}
-                      </p>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        {analysis.gradedValueEstimates.worthGradingReason}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Recommended Grader */}
-                  {analysis.gradedValueEstimates.recommendedGrader && (
-                    <div className="p-4 bg-primary/10 border border-primary/20 rounded-xl">
-                      <p className="text-sm text-muted-foreground">Recommended Grader</p>
-                      <p className="text-xl font-bold text-primary">{analysis.gradedValueEstimates.recommendedGrader}</p>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        {analysis.gradedValueEstimates.recommendedGraderReason}
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Current Grade Estimate */}
-                  {analysis.gradedValueEstimates.currentGradeEstimate && (
-                    <p className="text-sm text-muted-foreground">
-                      <span className="font-medium text-foreground">Expected Grade: </span>
-                      {analysis.gradedValueEstimates.currentGradeEstimate}
-                    </p>
-                  )}
-
-                  {/* Grader Cards Grid */}
-                  <div className="grid grid-cols-2 gap-4">
-                    {/* PSA */}
-                    {analysis.gradedValueEstimates.psa && (
-                      <GraderCard
-                        name="PSA"
-                        color="red"
-                        grader={analysis.gradedValueEstimates.psa}
-                        grades={[
-                          { label: "PSA 10", value: analysis.gradedValueEstimates.psa.valueAtPSA10 },
-                          { label: "PSA 9", value: analysis.gradedValueEstimates.psa.valueAtPSA9 },
-                          { label: "PSA 8", value: analysis.gradedValueEstimates.psa.valueAtPSA8 },
-                        ]}
-                      />
-                    )}
-
-                    {/* BGS */}
-                    {analysis.gradedValueEstimates.bgs && (
-                      <GraderCard
-                        name="BGS"
-                        color="blue"
-                        grader={analysis.gradedValueEstimates.bgs}
-                        grades={[
-                          { label: "BGS 10", value: analysis.gradedValueEstimates.bgs.valueAtBGS10 },
-                          { label: "BGS 9.5", value: analysis.gradedValueEstimates.bgs.valueAtBGS9_5 },
-                          { label: "BGS 9", value: analysis.gradedValueEstimates.bgs.valueAtBGS9 },
-                        ]}
-                        extra={analysis.gradedValueEstimates.bgs.blackLabelPotential}
-                      />
-                    )}
-
-                    {/* CGC */}
-                    {analysis.gradedValueEstimates.cgc && (
-                      <GraderCard
-                        name="CGC"
-                        color="yellow"
-                        grader={analysis.gradedValueEstimates.cgc}
-                        grades={[
-                          { label: "CGC 10", value: analysis.gradedValueEstimates.cgc.valueAtCGC10 },
-                          { label: "CGC 9.5", value: analysis.gradedValueEstimates.cgc.valueAtCGC9_5 },
-                          { label: "CGC 9", value: analysis.gradedValueEstimates.cgc.valueAtCGC9 },
-                        ]}
-                      />
-                    )}
-
-                    {/* SGC */}
-                    {analysis.gradedValueEstimates.sgc && (
-                      <GraderCard
-                        name="SGC"
-                        color="green"
-                        grader={analysis.gradedValueEstimates.sgc}
-                        grades={[
-                          { label: "SGC 10", value: analysis.gradedValueEstimates.sgc.valueAtSGC10 },
-                          { label: "SGC 9.5", value: analysis.gradedValueEstimates.sgc.valueAtSGC9_5 },
-                          { label: "SGC 9", value: analysis.gradedValueEstimates.sgc.valueAtSGC9 },
-                        ]}
-                      />
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Grading ROI Calculator */}
-            {analysis?.gradedValueEstimates && (
-              <GradingROICalculator 
-                rawValue={avgValue}
-                gradedEstimates={analysis.gradedValueEstimates}
-              />
-            )}
-
-            {/* Investment Outlook */}
-            {analysis?.investmentOutlook && (
-              <div className="bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20 rounded-2xl p-6">
-                <div className="flex items-center gap-2 mb-3">
                   <TrendingUp className="w-5 h-5 text-primary" />
-                  <h2 className="font-display font-bold text-lg">Investment Outlook</h2>
+                  <h2 className="font-display font-bold text-lg">Price History</h2>
                 </div>
-                <p className="text-sm text-foreground">
-                  {analysis.investmentOutlook}
+                <div className="h-[200px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={priceHistory}>
+                      <defs>
+                        <linearGradient id="priceGradientMobile" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
+                          <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                      <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                      <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickFormatter={(v) => `$${v}`} />
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: "hsl(var(--card))",
+                          border: "1px solid hsl(var(--border))",
+                          borderRadius: "8px",
+                        }}
+                        labelStyle={{ color: "hsl(var(--foreground))" }}
+                        formatter={(value: number) => [`$${value.toFixed(2)}`, "Price"]}
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="price"
+                        stroke="hsl(var(--primary))"
+                        strokeWidth={2}
+                        fill="url(#priceGradientMobile)"
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+                <p className="text-xs text-muted-foreground mt-2 text-center">
+                  Based on AI market research and similar card sales
                 </p>
               </div>
-            )}
 
-            {/* Price History Chart */}
-            <div className="bg-card border border-border rounded-2xl p-6">
-              <div className="flex items-center gap-2 mb-4">
-                <TrendingUp className="w-5 h-5 text-primary" />
-                <h2 className="font-display font-bold text-lg">Price History</h2>
+              {/* Personal Notes */}
+              <div className="bg-card border border-border rounded-2xl p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="font-display font-bold text-lg">Personal Notes</h2>
+                  <Button onClick={saveNotes} disabled={saving} size="sm" className="gap-2">
+                    <Save className="w-4 h-4" />
+                    {saving ? "Saving..." : "Save"}
+                  </Button>
+                </div>
+                <Textarea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Add your personal notes about this card... (purchase price, location, memories, etc.)"
+                  className="min-h-[120px] resize-none"
+                />
               </div>
-              <div className="h-[200px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={priceHistory}>
-                    <defs>
-                      <linearGradient id="priceGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
-                        <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                    <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickFormatter={(v) => `$${v}`} />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: "hsl(var(--card))",
-                        border: "1px solid hsl(var(--border))",
-                        borderRadius: "8px",
-                      }}
-                      labelStyle={{ color: "hsl(var(--foreground))" }}
-                      formatter={(value: number) => [`$${value.toFixed(2)}`, "Price"]}
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="price"
-                      stroke="hsl(var(--primary))"
-                      strokeWidth={2}
-                      fill="url(#priceGradient)"
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-              <p className="text-xs text-muted-foreground mt-2 text-center">
-                Based on AI market research and similar card sales
-              </p>
-            </div>
-
-            {/* Personal Notes */}
-            <div className="bg-card border border-border rounded-2xl p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="font-display font-bold text-lg">Personal Notes</h2>
-                <Button onClick={saveNotes} disabled={saving} size="sm" className="gap-2">
-                  <Save className="w-4 h-4" />
-                  {saving ? "Saving..." : "Save"}
-                </Button>
-              </div>
-              <Textarea
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Add your personal notes about this card... (purchase price, location, memories, etc.)"
-                className="min-h-[120px] resize-none"
-              />
             </div>
           </div>
         </div>
