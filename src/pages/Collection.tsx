@@ -34,7 +34,33 @@ const Collection = () => {
     if (user) {
       supabase.from("cards").select("id, image_url, card_name, card_set, condition_grade, estimated_value_low, estimated_value_high")
         .eq("user_id", user.id).order("created_at", { ascending: false })
-        .then(({ data }) => { setCards(data || []); setLoading(false); });
+        .then(async ({ data }) => {
+          if (!data) { setCards([]); setLoading(false); return; }
+          
+          // Generate fresh signed URLs for each card
+          const cardsWithUrls = await Promise.all(data.map(async (card) => {
+            // Check if image_url is a file path (not a full URL)
+            const isFilePath = !card.image_url.startsWith('http');
+            if (isFilePath) {
+              const { data: signedData } = await supabase.storage
+                .from("card-images")
+                .createSignedUrl(card.image_url, 3600);
+              return { ...card, image_url: signedData?.signedUrl || card.image_url };
+            }
+            // For legacy full URLs, try to extract path and re-sign
+            const match = card.image_url.match(/card-images\/(.+?)(\?|$)/);
+            if (match) {
+              const { data: signedData } = await supabase.storage
+                .from("card-images")
+                .createSignedUrl(match[1], 3600);
+              return { ...card, image_url: signedData?.signedUrl || card.image_url };
+            }
+            return card;
+          }));
+          
+          setCards(cardsWithUrls);
+          setLoading(false);
+        });
     }
   }, [user]);
 

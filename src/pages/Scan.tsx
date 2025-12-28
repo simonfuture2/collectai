@@ -72,21 +72,22 @@ const Scan = () => {
       const { error: uploadError } = await supabase.storage.from("card-images").upload(filePath, file);
       if (uploadError) throw uploadError;
 
-      // Use signed URL instead of public URL for security
+      // Get a signed URL just for the AI analysis (temporary)
       const { data: signedUrlData, error: urlError } = await supabase.storage
         .from("card-images")
-        .createSignedUrl(filePath, 3600); // 1 hour expiry
+        .createSignedUrl(filePath, 3600); // 1 hour expiry for analysis
 
       if (urlError) throw urlError;
-      const imageUrl = signedUrlData.signedUrl;
+      const signedImageUrl = signedUrlData.signedUrl;
 
       const { data, error } = await supabase.functions.invoke("analyze-card", {
-        body: { imageUrl },
+        body: { imageUrl: signedImageUrl },
         headers: { Authorization: `Bearer ${accessTokenFresh}` },
       });
       if (error) throw error;
 
-      setResult({ ...data, imageUrl, filePath });
+      // Store the filePath (not the signed URL) so we can generate fresh URLs later
+      setResult({ ...data, filePath });
       toast({ title: "Analysis complete!", description: `Identified: ${data.cardName}` });
     } catch (error: any) {
       toast({ title: "Analysis failed", description: error.message, variant: "destructive" });
@@ -99,9 +100,10 @@ const Scan = () => {
     if (!result || !user) return;
     setSaving(true);
     try {
+      // Store the file path instead of signed URL so we can generate fresh URLs
       const { error } = await supabase.from("cards").insert({
         user_id: user.id,
-        image_url: result.imageUrl,
+        image_url: result.filePath,
         card_name: result.cardName,
         card_set: result.cardSet,
         card_year: result.cardYear,
