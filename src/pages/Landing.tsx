@@ -2,6 +2,8 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Camera, Sparkles, TrendingUp, Wallet } from "lucide-react";
 import PoweredByW3AI from "@/components/PoweredByW3AI";
+import EcosystemBadge from "@/components/EcosystemBadge";
+import CollectAILink from "@/components/CollectAILink";
 
 const Landing = () => {
   return (
@@ -55,8 +57,23 @@ const Landing = () => {
         </div>
       </main>
 
-      <footer className="container mx-auto px-4 py-8 text-center border-t border-border/30">
-        <PoweredByW3AI />
+      <footer className="container mx-auto px-4 py-12 border-t border-border/30">
+        <div className="max-w-2xl mx-auto space-y-6">
+          {/* Ecosystem Links */}
+          <div className="grid sm:grid-cols-3 gap-3">
+            <CollectAILink action="grade" />
+            <CollectAILink action="price" />
+            <CollectAILink action="identify" />
+          </div>
+
+          {/* Ecosystem Badges */}
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <EcosystemBadge type="authentiseal" variant="inline" />
+            <EcosystemBadge type="collectai" variant="inline" />
+          </div>
+
+          <PoweredByW3AI className="justify-center" />
+        </div>
       </footer>
     </div>
   );

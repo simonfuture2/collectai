@@ -2,3 +2,12 @@ project_id = "irncxwszrawrndsdaqel"
 
 [functions.analyze-card]
 verify_jwt = false
+
+[functions.collectai-grade]
+verify_jwt = false
+
+[functions.collectai-identify]
+verify_jwt = false
+
+[functions.collectai-price]
+verify_jwt = false

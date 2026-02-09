@@ -36,6 +36,8 @@ import {
 } from "recharts";
 import type { Tables } from "@/integrations/supabase/types";
 import PreGradingAnalysis from "@/components/PreGradingAnalysis";
+import EcosystemBadge from "@/components/EcosystemBadge";
+import AuthentiSealVerify from "@/components/AuthentiSealVerify";
 
 type Card = Tables<"cards">;
 
@@ -501,6 +503,14 @@ export default function CardDetail() {
                 <p className="text-xs text-muted-foreground mt-2 text-center">
                   Based on AI market research and similar card sales
                 </p>
+              </div>
+
+              {/* AuthentiSeal Verification - Desktop */}
+              <AuthentiSealVerify />
+
+              {/* Ecosystem Badge - Desktop */}
+              <div className="flex justify-center">
+                <EcosystemBadge type="authentiseal" variant="inline" />
               </div>
 
               {/* Personal Notes - Desktop */}

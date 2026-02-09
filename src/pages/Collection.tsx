@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Camera, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import EcosystemBadge from "@/components/EcosystemBadge";
 import type { User } from "@supabase/supabase-js";
 
 interface Card {
@@ -128,6 +129,10 @@ const Collection = () => {
             ))}
           </div>
         )}
+        {/* Ecosystem Badge */}
+        <div className="flex justify-center pt-8">
+          <EcosystemBadge type="authentiseal" variant="inline" />
+        </div>
       </main>
     </div>
   );
