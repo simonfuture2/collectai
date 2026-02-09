@@ -12,6 +12,20 @@ serve(async (req) => {
   }
 
   try {
+    // Validate API key
+    const COLLECTAI_API_KEY = Deno.env.get("COLLECTAI_API_KEY");
+    if (!COLLECTAI_API_KEY) {
+      throw new Error("COLLECTAI_API_KEY is not configured");
+    }
+
+    const apiKey = req.headers.get("x-api-key");
+    if (!apiKey || apiKey !== COLLECTAI_API_KEY) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized: Invalid or missing API key" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY is not configured");
