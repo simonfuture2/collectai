@@ -980,6 +980,22 @@ export default function CardDetail() {
                 </p>
               </div>
 
+              {/* AuthentiSeal Verification + Create Certificate - Mobile */}
+              <AuthentiSealVerify cardData={{
+                name: card.card_name || undefined,
+                category: card.category || undefined,
+                set: card.card_set || undefined,
+                year: card.card_year || undefined,
+                condition: card.condition_grade || undefined,
+                valueLow: card.estimated_value_low || undefined,
+                valueHigh: card.estimated_value_high || undefined,
+              }} />
+
+              {/* Ecosystem Badge - Mobile */}
+              <div className="flex justify-center">
+                <EcosystemBadge type="authentiseal" variant="inline" />
+              </div>
+
               {/* Personal Notes */}
               <div className="bg-card border border-border rounded-2xl p-6">
                 <div className="flex items-center justify-between mb-4">
