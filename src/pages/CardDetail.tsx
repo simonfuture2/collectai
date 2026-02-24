@@ -505,8 +505,16 @@ export default function CardDetail() {
                 </p>
               </div>
 
-              {/* AuthentiSeal Verification - Desktop */}
-              <AuthentiSealVerify />
+              {/* AuthentiSeal Verification + Create Certificate - Desktop */}
+              <AuthentiSealVerify cardData={{
+                name: card.card_name || undefined,
+                category: card.category || undefined,
+                set: card.card_set || undefined,
+                year: card.card_year || undefined,
+                condition: card.condition_grade || undefined,
+                valueLow: card.estimated_value_low || undefined,
+                valueHigh: card.estimated_value_high || undefined,
+              }} />
 
               {/* Ecosystem Badge - Desktop */}
               <div className="flex justify-center">
