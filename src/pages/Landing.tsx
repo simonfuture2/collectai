@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Camera, Sparkles, TrendingUp, Wallet } from "lucide-react";
 import PoweredByW3AI from "@/components/PoweredByW3AI";
+import ThemeToggle from "@/components/ThemeToggle";
 import EcosystemBadge from "@/components/EcosystemBadge";
 import CollectAILink from "@/components/CollectAILink";
 
@@ -11,9 +12,12 @@ const Landing = () => {
       {/* Hero Section */}
       <header className="container mx-auto px-4 py-6 flex justify-between items-center">
         <h1 className="text-2xl font-display font-bold text-gradient-primary">CollectAI</h1>
-        <Link to="/auth">
-          <Button variant="outline" className="border-primary/50 hover:bg-primary/10">Sign In</Button>
-        </Link>
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
+          <Link to="/auth">
+            <Button variant="outline" className="border-primary/50 hover:bg-primary/10">Sign In</Button>
+          </Link>
+        </div>
       </header>
 
       <main className="container mx-auto px-4 py-16">
