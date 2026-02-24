@@ -45,70 +45,76 @@ serve(async (req) => {
 
     console.log("Authenticated user:", user.id);
 
-    const { imageUrl } = await req.json();
+    const body = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 
     if (!LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    if (!imageUrl) {
+    // Support both new multi-image format and legacy single imageUrl
+    const images: { label: string; url: string }[] = body.images || [];
+    if (images.length === 0 && body.imageUrl) {
+      images.push({ label: "Front", url: body.imageUrl });
+    }
+
+    if (images.length === 0) {
       return new Response(
-        JSON.stringify({ error: "Image URL is required" }),
+        JSON.stringify({ error: "At least one image is required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Validate URL origin - must be from our Supabase storage
+    // Validate all URLs
     const ALLOWED_BUCKET = 'card-images';
     const signedUrlPattern = `${supabaseUrl}/storage/v1/object/sign/${ALLOWED_BUCKET}/`;
-    
-    if (!imageUrl.startsWith(signedUrlPattern)) {
-      console.error("Invalid image URL origin:", imageUrl.substring(0, 100));
-      return new Response(
-        JSON.stringify({ error: 'Invalid image URL - must be from card-images bucket' }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
 
-    // Validate that the image belongs to the authenticated user
-    // URL pattern: .../sign/card-images/{userId}/...
-    try {
-      const url = new URL(imageUrl);
-      const pathParts = url.pathname.split('/');
-      const bucketIndex = pathParts.indexOf('card-images');
-      if (bucketIndex === -1 || bucketIndex + 1 >= pathParts.length) {
-        throw new Error("Invalid path structure");
-      }
-      const imageUserId = pathParts[bucketIndex + 1];
-      
-      if (imageUserId !== user.id) {
-        console.error("User ID mismatch - image belongs to:", imageUserId, "authenticated user:", user.id);
+    for (const img of images) {
+      if (!img.url.startsWith(signedUrlPattern)) {
+        console.error("Invalid image URL origin:", img.url.substring(0, 100));
         return new Response(
-          JSON.stringify({ error: 'Unauthorized - can only analyze your own images' }),
-          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          JSON.stringify({ error: `Invalid image URL for "${img.label}" - must be from card-images bucket` }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-    } catch (urlParseError) {
-      console.error("Failed to parse image URL for ownership validation:", urlParseError);
-      return new Response(
-        JSON.stringify({ error: 'Invalid image URL format' }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
     }
 
-    // Validate file extension
+    // Validate ownership and file type for all images
     const validExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
-    const urlPath = new URL(imageUrl).pathname.toLowerCase();
-    const hasValidExt = validExtensions.some(ext => urlPath.includes(ext));
-    if (!hasValidExt) {
-      return new Response(
-        JSON.stringify({ error: 'Invalid file type - must be an image (jpg, jpeg, png, gif, webp)' }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    for (const img of images) {
+      try {
+        const url = new URL(img.url);
+        const pathParts = url.pathname.split('/');
+        const bucketIndex = pathParts.indexOf('card-images');
+        if (bucketIndex === -1 || bucketIndex + 1 >= pathParts.length) {
+          throw new Error("Invalid path structure");
+        }
+        const imageUserId = pathParts[bucketIndex + 1];
+        if (imageUserId !== user.id) {
+          console.error("User ID mismatch for", img.label);
+          return new Response(
+            JSON.stringify({ error: 'Unauthorized - can only analyze your own images' }),
+            { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        const urlPath = url.pathname.toLowerCase();
+        const hasValidExt = validExtensions.some(ext => urlPath.includes(ext));
+        if (!hasValidExt) {
+          return new Response(
+            JSON.stringify({ error: `Invalid file type for "${img.label}" - must be an image` }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+      } catch (urlParseError) {
+        console.error("Failed to parse image URL:", urlParseError);
+        return new Response(
+          JSON.stringify({ error: 'Invalid image URL format' }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
     }
 
-    console.log("Analyzing card image for user:", user.id);
+    console.log(`Analyzing ${images.length} image(s) for user:`, user.id);
 
     const systemPrompt = `You are an expert trading card analyst, appraiser, and professional grader with deep knowledge of current trading card market prices. When shown an image of a trading card, you will:
 
@@ -350,12 +356,14 @@ Respond in JSON format with this structure:
             content: [
               {
                 type: "text",
-                text: "Please analyze this trading card image and provide a complete identification, condition assessment, and value estimate.",
+                text: images.length > 1
+                  ? `I'm providing ${images.length} images of this collectible item (${images.map(i => i.label).join(", ")}). Please analyze all views together for a comprehensive identification, condition assessment, and value estimate.`
+                  : "Please analyze this trading card image and provide a complete identification, condition assessment, and value estimate.",
               },
-              {
-                type: "image_url",
-                image_url: { url: imageUrl },
-              },
+              ...images.map((img) => ({
+                type: "image_url" as const,
+                image_url: { url: img.url },
+              })),
             ],
           },
         ],
