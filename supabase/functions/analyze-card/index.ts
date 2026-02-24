@@ -206,6 +206,7 @@ serve(async (req) => {
 
 Respond in JSON format with this structure:
 {
+  "category": "string (auto-categorize: 'Pokémon', 'Magic: The Gathering', 'Yu-Gi-Oh!', 'Sports Card', 'Trading Card', 'Comic Book', 'Coin', or 'Other')",
   "cardName": "string",
   "cardSet": "string", 
   "cardYear": "string",
