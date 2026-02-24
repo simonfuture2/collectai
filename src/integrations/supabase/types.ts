@@ -20,6 +20,7 @@ export type Database = {
           card_name: string | null
           card_set: string | null
           card_year: string | null
+          category: string | null
           condition_grade: string | null
           created_at: string
           ebay_recent_sales: Json | null
@@ -41,6 +42,7 @@ export type Database = {
           card_name?: string | null
           card_set?: string | null
           card_year?: string | null
+          category?: string | null
           condition_grade?: string | null
           created_at?: string
           ebay_recent_sales?: Json | null
@@ -62,6 +64,7 @@ export type Database = {
           card_name?: string | null
           card_set?: string | null
           card_year?: string | null
+          category?: string | null
           condition_grade?: string | null
           created_at?: string
           ebay_recent_sales?: Json | null

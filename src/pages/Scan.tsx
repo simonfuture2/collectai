@@ -151,6 +151,7 @@ const Scan = () => {
       const { error } = await supabase.from("cards").insert({
         user_id: user.id,
         image_url: primaryPath,
+        category: result.category || "Trading Card",
         card_name: result.cardName,
         card_set: result.cardSet,
         card_year: result.cardYear,
