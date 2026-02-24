@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Shield, ExternalLink, CheckCircle, XCircle, Loader2 } from "lucide-react";
+import { Shield, ExternalLink, CheckCircle, XCircle, Loader2, FilePlus2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -15,12 +15,23 @@ interface CertificateData {
   [key: string]: unknown;
 }
 
+interface CardData {
+  name?: string;
+  category?: string;
+  set?: string;
+  year?: string;
+  condition?: string;
+  valueLow?: number;
+  valueHigh?: number;
+}
+
 interface AuthentiSealVerifyProps {
   className?: string;
   defaultSerial?: string;
+  cardData?: CardData;
 }
 
-const AuthentiSealVerify = ({ className = "", defaultSerial = "" }: AuthentiSealVerifyProps) => {
+const AuthentiSealVerify = ({ className = "", defaultSerial = "", cardData }: AuthentiSealVerifyProps) => {
   const [serial, setSerial] = useState(defaultSerial);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ verified: boolean; certificate: CertificateData } | null>(null);
@@ -139,8 +150,48 @@ const AuthentiSealVerify = ({ className = "", defaultSerial = "" }: AuthentiSeal
           </a>
         </div>
       )}
+
+      {/* Create Certificate Section */}
+      <div className="mt-4 pt-4 border-t border-border">
+        <div className="flex items-center gap-2 mb-3">
+          <FilePlus2 className="w-5 h-5 text-emerald-500" />
+          <h3 className="font-display font-bold text-base">Create Authentication Certificate</h3>
+        </div>
+        <p className="text-xs text-muted-foreground mb-3">
+          Get an official Certificate of Authenticity for this item via AuthentiSeal.xyz
+        </p>
+        <a
+          href={buildAuthentiSealCreateUrl(cardData)}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <Button className="w-full gap-2 bg-emerald-600 hover:bg-emerald-700 text-white">
+            <Shield className="w-4 h-4" />
+            Create Certificate on AuthentiSeal
+            <ExternalLink className="w-3.5 h-3.5" />
+          </Button>
+        </a>
+      </div>
     </div>
   );
 };
+
+function buildAuthentiSealCreateUrl(cardData?: CardData): string {
+  const base = "https://authentiseal.xyz/create";
+  if (!cardData) return base;
+
+  const params = new URLSearchParams();
+  if (cardData.name) params.set("item_name", cardData.name);
+  if (cardData.category) params.set("item_category", cardData.category);
+  if (cardData.set) params.set("item_set", cardData.set);
+  if (cardData.year) params.set("item_year", cardData.year);
+  if (cardData.condition) params.set("condition", cardData.condition);
+  if (cardData.valueLow) params.set("value_low", String(cardData.valueLow));
+  if (cardData.valueHigh) params.set("value_high", String(cardData.valueHigh));
+  params.set("source", "collectai");
+
+  const qs = params.toString();
+  return qs ? `${base}?${qs}` : base;
+}
 
 export default AuthentiSealVerify;
