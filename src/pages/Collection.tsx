@@ -6,7 +6,15 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@/components/ui/table";
-import { ArrowLeft, Camera, Trash2, Search, X, SlidersHorizontal, ChevronDown, LayoutGrid, List, Download, CheckSquare } from "lucide-react";
+import { ArrowLeft, Camera, Trash2, Search, X, SlidersHorizontal, ChevronDown, LayoutGrid, List, Download, CheckSquare, FolderPlus, Check } from "lucide-react";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+  ContextMenuSeparator,
+  ContextMenuLabel,
+} from "@/components/ui/context-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
@@ -284,6 +292,16 @@ const Collection = () => {
   };
 
   const hasActiveFilters = search || activeCategory || activeRarity || sortBy !== "newest" || activeFolder;
+
+  const toggleCardFolder = async (cardId: string, folderId: string) => {
+    const isInFolder = (cardFolderMap[cardId] || []).includes(folderId);
+    if (isInFolder) {
+      await supabase.from("card_folders").delete().eq("card_id", cardId).eq("folder_id", folderId);
+    } else {
+      await supabase.from("card_folders").upsert({ card_id: cardId, folder_id: folderId }, { onConflict: "card_id,folder_id" });
+    }
+    fetchFolders();
+  };
 
   const cardValue = (c: Card) => ((c.estimated_value_low || 0) + (c.estimated_value_high || 0)) / 2;
 
@@ -591,79 +609,102 @@ const Collection = () => {
           /* ---- GRID VIEW ---- */
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
             {paginatedCards.map((card) => (
-              <div
-                key={card.id}
-                className="bg-card border border-border rounded-xl overflow-hidden hover-lift group cursor-pointer relative"
-                onClick={() => bulkMode ? toggleSelect(card.id) : navigate(`/card/${card.id}`)}
-              >
-                {bulkMode && (
-                  <div className="absolute top-1.5 right-1.5 z-10" onClick={(e) => e.stopPropagation()}>
-                    <Checkbox
-                      checked={selectedIds.has(card.id)}
-                      onCheckedChange={() => toggleSelect(card.id)}
-                      className="bg-background/80 backdrop-blur-sm"
-                    />
-                  </div>
-                )}
-                <div className="aspect-[3/4] bg-muted relative">
-                  <img
-                    src={card.image_url}
-                    alt={card.card_name || "Item"}
-                    className="w-full h-full object-contain"
-                    loading="lazy"
-                    onError={(e) => { e.currentTarget.src = '/placeholder.svg'; }}
-                  />
-                  {/* Category badge */}
-                  <span
-                    className={`absolute top-1.5 left-1.5 text-[9px] sm:text-[10px] font-semibold px-1.5 py-0.5 rounded-full border ${getCategoryStyle(card.category)}`}
+              <ContextMenu key={card.id}>
+                <ContextMenuTrigger asChild>
+                  <div
+                    className="bg-card border border-border rounded-xl overflow-hidden hover-lift group cursor-pointer relative"
+                    onClick={() => bulkMode ? toggleSelect(card.id) : navigate(`/card/${card.id}`)}
                   >
-                    {card.category || "Trading Card"}
-                  </span>
-                  {/* Grade badge */}
-                  {card.condition_grade && (
-                    <span className="absolute bottom-1.5 right-1.5 text-[9px] sm:text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-background/85 backdrop-blur-sm text-foreground border border-border">
-                      {card.condition_grade}
-                    </span>
-                  )}
-                </div>
-                <div className="p-2.5 sm:p-3">
-                  <h3 className="font-display font-semibold text-sm truncate">{card.card_name || "Unknown"}</h3>
-                  <p className="text-xs text-muted-foreground truncate">{card.card_set}</p>
-                  <div className="flex justify-between items-center mt-1.5">
-                    <span className="text-xs sm:text-sm font-medium text-gradient-primary">
-                      ${cardValue(card).toFixed(0)}
-                    </span>
-                    {!bulkMode && (
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <Trash2 className="w-3.5 h-3.5 text-destructive" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent onClick={(e) => e.stopPropagation()}>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Delete {card.card_name || "this item"}?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              This action cannot be undone. This will permanently remove this item from your collection.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => deleteCard(card.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                              Delete
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
+                    {bulkMode && (
+                      <div className="absolute top-1.5 right-1.5 z-10" onClick={(e) => e.stopPropagation()}>
+                        <Checkbox
+                          checked={selectedIds.has(card.id)}
+                          onCheckedChange={() => toggleSelect(card.id)}
+                          className="bg-background/80 backdrop-blur-sm"
+                        />
+                      </div>
                     )}
+                    <div className="aspect-[3/4] bg-muted relative">
+                      <img
+                        src={card.image_url}
+                        alt={card.card_name || "Item"}
+                        className="w-full h-full object-contain"
+                        loading="lazy"
+                        onError={(e) => { e.currentTarget.src = '/placeholder.svg'; }}
+                      />
+                      <span
+                        className={`absolute top-1.5 left-1.5 text-[9px] sm:text-[10px] font-semibold px-1.5 py-0.5 rounded-full border ${getCategoryStyle(card.category)}`}
+                      >
+                        {card.category || "Trading Card"}
+                      </span>
+                      {card.condition_grade && (
+                        <span className="absolute bottom-1.5 right-1.5 text-[9px] sm:text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-background/85 backdrop-blur-sm text-foreground border border-border">
+                          {card.condition_grade}
+                        </span>
+                      )}
+                    </div>
+                    <div className="p-2.5 sm:p-3">
+                      <h3 className="font-display font-semibold text-sm truncate">{card.card_name || "Unknown"}</h3>
+                      <p className="text-xs text-muted-foreground truncate">{card.card_set}</p>
+                      <div className="flex justify-between items-center mt-1.5">
+                        <span className="text-xs sm:text-sm font-medium text-gradient-primary">
+                          ${cardValue(card).toFixed(0)}
+                        </span>
+                        {!bulkMode && (
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Delete {card.card_name || "this item"}?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  This action cannot be undone. This will permanently remove this item from your collection.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => deleteCard(card.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                                  Delete
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
+                </ContextMenuTrigger>
+                {folders.length > 0 && (
+                  <ContextMenuContent>
+                    <ContextMenuLabel className="flex items-center gap-1.5">
+                      <FolderPlus className="w-3.5 h-3.5" /> Add to Folder
+                    </ContextMenuLabel>
+                    <ContextMenuSeparator />
+                    {folders.map((f) => {
+                      const isIn = (cardFolderMap[card.id] || []).includes(f.id);
+                      return (
+                        <ContextMenuItem
+                          key={f.id}
+                          onClick={() => toggleCardFolder(card.id, f.id)}
+                          className="flex items-center gap-2"
+                        >
+                          <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: f.color }} />
+                          <span className="flex-1 truncate">{f.name}</span>
+                          {isIn && <Check className="w-3.5 h-3.5 text-primary ml-auto" />}
+                        </ContextMenuItem>
+                      );
+                    })}
+                  </ContextMenuContent>
+                )}
+              </ContextMenu>
             ))}
           </div>
         )}
