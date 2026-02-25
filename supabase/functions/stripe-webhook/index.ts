@@ -2,11 +2,6 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
-
 const logStep = (step: string, details?: any) => {
   const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
   console.log(`[STRIPE-WEBHOOK] ${step}${detailsStr}`);
@@ -22,10 +17,6 @@ const CREDIT_PACKS: Record<string, number> = {
 const PRO_PRODUCT_ID = "prod_U2oSKDGxRnAx1x";
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
-
   const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
   const webhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET");
   if (!stripeKey || !webhookSecret) {
@@ -136,6 +127,7 @@ serve(async (req) => {
       }
     } else if (event.type === "customer.subscription.deleted") {
       // Subscription cancelled/expired
+      // Subscription cancelled/expired
       const subscription = event.data.object as Stripe.Subscription;
       const customerId = subscription.customer as string;
 
@@ -153,6 +145,8 @@ serve(async (req) => {
 
         logStep("Subscription cancelled, downgraded to free", { userId: userCredits.user_id });
       }
+    } else {
+      logStep("Unhandled event type", { type: event.type });
     }
 
     return new Response(JSON.stringify({ received: true }), {
@@ -161,10 +155,11 @@ serve(async (req) => {
     });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    logStep("ERROR", { message: errorMessage });
-    return new Response(JSON.stringify({ error: errorMessage }), {
+    logStep("ERROR processing webhook", { message: errorMessage });
+    // Return 200 to prevent Stripe from retrying on transient failures
+    return new Response(JSON.stringify({ received: true, error: errorMessage }), {
       headers: { "Content-Type": "application/json" },
-      status: 500,
+      status: 200,
     });
   }
 });
