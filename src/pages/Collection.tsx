@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ArrowLeft, Camera, Trash2, Search, X, SlidersHorizontal, ChevronDown } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import EcosystemBadge from "@/components/EcosystemBadge";
@@ -306,7 +307,18 @@ const Collection = () => {
 
       <main className="container mx-auto px-4 py-6">
         {loading ? (
-          <div className="text-center py-16 text-muted-foreground">Loading...</div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <div key={i} className="bg-card border border-border rounded-xl overflow-hidden">
+                <Skeleton className="aspect-[3/4] w-full" />
+                <div className="p-2.5 sm:p-3 space-y-2">
+                  <Skeleton className="h-4 w-3/4" />
+                  <Skeleton className="h-3 w-1/2" />
+                  <Skeleton className="h-3 w-1/3" />
+                </div>
+              </div>
+            ))}
+          </div>
         ) : cards.length === 0 ? (
           <div className="text-center py-16">
             <Camera className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
