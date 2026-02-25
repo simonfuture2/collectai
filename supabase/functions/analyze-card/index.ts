@@ -417,28 +417,9 @@ Respond in JSON format with this structure:
       throw new Error("No response from AI");
     }
 
-    // Deduct credit for non-Pro users
-    if (!isPro) {
-      await supabaseAdmin
-        .from("user_credits")
-        .update({ credits: (creditsData?.credits ?? 1) - 1 })
-        .eq("user_id", user.id);
-
-      await supabaseAdmin
-        .from("credit_transactions")
-        .insert({
-          user_id: user.id,
-          amount: -1,
-          type: "scan",
-          description: `AI scan: ${analysis.cardName || "Unknown card"}`,
-        });
-
-      console.log("Deducted 1 credit for user:", user.id);
-    }
-
     console.log("AI response received for user:", user.id);
 
-    // Parse the JSON response from the AI
+    // Parse the JSON response from the AI FIRST before deducting credits
     let analysis;
     try {
       // Extract JSON from the response (handle markdown code blocks)
@@ -447,7 +428,7 @@ Respond in JSON format with this structure:
       analysis = JSON.parse(jsonStr);
     } catch (parseError) {
       console.error("Failed to parse AI response as JSON:", parseError);
-      // Return a structured error response
+      // Return a structured error response without deducting credits
       analysis = {
         cardName: "Unable to identify",
         cardSet: "Unknown",
@@ -467,6 +448,25 @@ Respond in JSON format with this structure:
         confidence: "low",
         additionalNotes: "The AI was unable to properly analyze this image. Please ensure the card is clearly visible and try again.",
       };
+    }
+
+    // Deduct credit for non-Pro users AFTER successful parsing
+    if (!isPro) {
+      await supabaseAdmin
+        .from("user_credits")
+        .update({ credits: (creditsData?.credits ?? 1) - 1 })
+        .eq("user_id", user.id);
+
+      await supabaseAdmin
+        .from("credit_transactions")
+        .insert({
+          user_id: user.id,
+          amount: -1,
+          type: "scan",
+          description: `AI scan: ${analysis.cardName || "Unknown card"}`,
+        });
+
+      console.log("Deducted 1 credit for user:", user.id);
     }
 
     return new Response(JSON.stringify(analysis), {
