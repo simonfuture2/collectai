@@ -12,6 +12,7 @@ import CreditBalance from "@/components/CreditBalance";
 import UpgradeModal from "@/components/UpgradeModal";
 import { useCredits } from "@/hooks/use-credits";
 import Footer from "@/components/Footer";
+import ThemeToggle from "@/components/ThemeToggle";
 
 interface Card {
   id: string;
@@ -78,6 +79,7 @@ const Dashboard = () => {
           <div className="flex items-center gap-4">
             <CreditBalance credits={credits} isPro={isPro} loading={creditsLoading} />
             <span className="text-sm text-muted-foreground hidden sm:block">{user?.email}</span>
+            <ThemeToggle />
             <Button variant="ghost" size="icon" onClick={handleLogout}><LogOut className="w-5 h-5" /></Button>
           </div>
         </div>

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { CheckCircle2, Sparkles } from "lucide-react";
+import ThemeToggle from "@/components/ThemeToggle";
 
 const CheckoutSuccess = () => {
   const [searchParams] = useSearchParams();
@@ -21,7 +22,10 @@ const CheckoutSuccess = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center px-4">
+    <div className="min-h-screen bg-background flex items-center justify-center px-4 relative">
+      <div className="absolute top-4 right-4 z-10">
+        <ThemeToggle />
+      </div>
       <div className="max-w-md w-full text-center space-y-6">
         <div className="mx-auto w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center">
           <CheckCircle2 className="w-10 h-10 text-primary" />

@@ -8,6 +8,7 @@ import { useCredits } from "@/hooks/use-credits";
 import CreditBalance from "@/components/CreditBalance";
 import Footer from "@/components/Footer";
 import { useToast } from "@/hooks/use-toast";
+import ThemeToggle from "@/components/ThemeToggle";
 
 const Pricing = () => {
   const [loading, setLoading] = useState<string | null>(null);
@@ -69,6 +70,7 @@ const Pricing = () => {
             <h1 className="text-xl font-display font-bold">Pricing</h1>
           </div>
           <CreditBalance credits={credits} isPro={isPro} loading={creditsLoading} />
+          <ThemeToggle />
         </div>
       </header>
 

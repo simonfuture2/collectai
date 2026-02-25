@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import Footer from "@/components/Footer";
+import ThemeToggle from "@/components/ThemeToggle";
 
 const faqs = [
   {
@@ -55,7 +56,8 @@ const FAQ = () => {
           <Link to="/">
             <Button variant="ghost" size="icon"><ArrowLeft className="w-5 h-5" /></Button>
           </Link>
-          <h1 className="text-xl font-display font-bold">Frequently Asked Questions</h1>
+          <h1 className="text-xl font-display font-bold flex-1">Frequently Asked Questions</h1>
+          <ThemeToggle />
         </div>
       </header>
 

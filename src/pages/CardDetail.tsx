@@ -40,6 +40,7 @@ import EcosystemBadge from "@/components/EcosystemBadge";
 import AuthentiSealVerify from "@/components/AuthentiSealVerify";
 import AIDisclaimer from "@/components/AIDisclaimer";
 import Footer from "@/components/Footer";
+import ThemeToggle from "@/components/ThemeToggle";
 
 type Card = Tables<"cards">;
 
@@ -290,7 +291,8 @@ export default function CardDetail() {
           <Button variant="ghost" size="icon" onClick={() => navigate("/collection")}>
             <ArrowLeft className="w-5 h-5" />
           </Button>
-          <h1 className="font-display font-bold text-xl truncate">{card.card_name || "Card Details"}</h1>
+          <h1 className="font-display font-bold text-xl truncate flex-1">{card.card_name || "Card Details"}</h1>
+          <ThemeToggle />
         </div>
       </header>
 
