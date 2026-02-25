@@ -21,6 +21,7 @@ import {
   XCircle,
   Calculator,
   RefreshCw,
+  Share2,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -292,6 +293,19 @@ export default function CardDetail() {
             <ArrowLeft className="w-5 h-5" />
           </Button>
           <h1 className="font-display font-bold text-xl truncate flex-1">{card.card_name || "Card Details"}</h1>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={async () => {
+              // Set card as public and copy share URL
+              await supabase.from("cards").update({ is_public: true }).eq("id", card.id);
+              const url = `${window.location.origin}/card/share/${card.id}`;
+              navigator.clipboard.writeText(url);
+              toast.success("Share link copied!");
+            }}
+          >
+            <Share2 className="w-4 h-4 mr-1" /> Share
+          </Button>
           <ThemeToggle />
         </div>
       </header>

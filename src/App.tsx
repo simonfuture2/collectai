@@ -19,6 +19,8 @@ import FAQ from "./pages/FAQ";
 import About from "./pages/About";
 import HowItWorks from "./pages/HowItWorks";
 import Admin from "./pages/Admin";
+import SharedCard from "./pages/SharedCard";
+import PublicCollection from "./pages/PublicCollection";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -46,6 +48,8 @@ const App = () => (
           <Route path="/about" element={<About />} />
           <Route path="/how-it-works" element={<HowItWorks />} />
           <Route path="/admin" element={<Admin />} />
+          <Route path="/card/share/:id" element={<SharedCard />} />
+          <Route path="/u/:slug" element={<PublicCollection />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

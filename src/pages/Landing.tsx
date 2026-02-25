@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Camera, Sparkles, TrendingUp, Wallet, Crown, Check } from "lucide-react";
@@ -11,6 +12,7 @@ import collectaiLogo from "@/assets/collectai-logo.png";
 import comboGraphic from "@/assets/mycollectai-authentiseal-combo.png";
 
 const Landing = () => {
+  useEffect(() => { document.title = "CollectAI – AI Card Grading & Value Scanner"; }, []);
   return (
     <div className="min-h-screen bg-background">
       {/* Hero Section */}

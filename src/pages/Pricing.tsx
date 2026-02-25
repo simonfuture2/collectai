@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Check, Crown, Coins, Sparkles, Loader2, Settings } from "lucide-react";
@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import ThemeToggle from "@/components/ThemeToggle";
 
 const Pricing = () => {
+  useEffect(() => { document.title = "CollectAI – Pricing & Plans"; }, []);
   const [loading, setLoading] = useState<string | null>(null);
   const { credits, isPro, loading: creditsLoading } = useCredits();
   const { toast } = useToast();
