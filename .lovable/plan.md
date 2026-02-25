@@ -1,68 +1,70 @@
 
 
-# How-To Guide Page
+# Admin Dashboard / Portal
 
-## Overview
+## Current State
+There is no admin dashboard, admin role system, or management UI anywhere in the codebase. User and subscription data lives in the `user_credits` and `credit_transactions` tables, but there's no way to view or manage them from within the app.
 
-Create a new "How It Works" page (`/how-it-works`) that walks users through the core CollectAI workflow with step-by-step instructions and support graphics (icons + illustrated cards). This page serves double duty: onboarding new users and impressing Google Play reviewers.
+## Proposed Plan
 
-## Page Structure
+### 1. Database: Add Admin Role
 
-The page will have 5 sections, each with an icon, step number, title, description, and a visual mock/illustration card:
+Create a migration to add an `is_admin` column to the existing user data, or create a dedicated `admin_users` table referencing `auth.users`. The simpler approach is a `user_roles` table:
 
-```text
-┌─────────────────────────────────────┐
-│  Header (back arrow + title)        │
-├─────────────────────────────────────┤
-│  Hero: "How CollectAI Works"        │
-│  Subtitle text                      │
-├─────────────────────────────────────┤
-│  Step 1: Sign Up & Get Free Scans   │
-│  [Icon + description + visual]      │
-│                                     │
-│  Step 2: Upload or Snap Your Card   │
-│  [Camera icon + upload UI mock]     │
-│                                     │
-│  Step 3: AI Analyzes Your Card      │
-│  [Brain icon + analysis breakdown]  │
-│                                     │
-│  Step 4: Review Results & Save      │
-│  [Results card mock + save action]  │
-│                                     │
-│  Step 5: Seal with AuthentiSeal     │
-│  [Blockchain icon + certificate]    │
-├─────────────────────────────────────┤
-│  Pro Tips (3 cards grid)            │
-├─────────────────────────────────────┤
-│  CTA: "Ready to start?" button      │
-├─────────────────────────────────────┤
-│  Footer                             │
-└─────────────────────────────────────┘
+```sql
+CREATE TABLE public.user_roles (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL UNIQUE,
+  role TEXT NOT NULL DEFAULT 'user' CHECK (role IN ('user', 'admin')),
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- RLS: only admins can read this table
+ALTER TABLE public.user_roles ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Admins can read all roles"
+  ON public.user_roles FOR SELECT
+  USING (
+    EXISTS (SELECT 1 FROM public.user_roles ur WHERE ur.user_id = auth.uid() AND ur.role = 'admin')
+  );
 ```
 
-## Changes Required
+Seed your own user as the first admin manually.
 
-### 1. Create `src/pages/HowItWorks.tsx`
-- Uses `LegalPageLayout` for consistent header/footer structure (title: "How It Works")
-- 5 numbered step sections, each with:
-  - Lucide icon in a colored badge
-  - Step number indicator (1–5)
-  - Title and description paragraph
-  - A visual "mock" card (styled div showing a simplified representation of the UI at that step — e.g., a card upload area, an analysis result card, a certificate badge)
-- "Pro Tips" section with 3 tip cards (use multiple angles, good lighting, flat surface)
-- Bottom CTA button linking to `/scan` (or `/auth` for unauthenticated users)
+### 2. Backend: Admin Check Edge Function
 
-### 2. Update `src/App.tsx`
-- Import and add route: `<Route path="/how-it-works" element={<HowItWorks />} />`
+Create a `check-admin` edge function (or add admin status to the existing `check-subscription` function) that verifies the calling user has `role = 'admin'` in `user_roles`.
 
-### 3. Update `src/components/Footer.tsx`
-- Add "How It Works" link under the "Product" column
+### 3. Frontend: Admin Dashboard Page
 
-### Visual Support Graphics
-Since we can't add actual image files, each step will include a styled illustration card built with Tailwind — colored backgrounds, icons, and mock UI elements that visually represent each step (upload area, scan animation, results card, certificate badge). These serve as the "support graphics" and look polished without external assets.
+Create `src/pages/Admin.tsx` with the following sections:
 
-## Technical Details
-- No new dependencies needed — uses existing Lucide icons, Card components, and Tailwind classes
-- No database changes
-- Files: `src/pages/HowItWorks.tsx` (new), `src/App.tsx` (add route), `src/components/Footer.tsx` (add link)
+- **Users Table**: Lists all users from `user_credits` — shows email, plan (free/pro), credits balance, subscription status, and join date. Supports search and pagination.
+- **Subscriptions Overview**: Summary cards showing total Pro subscribers, total free users, total credits in circulation.
+- **Credit Transactions Log**: Filterable table of `credit_transactions` — type, amount, user, timestamp.
+- **Quick Actions**: Manually adjust a user's credits, upgrade/downgrade a user's plan.
+
+### 4. Routing & Navigation
+
+- Add `/admin` route to `App.tsx` (protected — redirects non-admins)
+- Add a conditional "Admin" link in the dashboard navigation for admin users
+- No footer link (admins-only)
+
+### 5. Security
+
+- All admin queries go through an edge function or use RLS policies that check `user_roles.role = 'admin'`
+- The admin page checks role on mount and redirects unauthorized users to `/dashboard`
+
+## Files Changed
+- **New**: `src/pages/Admin.tsx` (main dashboard)
+- **New**: `src/hooks/use-admin.ts` (admin role check hook)
+- **Modified**: `src/App.tsx` (add route)
+- **Modified**: `src/pages/Dashboard.tsx` (conditional admin link)
+- **Migration**: `user_roles` table + RLS policies
+- **Optional**: Edge function for admin-only data queries
+
+## Technical Notes
+- Uses existing `user_credits` and `credit_transactions` tables for data
+- No new dependencies needed — uses existing Table, Card, and Badge UI components
+- Stripe subscription details can be cross-referenced via `stripe_customer_id`
 
