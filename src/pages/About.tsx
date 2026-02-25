@@ -1,65 +1,89 @@
 import LegalPageLayout from "@/components/LegalPageLayout";
-import { Brain, Link2, Shield, Camera, AlertTriangle } from "lucide-react";
-
-const sections = [
-  {
-    icon: Brain,
-    title: "AI-Powered Analysis",
-    content:
-      "CollectAI uses artificial intelligence to identify trading cards, estimate their condition grade, and provide market valuations. All AI results are estimates only and are not professional appraisals, certified grades, or guaranteed sale prices. AI grading and valuation features are currently in beta and continuously improving. For high-value cards, we always recommend certified grading from PSA, BGS, CGC, or SGC.",
-  },
-  {
-    icon: Camera,
-    title: "Camera & Image Processing",
-    content:
-      "The app accesses your device camera solely to capture images of collectible cards for AI analysis. Images are encrypted in transit and processed on secure cloud servers. We do not use your camera for any other purpose. You can revoke camera permissions at any time through your device settings.",
-  },
-  {
-    icon: Link2,
-    title: "Blockchain & AuthentiSeal Certificates",
-    content:
-      "AuthentiSeal certificates use blockchain technology (Solana) to create tamper-proof, publicly verifiable records of card analysis results. Certificates are Non-Fungible Tokens (NFTs) used solely for authentication purposes. CollectAI is not a cryptocurrency exchange and does not facilitate the trading of digital assets or cryptocurrencies. On-chain certificate data is publicly visible and permanently recorded — it cannot be modified or deleted after creation. Only card analysis metadata is stored on-chain; no personal information is recorded.",
-  },
-  {
-    icon: Shield,
-    title: "Data Privacy & Security",
-    content:
-      "Your card images and collection data are stored securely with encryption at rest and in transit. Only you can access your collection. We do not sell your personal images or data to third parties. Payment information is handled by Stripe — we never see or store your card numbers. You may request deletion of your account and all associated data by emailing support@collectai.app.",
-  },
-  {
-    icon: AlertTriangle,
-    title: "Important Disclaimers",
-    content:
-      "CollectAI is not a financial advisor, professional grading service, or cryptocurrency exchange. AI-generated grades, identifications, and valuations are estimates only and should not be the sole basis for purchasing, selling, or insuring collectibles. Market values fluctuate and past performance does not guarantee future results. AuthentiSeal certificates verify AI analysis results — they do not replace professional authentication or grading.",
-  },
-];
+import { Brain, Camera, Link2, Shield, BarChart3, Globe, AlertTriangle } from "lucide-react";
 
 const About = () => {
   return (
     <LegalPageLayout title="About CollectAI" lastUpdated="February 25, 2026">
-      <p className="text-muted-foreground text-base mb-8">
-        CollectAI is an AI-powered trading card analysis platform that helps collectors identify cards, assess condition, track market values, and generate blockchain-backed authenticity certificates.
-      </p>
+      {/* Hero statement */}
+      <div className="mb-10">
+        <p className="text-xl font-display font-semibold text-foreground mb-3">
+          Stop guessing the grade. Start sealing the value.
+        </p>
+        <p className="text-muted-foreground text-base leading-relaxed">
+          CollectAI brings professional-grade artificial intelligence to your pocket. Whether you're a Pokémon master, 
+          a Magic enthusiast, or a high-stakes sports card investor, CollectAI gives you the tools to authenticate and 
+          value your collection in seconds.
+        </p>
+      </div>
 
-      {sections.map((section, i) => (
-        <section key={i} className="mb-2">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 rounded-lg bg-primary/10">
-              <section.icon className="w-5 h-5 text-primary" />
-            </div>
-            <h2 className="text-xl font-display font-bold">{section.title}</h2>
-          </div>
-          <p className="text-muted-foreground">{section.content}</p>
-        </section>
-      ))}
+      {/* Features */}
+      <section className="mb-8">
+        <h2 className="text-xl font-display font-bold mb-4">What CollectAI Does</h2>
+        <div className="space-y-6">
+          <Feature
+            icon={Camera}
+            title="CollectAI Scanner"
+            description="Our advanced AI analyzes centering, edges, corners, and surface quality from your card photos to provide an instant estimated grade. Optimized for Pokémon, Magic: The Gathering, Yu-Gi-Oh!, and major sports cards including basketball, baseball, and football."
+          />
+          <Feature
+            icon={Link2}
+            title="AuthentiSeal Integration"
+            description="Powered by the Solana blockchain. Generate a permanent, tamper-proof digital certificate for your physical cards. AuthentiSeal certificates are Non-Fungible Tokens (NFTs) used solely for authentication — CollectAI is not a cryptocurrency exchange."
+          />
+          <Feature
+            icon={BarChart3}
+            title="Real-Time Market Insights"
+            description="Sync your grades with current market data from eBay sold listings, TCGPlayer, and PSA population reports to track the total value of your collection — from a shoebox in the basement to full store inventory."
+          />
+          <Feature
+            icon={Globe}
+            title="W3MCT Ecosystem"
+            description="CollectAI is part of the W3MCT Forge — merging physical collectibles with the future of Web3 technology. Built by collectors, for collectors."
+          />
+        </div>
+      </section>
 
-      <section className="mt-6 p-4 rounded-xl bg-muted/50 border border-border">
-        <p className="text-sm text-muted-foreground">
-          <strong className="text-foreground">Questions?</strong> Contact us at{" "}
-          <a href="mailto:support@collectai.app" className="text-primary hover:underline">
-            support@collectai.app
-          </a>
-          . For full details, see our{" "}
+      {/* Why section */}
+      <section className="mb-8">
+        <h2 className="text-xl font-display font-bold mb-3">Why CollectAI?</h2>
+        <p className="text-muted-foreground leading-relaxed">
+          Don't wait weeks for mail-in grading. Get an instant analysis of your Charizard, LeBron rookie, or Black Lotus. 
+          Perfect for pre-grading cards before sending them to PSA or BGS, or for verifying trades at local card shows. 
+          Your collection deserves more than guesswork.
+        </p>
+      </section>
+
+      {/* Trust & Compliance Disclosures */}
+      <section className="mb-8">
+        <h2 className="text-xl font-display font-bold mb-4">How We Protect You</h2>
+        <div className="space-y-6">
+          <Feature
+            icon={Brain}
+            title="AI Transparency"
+            description="All card identifications, condition grades, and valuations are AI-generated estimates only. AI features are currently in beta and continuously improving. Results are not professional appraisals, certified grades, or guaranteed market values. For high-value cards, we always recommend certified grading services."
+          />
+          <Feature
+            icon={Shield}
+            title="Privacy & Security"
+            description="Your card images and collection data are encrypted at rest and in transit. We do not sell your images or personal data to third parties. Camera access is used solely for card scanning. Payment processing is handled securely by Stripe — we never see or store your card numbers."
+          />
+          <Feature
+            icon={AlertTriangle}
+            title="Blockchain Disclosure"
+            description="AuthentiSeal certificates are recorded on public blockchain networks (Solana) and are publicly visible and immutable. Only card analysis metadata is stored on-chain — no personal information. CollectAI does not operate as a cryptocurrency exchange or financial service. You are responsible for securing your own wallet credentials."
+          />
+        </div>
+      </section>
+
+      {/* Data deletion + contact */}
+      <section className="p-5 rounded-xl bg-muted/50 border border-border">
+        <p className="text-sm text-muted-foreground leading-relaxed">
+          <strong className="text-foreground">Data Deletion:</strong> You may request deletion of your account and all associated data at any time by emailing{" "}
+          <a href="mailto:support@collectai.app" className="text-primary hover:underline">support@collectai.app</a>. 
+          Requests are processed within 30 days. On-chain AuthentiSeal certificates cannot be removed as they are immutable records.
+        </p>
+        <p className="text-sm text-muted-foreground mt-3">
+          For full details, see our{" "}
           <a href="/privacy" className="text-primary hover:underline">Privacy Policy</a>,{" "}
           <a href="/terms" className="text-primary hover:underline">Terms of Service</a>, and{" "}
           <a href="/faq" className="text-primary hover:underline">FAQ</a>.
@@ -68,5 +92,17 @@ const About = () => {
     </LegalPageLayout>
   );
 };
+
+const Feature = ({ icon: Icon, title, description }: { icon: React.ElementType; title: string; description: string }) => (
+  <div className="flex gap-4">
+    <div className="shrink-0 p-2.5 rounded-lg bg-primary/10 h-fit">
+      <Icon className="w-5 h-5 text-primary" />
+    </div>
+    <div>
+      <h3 className="font-display font-semibold mb-1">{title}</h3>
+      <p className="text-sm text-muted-foreground leading-relaxed">{description}</p>
+    </div>
+  </div>
+);
 
 export default About;
