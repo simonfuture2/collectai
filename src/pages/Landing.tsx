@@ -1,18 +1,66 @@
 import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Camera, Sparkles, TrendingUp, Wallet, Crown, Check } from "lucide-react";
+import { Camera, Sparkles, TrendingUp, Wallet, Crown, Check, Loader2 } from "lucide-react";
 import PoweredByW3AI from "@/components/PoweredByW3AI";
 import ThemeToggle from "@/components/ThemeToggle";
 import EcosystemBadge from "@/components/EcosystemBadge";
 import CollectAILink from "@/components/CollectAILink";
 import Footer from "@/components/Footer";
+import HeroBackground from "@/components/HeroBackground";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 const Landing = () => {
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [generating, setGenerating] = useState(false);
+
+  useEffect(() => {
+    // Check if logo already exists
+    const { data } = supabase.storage
+      .from("generated-assets")
+      .getPublicUrl("collectai-logo.png");
+    
+    const img = new Image();
+    img.onload = () => setLogoUrl(data.publicUrl);
+    img.onerror = () => setLogoUrl(null);
+    img.src = data.publicUrl;
+  }, []);
+
+  const generateAsset = async (type: "logo" | "hero") => {
+    setGenerating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-assets", {
+        body: { type },
+      });
+      if (error) throw error;
+      if (data?.url) {
+        if (type === "logo") {
+          setLogoUrl(data.url + "?t=" + Date.now());
+        }
+        toast.success(`${type === "logo" ? "Logo" : "Hero image"} generated!`);
+        if (type === "hero") window.location.reload();
+      }
+    } catch (e: any) {
+      console.error(e);
+      toast.error(`Failed to generate ${type}: ${e.message || "Unknown error"}`);
+    } finally {
+      setGenerating(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       {/* Hero Section */}
-      <header className="container mx-auto px-4 py-6 flex justify-between items-center">
-        <h1 className="text-2xl font-display font-bold text-gradient-primary">CollectAI</h1>
+      <header className="container mx-auto px-4 py-6 flex justify-between items-center relative z-10">
+        {logoUrl ? (
+          <Link to="/" className="flex items-center gap-2">
+            <img src={logoUrl} alt="CollectAI Logo" className="w-10 h-10 rounded-lg" />
+            <span className="text-2xl font-display font-bold text-gradient-primary">CollectAI</span>
+          </Link>
+        ) : (
+          <h1 className="text-2xl font-display font-bold text-gradient-primary">CollectAI</h1>
+        )}
         <div className="flex items-center gap-2">
           <ThemeToggle />
           <Link to="/auth">
@@ -21,29 +69,61 @@ const Landing = () => {
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-16">
-        <div className="text-center max-w-4xl mx-auto">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/30 mb-8">
-            <Sparkles className="w-4 h-4 text-primary" />
-            <span className="text-sm text-primary">AI-Powered Card Analysis</span>
+      <main className="container mx-auto px-4 py-16 relative">
+        {/* Hero with animated background */}
+        <div className="relative">
+          <HeroBackground />
+          <div className="text-center max-w-4xl mx-auto relative z-10 py-8">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/30 mb-8">
+              <Sparkles className="w-4 h-4 text-primary" />
+              <span className="text-sm text-primary">AI-Powered Card Analysis</span>
+            </div>
+            
+            <h2 className="text-5xl md:text-7xl font-display font-bold mb-6">
+              Know Your Cards'
+              <span className="text-gradient-primary block">True Value</span>
+            </h2>
+            
+            <p className="text-xl text-muted-foreground mb-10 max-w-2xl mx-auto">
+              Snap a photo of any trading card and instantly get AI-powered identification, 
+              condition grading, and real-time market values.
+            </p>
+            
+            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+              <Link to="/auth">
+                <Button size="lg" className="gradient-primary text-lg px-8 py-6 rounded-xl glow-purple hover-lift">
+                  <Camera className="mr-2 w-5 h-5" />
+                  Start Scanning Free
+                </Button>
+              </Link>
+            </div>
+
+            {/* Admin: Generate assets buttons (only shown when no logo) */}
+            {!logoUrl && (
+              <div className="mt-8 flex gap-3 justify-center">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => generateAsset("logo")}
+                  disabled={generating}
+                  className="text-xs"
+                >
+                  {generating ? <Loader2 className="mr-1 w-3 h-3 animate-spin" /> : <Sparkles className="mr-1 w-3 h-3" />}
+                  Generate Logo
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => generateAsset("hero")}
+                  disabled={generating}
+                  className="text-xs"
+                >
+                  {generating ? <Loader2 className="mr-1 w-3 h-3 animate-spin" /> : <Sparkles className="mr-1 w-3 h-3" />}
+                  Generate Hero Image
+                </Button>
+              </div>
+            )}
           </div>
-          
-          <h2 className="text-5xl md:text-7xl font-display font-bold mb-6">
-            Know Your Cards'
-            <span className="text-gradient-primary block">True Value</span>
-          </h2>
-          
-          <p className="text-xl text-muted-foreground mb-10 max-w-2xl mx-auto">
-            Snap a photo of any trading card and instantly get AI-powered identification, 
-            condition grading, and real-time market values.
-          </p>
-          
-          <Link to="/auth">
-            <Button size="lg" className="gradient-primary text-lg px-8 py-6 rounded-xl glow-purple hover-lift">
-              <Camera className="mr-2 w-5 h-5" />
-              Start Scanning Free
-            </Button>
-          </Link>
         </div>
 
         {/* Features */}
