@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useToast } from "@/hooks/use-toast";
 import EcosystemBadge from "@/components/EcosystemBadge";
 import Footer from "@/components/Footer";
+import FolderManager, { type FolderData } from "@/components/FolderManager";
+import AddToFolderMenu from "@/components/AddToFolderMenu";
 import type { User } from "@supabase/supabase-js";
 
 interface Card {
@@ -58,6 +60,9 @@ const Collection = () => {
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkMode, setBulkMode] = useState(false);
+  const [folders, setFolders] = useState<FolderData[]>([]);
+  const [activeFolder, setActiveFolder] = useState<string | null>(null);
+  const [cardFolderMap, setCardFolderMap] = useState<Record<string, string[]>>({});
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -103,6 +108,40 @@ const Collection = () => {
         });
     }
   }, [user]);
+
+  // Fetch folders and card-folder mappings
+  const fetchFolders = useCallback(async () => {
+    if (!user) return;
+    const { data: foldersData } = await supabase
+      .from("folders")
+      .select("id, name, color")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: true });
+
+    const { data: cfData } = await supabase
+      .from("card_folders")
+      .select("card_id, folder_id");
+
+    if (foldersData) {
+      const countMap: Record<string, number> = {};
+      (cfData || []).forEach((cf) => {
+        countMap[cf.folder_id] = (countMap[cf.folder_id] || 0) + 1;
+      });
+      setFolders(
+        foldersData.map((f) => ({ ...f, card_count: countMap[f.id] || 0 }))
+      );
+    }
+
+    // Build card -> folder[] map
+    const map: Record<string, string[]> = {};
+    (cfData || []).forEach((cf) => {
+      if (!map[cf.card_id]) map[cf.card_id] = [];
+      map[cf.card_id].push(cf.folder_id);
+    });
+    setCardFolderMap(map);
+  }, [user]);
+
+  useEffect(() => { fetchFolders(); }, [fetchFolders]);
 
   const deleteCard = async (id: string) => {
     const { error } = await supabase.from("cards").delete().eq("id", id);
@@ -167,6 +206,16 @@ const Collection = () => {
   const filtered = useMemo(() => {
     let list = [...cards];
 
+    // Folder filter
+    if (activeFolder) {
+      const folderCardIds = new Set(
+        Object.entries(cardFolderMap)
+          .filter(([, fIds]) => fIds.includes(activeFolder))
+          .map(([cardId]) => cardId)
+      );
+      list = list.filter((c) => folderCardIds.has(c.id));
+    }
+
     if (search.trim()) {
       const q = search.toLowerCase();
       list = list.filter(
@@ -203,10 +252,10 @@ const Collection = () => {
     }
 
     return list;
-  }, [cards, search, activeCategory, activeRarity, sortBy]);
+  }, [cards, search, activeCategory, activeRarity, sortBy, activeFolder, cardFolderMap]);
 
   // Reset visible count when filters change
-  useEffect(() => { setVisibleCount(PAGE_SIZE); }, [search, activeCategory, activeRarity, sortBy]);
+  useEffect(() => { setVisibleCount(PAGE_SIZE); }, [search, activeCategory, activeRarity, sortBy, activeFolder]);
 
   const paginatedCards = filtered.slice(0, visibleCount);
   const hasMore = visibleCount < filtered.length;
@@ -231,9 +280,10 @@ const Collection = () => {
     setActiveCategory(null);
     setActiveRarity(null);
     setSortBy("newest");
+    setActiveFolder(null);
   };
 
-  const hasActiveFilters = search || activeCategory || activeRarity || sortBy !== "newest";
+  const hasActiveFilters = search || activeCategory || activeRarity || sortBy !== "newest" || activeFolder;
 
   const cardValue = (c: Card) => ((c.estimated_value_low || 0) + (c.estimated_value_high || 0)) / 2;
 
@@ -395,6 +445,19 @@ const Collection = () => {
       </header>
 
       <main className="container mx-auto px-4 py-6">
+        {/* Folder bar */}
+        {!loading && cards.length > 0 && user && (
+          <div className="mb-4">
+            <FolderManager
+              userId={user.id}
+              activeFolder={activeFolder}
+              onFolderChange={setActiveFolder}
+              folders={folders}
+              onFoldersChange={fetchFolders}
+            />
+          </div>
+        )}
+
         {/* Stats summary bar */}
         {!loading && cards.length > 0 && (
           <div className="flex flex-wrap gap-2 mb-5">
@@ -618,6 +681,11 @@ const Collection = () => {
         {bulkMode && selectedIds.size > 0 && (
           <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-30 bg-card border border-border rounded-xl shadow-lg px-4 py-3 flex items-center gap-3 animate-fade-in">
             <span className="text-sm font-medium">{selectedIds.size} selected</span>
+            <AddToFolderMenu
+              cardIds={Array.from(selectedIds)}
+              folders={folders}
+              onDone={fetchFolders}
+            />
             <Button size="sm" variant="outline" className="gap-1.5" onClick={exportCSV}>
               <Download className="w-3.5 h-3.5" /> Export CSV
             </Button>
