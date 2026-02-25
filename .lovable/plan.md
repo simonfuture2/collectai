@@ -1,52 +1,42 @@
 
 
-## Collection Page Improvement Opportunities
+## What's Possible and What's Not
 
-After reviewing the current implementation, here are the areas that could be improved, grouped by priority:
+**Logo**: I can generate a CollectAI logo using AI image generation (Lovable AI). I'll create a backend function that generates the logo, then save it to file storage so it loads instantly on every visit. The logo will replace the text-only "CollectAI" in the header.
 
-### 1. Pagination / Infinite Scroll
-The page loads all cards at once. For users with large collections (100+), this causes slow load times and excessive memory use. Adding pagination (e.g., 20 cards per page with load-more or page controls) would solve this.
+**Video background**: I cannot generate video. However, here are realistic alternatives:
 
-### 2. Grid/List View Toggle
-Currently only a grid view is available. Adding a toggle to switch between grid (visual) and list/table (data-dense) view would help users who want to quickly scan names, values, and grades without thumbnails.
+1. **AI-generated hero images** -- Generate a compelling illustration of someone excitedly scanning a trading card, displayed as a large hero background with a gradient overlay. This is fully achievable.
+2. **Animated CSS/particle effects** -- Floating card silhouettes, sparkle particles, or a subtle animated gradient behind the hero section. Adds energy without needing real video.
+3. **Embed a stock video** -- If you provide a video file or a URL to a royalty-free stock video (e.g., from Pexels), I can embed it as a looping muted background behind the hero.
 
-### 3. Bulk Actions
-No way to select multiple cards for bulk delete, bulk export, or bulk category reassignment. Adding checkboxes with a floating action bar ("Delete selected", "Export CSV") would be useful for power users.
+## Proposed Plan
 
-### 4. Image Loading States
-Card images have no placeholder or error fallback. If a signed URL expires or the image fails to load, the user sees a broken image. Adding an `onError` fallback and a blur-up placeholder would improve perceived performance.
+### 1. Generate CollectAI Logo
+- Create a backend function that calls the AI image generation API with a prompt like: *"Modern app logo for 'CollectAI', a trading card scanning app. Purple and blue gradient colors, clean icon showing a card with an AI sparkle, flat design, transparent background, square format."*
+- Upload the result to file storage.
+- Add a logo generation page/button (or generate once and hardcode the stored URL).
+- Replace the text-only `<h1>` in the header with an `<img>` logo across Landing, Dashboard, and other pages.
 
-### 5. Mobile Delete UX
-The delete button uses `opacity-0 group-hover:opacity-100`, which is invisible on touch devices since there's no hover state. Mobile users currently have no visible way to delete a card from this page. Should show the delete icon on mobile always, or use a swipe-to-delete or long-press pattern.
+### 2. Animated Hero Background
+Since video generation isn't available, I'll build an animated hero section with:
+- **AI-generated hero illustration**: A wide banner image of an excited collector scanning cards, with a semi-transparent overlay so text remains readable.
+- **Floating card animations**: CSS-animated card silhouettes drifting across the background (using `@keyframes` transforms).
+- **Sparkle/particle effects**: Small animated dots/stars using CSS to create energy and excitement.
 
-### 6. Collection Stats Summary Bar
-Add a small summary strip below the header showing: total cards, total estimated value, average grade, and top category. This gives users a quick portfolio snapshot.
-
-### 7. Empty Search Suggestions
-When a search returns no results, the page only says "No items match." It could suggest related terms or show the closest matches.
-
-### 8. Card Grade Badge on Thumbnails
-The condition grade isn't visible on the collection grid. Adding a small grade badge (e.g., "PSA 9") in the corner of each card image would add useful information without requiring users to click into each card.
-
----
-
-### Recommended Implementation Plan
-
-| Priority | Change | Details |
-|----------|--------|---------|
-| High | Fix mobile delete visibility | Show delete icon on mobile (always visible or via long-press) |
-| High | Add image error fallback | `onError` handler to show placeholder image |
-| Medium | Add grade badge to card thumbnails | Small badge in bottom-right corner of card image |
-| Medium | Add collection stats summary | Row of stat pills below header |
-| Medium | Add grid/list view toggle | Toggle button in the sort/filter bar |
-| Low | Add pagination or infinite scroll | Load 20 cards at a time with "Load More" button |
-| Low | Bulk select and actions | Checkbox mode with floating action bar |
+### 3. Landing Page Layout Update
+- Wrap the hero section in a `relative overflow-hidden` container.
+- Layer the animated background behind the existing hero text content.
+- Add a gradient overlay (`bg-gradient-to-b from-background/80 to-background`) to ensure text contrast.
 
 ### Technical Details
 
-- **Mobile delete fix**: Replace `opacity-0 group-hover:opacity-100` with `opacity-100 sm:opacity-0 sm:group-hover:opacity-100` so the icon is always visible on small screens.
-- **Image fallback**: Add `onError={(e) => { e.currentTarget.src = '/placeholder.svg'; }}` to the `<img>` tag.
-- **Grade badge**: Conditionally render `card.condition_grade` as a small positioned badge inside the image container.
-- **Stats summary**: Compute total cards, avg value, avg grade from the `filtered` array and render as a horizontal row of pills.
-- **Grid/list toggle**: Add a state `viewMode: 'grid' | 'list'` and conditionally render either the current grid or a `Table` component with columns for name, set, year, grade, value.
+- **Logo generation**: Uses `google/gemini-3-pro-image-preview` model via an edge function. The generated image is uploaded to a `logos` storage bucket, and the public URL is used in the app.
+- **Hero image**: Same generation approach, stored in storage, displayed as a `background-image` with `object-cover`.
+- **CSS animations**: Pure CSS floating cards using `@keyframes` with staggered `animation-delay` values. No JavaScript overhead.
+- **Files to create/modify**:
+  - `supabase/functions/generate-logo/index.ts` -- edge function for AI image generation
+  - `src/components/HeroBackground.tsx` -- animated background component
+  - `src/pages/Landing.tsx` -- integrate logo and hero background
+  - `src/index.css` -- add floating card keyframe animations
 
