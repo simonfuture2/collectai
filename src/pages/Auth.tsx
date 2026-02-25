@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Sparkles } from "lucide-react";
+import collectaiLogo from "@/assets/collectai-logo.png";
 import Footer from "@/components/Footer";
 
 const Auth = () => {
@@ -64,7 +65,7 @@ const Auth = () => {
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
             <Link to="/" className="inline-flex items-center gap-2 mb-4">
-              <Sparkles className="w-8 h-8 text-primary" />
+              <img src={collectaiLogo} alt="CollectAI Logo" className="w-10 h-10 rounded-lg" />
               <h1 className="text-3xl font-display font-bold text-gradient-primary">CollectAI</h1>
             </Link>
             <p className="text-muted-foreground">
