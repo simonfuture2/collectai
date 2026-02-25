@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import collectaiLogo from "@/assets/collectai-logo.png";
 
 const Footer = () => {
   return (
@@ -6,7 +7,10 @@ const Footer = () => {
       <div className="container mx-auto px-4 py-10">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-8">
           <div>
-            <h3 className="font-display font-bold text-gradient-primary text-lg mb-3">CollectAI</h3>
+            <div className="flex items-center gap-2 mb-3">
+              <img src={collectaiLogo} alt="CollectAI Logo" className="w-8 h-8 rounded-lg" />
+              <h3 className="font-display font-bold text-gradient-primary text-lg">CollectAI</h3>
+            </div>
             <p className="text-sm text-muted-foreground">
               AI-powered card identification, grading, and valuation.
             </p>

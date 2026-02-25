@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import collectaiLogo from "@/assets/collectai-logo.png";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -70,7 +71,10 @@ const Dashboard = () => {
     <div className="min-h-screen bg-background">
       <header className="border-b border-border">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <h1 className="text-2xl font-display font-bold text-gradient-primary">CollectAI</h1>
+          <Link to="/" className="flex items-center gap-2">
+            <img src={collectaiLogo} alt="CollectAI Logo" className="w-10 h-10 rounded-lg" />
+            <span className="text-2xl font-display font-bold text-gradient-primary">CollectAI</span>
+          </Link>
           <div className="flex items-center gap-4">
             <CreditBalance credits={credits} isPro={isPro} loading={creditsLoading} />
             <span className="text-sm text-muted-foreground hidden sm:block">{user?.email}</span>
