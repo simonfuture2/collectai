@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import Footer from "./Footer";
+import ThemeToggle from "./ThemeToggle";
 
 interface LegalPageLayoutProps {
   title: string;
@@ -17,7 +18,8 @@ const LegalPageLayout = ({ title, lastUpdated, children }: LegalPageLayoutProps)
           <Link to="/">
             <Button variant="ghost" size="icon"><ArrowLeft className="w-5 h-5" /></Button>
           </Link>
-          <h1 className="text-xl font-display font-bold">{title}</h1>
+          <h1 className="text-xl font-display font-bold flex-1">{title}</h1>
+          <ThemeToggle />
         </div>
       </header>
 

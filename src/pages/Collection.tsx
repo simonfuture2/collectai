@@ -23,6 +23,7 @@ import Footer from "@/components/Footer";
 import FolderManager, { type FolderData } from "@/components/FolderManager";
 import AddToFolderMenu from "@/components/AddToFolderMenu";
 import type { User } from "@supabase/supabase-js";
+import ThemeToggle from "@/components/ThemeToggle";
 
 interface Card {
   id: string;
@@ -315,11 +316,14 @@ const Collection = () => {
             </Link>
             <h1 className="text-xl font-display font-bold">My Collection</h1>
           </div>
-          <div className="text-right">
-            <p className="text-sm text-muted-foreground">
-              {filtered.length}{filtered.length !== cards.length ? `/${cards.length}` : ""} items
-            </p>
-            <p className="text-lg font-display font-bold text-gradient-primary">~${totalValue.toFixed(0)}</p>
+          <div className="flex items-center gap-3">
+            <div className="text-right">
+              <p className="text-sm text-muted-foreground">
+                {filtered.length}{filtered.length !== cards.length ? `/${cards.length}` : ""} items
+              </p>
+              <p className="text-lg font-display font-bold text-gradient-primary">~${totalValue.toFixed(0)}</p>
+            </div>
+            <ThemeToggle />
           </div>
         </div>
 

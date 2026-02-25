@@ -10,6 +10,7 @@ import type { Session, User } from "@supabase/supabase-js";
 import { useCredits } from "@/hooks/use-credits";
 import CreditBalance from "@/components/CreditBalance";
 import UpgradeModal from "@/components/UpgradeModal";
+import ThemeToggle from "@/components/ThemeToggle";
 
 interface ImageSlot {
   id: string;
@@ -206,6 +207,7 @@ const Scan = () => {
             <h1 className="text-xl font-display font-bold">Scan Item</h1>
           </div>
           <CreditBalance credits={credits} isPro={isPro} loading={creditsLoading} />
+          <ThemeToggle />
         </div>
       </header>
 
