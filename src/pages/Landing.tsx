@@ -87,6 +87,14 @@ const Landing = () => {
           ))}
         </div>
 
+        {/* AI Disclosure — Google Play Compliance */}
+        <div className="mt-16 max-w-2xl mx-auto text-center p-6 rounded-2xl bg-card border border-border">
+          <h3 className="text-sm font-display font-semibold text-muted-foreground uppercase tracking-wider mb-2">About AI Estimates</h3>
+          <p className="text-sm text-muted-foreground">
+            CollectAI uses artificial intelligence to provide estimated card grades and valuations. These are <strong className="text-foreground">not professional appraisals, certified grades, or financial advice</strong>. AI features are continuously improving and currently in beta. For high-value cards, we recommend professional grading services.
+          </p>
+        </div>
+
         {/* Pricing Section */}
         <div className="mt-24 text-center">
           <h2 className="text-3xl md:text-5xl font-display font-bold mb-4">

@@ -36,7 +36,11 @@ const faqs = [
   },
   {
     q: "What is AuthentiSeal?",
-    a: "AuthentiSeal is our digital authenticity certificate system, available to Pro subscribers. It provides a verifiable record of your card's AI analysis results, including the identification, condition assessment, and valuation at the time of scanning.",
+    a: "AuthentiSeal is our digital authenticity certificate system, available to Pro subscribers. It uses blockchain technology (Solana) to create tamper-proof, publicly verifiable certificates of your card's AI analysis results, including the identification, condition assessment, and valuation at the time of scanning. These certificates are Non-Fungible Tokens (NFTs) used solely for authentication — CollectAI is not a cryptocurrency exchange.",
+  },
+  {
+    q: "Does CollectAI access my camera?",
+    a: "Yes, CollectAI uses your device camera solely for the purpose of scanning collectible cards. Images captured are encrypted in transit and sent to our AI servers for analysis. We do not access your camera for any other purpose, and images are only stored in your personal collection. You can revoke camera access at any time through your device settings.",
   },
   {
     q: "How many images should I upload per card?",
