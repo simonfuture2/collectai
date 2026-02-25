@@ -108,7 +108,7 @@ const Pricing = () => {
             <h3 className="text-xl font-display font-bold mb-1 flex items-center gap-2">
               <Crown className="w-5 h-5 text-primary" /> Pro
             </h3>
-            <p className="text-3xl font-display font-bold mb-1">$9.99<span className="text-base font-normal text-muted-foreground">/mo</span></p>
+            <p className="text-3xl font-display font-bold mb-1">$14.99<span className="text-base font-normal text-muted-foreground">/mo</span></p>
             <p className="text-sm text-muted-foreground mb-6">Unlimited everything</p>
             <ul className="space-y-3 mb-8 flex-1">
               {proFeatures.map((f) => (

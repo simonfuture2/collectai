@@ -58,7 +58,7 @@ export default function UpgradeModal({ open, onOpenChange, feature = "this featu
               <span>Go Pro — Unlimited Everything</span>
             </div>
             <span className="font-bold">
-              {loading === STRIPE_CONFIG.pro.price_id ? <Loader2 className="w-4 h-4 animate-spin" /> : "$9.99/mo"}
+              {loading === STRIPE_CONFIG.pro.price_id ? <Loader2 className="w-4 h-4 animate-spin" /> : "$14.99/mo"}
             </span>
           </Button>
 
