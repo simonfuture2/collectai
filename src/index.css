@@ -130,3 +130,9 @@
   50% { background-position: 100% 50%; }
 }
 .animate-gradient { animation: gradient-shift 15s ease infinite; background-size: 200% 200%; }
+
+@keyframes heroFloat {
+  0%, 100% { transform: translateY(0); filter: drop-shadow(0 0 20px hsl(280 85% 65% / 0.2)); }
+  50% { transform: translateY(-12px); filter: drop-shadow(0 0 35px hsl(280 85% 65% / 0.35)); }
+}
+.animate-hero-float { animation: heroFloat 5s ease-in-out infinite; }

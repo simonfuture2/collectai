@@ -64,7 +64,7 @@ const Landing = () => {
           <img
             src={comboGraphic}
             alt="CollectAI card grading with AuthentiSeal certification"
-            className="w-full max-w-2xl rounded-2xl shadow-2xl shadow-primary/10 border border-border/30"
+            className="w-full max-w-2xl rounded-2xl shadow-2xl shadow-primary/10 border border-border/30 animate-hero-float"
             loading="lazy"
           />
         </div>
