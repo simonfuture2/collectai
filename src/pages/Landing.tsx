@@ -8,6 +8,7 @@ import CollectAILink from "@/components/CollectAILink";
 import Footer from "@/components/Footer";
 import HeroBackground from "@/components/HeroBackground";
 import collectaiLogo from "@/assets/collectai-logo.png";
+import comboGraphic from "@/assets/mycollectai-authentiseal-combo.png";
 
 const Landing = () => {
   return (
@@ -56,6 +57,16 @@ const Landing = () => {
             </div>
 
           </div>
+        </div>
+
+        {/* Hero Graphic */}
+        <div className="flex justify-center mt-16 relative z-10">
+          <img
+            src={comboGraphic}
+            alt="CollectAI card grading with AuthentiSeal certification"
+            className="w-full max-w-2xl rounded-2xl shadow-2xl shadow-primary/10 border border-border/30"
+            loading="lazy"
+          />
         </div>
 
         {/* Features */}

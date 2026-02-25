@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Sparkles } from "lucide-react";
 import collectaiLogo from "@/assets/collectai-logo.png";
+import comboGraphic from "@/assets/mycollectai-authentiseal-combo.png";
 import Footer from "@/components/Footer";
 import ThemeToggle from "@/components/ThemeToggle";
 
@@ -67,6 +68,15 @@ const Auth = () => {
       </div>
       <div className="flex-1 flex items-center justify-center p-4">
         <div className="w-full max-w-md">
+          {/* Hero graphic */}
+          <div className="flex justify-center mb-6">
+            <img
+              src={comboGraphic}
+              alt="CollectAI card grading with AuthentiSeal"
+              className="w-48 h-auto opacity-80"
+              loading="lazy"
+            />
+          </div>
           <div className="text-center mb-8">
             <Link to="/" className="inline-flex items-center gap-2 mb-4">
               <img src={collectaiLogo} alt="CollectAI Logo" className="w-10 h-10 rounded-lg" />

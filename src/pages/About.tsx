@@ -1,9 +1,20 @@
 import LegalPageLayout from "@/components/LegalPageLayout";
 import { Brain, Camera, Link2, Shield, BarChart3, Globe, AlertTriangle } from "lucide-react";
+import comboGraphic from "@/assets/mycollectai-authentiseal-combo.png";
 
 const About = () => {
   return (
     <LegalPageLayout title="About CollectAI" lastUpdated="February 25, 2026">
+      {/* Hero graphic */}
+      <div className="flex justify-center mb-10">
+        <img
+          src={comboGraphic}
+          alt="CollectAI card grading with AuthentiSeal certification"
+          className="w-full max-w-md rounded-xl"
+          loading="lazy"
+        />
+      </div>
+
       {/* Hero statement */}
       <div className="mb-10">
         <p className="text-xl font-display font-semibold text-foreground mb-3">
