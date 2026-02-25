@@ -54,8 +54,8 @@ serve(async (req) => {
       customer_email: customerId ? undefined : user.email,
       line_items: [{ price: priceId, quantity: 1 }],
       mode: mode === "subscription" ? "subscription" : "payment",
-      success_url: `${origin}/dashboard?checkout=success`,
-      cancel_url: `${origin}/pricing?checkout=cancelled`,
+      success_url: `${origin}/checkout/success`,
+      cancel_url: `${origin}/checkout/cancel`,
       metadata: {
         user_id: user.id,
         price_id: priceId,

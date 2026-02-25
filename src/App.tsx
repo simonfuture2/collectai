@@ -10,6 +10,8 @@ import Scan from "./pages/Scan";
 import Collection from "./pages/Collection";
 import CardDetail from "./pages/CardDetail";
 import Pricing from "./pages/Pricing";
+import CheckoutSuccess from "./pages/CheckoutSuccess";
+import CheckoutCancel from "./pages/CheckoutCancel";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -28,6 +30,8 @@ const App = () => (
           <Route path="/collection" element={<Collection />} />
           <Route path="/card/:id" element={<CardDetail />} />
           <Route path="/pricing" element={<Pricing />} />
+          <Route path="/checkout/success" element={<CheckoutSuccess />} />
+          <Route path="/checkout/cancel" element={<CheckoutCancel />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
