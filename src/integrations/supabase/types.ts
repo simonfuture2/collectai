@@ -65,6 +65,7 @@ export type Database = {
           estimated_value_low: number | null
           id: string
           image_url: string
+          is_public: boolean
           notes: string | null
           psa_population_data: Json | null
           rarity: string | null
@@ -87,6 +88,7 @@ export type Database = {
           estimated_value_low?: number | null
           id?: string
           image_url: string
+          is_public?: boolean
           notes?: string | null
           psa_population_data?: Json | null
           rarity?: string | null
@@ -109,6 +111,7 @@ export type Database = {
           estimated_value_low?: number | null
           id?: string
           image_url?: string
+          is_public?: boolean
           notes?: string | null
           psa_population_data?: Json | null
           rarity?: string | null
@@ -183,6 +186,9 @@ export type Database = {
           display_name: string | null
           email: string | null
           id: string
+          public_collection_enabled: boolean
+          public_collection_slug: string | null
+          referral_code: string | null
           updated_at: string
         }
         Insert: {
@@ -191,6 +197,9 @@ export type Database = {
           display_name?: string | null
           email?: string | null
           id: string
+          public_collection_enabled?: boolean
+          public_collection_slug?: string | null
+          referral_code?: string | null
           updated_at?: string
         }
         Update: {
@@ -199,7 +208,37 @@ export type Database = {
           display_name?: string | null
           email?: string | null
           id?: string
+          public_collection_enabled?: boolean
+          public_collection_slug?: string | null
+          referral_code?: string | null
           updated_at?: string
+        }
+        Relationships: []
+      }
+      referrals: {
+        Row: {
+          created_at: string
+          credited: boolean
+          id: string
+          referral_code: string
+          referred_id: string
+          referrer_id: string
+        }
+        Insert: {
+          created_at?: string
+          credited?: boolean
+          id?: string
+          referral_code: string
+          referred_id: string
+          referrer_id: string
+        }
+        Update: {
+          created_at?: string
+          credited?: boolean
+          id?: string
+          referral_code?: string
+          referred_id?: string
+          referrer_id?: string
         }
         Relationships: []
       }

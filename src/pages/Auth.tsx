@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,11 +18,34 @@ const Auth = () => {
   const [loading, setLoading] = useState(false);
   const [resetMode, setResetMode] = useState(false);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { toast } = useToast();
 
+  // Capture referral code from URL
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (session?.user) navigate("/dashboard");
+    const ref = searchParams.get("ref");
+    if (ref) {
+      localStorage.setItem("collectai_ref", ref);
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (session?.user) {
+        // Redeem referral on signup
+        if (event === "SIGNED_IN") {
+          const ref = localStorage.getItem("collectai_ref");
+          if (ref) {
+            localStorage.removeItem("collectai_ref");
+            try {
+              await supabase.functions.invoke("redeem-referral", {
+                body: { referral_code: ref },
+              });
+            } catch {}
+          }
+        }
+        navigate("/dashboard");
+      }
     });
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) navigate("/dashboard");

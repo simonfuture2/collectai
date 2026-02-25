@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -197,6 +198,7 @@ const tips = [
 ];
 
 const HowItWorks = () => {
+  useEffect(() => { document.title = "How CollectAI Works – AI Card Grading in 5 Steps"; }, []);
   return (
     <LegalPageLayout title="How It Works" lastUpdated="June 2025">
       {/* Hero */}

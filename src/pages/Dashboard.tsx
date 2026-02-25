@@ -14,6 +14,8 @@ import { useCredits } from "@/hooks/use-credits";
 import { useAdmin } from "@/hooks/use-admin";
 import Footer from "@/components/Footer";
 import ThemeToggle from "@/components/ThemeToggle";
+import ReferralCard from "@/components/ReferralCard";
+import PublicCollectionToggle from "@/components/PublicCollectionToggle";
 
 interface Card {
   id: string;
@@ -179,6 +181,14 @@ const Dashboard = () => {
                 <h3 className="text-xl font-display font-semibold mb-2">No cards yet</h3>
                 <p className="text-muted-foreground mb-6">Scan your first card to start building your collection!</p>
                 <Link to="/scan"><Button className="gradient-primary">Scan Your First Card</Button></Link>
+              </div>
+            )}
+
+            {/* Growth Features */}
+            {user && (
+              <div className="grid sm:grid-cols-2 gap-6 mt-10">
+                <ReferralCard userId={user.id} />
+                <PublicCollectionToggle userId={user.id} />
               </div>
             )}
           </>
