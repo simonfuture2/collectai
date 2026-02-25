@@ -4,13 +4,14 @@ import collectaiLogo from "@/assets/collectai-logo.png";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Camera, LogOut, Wallet, TrendingUp, Layers, BarChart3, Crown } from "lucide-react";
+import { Camera, LogOut, Wallet, TrendingUp, Layers, BarChart3, Crown, Shield } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
 import PortfolioAnalytics from "@/components/PortfolioAnalytics";
 import PoweredByW3AI from "@/components/PoweredByW3AI";
 import CreditBalance from "@/components/CreditBalance";
 import UpgradeModal from "@/components/UpgradeModal";
 import { useCredits } from "@/hooks/use-credits";
+import { useAdmin } from "@/hooks/use-admin";
 import Footer from "@/components/Footer";
 import ThemeToggle from "@/components/ThemeToggle";
 
@@ -33,6 +34,7 @@ const Dashboard = () => {
   const [showUpgrade, setShowUpgrade] = useState(false);
   const navigate = useNavigate();
   const { credits, isPro, loading: creditsLoading } = useCredits();
+  const { isAdmin } = useAdmin();
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
@@ -78,6 +80,13 @@ const Dashboard = () => {
           </Link>
           <div className="flex items-center gap-4">
             <CreditBalance credits={credits} isPro={isPro} loading={creditsLoading} />
+            {isAdmin && (
+              <Link to="/admin">
+                <Button variant="outline" size="sm" className="gap-1">
+                  <Shield className="w-4 h-4" /> Admin
+                </Button>
+              </Link>
+            )}
             <span className="text-sm text-muted-foreground hidden sm:block">{user?.email}</span>
             <ThemeToggle />
             <Button variant="ghost" size="icon" onClick={handleLogout}><LogOut className="w-5 h-5" /></Button>
