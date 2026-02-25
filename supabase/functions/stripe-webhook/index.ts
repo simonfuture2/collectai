@@ -127,7 +127,6 @@ serve(async (req) => {
       }
     } else if (event.type === "customer.subscription.deleted") {
       // Subscription cancelled/expired
-      // Subscription cancelled/expired
       const subscription = event.data.object as Stripe.Subscription;
       const customerId = subscription.customer as string;
 

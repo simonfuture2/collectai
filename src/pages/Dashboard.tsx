@@ -9,6 +9,7 @@ import PoweredByW3AI from "@/components/PoweredByW3AI";
 import CreditBalance from "@/components/CreditBalance";
 import UpgradeModal from "@/components/UpgradeModal";
 import { useCredits } from "@/hooks/use-credits";
+import Footer from "@/components/Footer";
 
 interface Card {
   id: string;
@@ -139,9 +140,7 @@ const Dashboard = () => {
         )}
       </main>
 
-      <footer className="container mx-auto px-4 py-6 text-center">
-        <PoweredByW3AI />
-      </footer>
+      <Footer />
 
       <UpgradeModal open={showUpgrade} onOpenChange={setShowUpgrade} feature="Portfolio Analytics" />
     </div>

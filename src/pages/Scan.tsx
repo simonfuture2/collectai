@@ -4,6 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Upload, Loader2, Check, Sparkles, Plus, X, RotateCcw } from "lucide-react";
+import AIDisclaimer from "@/components/AIDisclaimer";
+import Footer from "@/components/Footer";
 import type { Session, User } from "@supabase/supabase-js";
 import { useCredits } from "@/hooks/use-credits";
 import CreditBalance from "@/components/CreditBalance";
@@ -320,6 +322,7 @@ const Scan = () => {
                 </div>
               </div>
             </div>
+            <AIDisclaimer />
 
             <div className="flex gap-4">
               <Button onClick={saveToCollection} disabled={saving} className="flex-1 gradient-primary">
@@ -334,6 +337,7 @@ const Scan = () => {
         )}
       </main>
       <UpgradeModal open={showUpgrade} onOpenChange={setShowUpgrade} feature="AI card scanning" />
+      <Footer />
     </div>
   );
 };
