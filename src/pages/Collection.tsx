@@ -3,7 +3,10 @@ import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Camera, Trash2, Search, X, SlidersHorizontal, ChevronDown } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@/components/ui/table";
+import { ArrowLeft, Camera, Trash2, Search, X, SlidersHorizontal, ChevronDown, LayoutGrid, List, Download, CheckSquare } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
@@ -40,6 +43,8 @@ const getCategoryStyle = (cat: string | null) =>
 
 type SortOption = "newest" | "oldest" | "value-high" | "value-low" | "name";
 
+const PAGE_SIZE = 20;
+
 const Collection = () => {
   const [user, setUser] = useState<User | null>(null);
   const [cards, setCards] = useState<Card[]>([]);
@@ -49,6 +54,10 @@ const Collection = () => {
   const [activeRarity, setActiveRarity] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<SortOption>("newest");
   const [showFilters, setShowFilters] = useState(false);
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkMode, setBulkMode] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -98,7 +107,49 @@ const Collection = () => {
   const deleteCard = async (id: string) => {
     const { error } = await supabase.from("cards").delete().eq("id", id);
     if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
-    else setCards(cards.filter((c) => c.id !== id));
+    else {
+      setCards(cards.filter((c) => c.id !== id));
+      setSelectedIds((prev) => { const next = new Set(prev); next.delete(id); return next; });
+    }
+  };
+
+  const deleteSelected = async () => {
+    const ids = Array.from(selectedIds);
+    const { error } = await supabase.from("cards").delete().in("id", ids);
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } else {
+      setCards(cards.filter((c) => !selectedIds.has(c.id)));
+      setSelectedIds(new Set());
+      setBulkMode(false);
+      toast({ title: "Deleted", description: `${ids.length} item(s) removed.` });
+    }
+  };
+
+  const exportCSV = () => {
+    const rows = filtered.filter((c) => selectedIds.size === 0 || selectedIds.has(c.id));
+    const header = "Name,Set,Year,Category,Rarity,Grade,Est. Value\n";
+    const csv = header + rows.map((c) =>
+      `"${c.card_name || ""}","${c.card_set || ""}","${c.card_year || ""}","${c.category || ""}","${c.rarity || ""}","${c.condition_grade || ""}","$${(((c.estimated_value_low || 0) + (c.estimated_value_high || 0)) / 2).toFixed(0)}"`
+    ).join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = "collection.csv"; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filtered.length) setSelectedIds(new Set());
+    else setSelectedIds(new Set(filtered.map((c) => c.id)));
   };
 
   // Derive unique categories and rarities for filter chips
@@ -116,7 +167,6 @@ const Collection = () => {
   const filtered = useMemo(() => {
     let list = [...cards];
 
-    // Search
     if (search.trim()) {
       const q = search.toLowerCase();
       list = list.filter(
@@ -129,17 +179,14 @@ const Collection = () => {
       );
     }
 
-    // Category filter
     if (activeCategory) {
       list = list.filter((c) => (c.category || "Trading Card") === activeCategory);
     }
 
-    // Rarity filter
     if (activeRarity) {
       list = list.filter((c) => c.rarity === activeRarity);
     }
 
-    // Sort
     switch (sortBy) {
       case "oldest":
         list.reverse();
@@ -158,10 +205,26 @@ const Collection = () => {
     return list;
   }, [cards, search, activeCategory, activeRarity, sortBy]);
 
+  // Reset visible count when filters change
+  useEffect(() => { setVisibleCount(PAGE_SIZE); }, [search, activeCategory, activeRarity, sortBy]);
+
+  const paginatedCards = filtered.slice(0, visibleCount);
+  const hasMore = visibleCount < filtered.length;
+
   const totalValue = filtered.reduce(
     (sum, c) => sum + ((c.estimated_value_low || 0) + (c.estimated_value_high || 0)) / 2,
     0
   );
+
+  // Stats
+  const avgValue = filtered.length > 0 ? totalValue / filtered.length : 0;
+  const gradesCount = filtered.filter((c) => c.condition_grade).length;
+  const topCategory = useMemo(() => {
+    if (filtered.length === 0) return null;
+    const counts: Record<string, number> = {};
+    filtered.forEach((c) => { const cat = c.category || "Trading Card"; counts[cat] = (counts[cat] || 0) + 1; });
+    return Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0] || null;
+  }, [filtered]);
 
   const clearFilters = () => {
     setSearch("");
@@ -171,6 +234,8 @@ const Collection = () => {
   };
 
   const hasActiveFilters = search || activeCategory || activeRarity || sortBy !== "newest";
+
+  const cardValue = (c: Card) => ((c.estimated_value_low || 0) + (c.estimated_value_high || 0)) / 2;
 
   return (
     <div className="min-h-screen bg-background">
@@ -212,7 +277,7 @@ const Collection = () => {
               )}
             </div>
 
-            {/* Filter toggle & sort */}
+            {/* Filter toggle, sort, view toggle, bulk */}
             <div className="flex items-center gap-2">
               <Button
                 variant={showFilters ? "secondary" : "outline"}
@@ -227,8 +292,34 @@ const Collection = () => {
                 )}
               </Button>
 
+              <Button
+                variant={bulkMode ? "secondary" : "outline"}
+                size="sm"
+                onClick={() => { setBulkMode(!bulkMode); if (bulkMode) setSelectedIds(new Set()); }}
+                className="gap-1.5"
+              >
+                <CheckSquare className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Select</span>
+              </Button>
+
+              {/* View toggle */}
+              <div className="flex border border-border rounded-lg overflow-hidden ml-auto">
+                <button
+                  onClick={() => setViewMode("grid")}
+                  className={`p-1.5 transition-colors ${viewMode === "grid" ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground hover:text-foreground"}`}
+                >
+                  <LayoutGrid className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  onClick={() => setViewMode("list")}
+                  className={`p-1.5 transition-colors ${viewMode === "list" ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground hover:text-foreground"}`}
+                >
+                  <List className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
               {/* Sort dropdown */}
-              <div className="relative ml-auto">
+              <div className="relative">
                 <select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value as SortOption)}
@@ -247,7 +338,6 @@ const Collection = () => {
             {/* Filter chips */}
             {showFilters && (
               <div className="space-y-2 animate-fade-in">
-                {/* Categories */}
                 {categories.length > 1 && (
                   <div>
                     <p className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1.5 font-medium">Category</p>
@@ -269,7 +359,6 @@ const Collection = () => {
                   </div>
                 )}
 
-                {/* Rarities */}
                 {rarities.length > 1 && (
                   <div>
                     <p className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1.5 font-medium">Rarity</p>
@@ -306,6 +395,36 @@ const Collection = () => {
       </header>
 
       <main className="container mx-auto px-4 py-6">
+        {/* Stats summary bar */}
+        {!loading && cards.length > 0 && (
+          <div className="flex flex-wrap gap-2 mb-5">
+            <div className="bg-card border border-border rounded-lg px-3 py-1.5 text-xs">
+              <span className="text-muted-foreground">Cards:</span>{" "}
+              <span className="font-semibold">{filtered.length}</span>
+            </div>
+            <div className="bg-card border border-border rounded-lg px-3 py-1.5 text-xs">
+              <span className="text-muted-foreground">Total Value:</span>{" "}
+              <span className="font-semibold">${totalValue.toFixed(0)}</span>
+            </div>
+            <div className="bg-card border border-border rounded-lg px-3 py-1.5 text-xs">
+              <span className="text-muted-foreground">Avg Value:</span>{" "}
+              <span className="font-semibold">${avgValue.toFixed(0)}</span>
+            </div>
+            {gradesCount > 0 && (
+              <div className="bg-card border border-border rounded-lg px-3 py-1.5 text-xs">
+                <span className="text-muted-foreground">Graded:</span>{" "}
+                <span className="font-semibold">{gradesCount}</span>
+              </div>
+            )}
+            {topCategory && (
+              <div className="bg-card border border-border rounded-lg px-3 py-1.5 text-xs">
+                <span className="text-muted-foreground">Top:</span>{" "}
+                <span className="font-semibold">{topCategory}</span>
+              </div>
+            )}
+          </div>
+        )}
+
         {loading ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
             {[1, 2, 3, 4, 5, 6].map((i) => (
@@ -329,24 +448,107 @@ const Collection = () => {
           <div className="text-center py-16">
             <Search className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
             <p className="text-muted-foreground mb-2">No items match your search</p>
+            <p className="text-xs text-muted-foreground mb-3">Try a broader term or different spelling</p>
             <button onClick={clearFilters} className="text-primary text-sm hover:underline">
               Clear filters
             </button>
           </div>
+        ) : viewMode === "list" ? (
+          /* ---- LIST / TABLE VIEW ---- */
+          <div className="border border-border rounded-xl overflow-hidden bg-card">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  {bulkMode && (
+                    <TableHead className="w-10">
+                      <Checkbox
+                        checked={selectedIds.size === filtered.length && filtered.length > 0}
+                        onCheckedChange={toggleSelectAll}
+                      />
+                    </TableHead>
+                  )}
+                  <TableHead>Name</TableHead>
+                  <TableHead className="hidden sm:table-cell">Set</TableHead>
+                  <TableHead className="hidden md:table-cell">Year</TableHead>
+                  <TableHead>Grade</TableHead>
+                  <TableHead className="text-right">Value</TableHead>
+                  <TableHead className="w-10"></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {paginatedCards.map((card) => (
+                  <TableRow
+                    key={card.id}
+                    className="cursor-pointer"
+                    onClick={() => bulkMode ? toggleSelect(card.id) : navigate(`/card/${card.id}`)}
+                  >
+                    {bulkMode && (
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedIds.has(card.id)}
+                          onCheckedChange={() => toggleSelect(card.id)}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      </TableCell>
+                    )}
+                    <TableCell className="font-medium">{card.card_name || "Unknown"}</TableCell>
+                    <TableCell className="hidden sm:table-cell text-muted-foreground">{card.card_set || "—"}</TableCell>
+                    <TableCell className="hidden md:table-cell text-muted-foreground">{card.card_year || "—"}</TableCell>
+                    <TableCell>
+                      {card.condition_grade ? (
+                        <Badge variant="secondary" className="text-[10px]">{card.condition_grade}</Badge>
+                      ) : "—"}
+                    </TableCell>
+                    <TableCell className="text-right font-medium">${cardValue(card).toFixed(0)}</TableCell>
+                    <TableCell>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => e.stopPropagation()}>
+                            <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete {card.card_name || "this item"}?</AlertDialogTitle>
+                            <AlertDialogDescription>This action cannot be undone.</AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => deleteCard(card.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete</AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         ) : (
+          /* ---- GRID VIEW ---- */
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
-            {filtered.map((card) => (
+            {paginatedCards.map((card) => (
               <div
                 key={card.id}
-                className="bg-card border border-border rounded-xl overflow-hidden hover-lift group cursor-pointer"
-                onClick={() => navigate(`/card/${card.id}`)}
+                className="bg-card border border-border rounded-xl overflow-hidden hover-lift group cursor-pointer relative"
+                onClick={() => bulkMode ? toggleSelect(card.id) : navigate(`/card/${card.id}`)}
               >
+                {bulkMode && (
+                  <div className="absolute top-1.5 right-1.5 z-10" onClick={(e) => e.stopPropagation()}>
+                    <Checkbox
+                      checked={selectedIds.has(card.id)}
+                      onCheckedChange={() => toggleSelect(card.id)}
+                      className="bg-background/80 backdrop-blur-sm"
+                    />
+                  </div>
+                )}
                 <div className="aspect-[3/4] bg-muted relative">
                   <img
                     src={card.image_url}
                     alt={card.card_name || "Item"}
                     className="w-full h-full object-contain"
                     loading="lazy"
+                    onError={(e) => { e.currentTarget.src = '/placeholder.svg'; }}
                   />
                   {/* Category badge */}
                   <span
@@ -354,44 +556,88 @@ const Collection = () => {
                   >
                     {card.category || "Trading Card"}
                   </span>
+                  {/* Grade badge */}
+                  {card.condition_grade && (
+                    <span className="absolute bottom-1.5 right-1.5 text-[9px] sm:text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-background/85 backdrop-blur-sm text-foreground border border-border">
+                      {card.condition_grade}
+                    </span>
+                  )}
                 </div>
                 <div className="p-2.5 sm:p-3">
                   <h3 className="font-display font-semibold text-sm truncate">{card.card_name || "Unknown"}</h3>
                   <p className="text-xs text-muted-foreground truncate">{card.card_set}</p>
                   <div className="flex justify-between items-center mt-1.5">
                     <span className="text-xs sm:text-sm font-medium text-gradient-primary">
-                      ${(((card.estimated_value_low || 0) + (card.estimated_value_high || 0)) / 2).toFixed(0)}
+                      ${cardValue(card).toFixed(0)}
                     </span>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 opacity-0 group-hover:opacity-100"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <Trash2 className="w-3.5 h-3.5 text-destructive" />
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent onClick={(e) => e.stopPropagation()}>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Delete {card.card_name || "this item"}?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            This action cannot be undone. This will permanently remove this item from your collection.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => deleteCard(card.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                            Delete
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
+                    {!bulkMode && (
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete {card.card_name || "this item"}?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This action cannot be undone. This will permanently remove this item from your collection.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => deleteCard(card.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                              Delete
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    )}
                   </div>
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Load More */}
+        {hasMore && !loading && (
+          <div className="flex justify-center mt-6">
+            <Button variant="outline" onClick={() => setVisibleCount((v) => v + PAGE_SIZE)}>
+              Load More ({filtered.length - visibleCount} remaining)
+            </Button>
+          </div>
+        )}
+
+        {/* Bulk action floating bar */}
+        {bulkMode && selectedIds.size > 0 && (
+          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-30 bg-card border border-border rounded-xl shadow-lg px-4 py-3 flex items-center gap-3 animate-fade-in">
+            <span className="text-sm font-medium">{selectedIds.size} selected</span>
+            <Button size="sm" variant="outline" className="gap-1.5" onClick={exportCSV}>
+              <Download className="w-3.5 h-3.5" /> Export CSV
+            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button size="sm" variant="destructive" className="gap-1.5">
+                  <Trash2 className="w-3.5 h-3.5" /> Delete
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete {selectedIds.size} item(s)?</AlertDialogTitle>
+                  <AlertDialogDescription>This action cannot be undone.</AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={deleteSelected} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete All</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
         )}
 
