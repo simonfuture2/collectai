@@ -45,6 +45,25 @@ serve(async (req) => {
 
     console.log("Authenticated user:", user.id);
 
+    // Credit check: use service role to read user_credits
+    const supabaseAdmin = createClient(supabaseUrl, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '');
+    const { data: creditsData } = await supabaseAdmin
+      .from("user_credits")
+      .select("credits, plan")
+      .eq("user_id", user.id)
+      .single();
+
+    const isPro = creditsData?.plan === "pro";
+    const hasCredits = (creditsData?.credits ?? 0) > 0;
+
+    if (!isPro && !hasCredits) {
+      console.log("Insufficient credits for user:", user.id);
+      return new Response(
+        JSON.stringify({ error: "Insufficient credits. Please purchase credits or upgrade to Pro." }),
+        { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const body = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 
@@ -396,6 +415,25 @@ Respond in JSON format with this structure:
 
     if (!content) {
       throw new Error("No response from AI");
+    }
+
+    // Deduct credit for non-Pro users
+    if (!isPro) {
+      await supabaseAdmin
+        .from("user_credits")
+        .update({ credits: (creditsData?.credits ?? 1) - 1 })
+        .eq("user_id", user.id);
+
+      await supabaseAdmin
+        .from("credit_transactions")
+        .insert({
+          user_id: user.id,
+          amount: -1,
+          type: "scan",
+          description: `AI scan: ${analysis.cardName || "Unknown card"}`,
+        });
+
+      console.log("Deducted 1 credit for user:", user.id);
     }
 
     console.log("AI response received for user:", user.id);

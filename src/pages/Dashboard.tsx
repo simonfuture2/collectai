@@ -2,10 +2,13 @@ import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Camera, LogOut, Wallet, TrendingUp, Layers, BarChart3 } from "lucide-react";
+import { Camera, LogOut, Wallet, TrendingUp, Layers, BarChart3, Crown } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
 import PortfolioAnalytics from "@/components/PortfolioAnalytics";
 import PoweredByW3AI from "@/components/PoweredByW3AI";
+import CreditBalance from "@/components/CreditBalance";
+import UpgradeModal from "@/components/UpgradeModal";
+import { useCredits } from "@/hooks/use-credits";
 
 interface Card {
   id: string;
@@ -22,7 +25,9 @@ const Dashboard = () => {
   const [cards, setCards] = useState<Card[]>([]);
   const [stats, setStats] = useState({ totalCards: 0, totalValue: 0 });
   const [showAnalytics, setShowAnalytics] = useState(false);
+  const [showUpgrade, setShowUpgrade] = useState(false);
   const navigate = useNavigate();
+  const { credits, isPro, loading: creditsLoading } = useCredits();
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
@@ -63,6 +68,7 @@ const Dashboard = () => {
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <h1 className="text-2xl font-display font-bold text-gradient-primary">CollectAI</h1>
           <div className="flex items-center gap-4">
+            <CreditBalance credits={credits} isPro={isPro} loading={creditsLoading} />
             <span className="text-sm text-muted-foreground hidden sm:block">{user?.email}</span>
             <Button variant="ghost" size="icon" onClick={handleLogout}><LogOut className="w-5 h-5" /></Button>
           </div>
@@ -75,11 +81,18 @@ const Dashboard = () => {
           {cards.length > 0 && (
             <Button 
               variant={showAnalytics ? "default" : "outline"} 
-              onClick={() => setShowAnalytics(!showAnalytics)}
+              onClick={() => {
+                if (!isPro && !showAnalytics) {
+                  setShowUpgrade(true);
+                  return;
+                }
+                setShowAnalytics(!showAnalytics);
+              }}
               className={showAnalytics ? "gradient-primary" : ""}
             >
               <BarChart3 className="mr-2 w-4 h-4" />
               {showAnalytics ? "Hide Analytics" : "View Analytics"}
+              {!isPro && <Crown className="ml-1 w-3 h-3 text-primary" />}
             </Button>
           )}
         </div>
@@ -129,6 +142,8 @@ const Dashboard = () => {
       <footer className="container mx-auto px-4 py-6 text-center">
         <PoweredByW3AI />
       </footer>
+
+      <UpgradeModal open={showUpgrade} onOpenChange={setShowUpgrade} feature="Portfolio Analytics" />
     </div>
   );
 };

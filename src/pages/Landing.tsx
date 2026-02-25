@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Camera, Sparkles, TrendingUp, Wallet } from "lucide-react";
+import { Camera, Sparkles, TrendingUp, Wallet, Crown, Check } from "lucide-react";
 import PoweredByW3AI from "@/components/PoweredByW3AI";
 import ThemeToggle from "@/components/ThemeToggle";
 import EcosystemBadge from "@/components/EcosystemBadge";
@@ -58,6 +58,51 @@ const Landing = () => {
               <p className="text-muted-foreground">{f.desc}</p>
             </div>
           ))}
+        </div>
+
+        {/* Pricing Section */}
+        <div className="mt-24 text-center">
+          <h2 className="text-3xl md:text-5xl font-display font-bold mb-4">
+            Simple <span className="text-gradient-primary">Pricing</span>
+          </h2>
+          <p className="text-muted-foreground mb-10 max-w-lg mx-auto">
+            Start free with 3 scans. Go Pro for unlimited access to everything.
+          </p>
+
+          <div className="grid md:grid-cols-2 gap-6 max-w-3xl mx-auto">
+            <div className="p-8 rounded-2xl bg-card border border-border text-left">
+              <h3 className="text-xl font-display font-bold mb-2">Free</h3>
+              <p className="text-3xl font-display font-bold mb-4">$0</p>
+              <ul className="space-y-2 mb-6 text-sm">
+                {["3 Free AI Scans", "Basic Card ID", "Collection Management"].map((f) => (
+                  <li key={f} className="flex items-center gap-2"><Check className="w-4 h-4 text-primary" />{f}</li>
+                ))}
+              </ul>
+              <Link to="/auth">
+                <Button variant="outline" className="w-full">Start Free</Button>
+              </Link>
+            </div>
+
+            <div className="p-8 rounded-2xl bg-card border-2 border-primary text-left relative">
+              <div className="absolute top-0 right-0 bg-primary text-primary-foreground text-xs font-bold px-3 py-1 rounded-bl-lg">
+                BEST VALUE
+              </div>
+              <h3 className="text-xl font-display font-bold mb-2 flex items-center gap-2">
+                <Crown className="w-5 h-5 text-primary" /> Pro
+              </h3>
+              <p className="text-3xl font-display font-bold mb-4">$9.99<span className="text-base font-normal text-muted-foreground">/mo</span></p>
+              <ul className="space-y-2 mb-6 text-sm">
+                {["Unlimited AI Scans", "Portfolio Analytics", "AuthentiSeal Certificates", "Pre-Grading Analysis"].map((f) => (
+                  <li key={f} className="flex items-center gap-2"><Check className="w-4 h-4 text-primary" />{f}</li>
+                ))}
+              </ul>
+              <Link to="/auth">
+                <Button className="w-full gradient-primary">
+                  <Sparkles className="mr-2 w-4 h-4" /> Go Pro
+                </Button>
+              </Link>
+            </div>
+          </div>
         </div>
       </main>
 
