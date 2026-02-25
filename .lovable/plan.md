@@ -1,90 +1,68 @@
 
 
-# Google Play Compliance Audit and Fixes
+# How-To Guide Page
 
-## Gap Analysis: Current State vs. Requirements
+## Overview
 
-After reviewing all legal pages, disclaimers, and app features against the Google Play compliance template provided, here are the gaps:
+Create a new "How It Works" page (`/how-it-works`) that walks users through the core CollectAI workflow with step-by-step instructions and support graphics (icons + illustrated cards). This page serves double duty: onboarding new users and impressing Google Play reviewers.
 
-### Privacy Policy (src/pages/Privacy.tsx) -- GAPS FOUND
+## Page Structure
 
-| Required | Current Status |
-|----------|---------------|
-| Camera/device access disclosure | Missing -- only says "Photos you upload", doesn't mention camera access |
-| Blockchain/wallet address data | Missing entirely -- no mention of AuthentiSeal or Solana wallet data |
-| Device data collection (OS, model) | Missing entirely |
-| Explicit "we do not sell images" statement | Missing |
-| Data deletion request process | Vague -- says "request deletion" but no clear mechanism described |
-| Encryption in transit disclosure | Present |
+The page will have 5 sections, each with an icon, step number, title, description, and a visual mock/illustration card:
 
-### Terms of Service (src/pages/Terms.tsx) -- GAPS FOUND
+```text
+┌─────────────────────────────────────┐
+│  Header (back arrow + title)        │
+├─────────────────────────────────────┤
+│  Hero: "How CollectAI Works"        │
+│  Subtitle text                      │
+├─────────────────────────────────────┤
+│  Step 1: Sign Up & Get Free Scans   │
+│  [Icon + description + visual]      │
+│                                     │
+│  Step 2: Upload or Snap Your Card   │
+│  [Camera icon + upload UI mock]     │
+│                                     │
+│  Step 3: AI Analyzes Your Card      │
+│  [Brain icon + analysis breakdown]  │
+│                                     │
+│  Step 4: Review Results & Save      │
+│  [Results card mock + save action]  │
+│                                     │
+│  Step 5: Seal with AuthentiSeal     │
+│  [Blockchain icon + certificate]    │
+├─────────────────────────────────────┤
+│  Pro Tips (3 cards grid)            │
+├─────────────────────────────────────┤
+│  CTA: "Ready to start?" button      │
+├─────────────────────────────────────┤
+│  Footer                             │
+└─────────────────────────────────────┘
+```
 
-| Required | Current Status |
-|----------|---------------|
-| AI "estimated/beta" prominent disclosure | Partially present in Section 4, but lacks "beta" language |
-| Blockchain/NFT technology declaration | Missing entirely -- no mention of AuthentiSeal digital certificates |
+## Changes Required
 
-### AI Disclaimer (src/components/AIDisclaimer.tsx) -- MINOR GAP
+### 1. Create `src/pages/HowItWorks.tsx`
+- Uses `LegalPageLayout` for consistent header/footer structure (title: "How It Works")
+- 5 numbered step sections, each with:
+  - Lucide icon in a colored badge
+  - Step number indicator (1–5)
+  - Title and description paragraph
+  - A visual "mock" card (styled div showing a simplified representation of the UI at that step — e.g., a card upload area, an analysis result card, a certificate badge)
+- "Pro Tips" section with 3 tip cards (use multiple angles, good lighting, flat surface)
+- Bottom CTA button linking to `/scan` (or `/auth` for unauthenticated users)
 
-| Required | Current Status |
-|----------|---------------|
-| Disclaimer on scan results | Present |
-| "About" section or prominent disclosure that AI grading is estimated | Only appears after scan results and in footer, not in a dedicated About section |
+### 2. Update `src/App.tsx`
+- Import and add route: `<Route path="/how-it-works" element={<HowItWorks />} />`
 
-### FAQ (src/pages/FAQ.tsx) -- MINOR GAP
+### 3. Update `src/components/Footer.tsx`
+- Add "How It Works" link under the "Product" column
 
-| Required | Current Status |
-|----------|---------------|
-| AuthentiSeal/blockchain explanation | Present (Q: "What is AuthentiSeal?") but doesn't mention blockchain/Solana |
-| Camera usage explanation | Missing |
+### Visual Support Graphics
+Since we can't add actual image files, each step will include a styled illustration card built with Tailwind — colored backgrounds, icons, and mock UI elements that visually represent each step (upload area, scan animation, results card, certificate badge). These serve as the "support graphics" and look polished without external assets.
 
-### Footer Disclaimer -- OK
-Already present in Footer.tsx.
-
----
-
-## Plan
-
-### 1. Update Privacy Policy with Google Play-required disclosures
-
-Add the following new/updated sections to `src/pages/Privacy.tsx`:
-
-- **Section 1 (Information We Collect)**: Add three new bullet points:
-  - **Camera Access**: "When you use the scan feature, we access your device camera to capture images of collectibles. These images are processed by our AI to determine identification, grading, and authenticity."
-  - **Blockchain Data**: "If you use AuthentiSeal features, we may interact with public blockchain addresses (e.g., Solana) to associate digital certificates of authenticity with your physical items. Only public wallet addresses are collected."
-  - **Device Data**: "We collect standard technical information such as OS version and device model to ensure the AI scanner functions correctly on your hardware."
-- **Section 2 (How We Use)**: Add explicit statement: "We do not sell your personal images or data to third parties."
-- **Section 5 (Data Retention)**: Add explicit deletion process: "You may request deletion of your account and all associated data (including scan history and card images) at any time by emailing support@collectai.app. Deletion requests are processed within 30 days."
-- New **Section 6: Blockchain and Digital Certificates**: Dedicated section explaining AuthentiSeal data handling -- certificates are public records on-chain, wallet addresses are not stored by CollectAI, etc.
-- Renumber remaining sections accordingly.
-
-### 2. Update Terms of Service with blockchain/AI disclosures
-
-Update `src/pages/Terms.tsx`:
-
-- **Section 4 (AI Disclaimer)**: Add language: "AI grading and valuation features are currently in beta and continuously improving. Results should be considered estimates only."
-- New **Section after current 4**: "Blockchain and Digital Certificates" -- Declare that AuthentiSeal certificates use blockchain technology (Solana) for Non-Fungible Tokens / Digital Assets for Authentication purposes. CollectAI is not a cryptocurrency exchange. Certificates are public and immutable once created.
-
-### 3. Update FAQ with camera and blockchain details
-
-Update `src/pages/FAQ.tsx`:
-
-- Update the AuthentiSeal FAQ answer to mention it uses blockchain technology (Solana) for tamper-proof, verifiable certificates.
-- Add a new FAQ: "Does CollectAI access my camera?" explaining that the app uses the device camera solely for card scanning and images are encrypted in transit.
-
-### 4. Add an "About" section with prominent AI disclosure
-
-Create a small "About" info card on the Landing page or add an "About" route. The simpler approach: add a dedicated disclaimer block on the Landing page near the features section stating:
-
-> "CollectAI uses artificial intelligence to provide estimated card grades and valuations. These are not professional appraisals. AI features are continuously improving."
-
-This satisfies Google's requirement for a "prominent disclosure" about AI being estimated.
-
-### Technical Details
-
-- All changes are to existing React page components (`.tsx` files)
-- No database migrations needed
-- No new dependencies required
-- Files modified: `Privacy.tsx`, `Terms.tsx`, `FAQ.tsx`, `Landing.tsx`
-- Estimated ~4 sections added/updated across the files
+## Technical Details
+- No new dependencies needed — uses existing Lucide icons, Card components, and Tailwind classes
+- No database changes
+- Files: `src/pages/HowItWorks.tsx` (new), `src/App.tsx` (add route), `src/components/Footer.tsx` (add link)
 
