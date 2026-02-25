@@ -14,6 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      card_folders: {
+        Row: {
+          card_id: string
+          created_at: string
+          folder_id: string
+          id: string
+        }
+        Insert: {
+          card_id: string
+          created_at?: string
+          folder_id: string
+          id?: string
+        }
+        Update: {
+          card_id?: string
+          created_at?: string
+          folder_id?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "card_folders_card_id_fkey"
+            columns: ["card_id"]
+            isOneToOne: false
+            referencedRelation: "cards"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "card_folders_folder_id_fkey"
+            columns: ["folder_id"]
+            isOneToOne: false
+            referencedRelation: "folders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cards: {
         Row: {
           ai_analysis: Json | null
@@ -106,6 +142,36 @@ export type Database = {
           description?: string | null
           id?: string
           type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      folders: {
+        Row: {
+          color: string | null
+          created_at: string
+          icon: string | null
+          id: string
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          icon?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          icon?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
           user_id?: string
         }
         Relationships: []
