@@ -38,6 +38,8 @@ import type { Tables } from "@/integrations/supabase/types";
 import PreGradingAnalysis from "@/components/PreGradingAnalysis";
 import EcosystemBadge from "@/components/EcosystemBadge";
 import AuthentiSealVerify from "@/components/AuthentiSealVerify";
+import AIDisclaimer from "@/components/AIDisclaimer";
+import Footer from "@/components/Footer";
 
 type Card = Tables<"cards">;
 
@@ -465,9 +467,12 @@ export default function CardDetail() {
 
               {/* Price History Chart - Desktop */}
               <div className="bg-card border border-border rounded-2xl p-6">
-                <div className="flex items-center gap-2 mb-4">
-                  <TrendingUp className="w-5 h-5 text-primary" />
-                  <h2 className="font-display font-bold text-lg">Price History</h2>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <TrendingUp className="w-5 h-5 text-primary" />
+                    <h2 className="font-display font-bold text-lg">Price History</h2>
+                  </div>
+                  <span className="text-[10px] uppercase tracking-wider text-muted-foreground bg-muted px-2 py-0.5 rounded-full">Simulated</span>
                 </div>
                 <div className="h-[200px]">
                   <ResponsiveContainer width="100%" height="100%">
@@ -940,9 +945,12 @@ export default function CardDetail() {
 
               {/* Price History Chart */}
               <div className="bg-card border border-border rounded-2xl p-6">
-                <div className="flex items-center gap-2 mb-4">
-                  <TrendingUp className="w-5 h-5 text-primary" />
-                  <h2 className="font-display font-bold text-lg">Price History</h2>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <TrendingUp className="w-5 h-5 text-primary" />
+                    <h2 className="font-display font-bold text-lg">Price History</h2>
+                  </div>
+                  <span className="text-[10px] uppercase tracking-wider text-muted-foreground bg-muted px-2 py-0.5 rounded-full">Simulated</span>
                 </div>
                 <div className="h-[200px]">
                   <ResponsiveContainer width="100%" height="100%">
@@ -1016,6 +1024,10 @@ export default function CardDetail() {
           </div>
         </div>
       </main>
+      <div className="container mx-auto px-4 pb-4">
+        <AIDisclaimer />
+      </div>
+      <Footer />
     </div>
   );
 }

@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { STRIPE_CONFIG } from "@/lib/stripe-config";
 import { useCredits } from "@/hooks/use-credits";
 import CreditBalance from "@/components/CreditBalance";
+import Footer from "@/components/Footer";
 import { useToast } from "@/hooks/use-toast";
 
 const Pricing = () => {
@@ -20,7 +21,7 @@ const Pricing = () => {
         body: { priceId, mode },
       });
       if (error) throw error;
-      if (data?.url) window.open(data.url, "_blank");
+      if (data?.url) window.location.href = data.url;
     } catch (err: any) {
       toast({ title: "Checkout failed", description: err.message, variant: "destructive" });
     } finally {
@@ -33,7 +34,7 @@ const Pricing = () => {
     try {
       const { data, error } = await supabase.functions.invoke("customer-portal");
       if (error) throw error;
-      if (data?.url) window.open(data.url, "_blank");
+      if (data?.url) window.location.href = data.url;
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     } finally {
@@ -58,7 +59,7 @@ const Pricing = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background flex flex-col">
       <header className="border-b border-border">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -165,6 +166,7 @@ const Pricing = () => {
           </div>
         </div>
       </main>
+      <Footer />
     </div>
   );
 };

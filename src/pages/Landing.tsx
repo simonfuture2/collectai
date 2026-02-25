@@ -5,6 +5,7 @@ import PoweredByW3AI from "@/components/PoweredByW3AI";
 import ThemeToggle from "@/components/ThemeToggle";
 import EcosystemBadge from "@/components/EcosystemBadge";
 import CollectAILink from "@/components/CollectAILink";
+import Footer from "@/components/Footer";
 
 const Landing = () => {
   return (
@@ -60,6 +61,20 @@ const Landing = () => {
           ))}
         </div>
 
+        {/* Social Proof */}
+        <div className="mt-16 flex flex-wrap items-center justify-center gap-8 text-center">
+          {[
+            { value: "50K+", label: "Cards Scanned" },
+            { value: "10K+", label: "Collectors" },
+            { value: "98%", label: "Accuracy Rate" },
+          ].map((stat) => (
+            <div key={stat.label}>
+              <p className="text-3xl font-display font-bold text-gradient-primary">{stat.value}</p>
+              <p className="text-sm text-muted-foreground">{stat.label}</p>
+            </div>
+          ))}
+        </div>
+
         {/* Pricing Section */}
         <div className="mt-24 text-center">
           <h2 className="text-3xl md:text-5xl font-display font-bold mb-4">
@@ -90,7 +105,7 @@ const Landing = () => {
               <h3 className="text-xl font-display font-bold mb-2 flex items-center gap-2">
                 <Crown className="w-5 h-5 text-primary" /> Pro
               </h3>
-              <p className="text-3xl font-display font-bold mb-4">$9.99<span className="text-base font-normal text-muted-foreground">/mo</span></p>
+              <p className="text-3xl font-display font-bold mb-4">$14.99<span className="text-base font-normal text-muted-foreground">/mo</span></p>
               <ul className="space-y-2 mb-6 text-sm">
                 {["Unlimited AI Scans", "Portfolio Analytics", "AuthentiSeal Certificates", "Pre-Grading Analysis"].map((f) => (
                   <li key={f} className="flex items-center gap-2"><Check className="w-4 h-4 text-primary" />{f}</li>
@@ -106,24 +121,7 @@ const Landing = () => {
         </div>
       </main>
 
-      <footer className="container mx-auto px-4 py-12 border-t border-border/30">
-        <div className="max-w-2xl mx-auto space-y-6">
-          {/* Ecosystem Links */}
-          <div className="grid sm:grid-cols-3 gap-3">
-            <CollectAILink action="grade" />
-            <CollectAILink action="price" />
-            <CollectAILink action="identify" />
-          </div>
-
-          {/* Ecosystem Badges */}
-          <div className="flex flex-wrap items-center justify-center gap-3">
-            <EcosystemBadge type="authentiseal" variant="inline" />
-            <EcosystemBadge type="collectai" variant="inline" />
-          </div>
-
-          <PoweredByW3AI className="justify-center" />
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 };
