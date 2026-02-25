@@ -5,6 +5,9 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Upload, Loader2, Check, Sparkles, Plus, X, RotateCcw } from "lucide-react";
 import type { Session, User } from "@supabase/supabase-js";
+import { useCredits } from "@/hooks/use-credits";
+import CreditBalance from "@/components/CreditBalance";
+import UpgradeModal from "@/components/UpgradeModal";
 
 interface ImageSlot {
   id: string;
@@ -26,8 +29,10 @@ const Scan = () => {
   const [result, setResult] = useState<any>(null);
   const [saving, setSaving] = useState(false);
   const [uploadedFilePaths, setUploadedFilePaths] = useState<string[]>([]);
+  const [showUpgrade, setShowUpgrade] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { credits, isPro, canScan, loading: creditsLoading, refresh: refreshCredits } = useCredits();
 
   useEffect(() => {
     const {
@@ -83,6 +88,11 @@ const Scan = () => {
   const analyzeCard = async () => {
     if (!hasImages) return;
 
+    if (!canScan) {
+      setShowUpgrade(true);
+      return;
+    }
+
     const accessToken = session?.access_token;
     if (!accessToken || !user) {
       toast({
@@ -136,6 +146,7 @@ const Scan = () => {
 
       setResult({ ...data, filePaths: imageEntries.map((e) => e.filePath) });
       toast({ title: "Analysis complete!", description: `Identified: ${data.cardName}` });
+      refreshCredits();
     } catch (error: any) {
       toast({ title: "Analysis failed", description: error.message, variant: "destructive" });
     } finally {
@@ -186,10 +197,13 @@ const Scan = () => {
     <div className="min-h-screen bg-background">
       <header className="border-b border-border">
         <div className="container mx-auto px-4 py-4 flex items-center gap-4">
-          <Link to="/dashboard">
-            <Button variant="ghost" size="icon"><ArrowLeft className="w-5 h-5" /></Button>
-          </Link>
-          <h1 className="text-xl font-display font-bold">Scan Item</h1>
+          <div className="flex items-center gap-4">
+            <Link to="/dashboard">
+              <Button variant="ghost" size="icon"><ArrowLeft className="w-5 h-5" /></Button>
+            </Link>
+            <h1 className="text-xl font-display font-bold">Scan Item</h1>
+          </div>
+          <CreditBalance credits={credits} isPro={isPro} loading={creditsLoading} />
         </div>
       </header>
 
@@ -319,6 +333,7 @@ const Scan = () => {
           </div>
         )}
       </main>
+      <UpgradeModal open={showUpgrade} onOpenChange={setShowUpgrade} feature="AI card scanning" />
     </div>
   );
 };
