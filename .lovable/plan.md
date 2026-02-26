@@ -1,125 +1,74 @@
 
 
-# Growth Features: Referral System, Shareable Certificates, SEO Meta Tags, Public Collections
+# Cross-App Account Linking: CollectAI ↔ AuthentiSeal via OAuth
 
-## Overview
+Since you own both apps, the cleanest approach is to build a lightweight OAuth-style linking flow where CollectAI acts as a trusted partner that can pass authenticated user context + card data to AuthentiSeal.
 
-Four growth features to drive organic user acquisition and improve discoverability.
+## Architecture
 
----
+```text
+CollectAI                              AuthentiSeal
+─────────                              ────────────
+User clicks "Create Certificate"
+  │
+  ├─► CollectAI edge function           
+  │   generates a signed token          
+  │   (JWT with card data + user email) 
+  │                                     
+  ├─► Redirects to:                     
+  │   authentiseal.xyz/create?token=XYZ 
+  │                                     
+  │                                     AuthentiSeal verifies token
+  │                                     (shared secret between apps)
+  │                                     Pre-fills form with card data
+  │                                     Links/creates user by email
+```
 
-## Feature 1: Referral System (3 bonus credits per referral)
+## Implementation Steps
 
-### Database Changes
-- New `referrals` table:
-  - `id` (uuid, PK)
-  - `referrer_id` (uuid, NOT NULL) — the user who shared the code
-  - `referred_id` (uuid, NOT NULL, UNIQUE) — the user who signed up
-  - `referral_code` (text, NOT NULL) — the code used
-  - `credited` (boolean, default false) — whether bonus was awarded
-  - `created_at` (timestamptz)
-- Add `referral_code` column to `profiles` table (text, UNIQUE) — each user gets a unique code auto-generated on signup
-- RLS: users can read their own referrals, insert handled by edge function
+### 1. Database: Store AuthentiSeal link status (optional, for UI)
+- Add `authentiseal_linked` (boolean, default false) and `authentiseal_email` (text, nullable) to `profiles` table
+- This is optional — the token-based flow works without it, but lets you show link status in the UI
 
-### Backend
-- Modify the existing signup flow: after a user signs up, generate a unique referral code (e.g., 8-char alphanumeric) and store it in `profiles.referral_code`
-- New edge function `redeem-referral`: validates a referral code, creates the `referrals` row, and awards 3 credits to the referrer via `user_credits` + `credit_transactions`
-- Database trigger on `profiles` insert to auto-generate referral code
+### 2. New Edge Function: `generate-authentiseal-token`
+- Accepts card data (name, category, set, year, condition, value range) + authenticated user context
+- Creates a short-lived signed JWT (expires in 10 minutes) containing:
+  - `user_email` (from auth)
+  - `user_name` (from profile)
+  - Card metadata fields
+  - `source: "collectai"`
+  - `iat` / `exp` timestamps
+- Signs with a shared secret (stored as a secret in both apps)
+- Returns the token
 
-### Frontend
-- **Dashboard**: Add a "Refer a Friend" card showing the user's referral code, a copy button, and a share button (Web Share API with fallback)
-- **Auth page**: Accept optional `?ref=CODE` query param; store in localStorage, then call `redeem-referral` after successful signup
-- **Dashboard**: Show referral stats (total referrals, credits earned)
+### 3. Update `AuthentiSealVerify.tsx`
+- Replace `buildAuthentiSealCreateUrl` with an async function that calls the edge function
+- Button click: call edge function → get token → redirect to `https://authentiseal.xyz/create?token={token}`
+- Show loading state while generating token
+- Fallback: if user is not logged in, use the current query-param approach
 
-### Files
-- New: `supabase/functions/redeem-referral/index.ts`
-- Modified: `src/pages/Auth.tsx` (capture ref param)
-- Modified: `src/pages/Dashboard.tsx` (referral card)
-- New component: `src/components/ReferralCard.tsx`
-- Migration: new table + profile column + trigger
+### 4. AuthentiSeal Side (separate project — guidance only)
+- Add a token verification endpoint/logic on the `/create` page
+- Verify JWT using the shared secret
+- Extract card data and user email from the token
+- Auto-fill the certificate form
+- If user with that email exists, link the certificate; if not, prompt signup with pre-filled email
 
----
+### 5. Add Shared Secret
+- Add a secret `AUTHENTISEAL_SHARED_SECRET` to both projects
+- Used for signing/verifying the cross-app JWT
 
-## Feature 2: Shareable AuthentiSeal Certificates
+## Files Changed (CollectAI side)
 
-### Approach
-- Add a "Share" button on the CardDetail page next to grading results
-- Generates a shareable URL like `/card/share/{cardId}` that shows a public, read-only card summary with CollectAI branding
-- Add Open Graph meta tags to the share page for rich social media previews
-
-### Database Changes
-- Add `is_public` column (boolean, default false) to `cards` table
-- New RLS policy: allow anonymous SELECT on cards where `is_public = true` (read-only, limited columns)
-
-### Backend
-- New edge function `generate-share-card`: generates a simple OG image or returns card metadata for social previews
-- Or simpler: the public share page reads the card data directly via the new RLS policy
-
-### Frontend
-- New page: `src/pages/SharedCard.tsx` — public view of a card with CollectAI branding, grade, value range, and a CTA "Scan your own cards" linking to signup
-- New route: `/card/share/:id`
-- CardDetail page: add "Share" button that sets `is_public = true` and copies the share URL
-- Include OG meta tags via a simple `<Helmet>`-like approach or edge function for SSR meta
-
-### Files
-- New: `src/pages/SharedCard.tsx`
-- Modified: `src/pages/CardDetail.tsx` (share button)
-- Modified: `src/App.tsx` (new route)
-- Migration: `is_public` column + RLS policy
-
----
-
-## Feature 3: SEO Meta Tags & Open Graph
-
-### Approach
-- Add comprehensive meta tags to `index.html` for default SEO
-- Add `react-helmet-async` for per-page meta tags (or use simple document.title updates)
-- Focus on landing page, pricing, about, and how-it-works pages
-
-### Implementation
-- Update `index.html` with: title, description, OG title/description/image/url, Twitter card meta, structured data (JSON-LD for SoftwareApplication)
-- Use the combo graphic as the default OG image (host at a public URL)
-- Add canonical URLs
-
-### Files
-- Modified: `index.html` (meta tags, structured data)
-- Modified: Landing, Pricing, About pages (page-specific titles via `useEffect` + `document.title`)
-
----
-
-## Feature 4: Public Collection Pages
-
-### Database Changes
-- Add `public_collection_enabled` (boolean, default false) and `public_collection_slug` (text, UNIQUE, nullable) to `profiles` table
-- New RLS policy: allow anonymous SELECT on profiles where `public_collection_enabled = true`
-- New RLS policy: allow anonymous SELECT on cards where user has public collection enabled
-
-### Frontend
-- New page: `src/pages/PublicCollection.tsx` — displays a user's collection publicly with CollectAI branding and a CTA
-- New route: `/u/:slug`
-- Dashboard: add "Share Collection" toggle in a settings section — when enabled, generates a slug and shows the public URL
-- The public page shows cards in a grid (image, name, grade, value) with the user's display name
-
-### Files
-- New: `src/pages/PublicCollection.tsx`
-- New component: `src/components/PublicCollectionToggle.tsx`
-- Modified: `src/pages/Dashboard.tsx` (toggle)
-- Modified: `src/App.tsx` (new route)
-- Migration: profile columns + RLS policies for public access
-
----
-
-## Implementation Order
-
-1. **SEO Meta Tags** — quickest win, no backend changes
-2. **Referral System** — migration + edge function + Auth/Dashboard changes
-3. **Shareable Certificates** — migration + new page + CardDetail changes
-4. **Public Collections** — migration + new page + Dashboard toggle
+| File | Change |
+|------|--------|
+| `supabase/functions/generate-authentiseal-token/index.ts` | New edge function — signs JWT with card data |
+| `src/components/AuthentiSealVerify.tsx` | Replace static URL builder with async token-based redirect |
+| Migration (optional) | Add `authentiseal_linked` to profiles |
 
 ## Technical Notes
-
-- No new npm dependencies needed (Web Share API is native; document.title for page titles)
-- All public pages include a prominent CTA back to `/auth` for conversion
-- RLS policies for public features allow anonymous read of specific columns only
-- Referral credits use the existing `credit_transactions` system for consistency
+- The JWT approach is secure — tokens are short-lived and signed with a shared secret
+- No need for full OAuth consent screens since you own both apps
+- Card data travels in the token, not in URL query params (cleaner, no URL length limits)
+- The AuthentiSeal side changes are outside this project — you'd implement them in the AuthentiSeal Lovable project separately
 
