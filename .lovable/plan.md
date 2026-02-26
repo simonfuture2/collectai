@@ -1,36 +1,55 @@
 
 
-# Landing Page Upgrades: Action-First Hero + Certificate Verification Tool
+# "Grade My Card" Challenge — Free Quick Scan on Landing Page
 
-## 1. Redesign Hero Section — "Scan in 3 Seconds" Focus
+## Overview
 
-Restructure the hero in `Landing.tsx` to lead with action:
+Add a gamified lead-gen section to the landing page where **unauthenticated visitors** can upload a card photo and get a free "Quick Scan" — a simplified result showing card name, estimated grade, and value range. The full detailed analysis is gated behind sign-up.
 
-- **Move the CTA up top**: Large "Scan Your Card Now" button as the first visual element after the headline, removing the sub-pill badge and trimming copy
-- **Add an animated scan demo**: Create a new `ScanDemo` component — a looping CSS animation showing a card photo being "processed" with a grade + value appearing (no video needed, pure CSS/SVG mock). This replaces the static `comboGraphic` image in the hero area
-- **Tighten the headline**: Shorten to something like "Scan. Grade. Value." with the gradient text, then immediately the CTA button
-- **Move social proof stats directly under the CTA** for immediate credibility
+## Architecture
 
-## 2. Add "Verify a Certificate" Tool on Homepage
+```text
+Landing Page
+  └─ QuickScanChallenge component
+       ├─ Upload zone (single image, no auth required)
+       ├─ Calls new "quick-scan" edge function (no JWT)
+       ├─ Shows teaser result (name, grade, value range)
+       ├─ Blurs/locks detailed breakdown
+       └─ CTA: "Sign up to unlock full analysis"
+```
 
-- **Embed a compact version of `AuthentiSealVerify`** (verification-only, no "Create Certificate" section) directly on the landing page as a new section between features and pricing
-- **Section title**: "Verify Any Certificate" with a brief one-liner about on-chain verification
-- **Reuse the existing component** by passing no `cardData`/`cardId` props — the create section only shows when those are provided, so we'll add a `showCreate={false}` prop or simply render just the verify portion
-- **Add a `verifyOnly` prop** to `AuthentiSealVerify` to hide the create certificate section when embedded on the landing page
+## 1. New Edge Function: `supabase/functions/quick-scan/index.ts`
 
-## 3. Create `ScanDemo` Component
+- **No JWT required** — open to anonymous visitors
+- **Rate-limited by IP** (simple in-memory map, e.g. 3 scans per IP per hour)
+- Accepts a base64-encoded image (no storage upload needed for anonymous users)
+- Calls Lovable AI with a **simplified prompt** — returns only: card name, set, year, condition grade, estimated value range, and confidence
+- Returns a compact JSON response (no pre-grading analysis, no market breakdown)
+- Register in `supabase/config.toml` with `verify_jwt = false`
 
-New file: `src/components/ScanDemo.tsx`
+## 2. New Component: `src/components/QuickScanChallenge.tsx`
 
-- Animated card mockup: shows a card silhouette → scanning animation (gradient sweep) → grade badge + value appearing
-- Pure CSS animations, no external assets required
-- Responsive, works on mobile
+- Upload zone with drag-and-drop or click to select (single image only)
+- Animated scanning state (reuse scan-sweep animation from ScanDemo)
+- Result card showing:
+  - Card name, set, year
+  - AI grade badge (e.g. "NM 7")
+  - Value range (e.g. "$80 – $200")
+- Blurred/locked sections with overlay text: "Pre-Grading Analysis", "Market Data", "Graded Value Estimates" — each with a lock icon
+- Bottom CTA: **"Sign Up Free to Unlock Full Report"** → links to `/auth`
+- Reset button to scan another card
+
+## 3. Landing Page Update: `src/pages/Landing.tsx`
+
+- Add the QuickScanChallenge section between the Hero and the Features grid
+- Section heading: **"Think Your Card Is Worth Something?"** with subtext: *"Upload a photo and find out in seconds — no account needed"*
 
 ## Files Changed
 
 | File | Change |
 |------|--------|
-| `src/components/ScanDemo.tsx` | New — animated scan demo component |
-| `src/components/AuthentiSealVerify.tsx` | Add `verifyOnly` prop to hide create section |
-| `src/pages/Landing.tsx` | Restructure hero (CTA-first, scan demo, embedded verify tool) |
+| `supabase/functions/quick-scan/index.ts` | New — lightweight anonymous scan endpoint |
+| `supabase/config.toml` | Register quick-scan function |
+| `src/components/QuickScanChallenge.tsx` | New — upload + teaser result component |
+| `src/pages/Landing.tsx` | Add QuickScanChallenge section |
 
