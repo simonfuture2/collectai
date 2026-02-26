@@ -26,3 +26,6 @@ verify_jwt = false
 
 [functions.authentiseal-webhook]
 verify_jwt = false
+
+[functions.quick-scan]
+verify_jwt = false
