@@ -1,12 +1,20 @@
 import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 const stages = ["idle", "scanning", "graded"] as const;
 type Stage = typeof stages[number];
 
-const CARD_IMAGE = "https://irncxwszrawrndsdaqel.supabase.co/storage/v1/object/public/card-images/4ed2a0f8-5913-4257-9433-d4338eb821bb/1766709209222-fleermetal_95-96_jordan.jpeg";
+const CARD_PATH = "4ed2a0f8-5913-4257-9433-d4338eb821bb/1766709209222-fleermetal_95-96_jordan.jpeg";
 
 const ScanDemo = () => {
   const [stage, setStage] = useState<Stage>("idle");
+  const [imageUrl, setImageUrl] = useState<string>("");
+
+  useEffect(() => {
+    supabase.storage.from("card-images").createSignedUrl(CARD_PATH, 3600).then(({ data }) => {
+      if (data?.signedUrl) setImageUrl(data.signedUrl);
+    });
+  }, []);
 
   useEffect(() => {
     const cycle = () => {
@@ -26,7 +34,7 @@ const ScanDemo = () => {
       <div className="absolute inset-0 rounded-2xl border-2 border-border bg-card overflow-hidden shadow-xl">
         {/* Real card image */}
         <img
-          src={CARD_IMAGE}
+          src={imageUrl}
           alt="Michael Jordan 1995-96 Fleer Metal"
           className="absolute inset-0 w-full h-full object-cover"
         />
