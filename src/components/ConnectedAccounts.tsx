@@ -1,9 +1,30 @@
-import { Shield, ExternalLink, Link2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Shield, ExternalLink, Link2, Award } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import authentisealCombo from "@/assets/mycollectai-authentiseal-combo.png";
+import { supabase } from "@/integrations/supabase/client";
 
 const ConnectedAccounts = () => {
+  const [certCount, setCertCount] = useState<number>(0);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchCount = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) { setLoading(false); return; }
+
+      const { count } = await supabase
+        .from("cards")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", session.user.id)
+        .not("authentiseal_serial", "is", null);
+
+      setCertCount(count || 0);
+      setLoading(false);
+    };
+    fetchCount();
+  }, []);
+
   return (
     <Card className="border-border">
       <CardHeader className="pb-3">
@@ -40,7 +61,19 @@ const ConnectedAccounts = () => {
           </a>
         </div>
 
-        {/* Info blurb */}
+        {/* Certificate count */}
+        <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30 border border-border">
+          <Award className="w-5 h-5 text-emerald-500 flex-shrink-0" />
+          <div className="flex-1">
+            <p className="text-sm font-medium text-foreground">
+              {loading ? "..." : certCount} Certified Item{certCount !== 1 ? "s" : ""}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Items with AuthentiSeal certificates
+            </p>
+          </div>
+        </div>
+
         <p className="text-xs text-muted-foreground leading-relaxed">
           Your CollectAI account is linked to AuthentiSeal for seamless certificate creation. 
           When you create a certificate from a card detail page, your data is securely transferred via a signed token.

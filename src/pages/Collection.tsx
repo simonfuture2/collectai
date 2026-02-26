@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@/components/ui/table";
-import { ArrowLeft, Camera, Trash2, Search, X, SlidersHorizontal, ChevronDown, LayoutGrid, List, Download, CheckSquare, FolderPlus, Check } from "lucide-react";
+import { ArrowLeft, Camera, Trash2, Search, X, SlidersHorizontal, ChevronDown, LayoutGrid, List, Download, CheckSquare, FolderPlus, Check, Shield } from "lucide-react";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -36,6 +36,7 @@ interface Card {
   condition_grade: string | null;
   estimated_value_low: number | null;
   estimated_value_high: number | null;
+  authentiseal_serial: string | null;
 }
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -86,7 +87,7 @@ const Collection = () => {
     if (user) {
       supabase
         .from("cards")
-        .select("id, image_url, card_name, card_set, card_year, rarity, category, condition_grade, estimated_value_low, estimated_value_high")
+        .select("id, image_url, card_name, card_set, card_year, rarity, category, condition_grade, estimated_value_low, estimated_value_high, authentiseal_serial")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false })
         .then(async ({ data }) => {
@@ -576,7 +577,14 @@ const Collection = () => {
                         />
                       </TableCell>
                     )}
-                    <TableCell className="font-medium">{card.card_name || "Unknown"}</TableCell>
+                    <TableCell className="font-medium">
+                      <span className="flex items-center gap-1.5">
+                        {card.card_name || "Unknown"}
+                        {card.authentiseal_serial && (
+                          <span title="AuthentiSeal Certified"><Shield className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" /></span>
+                        )}
+                      </span>
+                    </TableCell>
                     <TableCell className="hidden sm:table-cell text-muted-foreground">{card.card_set || "—"}</TableCell>
                     <TableCell className="hidden md:table-cell text-muted-foreground">{card.card_year || "—"}</TableCell>
                     <TableCell>
@@ -644,6 +652,11 @@ const Collection = () => {
                       {card.condition_grade && (
                         <span className="absolute bottom-1.5 right-1.5 text-[9px] sm:text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-background/85 backdrop-blur-sm text-foreground border border-border">
                           {card.condition_grade}
+                        </span>
+                      )}
+                      {card.authentiseal_serial && (
+                        <span className="absolute top-1.5 right-1.5 bg-emerald-500/90 backdrop-blur-sm text-white p-1 rounded-md" title="AuthentiSeal Certified">
+                          <Shield className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                         </span>
                       )}
                     </div>
