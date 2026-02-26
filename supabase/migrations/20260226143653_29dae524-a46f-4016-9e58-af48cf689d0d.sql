@@ -1,0 +1,1 @@
+ALTER TABLE public.cards ADD COLUMN authentiseal_serial text DEFAULT NULL;
