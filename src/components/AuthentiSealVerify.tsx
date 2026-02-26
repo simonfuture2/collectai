@@ -31,9 +31,10 @@ interface AuthentiSealVerifyProps {
   defaultSerial?: string;
   cardData?: CardData;
   cardId?: string;
+  verifyOnly?: boolean;
 }
 
-const AuthentiSealVerify = ({ className = "", defaultSerial = "", cardData, cardId }: AuthentiSealVerifyProps) => {
+const AuthentiSealVerify = ({ className = "", defaultSerial = "", cardData, cardId, verifyOnly = false }: AuthentiSealVerifyProps) => {
   const [serial, setSerial] = useState(defaultSerial);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ verified: boolean; certificate: CertificateData } | null>(null);
@@ -154,7 +155,7 @@ const AuthentiSealVerify = ({ className = "", defaultSerial = "", cardData, card
       )}
 
       {/* Create Certificate Section */}
-      <CreateCertificateSection cardData={cardData} cardId={cardId} />
+      {!verifyOnly && <CreateCertificateSection cardData={cardData} cardId={cardId} />}
     </div>
   );
 };
