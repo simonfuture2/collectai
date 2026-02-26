@@ -6,6 +6,7 @@ import ThemeToggle from "@/components/ThemeToggle";
 import Footer from "@/components/Footer";
 import HeroBackground from "@/components/HeroBackground";
 import ScanDemo from "@/components/ScanDemo";
+import QuickScanChallenge from "@/components/QuickScanChallenge";
 import AuthentiSealVerify from "@/components/AuthentiSealVerify";
 import collectaiLogo from "@/assets/collectai-logo.png";
 
@@ -71,6 +72,9 @@ const Landing = () => {
             </div>
           </div>
         </div>
+
+        {/* Quick Scan Challenge — Lead Gen */}
+        <QuickScanChallenge />
 
         {/* Features */}
         <div className="grid md:grid-cols-3 gap-8 mt-24">
