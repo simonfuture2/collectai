@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Shield, ExternalLink, CheckCircle, XCircle, Loader2, FilePlus2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { supabase } from "@/integrations/supabase/client";
 
 const AUTHENTISEAL_API = "https://vfttlgqsexcdpxihtwzl.supabase.co/functions/v1/verify-public";
 
@@ -152,46 +153,78 @@ const AuthentiSealVerify = ({ className = "", defaultSerial = "", cardData }: Au
       )}
 
       {/* Create Certificate Section */}
-      <div className="mt-4 pt-4 border-t border-border">
-        <div className="flex items-center gap-2 mb-3">
-          <FilePlus2 className="w-5 h-5 text-emerald-500" />
-          <h3 className="font-display font-bold text-base">Create Authentication Certificate</h3>
-        </div>
-        <p className="text-xs text-muted-foreground mb-3">
-          Get an official Certificate of Authenticity for this item via AuthentiSeal.xyz
-        </p>
-        <a
-          href={buildAuthentiSealCreateUrl(cardData)}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Button className="w-full gap-2 bg-emerald-600 hover:bg-emerald-700 text-white">
-            <Shield className="w-4 h-4" />
-            Create Certificate on AuthentiSeal
-            <ExternalLink className="w-3.5 h-3.5" />
-          </Button>
-        </a>
-      </div>
+      <CreateCertificateSection cardData={cardData} />
     </div>
   );
 };
 
-function buildAuthentiSealCreateUrl(cardData?: CardData): string {
-  const base = "https://authentiseal.xyz/create";
-  if (!cardData) return base;
+function CreateCertificateSection({ cardData }: { cardData?: CardData }) {
+  const [creating, setCreating] = useState(false);
 
-  const params = new URLSearchParams();
-  if (cardData.name) params.set("item_name", cardData.name);
-  if (cardData.category) params.set("item_category", cardData.category);
-  if (cardData.set) params.set("item_set", cardData.set);
-  if (cardData.year) params.set("item_year", cardData.year);
-  if (cardData.condition) params.set("condition", cardData.condition);
-  if (cardData.valueLow) params.set("value_low", String(cardData.valueLow));
-  if (cardData.valueHigh) params.set("value_high", String(cardData.valueHigh));
-  params.set("source", "collectai");
+  const handleCreate = async () => {
+    setCreating(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
 
-  const qs = params.toString();
-  return qs ? `${base}?${qs}` : base;
+      if (!session) {
+        // Fallback: not logged in, use query params
+        const base = "https://authentiseal.xyz/create";
+        const params = new URLSearchParams();
+        if (cardData?.name) params.set("item_name", cardData.name);
+        if (cardData?.category) params.set("item_category", cardData.category);
+        if (cardData?.set) params.set("item_set", cardData.set);
+        if (cardData?.year) params.set("item_year", cardData.year);
+        if (cardData?.condition) params.set("condition", cardData.condition);
+        if (cardData?.valueLow) params.set("value_low", String(cardData.valueLow));
+        if (cardData?.valueHigh) params.set("value_high", String(cardData.valueHigh));
+        params.set("source", "collectai");
+        const qs = params.toString();
+        window.open(qs ? `${base}?${qs}` : base, "_blank");
+        return;
+      }
+
+      const { data, error } = await supabase.functions.invoke("generate-authentiseal-token", {
+        body: { cardData },
+      });
+
+      if (error || !data?.token) {
+        throw new Error(error?.message || "Failed to generate token");
+      }
+
+      window.open(`https://authentiseal.xyz/create?token=${data.token}`, "_blank");
+    } catch (err) {
+      console.error("Failed to create certificate link:", err);
+      // Fallback to plain URL
+      window.open("https://authentiseal.xyz/create", "_blank");
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  return (
+    <div className="mt-4 pt-4 border-t border-border">
+      <div className="flex items-center gap-2 mb-3">
+        <FilePlus2 className="w-5 h-5 text-emerald-500" />
+        <h3 className="font-display font-bold text-base">Create Authentication Certificate</h3>
+      </div>
+      <p className="text-xs text-muted-foreground mb-3">
+        Get an official Certificate of Authenticity for this item via AuthentiSeal.xyz
+      </p>
+      <Button
+        onClick={handleCreate}
+        disabled={creating}
+        className="w-full gap-2 bg-emerald-600 hover:bg-emerald-700 text-white"
+      >
+        {creating ? (
+          <Loader2 className="w-4 h-4 animate-spin" />
+        ) : (
+          <Shield className="w-4 h-4" />
+        )}
+        Create Certificate on AuthentiSeal
+        <ExternalLink className="w-3.5 h-3.5" />
+      </Button>
+    </div>
+  );
 }
 
 export default AuthentiSealVerify;
