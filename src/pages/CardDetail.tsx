@@ -540,7 +540,7 @@ export default function CardDetail() {
                 condition: card.condition_grade || undefined,
                 valueLow: card.estimated_value_low || undefined,
                 valueHigh: card.estimated_value_high || undefined,
-              }} />
+              }} cardId={id} />
 
               {/* Ecosystem Badge - Desktop */}
               <div className="flex justify-center">
@@ -1018,7 +1018,7 @@ export default function CardDetail() {
                 condition: card.condition_grade || undefined,
                 valueLow: card.estimated_value_low || undefined,
                 valueHigh: card.estimated_value_high || undefined,
-              }} />
+              }} cardId={id} />
 
               {/* Ecosystem Badge - Mobile */}
               <div className="flex justify-center">
