@@ -20,3 +20,6 @@ verify_jwt = false
 
 [functions.admin-data]
 verify_jwt = false
+
+[functions.generate-authentiseal-token]
+verify_jwt = false
