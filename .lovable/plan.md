@@ -1,74 +1,36 @@
 
 
-# Cross-App Account Linking: CollectAI ↔ AuthentiSeal via OAuth
+# Landing Page Upgrades: Action-First Hero + Certificate Verification Tool
 
-Since you own both apps, the cleanest approach is to build a lightweight OAuth-style linking flow where CollectAI acts as a trusted partner that can pass authenticated user context + card data to AuthentiSeal.
+## 1. Redesign Hero Section — "Scan in 3 Seconds" Focus
 
-## Architecture
+Restructure the hero in `Landing.tsx` to lead with action:
 
-```text
-CollectAI                              AuthentiSeal
-─────────                              ────────────
-User clicks "Create Certificate"
-  │
-  ├─► CollectAI edge function           
-  │   generates a signed token          
-  │   (JWT with card data + user email) 
-  │                                     
-  ├─► Redirects to:                     
-  │   authentiseal.xyz/create?token=XYZ 
-  │                                     
-  │                                     AuthentiSeal verifies token
-  │                                     (shared secret between apps)
-  │                                     Pre-fills form with card data
-  │                                     Links/creates user by email
-```
+- **Move the CTA up top**: Large "Scan Your Card Now" button as the first visual element after the headline, removing the sub-pill badge and trimming copy
+- **Add an animated scan demo**: Create a new `ScanDemo` component — a looping CSS animation showing a card photo being "processed" with a grade + value appearing (no video needed, pure CSS/SVG mock). This replaces the static `comboGraphic` image in the hero area
+- **Tighten the headline**: Shorten to something like "Scan. Grade. Value." with the gradient text, then immediately the CTA button
+- **Move social proof stats directly under the CTA** for immediate credibility
 
-## Implementation Steps
+## 2. Add "Verify a Certificate" Tool on Homepage
 
-### 1. Database: Store AuthentiSeal link status (optional, for UI)
-- Add `authentiseal_linked` (boolean, default false) and `authentiseal_email` (text, nullable) to `profiles` table
-- This is optional — the token-based flow works without it, but lets you show link status in the UI
+- **Embed a compact version of `AuthentiSealVerify`** (verification-only, no "Create Certificate" section) directly on the landing page as a new section between features and pricing
+- **Section title**: "Verify Any Certificate" with a brief one-liner about on-chain verification
+- **Reuse the existing component** by passing no `cardData`/`cardId` props — the create section only shows when those are provided, so we'll add a `showCreate={false}` prop or simply render just the verify portion
+- **Add a `verifyOnly` prop** to `AuthentiSealVerify` to hide the create certificate section when embedded on the landing page
 
-### 2. New Edge Function: `generate-authentiseal-token`
-- Accepts card data (name, category, set, year, condition, value range) + authenticated user context
-- Creates a short-lived signed JWT (expires in 10 minutes) containing:
-  - `user_email` (from auth)
-  - `user_name` (from profile)
-  - Card metadata fields
-  - `source: "collectai"`
-  - `iat` / `exp` timestamps
-- Signs with a shared secret (stored as a secret in both apps)
-- Returns the token
+## 3. Create `ScanDemo` Component
 
-### 3. Update `AuthentiSealVerify.tsx`
-- Replace `buildAuthentiSealCreateUrl` with an async function that calls the edge function
-- Button click: call edge function → get token → redirect to `https://authentiseal.xyz/create?token={token}`
-- Show loading state while generating token
-- Fallback: if user is not logged in, use the current query-param approach
+New file: `src/components/ScanDemo.tsx`
 
-### 4. AuthentiSeal Side (separate project — guidance only)
-- Add a token verification endpoint/logic on the `/create` page
-- Verify JWT using the shared secret
-- Extract card data and user email from the token
-- Auto-fill the certificate form
-- If user with that email exists, link the certificate; if not, prompt signup with pre-filled email
+- Animated card mockup: shows a card silhouette → scanning animation (gradient sweep) → grade badge + value appearing
+- Pure CSS animations, no external assets required
+- Responsive, works on mobile
 
-### 5. Add Shared Secret
-- Add a secret `AUTHENTISEAL_SHARED_SECRET` to both projects
-- Used for signing/verifying the cross-app JWT
-
-## Files Changed (CollectAI side)
+## Files Changed
 
 | File | Change |
 |------|--------|
-| `supabase/functions/generate-authentiseal-token/index.ts` | New edge function — signs JWT with card data |
-| `src/components/AuthentiSealVerify.tsx` | Replace static URL builder with async token-based redirect |
-| Migration (optional) | Add `authentiseal_linked` to profiles |
-
-## Technical Notes
-- The JWT approach is secure — tokens are short-lived and signed with a shared secret
-- No need for full OAuth consent screens since you own both apps
-- Card data travels in the token, not in URL query params (cleaner, no URL length limits)
-- The AuthentiSeal side changes are outside this project — you'd implement them in the AuthentiSeal Lovable project separately
+| `src/components/ScanDemo.tsx` | New — animated scan demo component |
+| `src/components/AuthentiSealVerify.tsx` | Add `verifyOnly` prop to hide create section |
+| `src/pages/Landing.tsx` | Restructure hero (CTA-first, scan demo, embedded verify tool) |
 
