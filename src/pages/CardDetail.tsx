@@ -1,4 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
+
+const safeFixed = (val: unknown, digits = 2): string => {
+  const num = typeof val === 'number' ? val : Number(val);
+  return isNaN(num) ? '—' : num.toFixed(digits);
+};
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -330,10 +335,10 @@ export default function CardDetail() {
               <div className="bg-gradient-primary text-primary-foreground rounded-xl p-4">
                 <p className="text-sm opacity-80">Estimated Value</p>
                 <p className="text-2xl font-display font-bold">
-                  ${avgValue.toFixed(2)}
+                  ${safeFixed(avgValue)}
                 </p>
                 <p className="text-xs opacity-70">
-                  ${card.estimated_value_low?.toFixed(2)} - ${card.estimated_value_high?.toFixed(2)}
+                  ${safeFixed(card.estimated_value_low)} - ${safeFixed(card.estimated_value_high)}
                 </p>
               </div>
               <div className="bg-card border border-border rounded-xl p-4">
@@ -686,19 +691,19 @@ export default function CardDetail() {
                     <div className="text-center p-3 bg-muted/50 rounded-lg">
                       <p className="text-xs text-muted-foreground">Low</p>
                       <p className="text-lg font-bold text-foreground">
-                        ${analysis.ebayRecentSales.lowPrice?.toFixed(2) || "—"}
+                        ${safeFixed(analysis.ebayRecentSales.lowPrice)}
                       </p>
                     </div>
                     <div className="text-center p-3 bg-primary/10 rounded-lg border border-primary/20">
                       <p className="text-xs text-primary">Average</p>
                       <p className="text-lg font-bold text-primary">
-                        ${analysis.ebayRecentSales.averagePrice?.toFixed(2) || "—"}
+                        ${safeFixed(analysis.ebayRecentSales.averagePrice)}
                       </p>
                     </div>
                     <div className="text-center p-3 bg-muted/50 rounded-lg">
                       <p className="text-xs text-muted-foreground">High</p>
                       <p className="text-lg font-bold text-foreground">
-                        ${analysis.ebayRecentSales.highPrice?.toFixed(2) || "—"}
+                        ${safeFixed(analysis.ebayRecentSales.highPrice)}
                       </p>
                     </div>
                   </div>
@@ -747,25 +752,25 @@ export default function CardDetail() {
                     <div className="text-center p-3 bg-muted/50 rounded-lg">
                       <p className="text-xs text-muted-foreground">Low</p>
                       <p className="text-base font-bold text-foreground">
-                        ${analysis.tcgplayerPrice.lowPrice?.toFixed(2) || "—"}
+                        ${safeFixed(analysis.tcgplayerPrice.lowPrice)}
                       </p>
                     </div>
                     <div className="text-center p-3 bg-muted/50 rounded-lg">
                       <p className="text-xs text-muted-foreground">Mid</p>
                       <p className="text-base font-bold text-foreground">
-                        ${analysis.tcgplayerPrice.midPrice?.toFixed(2) || "—"}
+                        ${safeFixed(analysis.tcgplayerPrice.midPrice)}
                       </p>
                     </div>
                     <div className="text-center p-3 bg-orange-500/10 rounded-lg border border-orange-500/20">
                       <p className="text-xs text-orange-500">Market</p>
                       <p className="text-base font-bold text-orange-500">
-                        ${analysis.tcgplayerPrice.marketPrice?.toFixed(2) || "—"}
+                        ${safeFixed(analysis.tcgplayerPrice.marketPrice)}
                       </p>
                     </div>
                     <div className="text-center p-3 bg-muted/50 rounded-lg">
                       <p className="text-xs text-muted-foreground">High</p>
                       <p className="text-base font-bold text-foreground">
-                        ${analysis.tcgplayerPrice.highPrice?.toFixed(2) || "—"}
+                        ${safeFixed(analysis.tcgplayerPrice.highPrice)}
                       </p>
                     </div>
                   </div>
@@ -1201,10 +1206,10 @@ function GradingROICalculator({
       {/* Summary */}
       <div className="mb-6 p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl">
         <p className="text-sm text-muted-foreground">Current Raw Value</p>
-        <p className="text-2xl font-bold text-foreground">${rawValue.toFixed(2)}</p>
+        <p className="text-2xl font-bold text-foreground">${safeFixed(rawValue)}</p>
         {bestOption && bestOption.profit > 0 && (
           <p className="text-sm text-emerald-500 mt-2">
-            Best ROI: <span className="font-bold">{bestOption.grader}</span> with {bestOption.roi.toFixed(0)}% return
+            Best ROI: <span className="font-bold">{bestOption.grader}</span> with {safeFixed(bestOption.roi, 0)}% return
           </p>
         )}
       </div>
@@ -1227,7 +1232,7 @@ function GradingROICalculator({
                     ? 'bg-green-500/20 text-green-500' 
                     : 'bg-red-500/20 text-red-500'
                 }`}>
-                  {isProfit ? '+' : ''}{data.roi.toFixed(0)}% ROI
+                  {isProfit ? '+' : ''}{safeFixed(data.roi, 0)}% ROI
                 </div>
               </div>
 
@@ -1243,7 +1248,7 @@ function GradingROICalculator({
                 <div>
                   <p className="text-xs text-muted-foreground">Net Profit</p>
                   <p className={`font-bold ${isProfit ? 'text-green-500' : 'text-red-500'}`}>
-                    {isProfit ? '+' : ''}${data.profit.toFixed(2)}
+                    {isProfit ? '+' : ''}${safeFixed(data.profit)}
                   </p>
                 </div>
               </div>
@@ -1251,9 +1256,9 @@ function GradingROICalculator({
               {/* Profit Breakdown */}
               <div className="mt-3 pt-3 border-t border-border/50">
                 <p className="text-xs text-muted-foreground">
-                  ${data.valueAtGrade.toLocaleString()} (graded) - ${rawValue.toFixed(2)} (raw) - ${data.gradingCost} (cost) = 
+                  ${data.valueAtGrade.toLocaleString()} (graded) - ${safeFixed(rawValue)} (raw) - ${data.gradingCost} (cost) = 
                   <span className={`font-medium ${isProfit ? 'text-green-500' : 'text-red-500'}`}>
-                    {' '}{isProfit ? '+' : ''}${data.profit.toFixed(2)}
+                    {' '}{isProfit ? '+' : ''}${safeFixed(data.profit)}
                   </span>
                 </p>
               </div>
