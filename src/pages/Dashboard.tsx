@@ -16,6 +16,7 @@ import Footer from "@/components/Footer";
 import ThemeToggle from "@/components/ThemeToggle";
 import ReferralCard from "@/components/ReferralCard";
 import PublicCollectionToggle from "@/components/PublicCollectionToggle";
+import ConnectedAccounts from "@/components/ConnectedAccounts";
 
 interface Card {
   id: string;
@@ -186,10 +187,15 @@ const Dashboard = () => {
 
             {/* Growth Features */}
             {user && (
-              <div className="grid sm:grid-cols-2 gap-6 mt-10">
-                <ReferralCard userId={user.id} />
-                <PublicCollectionToggle userId={user.id} />
-              </div>
+              <>
+                <div className="grid sm:grid-cols-2 gap-6 mt-10">
+                  <ReferralCard userId={user.id} />
+                  <PublicCollectionToggle userId={user.id} />
+                </div>
+                <div className="mt-6">
+                  <ConnectedAccounts />
+                </div>
+              </>
             )}
           </>
         )}
