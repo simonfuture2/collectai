@@ -1,21 +1,19 @@
 import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Camera, Sparkles, TrendingUp, Wallet, Crown, Check } from "lucide-react";
-import PoweredByW3AI from "@/components/PoweredByW3AI";
+import { Camera, Sparkles, TrendingUp, Wallet, Crown, Check, Shield } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
-import EcosystemBadge from "@/components/EcosystemBadge";
-import CollectAILink from "@/components/CollectAILink";
 import Footer from "@/components/Footer";
 import HeroBackground from "@/components/HeroBackground";
+import ScanDemo from "@/components/ScanDemo";
+import AuthentiSealVerify from "@/components/AuthentiSealVerify";
 import collectaiLogo from "@/assets/collectai-logo.png";
-import comboGraphic from "@/assets/mycollectai-authentiseal-combo.png";
 
 const Landing = () => {
   useEffect(() => { document.title = "CollectAI – AI Card Grading & Value Scanner"; }, []);
   return (
     <div className="min-h-screen bg-background">
-      {/* Hero Section */}
+      {/* Header */}
       <header className="container mx-auto px-4 py-6 flex justify-between items-center relative z-10">
         <Link to="/" className="flex items-center gap-2">
           <img src={collectaiLogo} alt="CollectAI Logo" className="w-10 h-10 rounded-lg" />
@@ -29,46 +27,49 @@ const Landing = () => {
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-16 relative">
-        {/* Hero with animated background */}
+      <main className="container mx-auto px-4 py-12 relative">
+        {/* Hero — Action First */}
         <div className="relative">
           <HeroBackground />
-          <div className="text-center max-w-4xl mx-auto relative z-10 py-8">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/30 mb-8">
-              <Sparkles className="w-4 h-4 text-primary" />
-              <span className="text-sm text-primary">AI-Powered Card Analysis</span>
-            </div>
-            
-            <h2 className="text-5xl md:text-7xl font-display font-bold mb-6">
-              Know Your Cards'
-              <span className="text-gradient-primary block">True Value</span>
-            </h2>
-            
-            <p className="text-xl text-muted-foreground mb-10 max-w-2xl mx-auto">
-              Snap a photo of any trading card and instantly get AI-powered identification, 
-              condition grading, and real-time market values.
-            </p>
-            
-            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+          <div className="relative z-10 py-8 grid md:grid-cols-2 gap-12 items-center max-w-6xl mx-auto">
+            {/* Left: Copy + CTA */}
+            <div className="text-center md:text-left">
+              <h1 className="text-5xl md:text-7xl font-display font-bold mb-4 leading-tight">
+                <span className="text-gradient-primary">Scan.</span>{" "}
+                <span className="text-gradient-primary">Grade.</span>{" "}
+                <span className="text-gradient-primary">Value.</span>
+              </h1>
+              <p className="text-lg text-muted-foreground mb-8 max-w-md">
+                Snap a photo of any trading card — get AI identification, condition grade, and market value in seconds.
+              </p>
+
               <Link to="/auth">
-                <Button size="lg" className="gradient-primary text-lg px-8 py-6 rounded-xl glow-purple hover-lift">
-                  <Camera className="mr-2 w-5 h-5" />
-                  Start Scanning Free
+                <Button size="lg" className="gradient-primary text-lg px-10 py-7 rounded-xl glow-purple hover-lift">
+                  <Camera className="mr-2 w-6 h-6" />
+                  Scan Your Card Now
                 </Button>
               </Link>
+
+              {/* Social proof directly under CTA */}
+              <div className="flex flex-wrap gap-6 mt-8 justify-center md:justify-start">
+                {[
+                  { value: "50K+", label: "Cards Scanned" },
+                  { value: "10K+", label: "Collectors" },
+                  { value: "98%", label: "Accuracy" },
+                ].map((stat) => (
+                  <div key={stat.label} className="text-center">
+                    <p className="text-2xl font-display font-bold text-gradient-primary">{stat.value}</p>
+                    <p className="text-xs text-muted-foreground">{stat.label}</p>
+                  </div>
+                ))}
+              </div>
             </div>
 
+            {/* Right: Scan Demo */}
+            <div className="flex justify-center">
+              <ScanDemo />
+            </div>
           </div>
-        </div>
-
-        {/* Hero Graphic */}
-        <div className="flex justify-center mt-16 relative z-10">
-          <img
-            src={comboGraphic}
-            alt="CollectAI card grading with AuthentiSeal certification"
-            className="w-full max-w-2xl rounded-2xl shadow-2xl shadow-primary/10 border border-border/30 animate-hero-float"
-            loading="lazy"
-          />
         </div>
 
         {/* Features */}
@@ -86,18 +87,19 @@ const Landing = () => {
           ))}
         </div>
 
-        {/* Social Proof */}
-        <div className="mt-16 flex flex-wrap items-center justify-center gap-8 text-center">
-          {[
-            { value: "50K+", label: "Cards Scanned" },
-            { value: "10K+", label: "Collectors" },
-            { value: "98%", label: "Accuracy Rate" },
-          ].map((stat) => (
-            <div key={stat.label}>
-              <p className="text-3xl font-display font-bold text-gradient-primary">{stat.value}</p>
-              <p className="text-sm text-muted-foreground">{stat.label}</p>
-            </div>
-          ))}
+        {/* Verify Certificate — Utility Section */}
+        <div className="mt-24 max-w-2xl mx-auto text-center">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-collectai-green/10 border border-collectai-green/30 mb-6">
+            <Shield className="w-4 h-4 text-collectai-green" />
+            <span className="text-sm text-collectai-green font-medium">On-Chain Verification</span>
+          </div>
+          <h2 className="text-3xl md:text-5xl font-display font-bold mb-3">
+            Verify Any <span className="text-gradient-primary">Certificate</span>
+          </h2>
+          <p className="text-muted-foreground mb-8">
+            Look up any AuthentiSeal certificate instantly. Blockchain-backed proof of authenticity.
+          </p>
+          <AuthentiSealVerify verifyOnly className="text-left" />
         </div>
 
         {/* AI Disclosure — Google Play Compliance */}
