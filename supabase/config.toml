@@ -23,3 +23,6 @@ verify_jwt = false
 
 [functions.generate-authentiseal-token]
 verify_jwt = false
+
+[functions.authentiseal-webhook]
+verify_jwt = false

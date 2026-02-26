@@ -90,7 +90,7 @@ serve(async (req) => {
       .single();
 
     const body = await req.json();
-    const { cardData } = body;
+    const { cardData, cardId } = body;
 
     const now = Math.floor(Date.now() / 1000);
     const payload: Record<string, unknown> = {
@@ -100,7 +100,11 @@ serve(async (req) => {
       source: "collectai",
       iat: now,
       exp: now + 600, // 10 minutes
+      callback_url: `${supabaseUrl}/functions/v1/authentiseal-webhook`,
     };
+
+    // Include card_id so AuthentiSeal can reference it in the callback
+    if (cardId) payload.card_id = cardId;
 
     // Add card data fields if present
     if (cardData) {

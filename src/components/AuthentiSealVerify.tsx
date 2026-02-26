@@ -30,9 +30,10 @@ interface AuthentiSealVerifyProps {
   className?: string;
   defaultSerial?: string;
   cardData?: CardData;
+  cardId?: string;
 }
 
-const AuthentiSealVerify = ({ className = "", defaultSerial = "", cardData }: AuthentiSealVerifyProps) => {
+const AuthentiSealVerify = ({ className = "", defaultSerial = "", cardData, cardId }: AuthentiSealVerifyProps) => {
   const [serial, setSerial] = useState(defaultSerial);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ verified: boolean; certificate: CertificateData } | null>(null);
@@ -153,12 +154,12 @@ const AuthentiSealVerify = ({ className = "", defaultSerial = "", cardData }: Au
       )}
 
       {/* Create Certificate Section */}
-      <CreateCertificateSection cardData={cardData} />
+      <CreateCertificateSection cardData={cardData} cardId={cardId} />
     </div>
   );
 };
 
-function CreateCertificateSection({ cardData }: { cardData?: CardData }) {
+function CreateCertificateSection({ cardData, cardId }: { cardData?: CardData; cardId?: string }) {
   const [creating, setCreating] = useState(false);
 
   const handleCreate = async () => {
@@ -184,7 +185,7 @@ function CreateCertificateSection({ cardData }: { cardData?: CardData }) {
       }
 
       const { data, error } = await supabase.functions.invoke("generate-authentiseal-token", {
-        body: { cardData },
+        body: { cardData, cardId },
       });
 
       if (error || !data?.token) {
