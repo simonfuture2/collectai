@@ -1,26 +1,28 @@
 
 
-# Switch Stripe to Live Mode
+## Plan: Manually fulfill the missed credit purchase
 
-## What needs to happen
+Since the Stripe webhook wasn't listening for `checkout.session.completed` when the payment occurred, the credits were never added. The simplest fix is to manually add the 10 credits directly in the database.
 
-You need to update **3 things** to go live:
+### Steps
 
-### 1. Update `STRIPE_SECRET_KEY` secret
-Replace the current test key (`sk_test_...`) with your live key (`sk_live_...`) from your Stripe Dashboard → Developers → API keys.
+1. **Run a database query** to add 10 credits to user `72f0adfb-d41e-4fa6-8d67-078c10c4091a` (the logged-in user visible in edge function logs), updating their `user_credits` row from 3 to 13.
 
-### 2. Update `STRIPE_WEBHOOK_SECRET` secret
-Create a new webhook endpoint in Stripe's live mode dashboard pointing to:
-`https://irncxwszrawrndsdaqel.supabase.co/functions/v1/stripe-webhook`
+2. **Insert a `credit_transactions` record** to log this manual fulfillment for audit purposes.
 
-Then use the new webhook signing secret (`whsec_...`) from that endpoint.
+3. **Verify** by checking the `check-subscription` endpoint returns the updated credit count.
 
-### 3. Update Price IDs in `src/lib/stripe-config.ts`
-Products/prices are separate between test and live mode. You need to create the same 4 products in Stripe's live dashboard and replace the price IDs in the config file.
+### Technical Details
 
-## Steps I will take
+SQL migration to execute:
+```sql
+UPDATE public.user_credits 
+SET credits = credits + 10 
+WHERE user_id = '72f0adfb-d41e-4fa6-8d67-078c10c4091a';
 
-1. Prompt you to enter the new live `STRIPE_SECRET_KEY`
-2. Prompt you to enter the new live `STRIPE_WEBHOOK_SECRET`
-3. Ask you for your 4 new live-mode price IDs (Pro, 10-pack, 50-pack, 100-pack) and update `src/lib/stripe-config.ts`
+INSERT INTO public.credit_transactions (user_id, type, amount, description)
+VALUES ('72f0adfb-d41e-4fa6-8d67-078c10c4091a', 'credit_purchase', 10, 'Manual fulfillment: 10 Credit Pack ($9.99) - webhook missed');
+```
+
+After this, refreshing the dashboard should show 13 credits. Going forward, the webhook is now configured correctly and future purchases will be fulfilled automatically.
 
