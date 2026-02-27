@@ -1,55 +1,26 @@
 
 
-# "Grade My Card" Challenge — Free Quick Scan on Landing Page
+# Switch Stripe to Live Mode
 
-## Overview
+## What needs to happen
 
-Add a gamified lead-gen section to the landing page where **unauthenticated visitors** can upload a card photo and get a free "Quick Scan" — a simplified result showing card name, estimated grade, and value range. The full detailed analysis is gated behind sign-up.
+You need to update **3 things** to go live:
 
-## Architecture
+### 1. Update `STRIPE_SECRET_KEY` secret
+Replace the current test key (`sk_test_...`) with your live key (`sk_live_...`) from your Stripe Dashboard → Developers → API keys.
 
-```text
-Landing Page
-  └─ QuickScanChallenge component
-       ├─ Upload zone (single image, no auth required)
-       ├─ Calls new "quick-scan" edge function (no JWT)
-       ├─ Shows teaser result (name, grade, value range)
-       ├─ Blurs/locks detailed breakdown
-       └─ CTA: "Sign up to unlock full analysis"
-```
+### 2. Update `STRIPE_WEBHOOK_SECRET` secret
+Create a new webhook endpoint in Stripe's live mode dashboard pointing to:
+`https://irncxwszrawrndsdaqel.supabase.co/functions/v1/stripe-webhook`
 
-## 1. New Edge Function: `supabase/functions/quick-scan/index.ts`
+Then use the new webhook signing secret (`whsec_...`) from that endpoint.
 
-- **No JWT required** — open to anonymous visitors
-- **Rate-limited by IP** (simple in-memory map, e.g. 3 scans per IP per hour)
-- Accepts a base64-encoded image (no storage upload needed for anonymous users)
-- Calls Lovable AI with a **simplified prompt** — returns only: card name, set, year, condition grade, estimated value range, and confidence
-- Returns a compact JSON response (no pre-grading analysis, no market breakdown)
-- Register in `supabase/config.toml` with `verify_jwt = false`
+### 3. Update Price IDs in `src/lib/stripe-config.ts`
+Products/prices are separate between test and live mode. You need to create the same 4 products in Stripe's live dashboard and replace the price IDs in the config file.
 
-## 2. New Component: `src/components/QuickScanChallenge.tsx`
+## Steps I will take
 
-- Upload zone with drag-and-drop or click to select (single image only)
-- Animated scanning state (reuse scan-sweep animation from ScanDemo)
-- Result card showing:
-  - Card name, set, year
-  - AI grade badge (e.g. "NM 7")
-  - Value range (e.g. "$80 – $200")
-- Blurred/locked sections with overlay text: "Pre-Grading Analysis", "Market Data", "Graded Value Estimates" — each with a lock icon
-- Bottom CTA: **"Sign Up Free to Unlock Full Report"** → links to `/auth`
-- Reset button to scan another card
-
-## 3. Landing Page Update: `src/pages/Landing.tsx`
-
-- Add the QuickScanChallenge section between the Hero and the Features grid
-- Section heading: **"Think Your Card Is Worth Something?"** with subtext: *"Upload a photo and find out in seconds — no account needed"*
-
-## Files Changed
-
-| File | Change |
-|------|--------|
-| `supabase/functions/quick-scan/index.ts` | New — lightweight anonymous scan endpoint |
-| `supabase/config.toml` | Register quick-scan function |
-| `src/components/QuickScanChallenge.tsx` | New — upload + teaser result component |
-| `src/pages/Landing.tsx` | Add QuickScanChallenge section |
+1. Prompt you to enter the new live `STRIPE_SECRET_KEY`
+2. Prompt you to enter the new live `STRIPE_WEBHOOK_SECRET`
+3. Ask you for your 4 new live-mode price IDs (Pro, 10-pack, 50-pack, 100-pack) and update `src/lib/stripe-config.ts`
 
