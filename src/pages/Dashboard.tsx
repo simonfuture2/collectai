@@ -17,6 +17,7 @@ import ThemeToggle from "@/components/ThemeToggle";
 import ReferralCard from "@/components/ReferralCard";
 import PublicCollectionToggle from "@/components/PublicCollectionToggle";
 import ConnectedAccounts from "@/components/ConnectedAccounts";
+import TransactionHistory from "@/components/TransactionHistory";
 
 interface Card {
   id: string;
@@ -194,6 +195,9 @@ const Dashboard = () => {
                 </div>
                 <div className="mt-6">
                   <ConnectedAccounts />
+                </div>
+                <div className="mt-6">
+                  <TransactionHistory />
                 </div>
               </>
             )}
