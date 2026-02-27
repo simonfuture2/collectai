@@ -9,12 +9,12 @@ const logStep = (step: string, details?: any) => {
 
 // Credit pack product IDs → credit amounts
 const CREDIT_PACKS: Record<string, number> = {
-  "prod_U2oSb0GXXerl32": 10,   // 10 Credit Pack
-  "prod_U2oS9AcuiOdUmy": 50,   // 50 Credit Pack
-  "prod_U2oS0IpwPaqUAg": 100,  // 100 Credit Pack
+  "prod_U3LUssmKAJLMjx": 10,   // 10 Credit Pack
+  "prod_U3LUNHmWz9efkI": 50,   // 50 Credit Pack
+  "prod_U3LVySbsHL6Sur": 100,  // 100 Credit Pack
 };
 
-const PRO_PRODUCT_ID = "prod_U2oSKDGxRnAx1x";
+const PRO_PRODUCT_ID = "prod_U3LWcSgpIvvEwb";
 
 serve(async (req) => {
   const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
