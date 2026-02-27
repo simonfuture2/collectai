@@ -1,6 +1,6 @@
 export const STRIPE_CONFIG = {
   pro: {
-    price_id: "price_1T4ipMLOcSeBPUW0duXqKp8y",
+    price_id: "price_1T5Ept1sHqLtRhMjmjQKR2mY",
     product_id: "prod_U2oSKDGxRnAx1x",
     name: "Pro Monthly",
     price: 14.99,
