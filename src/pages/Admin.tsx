@@ -16,8 +16,11 @@ import { Label } from "@/components/ui/label";
 import {
   ArrowLeft, Users, CreditCard, Activity, Search, Crown, Coins,
   BarChart3, ImageIcon, TrendingUp, Plus, Minus, Settings, Trash2, RefreshCw,
+  UserPlus, Megaphone,
 } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
+import LeadsTab from "@/components/admin/LeadsTab";
+import CampaignsTab from "@/components/admin/CampaignsTab";
 import { toast } from "sonner";
 
 interface UserCredit {
@@ -212,6 +215,8 @@ const Admin = () => {
           <TabsList>
             <TabsTrigger value="users">Users</TabsTrigger>
             <TabsTrigger value="transactions">Transactions</TabsTrigger>
+            <TabsTrigger value="leads">Leads</TabsTrigger>
+            <TabsTrigger value="campaigns">Campaigns</TabsTrigger>
           </TabsList>
 
           {/* Users Tab */}
@@ -373,6 +378,15 @@ const Admin = () => {
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+          {/* Leads Tab */}
+          <TabsContent value="leads">
+            <LeadsTab />
+          </TabsContent>
+
+          {/* Campaigns Tab */}
+          <TabsContent value="campaigns">
+            <CampaignsTab />
           </TabsContent>
         </Tabs>
       </main>

@@ -21,6 +21,7 @@ import HowItWorks from "./pages/HowItWorks";
 import Admin from "./pages/Admin";
 import SharedCard from "./pages/SharedCard";
 import PublicCollection from "./pages/PublicCollection";
+import PartnerSignup from "./pages/PartnerSignup";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -48,6 +49,7 @@ const App = () => (
           <Route path="/about" element={<About />} />
           <Route path="/how-it-works" element={<HowItWorks />} />
           <Route path="/admin" element={<Admin />} />
+          <Route path="/partners" element={<PartnerSignup />} />
           <Route path="/card/share/:id" element={<SharedCard />} />
           <Route path="/u/:slug" element={<PublicCollection />} />
           <Route path="*" element={<NotFound />} />
