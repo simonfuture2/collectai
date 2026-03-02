@@ -29,26 +29,50 @@ async function sendSMS(to: string, body: string) {
 }
 
 async function sendEmail(to: string, subject: string, body: string) {
-  const apiKey = Deno.env.get("SENDGRID_API_KEY")!;
-  const fromEmail = Deno.env.get("SENDGRID_FROM_EMAIL")!;
+  const apiKey = Deno.env.get("SENDGRID_API_KEY")?.trim();
+  const fromEmail = Deno.env.get("SENDGRID_FROM_EMAIL")?.trim();
 
-  const resp = await fetch("https://api.sendgrid.com/v3/mail/send", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      personalizations: [{ to: [{ email: to }] }],
-      from: { email: fromEmail },
-      subject,
-      content: [{ type: "text/html", value: body }],
-    }),
-  });
-  if (!resp.ok) {
+  if (!apiKey) throw new Error("SENDGRID_API_KEY is missing");
+  if (!fromEmail) throw new Error("SENDGRID_FROM_EMAIL is missing");
+
+  const payload = {
+    personalizations: [{ to: [{ email: to }] }],
+    from: { email: fromEmail },
+    subject,
+    content: [{ type: "text/html", value: body }],
+  };
+
+  const endpoints = [
+    "https://api.sendgrid.com/v3/mail/send",
+    "https://api.eu.sendgrid.com/v3/mail/send",
+  ];
+
+  let lastError = "";
+
+  for (const endpoint of endpoints) {
+    const resp = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (resp.ok) return;
+
     const err = await resp.text();
-    throw new Error(err || "Email send failed");
+    console.error("SendGrid send failed", { endpoint, status: resp.status, error: err });
+
+    // Retry with EU endpoint only for auth-grant errors (common with EU regional subusers)
+    if (!err.includes("authorization grant is invalid")) {
+      throw new Error(err || "Email send failed");
+    }
+
+    lastError = err;
   }
+
+  throw new Error(lastError || "Email send failed");
 }
 
 function replacePlaceholders(template: string, lead: Record<string, any>): string {
