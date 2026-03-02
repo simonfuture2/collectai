@@ -1,28 +1,50 @@
 
 
-## Plan: Manually fulfill the missed credit purchase
+## Admin Dashboard Enhancement Plan
 
-Since the Stripe webhook wasn't listening for `checkout.session.completed` when the payment occurred, the credits were never added. The simplest fix is to manually add the 10 credits directly in the database.
+### Current State
+- The admin page (`/admin`) exists with basic read-only stats: total users, pro subscribers, credits in circulation, a users table, and recent transactions.
+- The `admin-data` edge function supports `get_dashboard` action but has a broken `update_credits` action (re-parses consumed body).
+- Auth uses `getClaims()` which may fail on Lovable Cloud (same ES256 issue seen in `check-subscription`).
 
-### Steps
+### What to Build
 
-1. **Run a database query** to add 10 credits to user `72f0adfb-d41e-4fa6-8d67-078c10c4091a` (the logged-in user visible in edge function logs), updating their `user_credits` row from 3 to 13.
+#### 1. Fix & Expand the `admin-data` Edge Function
+- Fix auth to use `getUser()` with anon key client (same pattern as the fixed `check-subscription`)
+- Parse body once upfront, then route by `action`
+- Add these actions:
+  - **`update_credits`** — Set a user's credit balance to a specific value, log a transaction
+  - **`update_plan`** — Change a user's plan (free/pro), log a transaction
+  - **`add_credits`** — Add/deduct credits from a user, log a transaction
+  - **`get_cards_stats`** — Return total cards count, cards per user stats
+  - **`get_user_detail`** — Return full detail for a single user (credits, transactions, cards count, profile)
+  - **`delete_user_data`** — Remove a user's cards, credits, transactions (for account cleanup)
 
-2. **Insert a `credit_transactions` record** to log this manual fulfillment for audit purposes.
+#### 2. Enhance the Admin Frontend (`src/pages/Admin.tsx`)
+- **More stats cards**: Total Cards Scanned, Revenue indicators (total credit purchases), Active subscriptions count
+- **User management actions**: Click a user row to expand/see detail; buttons to adjust credits, change plan
+- **Inline credit adjustment**: A modal/dialog to add/set credits for a user with a reason field
+- **Plan toggle**: Quick button to upgrade/downgrade a user's plan
+- **Transaction filters**: Filter by type (purchase, scan, bonus), date range
+- **Cards overview**: Total cards in system, recent scans count
+- **Tabbed layout**: Tabs for Users, Transactions, System Overview
 
-3. **Verify** by checking the `check-subscription` endpoint returns the updated credit count.
+#### 3. Additional Stats Queries in Edge Function
+- Count total cards across all users
+- Count scans (transactions of type `scan_deduction`)
+- Revenue approximation from credit_transactions of type `credit_purchase`
 
 ### Technical Details
 
-SQL migration to execute:
-```sql
-UPDATE public.user_credits 
-SET credits = credits + 10 
-WHERE user_id = '72f0adfb-d41e-4fa6-8d67-078c10c4091a';
+**Edge function auth fix** (critical): Replace `getClaims()` with the anon-key + `getUser()` pattern, then check admin role via service role client.
 
-INSERT INTO public.credit_transactions (user_id, type, amount, description)
-VALUES ('72f0adfb-d41e-4fa6-8d67-078c10c4091a', 'credit_purchase', 10, 'Manual fulfillment: 10 Credit Pack ($9.99) - webhook missed');
+**Body parsing fix**: Read body once at the top:
+```
+const body = await req.json();
+const { action, ...params } = body;
 ```
 
-After this, refreshing the dashboard should show 13 credits. Going forward, the webhook is now configured correctly and future purchases will be fulfilled automatically.
+**New admin actions** will all use the service-role `adminClient` for DB operations after verifying admin status.
+
+**Frontend** will use `supabase.functions.invoke("admin-data", { body: { action, ...params } })` for all operations, keeping all admin logic server-side.
 
