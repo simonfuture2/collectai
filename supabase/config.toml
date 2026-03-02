@@ -29,3 +29,6 @@ verify_jwt = false
 
 [functions.quick-scan]
 verify_jwt = false
+
+[functions.check-subscription]
+verify_jwt = false
