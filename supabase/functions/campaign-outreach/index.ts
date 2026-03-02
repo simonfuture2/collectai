@@ -34,6 +34,7 @@ async function sendEmail(to: string, subject: string, body: string) {
 
   if (!apiKey) throw new Error("SENDGRID_API_KEY is missing");
   if (!fromEmail) throw new Error("SENDGRID_FROM_EMAIL is missing");
+  console.log("SENDGRID_FROM_EMAIL value:", JSON.stringify(fromEmail));
 
   const payload = {
     personalizations: [{ to: [{ email: to }] }],
