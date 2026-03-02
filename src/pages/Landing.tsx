@@ -1,8 +1,9 @@
 import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Camera, Sparkles, TrendingUp, Wallet, Crown, Check, Shield } from "lucide-react";
+import { Camera, Sparkles, TrendingUp, Wallet, Crown, Check, Shield, Menu } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
+import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 import Footer from "@/components/Footer";
 import HeroBackground from "@/components/HeroBackground";
 import ScanDemo from "@/components/ScanDemo";
@@ -25,9 +26,25 @@ const Landing = () => {
           <Link to="/how-it-works" className="text-sm text-muted-foreground hover:text-foreground transition-colors hidden sm:inline">How It Works</Link>
           <Link to="/partners" className="text-sm text-muted-foreground hover:text-foreground transition-colors hidden sm:inline">Partners</Link>
           <ThemeToggle />
-          <Link to="/auth">
+          <Link to="/auth" className="hidden sm:inline-flex">
             <Button variant="outline" className="border-primary/50 hover:bg-primary/10">Sign In</Button>
           </Link>
+          {/* Mobile menu */}
+          <Sheet>
+            <SheetTrigger asChild className="sm:hidden">
+              <Button variant="ghost" size="icon"><Menu className="w-5 h-5" /></Button>
+            </SheetTrigger>
+            <SheetContent side="right" className="w-64">
+              <SheetTitle className="text-lg font-display font-bold text-gradient-primary">Menu</SheetTitle>
+              <nav className="flex flex-col gap-4 mt-6">
+                <Link to="/how-it-works" className="text-base text-foreground hover:text-primary transition-colors">How It Works</Link>
+                <Link to="/partners" className="text-base text-foreground hover:text-primary transition-colors">Partners</Link>
+                <Link to="/auth">
+                  <Button className="w-full gradient-primary">Sign In</Button>
+                </Link>
+              </nav>
+            </SheetContent>
+          </Sheet>
         </div>
       </header>
 
