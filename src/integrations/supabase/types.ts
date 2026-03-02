@@ -472,7 +472,7 @@ export type Database = {
         | "call"
       campaign_channel: "email" | "sms"
       campaign_status: "draft" | "sending" | "sent"
-      lead_source: "form" | "manual" | "csv"
+      lead_source: "form" | "manual" | "csv" | "lead_magnet"
       lead_status: "new" | "contacted" | "interested" | "converted" | "lost"
     }
     CompositeTypes: {
@@ -610,7 +610,7 @@ export const Constants = {
       ],
       campaign_channel: ["email", "sms"],
       campaign_status: ["draft", "sending", "sent"],
-      lead_source: ["form", "manual", "csv"],
+      lead_source: ["form", "manual", "csv", "lead_magnet"],
       lead_status: ["new", "contacted", "interested", "converted", "lost"],
     },
   },

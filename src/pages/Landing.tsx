@@ -8,6 +8,7 @@ import HeroBackground from "@/components/HeroBackground";
 import ScanDemo from "@/components/ScanDemo";
 import QuickScanChallenge from "@/components/QuickScanChallenge";
 import AuthentiSealVerify from "@/components/AuthentiSealVerify";
+import LeadMagnet from "@/components/LeadMagnet";
 import collectaiLogo from "@/assets/collectai-logo.png";
 
 const Landing = () => {
@@ -20,7 +21,9 @@ const Landing = () => {
           <img src={collectaiLogo} alt="CollectAI Logo" className="w-10 h-10 rounded-lg" />
           <span className="text-2xl font-display font-bold text-gradient-primary">CollectAI</span>
         </Link>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 sm:gap-4">
+          <Link to="/how-it-works" className="text-sm text-muted-foreground hover:text-foreground transition-colors hidden sm:inline">How It Works</Link>
+          <Link to="/partners" className="text-sm text-muted-foreground hover:text-foreground transition-colors hidden sm:inline">Partners</Link>
           <ThemeToggle />
           <Link to="/auth">
             <Button variant="outline" className="border-primary/50 hover:bg-primary/10">Sign In</Button>
@@ -90,6 +93,9 @@ const Landing = () => {
             </div>
           ))}
         </div>
+
+        {/* Lead Magnet */}
+        <LeadMagnet />
 
         {/* Verify Certificate — Utility Section */}
         <div className="mt-24 max-w-2xl mx-auto text-center">
