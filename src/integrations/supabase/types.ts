@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      campaign_templates: {
+        Row: {
+          body: string
+          channel: Database["public"]["Enums"]["campaign_channel"]
+          created_at: string
+          created_by: string | null
+          id: string
+          name: string
+          subject: string | null
+          updated_at: string
+        }
+        Insert: {
+          body: string
+          channel?: Database["public"]["Enums"]["campaign_channel"]
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name: string
+          subject?: string | null
+          updated_at?: string
+        }
+        Update: {
+          body?: string
+          channel?: Database["public"]["Enums"]["campaign_channel"]
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name?: string
+          subject?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       card_folders: {
         Row: {
           card_id: string
@@ -182,6 +215,130 @@ export type Database = {
         }
         Relationships: []
       }
+      lead_activities: {
+        Row: {
+          content: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          lead_id: string
+          metadata: Json | null
+          type: Database["public"]["Enums"]["activity_type"]
+        }
+        Insert: {
+          content?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          lead_id: string
+          metadata?: Json | null
+          type: Database["public"]["Enums"]["activity_type"]
+        }
+        Update: {
+          content?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          lead_id?: string
+          metadata?: Json | null
+          type?: Database["public"]["Enums"]["activity_type"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_activities_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      leads: {
+        Row: {
+          assigned_to: string | null
+          company: string | null
+          created_at: string
+          email: string | null
+          id: string
+          name: string
+          notes: string | null
+          partner_code: string | null
+          phone: string | null
+          source: Database["public"]["Enums"]["lead_source"]
+          status: Database["public"]["Enums"]["lead_status"]
+          updated_at: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          company?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          partner_code?: string | null
+          phone?: string | null
+          source?: Database["public"]["Enums"]["lead_source"]
+          status?: Database["public"]["Enums"]["lead_status"]
+          updated_at?: string
+        }
+        Update: {
+          assigned_to?: string | null
+          company?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          partner_code?: string | null
+          phone?: string | null
+          source?: Database["public"]["Enums"]["lead_source"]
+          status?: Database["public"]["Enums"]["lead_status"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      outreach_campaigns: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          name: string
+          sent_count: number
+          status: Database["public"]["Enums"]["campaign_status"]
+          target_filter: Json | null
+          template_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name: string
+          sent_count?: number
+          status?: Database["public"]["Enums"]["campaign_status"]
+          target_filter?: Json | null
+          template_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name?: string
+          sent_count?: number
+          status?: Database["public"]["Enums"]["campaign_status"]
+          target_filter?: Json | null
+          template_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "outreach_campaigns_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -307,7 +464,16 @@ export type Database = {
       is_admin: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
-      [_ in never]: never
+      activity_type:
+        | "email_sent"
+        | "sms_sent"
+        | "status_change"
+        | "note"
+        | "call"
+      campaign_channel: "email" | "sms"
+      campaign_status: "draft" | "sending" | "sent"
+      lead_source: "form" | "manual" | "csv"
+      lead_status: "new" | "contacted" | "interested" | "converted" | "lost"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -434,6 +600,18 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      activity_type: [
+        "email_sent",
+        "sms_sent",
+        "status_change",
+        "note",
+        "call",
+      ],
+      campaign_channel: ["email", "sms"],
+      campaign_status: ["draft", "sending", "sent"],
+      lead_source: ["form", "manual", "csv"],
+      lead_status: ["new", "contacted", "interested", "converted", "lost"],
+    },
   },
 } as const
