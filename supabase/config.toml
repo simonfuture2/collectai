@@ -32,3 +32,9 @@ verify_jwt = false
 
 [functions.check-subscription]
 verify_jwt = false
+
+[functions.partner-signup]
+verify_jwt = false
+
+[functions.campaign-outreach]
+verify_jwt = false
