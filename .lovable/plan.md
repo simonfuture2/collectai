@@ -1,50 +1,68 @@
 
 
-## Admin Dashboard Enhancement Plan
+## Admin CRM & Campaign Management — Implementation Plan
 
-### Current State
-- The admin page (`/admin`) exists with basic read-only stats: total users, pro subscribers, credits in circulation, a users table, and recent transactions.
-- The `admin-data` edge function supports `get_dashboard` action but has a broken `update_credits` action (re-parses consumed body).
-- Auth uses `getClaims()` which may fail on Lovable Cloud (same ES256 issue seen in `check-subscription`).
+This adds a full lead management, outreach, and campaign system to your admin dashboard, powered by Twilio for email and SMS delivery.
 
-### What to Build
+---
 
-#### 1. Fix & Expand the `admin-data` Edge Function
-- Fix auth to use `getUser()` with anon key client (same pattern as the fixed `check-subscription`)
-- Parse body once upfront, then route by `action`
-- Add these actions:
-  - **`update_credits`** — Set a user's credit balance to a specific value, log a transaction
-  - **`update_plan`** — Change a user's plan (free/pro), log a transaction
-  - **`add_credits`** — Add/deduct credits from a user, log a transaction
-  - **`get_cards_stats`** — Return total cards count, cards per user stats
-  - **`get_user_detail`** — Return full detail for a single user (credits, transactions, cards count, profile)
-  - **`delete_user_data`** — Remove a user's cards, credits, transactions (for account cleanup)
+### What You Will Get
 
-#### 2. Enhance the Admin Frontend (`src/pages/Admin.tsx`)
-- **More stats cards**: Total Cards Scanned, Revenue indicators (total credit purchases), Active subscriptions count
-- **User management actions**: Click a user row to expand/see detail; buttons to adjust credits, change plan
-- **Inline credit adjustment**: A modal/dialog to add/set credits for a user with a reason field
-- **Plan toggle**: Quick button to upgrade/downgrade a user's plan
-- **Transaction filters**: Filter by type (purchase, scan, bonus), date range
-- **Cards overview**: Total cards in system, recent scans count
-- **Tabbed layout**: Tabs for Users, Transactions, System Overview
+- **Leads CRM tab** in the admin dashboard with a pipeline view (New → Contacted → Interested → Converted → Lost)
+- **Public partner signup form** at `/partners` that feeds leads into the CRM
+- **Campaign templates** — save and reuse email/SMS message templates with variable placeholders
+- **Send email and SMS** directly from the admin dashboard to individual leads or in bulk
+- **Activity log** per lead tracking every touchpoint (email sent, SMS sent, status change, notes)
+- **Referral/partner code generation** for onboarding tracking
 
-#### 3. Additional Stats Queries in Edge Function
-- Count total cards across all users
-- Count scans (transactions of type `scan_deduction`)
-- Revenue approximation from credit_transactions of type `credit_purchase`
+---
 
-### Technical Details
+### Prerequisites: Twilio API Keys
 
-**Edge function auth fix** (critical): Replace `getClaims()` with the anon-key + `getUser()` pattern, then check admin role via service role client.
+You will need a Twilio account with:
+- **Account SID** and **Auth Token** (for SMS)
+- A **Twilio phone number** for sending SMS
+- A **verified sender email** or Twilio SendGrid API key for email
 
-**Body parsing fix**: Read body once at the top:
-```
-const body = await req.json();
-const { action, ...params } = body;
-```
+I will prompt you to securely add these as backend secrets before sending anything.
 
-**New admin actions** will all use the service-role `adminClient` for DB operations after verifying admin status.
+---
 
-**Frontend** will use `supabase.functions.invoke("admin-data", { body: { action, ...params } })` for all operations, keeping all admin logic server-side.
+### Database Tables (4 new tables)
+
+1. **`leads`** — id, name, email, phone, company, source (form/manual/csv), status (new/contacted/interested/converted/lost), partner_code, notes, assigned_to, created_at, updated_at
+2. **`campaign_templates`** — id, name, channel (email/sms), subject, body, created_by, created_at, updated_at
+3. **`lead_activities`** — id, lead_id, type (email_sent/sms_sent/status_change/note/call), content, metadata (jsonb), created_by, created_at
+4. **`outreach_campaigns`** — id, template_id, name, status (draft/sending/sent), target_filter (jsonb), sent_count, created_by, created_at
+
+All tables get RLS policies restricted to admin users only.
+
+### Edge Functions (2 new)
+
+1. **`campaign-outreach`** — Admin-only function handling:
+   - Send individual email/SMS to a lead via Twilio
+   - Bulk send to filtered lead lists
+   - Log each send as a lead activity
+   - Generate unique partner referral codes
+
+2. **`partner-signup`** — Public endpoint (no JWT) for the partner interest form. Inserts into `leads` table with source="form", status="new".
+
+### Frontend Changes
+
+1. **`src/pages/Admin.tsx`** — Add 2 new tabs: "Leads" and "Campaigns"
+   - **Leads tab**: Table with status badges, search, status filter, click-to-expand detail with activity timeline, inline actions (send email/SMS, change status, add note, generate partner code)
+   - **Campaigns tab**: Template manager (create/edit/delete templates), bulk send interface with lead filtering
+
+2. **`src/pages/PartnerSignup.tsx`** — Public form page at `/partners` with name, email, phone, company, message fields. Calls `partner-signup` edge function.
+
+3. **Router** — Add `/partners` route.
+
+### Implementation Order
+
+1. Create database tables and RLS policies (migration)
+2. Add Twilio secrets (will prompt you)
+3. Build `partner-signup` edge function + public form page
+4. Build `campaign-outreach` edge function
+5. Build Leads tab UI in admin dashboard
+6. Build Campaigns tab UI (templates + bulk send)
 
