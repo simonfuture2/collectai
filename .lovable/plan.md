@@ -1,47 +1,57 @@
 
 
-## Current State
+## Assessment: Not Yet Ready for Google Play
 
-- **Lead generation page**: The partner signup page is at `/partners` (PartnerSignup.tsx). It captures name, email, phone, company, and message into the `leads` table. There's also the QuickScanChallenge on the landing page for anonymous lead gen.
-- **Landing page header**: Only has logo + Sign In button. No navigation links to Partners, How It Works, or other pages.
-- **No lead magnet / digital product**: There's no email capture mechanism that offers a free digital product in exchange for an email address.
+Your app has Capacitor configured for native builds, but is **missing several key pieces** for both PWA and Google Play submission.
 
-## Plan
+### What's Already Done
+- Capacitor config with app ID `com.collectai.app`, splash screen settings
+- Basic meta tags and structured data in index.html
 
-### 1. Add navigation links to landing page header
+### What's Missing
 
-Add "How It Works" and "Partners" links to the Landing page header between the logo and Sign In button. On mobile, these can be compact links or a simple nav bar.
+#### 1. PWA Essentials (currently no PWA support)
+- **No `vite-plugin-pwa`** installed or configured
+- **No `manifest.json`** (required for installability)
+- **No service worker** (required for offline support)
+- **No PWA icons** (192x192 and 512x512 required)
 
-### 2. Create a lead magnet digital product + email capture
+#### 2. Google Play Store Requirements
+- **Privacy Policy page** — required by Google Play (you have `/privacy`, needs verification it's complete)
+- **Data deletion support** — per your compliance notes, users must be able to request data deletion
+- **App icons** — need proper adaptive icons for Android (foreground + background layers)
+- **Keystore setup** — `keystorePath` and `keystoreAlias` are `undefined` in capacitor config
+- **Data Safety declaration** — photos encrypted in transit, blockchain for digital assets
 
-Create a free downloadable guide — something like **"The Collector's Card Grading Cheat Sheet"** — a PDF-style resource that provides real value (grading terminology, what PSA/BGS grades mean, photo tips, value ranges by condition). Users enter their email to receive it.
+#### 3. Capacitor Config Fix
+- `appId` should be `app.lovable.7e6b30f7ba0740d087d375a902ce186b` per Lovable conventions (or keep `com.collectai.app` if you own that domain)
 
-**Implementation:**
-- Create a new `LeadMagnet` component embedded on the landing page (between features and pricing sections)
-- The component shows a compelling preview of the guide with an email capture form
-- On submit, call a new `lead-magnet` edge function that:
-  - Validates the email
-  - Inserts into the `leads` table with `source: 'lead_magnet'`
-  - Sends the digital guide via SendGrid to the captured email
-  - Returns success
-- The guide content will be an HTML email with the cheat sheet content inline (no PDF hosting needed — the email IS the product)
+### Implementation Plan
 
-**Database change:**
-- The `leads` table `source` column is an enum (`lead_source`). We need to add `'lead_magnet'` as a new enum value.
+| Step | What |
+|------|------|
+| 1 | Install `vite-plugin-pwa`, configure in `vite.config.ts` with manifest, icons, service worker |
+| 2 | Create PWA icons (192x192, 512x512) and add to `public/` |
+| 3 | Add mobile meta tags to `index.html` (theme-color, apple-touch-icon, etc.) |
+| 4 | Add an `/install` page with install prompt for mobile users |
+| 5 | Ensure `/privacy` page covers Google Play data safety requirements |
+| 6 | Add account/data deletion feature (required by Google Play policy) |
 
-### 3. Files to create/modify
+### Files to Create/Modify
+- `vite.config.ts` — add VitePWA plugin
+- `public/manifest.json` — app manifest
+- `public/` — PWA icons
+- `index.html` — mobile meta tags
+- `src/pages/Install.tsx` — install prompt page
+- `src/App.tsx` — add install route
 
-| File | Action |
-|------|--------|
-| `src/pages/Landing.tsx` | Add nav links (Partners, How It Works) to header; add LeadMagnet section |
-| `src/components/LeadMagnet.tsx` | New — email capture component with guide preview |
-| `supabase/functions/lead-magnet/index.ts` | New — validates email, inserts lead, sends guide email via SendGrid |
-| DB migration | Add `'lead_magnet'` to `lead_source` enum |
+### After Code Changes (Your Local Steps)
+1. Export to GitHub, git pull
+2. `npm install`
+3. `npx cap add android`
+4. `npx cap sync`
+5. Open in Android Studio: `npx cap open android`
+6. Generate signed APK/AAB for Play Store submission
 
-### Technical Details
-
-- The `lead_source` enum currently has values used by the system. Adding `'lead_magnet'` requires an `ALTER TYPE` migration.
-- The edge function reuses the existing `SENDGRID_API_KEY` and `SENDGRID_FROM_EMAIL` secrets.
-- The guide email will contain a well-formatted HTML "cheat sheet" covering: grade scale (1-10), condition factors (centering, edges, corners, surface), quick tips, and a CTA back to CollectAI.
-- No new secrets or external dependencies needed.
+For the full native build guide, see the [Lovable Capacitor blog post](https://docs.lovable.dev/).
 
