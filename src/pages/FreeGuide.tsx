@@ -6,6 +6,8 @@ import { Input } from "@/components/ui/input";
 import { BookOpen, Check, Mail, Sparkles, Camera, Star, Users, ArrowRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import ThemeToggle from "@/components/ThemeToggle";
+import Footer from "@/components/Footer";
 import collectaiLogo from "@/assets/collectai-logo.png";
 
 const cheatSheetTopics = [
