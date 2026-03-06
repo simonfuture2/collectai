@@ -22,6 +22,7 @@ import Admin from "./pages/Admin";
 import SharedCard from "./pages/SharedCard";
 import PublicCollection from "./pages/PublicCollection";
 import PartnerSignup from "./pages/PartnerSignup";
+import FreeGuide from "./pages/FreeGuide";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
