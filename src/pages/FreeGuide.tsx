@@ -41,6 +41,10 @@ const FreeGuide = () => {
 
   useEffect(() => {
     document.title = "Free Card Grading Cheat Sheet – CollectAI";
+    // Default to light theme if no preference stored
+    if (!localStorage.getItem("theme")) {
+      document.documentElement.classList.remove("dark");
+    }
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
