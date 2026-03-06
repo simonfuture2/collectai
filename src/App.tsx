@@ -56,6 +56,8 @@ const App = () => (
           <Route path="/free-guide" element={<FreeGuide />} />
           <Route path="/card/share/:id" element={<SharedCard />} />
           <Route path="/u/:slug" element={<PublicCollection />} />
+          <Route path="/install" element={<Install />} />
+          <Route path="/delete-account" element={<DeleteAccount />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
