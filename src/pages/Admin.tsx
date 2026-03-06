@@ -16,7 +16,7 @@ import { Label } from "@/components/ui/label";
 import {
   ArrowLeft, Users, CreditCard, Activity, Search, Crown, Coins,
   BarChart3, ImageIcon, TrendingUp, Plus, Minus, Settings, Trash2, RefreshCw,
-  UserPlus, Megaphone,
+  UserPlus, Megaphone, ChevronLeft, ChevronRight,
 } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
 import LeadsTab from "@/components/admin/LeadsTab";
