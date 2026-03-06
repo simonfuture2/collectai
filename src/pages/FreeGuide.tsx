@@ -186,6 +186,7 @@ const FreeGuide = () => {
             </motion.div>
           </div>
         </motion.section>
+        </div>
 
         {/* What's Inside */}
         <motion.section
