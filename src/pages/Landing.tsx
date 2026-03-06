@@ -26,6 +26,7 @@ const Landing = () => {
           <Link to="/how-it-works" className="text-sm text-muted-foreground hover:text-foreground transition-colors hidden sm:inline">How It Works</Link>
           <Link to="/partners" className="text-sm text-muted-foreground hover:text-foreground transition-colors hidden sm:inline">Partners</Link>
           <Link to="/faq" className="text-sm text-muted-foreground hover:text-foreground transition-colors hidden sm:inline">FAQ</Link>
+          <Link to="/pricing" className="text-sm text-muted-foreground hover:text-foreground transition-colors hidden sm:inline">Pricing</Link>
           <ThemeToggle />
           <Link to="/auth" className="hidden sm:inline-flex">
             <Button variant="outline" className="border-primary/50 hover:bg-primary/10">Sign In</Button>
