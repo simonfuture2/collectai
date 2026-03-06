@@ -66,6 +66,7 @@ const Admin = () => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [txFilter, setTxFilter] = useState("all");
+  const [txPage, setTxPage] = useState(0);
 
   // Credit adjustment dialog
   const [creditDialog, setCreditDialog] = useState<{ open: boolean; userId: string; email: string; currentCredits: number }>({
