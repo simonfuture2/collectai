@@ -51,6 +51,7 @@ const App = () => (
           <Route path="/how-it-works" element={<HowItWorks />} />
           <Route path="/admin" element={<Admin />} />
           <Route path="/partners" element={<PartnerSignup />} />
+          <Route path="/free-guide" element={<FreeGuide />} />
           <Route path="/card/share/:id" element={<SharedCard />} />
           <Route path="/u/:slug" element={<PublicCollection />} />
           <Route path="*" element={<NotFound />} />
