@@ -327,7 +327,7 @@ const Admin = () => {
               <CardHeader>
                 <div className="flex items-center justify-between flex-wrap gap-2">
                   <CardTitle className="flex items-center gap-2"><Activity className="w-5 h-5" /> Transactions</CardTitle>
-                  <Select value={txFilter} onValueChange={setTxFilter}>
+                  <Select value={txFilter} onValueChange={(v) => { setTxFilter(v); setTxPage(0); }}>
                     <SelectTrigger className="w-48">
                       <SelectValue placeholder="Filter by type" />
                     </SelectTrigger>
