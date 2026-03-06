@@ -23,6 +23,8 @@ import SharedCard from "./pages/SharedCard";
 import PublicCollection from "./pages/PublicCollection";
 import PartnerSignup from "./pages/PartnerSignup";
 import FreeGuide from "./pages/FreeGuide";
+import Install from "./pages/Install";
+import DeleteAccount from "./pages/DeleteAccount";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -54,6 +56,8 @@ const App = () => (
           <Route path="/free-guide" element={<FreeGuide />} />
           <Route path="/card/share/:id" element={<SharedCard />} />
           <Route path="/u/:slug" element={<PublicCollection />} />
+          <Route path="/install" element={<Install />} />
+          <Route path="/delete-account" element={<DeleteAccount />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
