@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { Link } from "react-router-dom";
+import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Camera, Sparkles, TrendingUp, Wallet, Crown, Check, Shield, Menu } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
@@ -11,6 +12,16 @@ import QuickScanChallenge from "@/components/QuickScanChallenge";
 import AuthentiSealVerify from "@/components/AuthentiSealVerify";
 import LeadMagnet from "@/components/LeadMagnet";
 import collectaiLogo from "@/assets/collectai-logo.png";
+
+const fadeUp = {
+  hidden: { opacity: 0, y: 30 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: "easeOut" } },
+};
+
+const staggerContainer = {
+  hidden: {},
+  visible: { transition: { staggerChildren: 0.15 } },
+};
 
 const Landing = () => {
   useEffect(() => { document.title = "CollectAI – AI Card Grading & Value Scanner"; }, []);
