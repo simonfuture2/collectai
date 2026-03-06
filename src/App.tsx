@@ -23,6 +23,8 @@ import SharedCard from "./pages/SharedCard";
 import PublicCollection from "./pages/PublicCollection";
 import PartnerSignup from "./pages/PartnerSignup";
 import FreeGuide from "./pages/FreeGuide";
+import Install from "./pages/Install";
+import DeleteAccount from "./pages/DeleteAccount";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
