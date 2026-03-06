@@ -16,7 +16,7 @@ import { Label } from "@/components/ui/label";
 import {
   ArrowLeft, Users, CreditCard, Activity, Search, Crown, Coins,
   BarChart3, ImageIcon, TrendingUp, Plus, Minus, Settings, Trash2, RefreshCw,
-  UserPlus, Megaphone,
+  UserPlus, Megaphone, ChevronLeft, ChevronRight,
 } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
 import LeadsTab from "@/components/admin/LeadsTab";
@@ -66,6 +66,7 @@ const Admin = () => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [txFilter, setTxFilter] = useState("all");
+  const [txPage, setTxPage] = useState(0);
 
   // Credit adjustment dialog
   const [creditDialog, setCreditDialog] = useState<{ open: boolean; userId: string; email: string; currentCredits: number }>({
@@ -107,6 +108,9 @@ const Admin = () => {
   });
 
   const filteredTransactions = transactions.filter((t) => txFilter === "all" || t.type === txFilter);
+  const TX_PAGE_SIZE = 10;
+  const txTotalPages = Math.ceil(filteredTransactions.length / TX_PAGE_SIZE);
+  const paginatedTransactions = filteredTransactions.slice(txPage * TX_PAGE_SIZE, (txPage + 1) * TX_PAGE_SIZE);
 
   const totalPro = users.filter((u) => u.plan === "pro").length;
   const totalCredits = users.reduce((sum, u) => sum + u.credits, 0);
@@ -323,7 +327,7 @@ const Admin = () => {
               <CardHeader>
                 <div className="flex items-center justify-between flex-wrap gap-2">
                   <CardTitle className="flex items-center gap-2"><Activity className="w-5 h-5" /> Transactions</CardTitle>
-                  <Select value={txFilter} onValueChange={setTxFilter}>
+                  <Select value={txFilter} onValueChange={(v) => { setTxFilter(v); setTxPage(0); }}>
                     <SelectTrigger className="w-48">
                       <SelectValue placeholder="Filter by type" />
                     </SelectTrigger>
@@ -339,42 +343,59 @@ const Admin = () => {
               <CardContent>
                 {loading ? (
                   <div className="space-y-3">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-12 w-full" />)}</div>
-                ) : filteredTransactions.length === 0 ? (
+                 ) : filteredTransactions.length === 0 ? (
                   <p className="text-center text-muted-foreground py-8">No transactions found</p>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>User</TableHead>
-                          <TableHead>Type</TableHead>
-                          <TableHead>Amount</TableHead>
-                          <TableHead>Description</TableHead>
-                          <TableHead>Date</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {filteredTransactions.map((t) => {
-                          const profile = getProfile(t.user_id);
-                          return (
-                            <TableRow key={t.id}>
-                              <TableCell className="font-medium">{profile?.email || t.user_id.slice(0, 8)}</TableCell>
-                              <TableCell>
-                                <Badge variant={t.amount > 0 ? "default" : "destructive"} className="text-xs">{t.type}</Badge>
-                              </TableCell>
-                              <TableCell className={t.amount > 0 ? "text-green-600" : "text-red-500"}>
-                                {t.amount > 0 ? "+" : ""}{t.amount}
-                              </TableCell>
-                              <TableCell className="text-muted-foreground text-sm max-w-[200px] truncate">{t.description || "—"}</TableCell>
-                              <TableCell className="text-muted-foreground text-sm">
-                                {new Date(t.created_at).toLocaleString()}
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })}
-                      </TableBody>
-                    </Table>
-                  </div>
+                  <>
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>User</TableHead>
+                            <TableHead>Type</TableHead>
+                            <TableHead>Amount</TableHead>
+                            <TableHead>Description</TableHead>
+                            <TableHead>Date</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {paginatedTransactions.map((t) => {
+                            const profile = getProfile(t.user_id);
+                            return (
+                              <TableRow key={t.id}>
+                                <TableCell className="font-medium">{profile?.email || t.user_id.slice(0, 8)}</TableCell>
+                                <TableCell>
+                                  <Badge variant={t.amount > 0 ? "default" : "destructive"} className="text-xs">{t.type}</Badge>
+                                </TableCell>
+                                <TableCell className={t.amount > 0 ? "text-green-600" : "text-red-500"}>
+                                  {t.amount > 0 ? "+" : ""}{t.amount}
+                                </TableCell>
+                                <TableCell className="text-muted-foreground text-sm max-w-[200px] truncate">{t.description || "—"}</TableCell>
+                                <TableCell className="text-muted-foreground text-sm">
+                                  {new Date(t.created_at).toLocaleString()}
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    </div>
+                    {txTotalPages > 1 && (
+                      <div className="flex items-center justify-between mt-4 pt-3 border-t border-border">
+                        <p className="text-xs text-muted-foreground">
+                          Page {txPage + 1} of {txTotalPages} ({filteredTransactions.length} total)
+                        </p>
+                        <div className="flex gap-2">
+                          <Button variant="outline" size="sm" onClick={() => setTxPage((p) => p - 1)} disabled={txPage === 0}>
+                            <ChevronLeft className="w-4 h-4" />
+                          </Button>
+                          <Button variant="outline" size="sm" onClick={() => setTxPage((p) => p + 1)} disabled={txPage >= txTotalPages - 1}>
+                            <ChevronRight className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
               </CardContent>
             </Card>
