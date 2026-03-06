@@ -6,6 +6,8 @@ import { Input } from "@/components/ui/input";
 import { BookOpen, Check, Mail, Sparkles, Camera, Star, Users, ArrowRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import ThemeToggle from "@/components/ThemeToggle";
+import Footer from "@/components/Footer";
 import collectaiLogo from "@/assets/collectai-logo.png";
 
 const cheatSheetTopics = [
@@ -39,6 +41,10 @@ const FreeGuide = () => {
 
   useEffect(() => {
     document.title = "Free Card Grading Cheat Sheet – CollectAI";
+    // Default to light theme if no preference stored
+    if (!localStorage.getItem("theme")) {
+      document.documentElement.classList.remove("dark");
+    }
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -69,6 +75,14 @@ const FreeGuide = () => {
           <img src={collectaiLogo} alt="CollectAI Logo" className="w-10 h-10 rounded-lg" />
           <span className="text-2xl font-display font-bold text-gradient-primary">CollectAI</span>
         </Link>
+        <div className="flex items-center gap-4">
+          <Link to="/pricing" className="text-sm text-muted-foreground hover:text-foreground transition-colors hidden sm:inline">Pricing</Link>
+          <Link to="/how-it-works" className="text-sm text-muted-foreground hover:text-foreground transition-colors hidden sm:inline">How It Works</Link>
+          <ThemeToggle />
+          <Link to="/auth" className="hidden sm:inline-flex">
+            <Button variant="outline" className="border-primary/50 hover:bg-primary/10">Sign In</Button>
+          </Link>
+        </div>
       </header>
 
       <main className="container mx-auto px-4 pb-16">
@@ -251,16 +265,7 @@ const FreeGuide = () => {
         </motion.section>
       </main>
 
-      {/* Minimal Footer */}
-      <footer className="border-t border-border py-6">
-        <div className="container mx-auto px-4 flex flex-col sm:flex-row justify-between items-center gap-4 text-sm text-muted-foreground">
-          <p>© {new Date().getFullYear()} CollectAI. All rights reserved.</p>
-          <div className="flex gap-4">
-            <Link to="/privacy" className="hover:text-foreground transition-colors">Privacy</Link>
-            <Link to="/terms" className="hover:text-foreground transition-colors">Terms</Link>
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 };
