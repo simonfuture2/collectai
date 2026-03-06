@@ -75,6 +75,14 @@ const FreeGuide = () => {
           <img src={collectaiLogo} alt="CollectAI Logo" className="w-10 h-10 rounded-lg" />
           <span className="text-2xl font-display font-bold text-gradient-primary">CollectAI</span>
         </Link>
+        <div className="flex items-center gap-4">
+          <Link to="/pricing" className="text-sm text-muted-foreground hover:text-foreground transition-colors hidden sm:inline">Pricing</Link>
+          <Link to="/how-it-works" className="text-sm text-muted-foreground hover:text-foreground transition-colors hidden sm:inline">How It Works</Link>
+          <ThemeToggle />
+          <Link to="/auth" className="hidden sm:inline-flex">
+            <Button variant="outline" className="border-primary/50 hover:bg-primary/10">Sign In</Button>
+          </Link>
+        </div>
       </header>
 
       <main className="container mx-auto px-4 pb-16">
