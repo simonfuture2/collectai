@@ -86,14 +86,16 @@ const FreeGuide = () => {
         </div>
       </header>
 
-      <main className="container mx-auto px-4 pb-16">
+      <main className="container mx-auto px-4 pb-16 relative">
         {/* Hero Section */}
-        <motion.section
-          initial="hidden"
-          animate="visible"
-          variants={staggerContainer}
-          className="max-w-5xl mx-auto pt-8 pb-16"
-        >
+        <div className="relative">
+          <HeroBackground />
+          <motion.section
+            initial="hidden"
+            animate="visible"
+            variants={staggerContainer}
+            className="relative z-10 max-w-5xl mx-auto pt-8 pb-16"
+          >
           <div className="grid md:grid-cols-2 gap-12 items-center">
             {/* Left: Copy */}
             <motion.div variants={fadeUp}>
