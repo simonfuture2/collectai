@@ -11,7 +11,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Megaphone, Plus, Send, Trash2 } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { Megaphone, Plus, Send, Trash2, Mail, Clock, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 
 interface Template {
@@ -39,11 +40,28 @@ interface Campaign {
   created_at: string;
 }
 
+interface DripItem {
+  id: string;
+  lead_id: string;
+  step: number;
+  subject: string;
+  scheduled_for: string;
+  sent: boolean;
+  sent_at: string | null;
+  lead_name?: string;
+  lead_email?: string;
+}
+
 const CampaignsTab = () => {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Drip campaign state
+  const [dripItems, setDripItems] = useState<DripItem[]>([]);
+  const [dripStats, setDripStats] = useState({ total: 0, sent: 0, pending: 0, uniqueLeads: 0 });
+  const [dripLoading, setDripLoading] = useState(true);
 
   // Template dialog
   const [templateDialog, setTemplateDialog] = useState(false);
@@ -70,7 +88,47 @@ const CampaignsTab = () => {
     setLoading(false);
   }, []);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  const fetchDripData = useCallback(async () => {
+    setDripLoading(true);
+    const { data, error } = await (supabase as any)
+      .from("drip_campaign_queue")
+      .select("*")
+      .order("scheduled_for", { ascending: false })
+      .limit(200);
+
+    if (error) {
+      console.error("Drip fetch error:", error);
+      setDripLoading(false);
+      return;
+    }
+
+    const items = data || [];
+    const sentCount = items.filter((i: any) => i.sent).length;
+    const pendingCount = items.filter((i: any) => !i.sent).length;
+    const uniqueLeads = new Set(items.map((i: any) => i.lead_id)).size;
+
+    // Enrich with lead info
+    if (items.length > 0) {
+      const leadIds = [...new Set(items.map((i: any) => i.lead_id))];
+      const { data: leadsData } = await supabase
+        .from("leads")
+        .select("id, name, email")
+        .in("id", leadIds as string[]);
+
+      const leadMap = new Map((leadsData || []).map((l: any) => [l.id, l]));
+      items.forEach((item: any) => {
+        const lead = leadMap.get(item.lead_id);
+        item.lead_name = lead?.name || "Unknown";
+        item.lead_email = lead?.email || "—";
+      });
+    }
+
+    setDripItems(items);
+    setDripStats({ total: items.length, sent: sentCount, pending: pendingCount, uniqueLeads });
+    setDripLoading(false);
+  }, []);
+
+  useEffect(() => { fetchData(); fetchDripData(); }, [fetchData, fetchDripData]);
 
   const handleSaveTemplate = async () => {
     if (!tForm.name || !tForm.body) { toast.error("Name and body required"); return; }
@@ -123,6 +181,18 @@ const CampaignsTab = () => {
     fetchData();
   };
 
+  const handleCancelDripForLead = async (leadId: string) => {
+    if (!confirm("Cancel all pending drip emails for this lead?")) return;
+    const { error } = await (supabase as any)
+      .from("drip_campaign_queue")
+      .delete()
+      .eq("lead_id", leadId)
+      .eq("sent", false);
+    if (error) { toast.error("Failed to cancel"); return; }
+    toast.success("Pending drip emails cancelled");
+    fetchDripData();
+  };
+
   const toggleLead = (id: string) => {
     setSelectedLeads((prev) => prev.includes(id) ? prev.filter((l) => l !== id) : [...prev, id]);
   };
@@ -134,8 +204,99 @@ const CampaignsTab = () => {
       })
     : leads;
 
+  // Group drip items by lead for display
+  const dripByLead = dripItems.reduce<Record<string, DripItem[]>>((acc, item) => {
+    if (!acc[item.lead_id]) acc[item.lead_id] = [];
+    acc[item.lead_id].push(item);
+    return acc;
+  }, {});
+
+  const progressPercent = dripStats.total > 0 ? Math.round((dripStats.sent / dripStats.total) * 100) : 0;
+
   return (
     <div className="space-y-6">
+      {/* Drip Campaign Overview */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <CardTitle className="flex items-center gap-2"><Mail className="w-5 h-5" /> Drip Campaign</CardTitle>
+            <Badge variant="outline" className="text-xs">9-Email Sequence</Badge>
+          </div>
+          <CardDescription>Automated email sequence for leads who download the free guide. Sends on days 1, 3, 4, 6, 8, 10, 11, 13, 15.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {dripLoading ? (
+            <div className="space-y-3">{[1, 2].map((i) => <Skeleton key={i} className="h-12 w-full" />)}</div>
+          ) : (
+            <div className="space-y-4">
+              {/* Stats */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div className="bg-muted/30 rounded-lg p-3 text-center">
+                  <p className="text-2xl font-bold">{dripStats.uniqueLeads}</p>
+                  <p className="text-xs text-muted-foreground">Leads in Sequence</p>
+                </div>
+                <div className="bg-muted/30 rounded-lg p-3 text-center">
+                  <p className="text-2xl font-bold text-green-600">{dripStats.sent}</p>
+                  <p className="text-xs text-muted-foreground">Emails Sent</p>
+                </div>
+                <div className="bg-muted/30 rounded-lg p-3 text-center">
+                  <p className="text-2xl font-bold text-amber-600">{dripStats.pending}</p>
+                  <p className="text-xs text-muted-foreground">Pending</p>
+                </div>
+                <div className="bg-muted/30 rounded-lg p-3 text-center">
+                  <p className="text-2xl font-bold">{progressPercent}%</p>
+                  <p className="text-xs text-muted-foreground">Complete</p>
+                </div>
+              </div>
+
+              <Progress value={progressPercent} className="h-2" />
+
+              {/* Recent drip activity by lead */}
+              {Object.keys(dripByLead).length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4">No leads in drip sequence yet. They'll appear after someone downloads the free guide.</p>
+              ) : (
+                <div className="space-y-2 max-h-80 overflow-y-auto">
+                  {Object.entries(dripByLead).slice(0, 20).map(([leadId, items]) => {
+                    const sentSteps = items.filter((i) => i.sent).length;
+                    const totalSteps = items.length;
+                    const leadName = items[0]?.lead_name || "Unknown";
+                    const leadEmail = items[0]?.lead_email || "—";
+                    return (
+                      <div key={leadId} className="flex items-center justify-between p-3 rounded-lg bg-muted/20 border">
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-sm truncate">{leadName}</p>
+                          <p className="text-xs text-muted-foreground truncate">{leadEmail}</p>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-1.5 text-xs">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />
+                            <span>{sentSteps}/{totalSteps}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                            <Clock className="w-3.5 h-3.5" />
+                            <span>{totalSteps - sentSteps} left</span>
+                          </div>
+                          {totalSteps - sentSteps > 0 && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 text-xs text-destructive hover:text-destructive"
+                              onClick={() => handleCancelDripForLead(leadId)}
+                            >
+                              Cancel
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Templates */}
       <Card>
         <CardHeader>

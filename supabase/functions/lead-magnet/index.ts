@@ -6,6 +6,18 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const DRIP_SCHEDULE = [
+  { step: 1, day: 1, subject: "Welcome! Here's How to Spot a PSA 10 🏆" },
+  { step: 2, day: 3, subject: "The Top 5 Most Expensive Cards Sold This Year 💰" },
+  { step: 3, day: 4, subject: "Pokémon: Why Vintage Japanese Cards Are Exploding 🇯🇵" },
+  { step: 4, day: 6, subject: "Sports Legends: Cards That Made Millionaires 🏀⚾🏈" },
+  { step: 5, day: 8, subject: "3 Grading Mistakes That Cost Collectors Thousands 😱" },
+  { step: 6, day: 10, subject: "The Hidden Gem: Low-Pop Cards Worth Hunting 🔎" },
+  { step: 7, day: 11, subject: "Is Your Collection Insured? 🛡️" },
+  { step: 8, day: 13, subject: "Market Watch: What's Trending Right Now 📈" },
+  { step: 9, day: 15, subject: "Your Collection Deserves More — Upgrade to Pro 🚀" },
+];
+
 const cheatSheetHTML = `
 <!DOCTYPE html>
 <html>
@@ -107,44 +119,87 @@ Deno.serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     // Insert lead
-    const { error: insertError } = await supabase.from("leads").insert({
+    const { data: leadData, error: insertError } = await supabase.from("leads").insert({
       name: email.split("@")[0],
       email,
       source: "lead_magnet",
       notes: "Downloaded: Card Grading Cheat Sheet",
-    });
+    }).select("id").single();
+
+    let leadId = leadData?.id;
 
     if (insertError) {
       console.error("Lead insert error:", insertError);
-      // Don't fail — still send the email even if duplicate
+      // Try to find existing lead to still enqueue drip
+      const { data: existing } = await supabase
+        .from("leads")
+        .select("id")
+        .eq("email", email)
+        .single();
+      leadId = existing?.id;
+    }
+
+    // Enqueue drip campaign emails
+    if (leadId) {
+      const now = new Date();
+      const dripRows = DRIP_SCHEDULE.map((d) => {
+        const scheduledDate = new Date(now);
+        scheduledDate.setDate(scheduledDate.getDate() + d.day);
+        return {
+          lead_id: leadId,
+          step: d.step,
+          subject: d.subject,
+          body: "", // HTML is in the drip-campaign function
+          scheduled_for: scheduledDate.toISOString().split("T")[0],
+        };
+      });
+
+      const { error: dripError } = await supabase
+        .from("drip_campaign_queue")
+        .insert(dripRows);
+
+      if (dripError) {
+        console.error("Drip enqueue error:", dripError);
+      } else {
+        console.log(`Enqueued 9 drip emails for lead ${leadId}`);
+      }
     }
 
     // Send email via SendGrid
-    const apiKey = Deno.env.get("SENDGRID_API_KEY");
-    const fromEmail = Deno.env.get("SENDGRID_FROM_EMAIL");
+    const apiKey = Deno.env.get("SENDGRID_API_KEY")?.trim();
+    const fromEmail = Deno.env.get("SENDGRID_FROM_EMAIL")?.trim();
 
     if (!apiKey || !fromEmail) {
       throw new Error("Email configuration is missing");
     }
 
-    const sgRes = await fetch("https://api.sendgrid.com/v3/mail/send", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        personalizations: [{ to: [{ email }] }],
-        from: { email: fromEmail, name: "CollectAI" },
-        subject: "Your Card Grading Cheat Sheet 📊",
-        content: [{ type: "text/html", value: cheatSheetHTML }],
-      }),
-    });
+    let sent = false;
+    for (const baseUrl of ["https://api.sendgrid.com", "https://api.eu.sendgrid.com"]) {
+      const sgRes = await fetch(`${baseUrl}/v3/mail/send`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          personalizations: [{ to: [{ email }] }],
+          from: { email: fromEmail, name: "CollectAI" },
+          subject: "Your Card Grading Cheat Sheet 📊",
+          content: [{ type: "text/html", value: cheatSheetHTML }],
+        }),
+      });
 
-    if (!sgRes.ok) {
-      const errText = await sgRes.text();
-      console.error("SendGrid error:", errText);
-      throw new Error("Failed to send email");
+      if (sgRes.ok || sgRes.status === 202) {
+        sent = true;
+        break;
+      } else {
+        const errText = await sgRes.text();
+        console.error(`SendGrid error (${baseUrl}):`, errText);
+      }
+    }
+
+    if (!sent) {
+      throw new Error("Failed to send email via SendGrid");
     }
 
     return new Response(JSON.stringify({ success: true }), {
