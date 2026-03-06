@@ -185,6 +185,50 @@ export type Database = {
         }
         Relationships: []
       }
+      drip_campaign_queue: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          lead_id: string
+          scheduled_for: string
+          sent: boolean
+          sent_at: string | null
+          step: number
+          subject: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          id?: string
+          lead_id: string
+          scheduled_for: string
+          sent?: boolean
+          sent_at?: string | null
+          step: number
+          subject: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          lead_id?: string
+          scheduled_for?: string
+          sent?: boolean
+          sent_at?: string | null
+          step?: number
+          subject?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "drip_campaign_queue_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       folders: {
         Row: {
           color: string | null
