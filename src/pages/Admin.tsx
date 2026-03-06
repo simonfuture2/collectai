@@ -343,42 +343,59 @@ const Admin = () => {
               <CardContent>
                 {loading ? (
                   <div className="space-y-3">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-12 w-full" />)}</div>
-                ) : filteredTransactions.length === 0 ? (
+                 ) : filteredTransactions.length === 0 ? (
                   <p className="text-center text-muted-foreground py-8">No transactions found</p>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>User</TableHead>
-                          <TableHead>Type</TableHead>
-                          <TableHead>Amount</TableHead>
-                          <TableHead>Description</TableHead>
-                          <TableHead>Date</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {filteredTransactions.map((t) => {
-                          const profile = getProfile(t.user_id);
-                          return (
-                            <TableRow key={t.id}>
-                              <TableCell className="font-medium">{profile?.email || t.user_id.slice(0, 8)}</TableCell>
-                              <TableCell>
-                                <Badge variant={t.amount > 0 ? "default" : "destructive"} className="text-xs">{t.type}</Badge>
-                              </TableCell>
-                              <TableCell className={t.amount > 0 ? "text-green-600" : "text-red-500"}>
-                                {t.amount > 0 ? "+" : ""}{t.amount}
-                              </TableCell>
-                              <TableCell className="text-muted-foreground text-sm max-w-[200px] truncate">{t.description || "—"}</TableCell>
-                              <TableCell className="text-muted-foreground text-sm">
-                                {new Date(t.created_at).toLocaleString()}
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })}
-                      </TableBody>
-                    </Table>
-                  </div>
+                  <>
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>User</TableHead>
+                            <TableHead>Type</TableHead>
+                            <TableHead>Amount</TableHead>
+                            <TableHead>Description</TableHead>
+                            <TableHead>Date</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {paginatedTransactions.map((t) => {
+                            const profile = getProfile(t.user_id);
+                            return (
+                              <TableRow key={t.id}>
+                                <TableCell className="font-medium">{profile?.email || t.user_id.slice(0, 8)}</TableCell>
+                                <TableCell>
+                                  <Badge variant={t.amount > 0 ? "default" : "destructive"} className="text-xs">{t.type}</Badge>
+                                </TableCell>
+                                <TableCell className={t.amount > 0 ? "text-green-600" : "text-red-500"}>
+                                  {t.amount > 0 ? "+" : ""}{t.amount}
+                                </TableCell>
+                                <TableCell className="text-muted-foreground text-sm max-w-[200px] truncate">{t.description || "—"}</TableCell>
+                                <TableCell className="text-muted-foreground text-sm">
+                                  {new Date(t.created_at).toLocaleString()}
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    </div>
+                    {txTotalPages > 1 && (
+                      <div className="flex items-center justify-between mt-4 pt-3 border-t border-border">
+                        <p className="text-xs text-muted-foreground">
+                          Page {txPage + 1} of {txTotalPages} ({filteredTransactions.length} total)
+                        </p>
+                        <div className="flex gap-2">
+                          <Button variant="outline" size="sm" onClick={() => setTxPage((p) => p - 1)} disabled={txPage === 0}>
+                            <ChevronLeft className="w-4 h-4" />
+                          </Button>
+                          <Button variant="outline" size="sm" onClick={() => setTxPage((p) => p + 1)} disabled={txPage >= txTotalPages - 1}>
+                            <ChevronRight className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
               </CardContent>
             </Card>
