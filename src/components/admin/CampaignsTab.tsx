@@ -236,7 +236,7 @@ const CampaignsTab = () => {
                   <p className="text-xs text-muted-foreground">Leads in Sequence</p>
                 </div>
                 <div className="bg-muted/30 rounded-lg p-3 text-center">
-                  <p className="text-2xl font-bold text-green-600">{dripStats.sent}</p>
+                  <p className="text-2xl font-bold text-primary">{dripStats.sent}</p>
                   <p className="text-xs text-muted-foreground">Emails Sent</p>
                 </div>
                 <div className="bg-muted/30 rounded-lg p-3 text-center">
