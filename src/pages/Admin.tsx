@@ -108,6 +108,9 @@ const Admin = () => {
   });
 
   const filteredTransactions = transactions.filter((t) => txFilter === "all" || t.type === txFilter);
+  const TX_PAGE_SIZE = 10;
+  const txTotalPages = Math.ceil(filteredTransactions.length / TX_PAGE_SIZE);
+  const paginatedTransactions = filteredTransactions.slice(txPage * TX_PAGE_SIZE, (txPage + 1) * TX_PAGE_SIZE);
 
   const totalPro = users.filter((u) => u.plan === "pro").length;
   const totalCredits = users.reduce((sum, u) => sum + u.credits, 0);
