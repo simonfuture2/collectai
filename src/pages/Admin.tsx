@@ -411,6 +411,11 @@ const Admin = () => {
           <TabsContent value="campaigns">
             <CampaignsTab />
           </TabsContent>
+
+          {/* Push Notifications Tab */}
+          <TabsContent value="push">
+            <PushNotificationsTab />
+          </TabsContent>
         </Tabs>
       </main>
 

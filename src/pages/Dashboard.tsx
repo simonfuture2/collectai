@@ -18,6 +18,7 @@ import ReferralCard from "@/components/ReferralCard";
 import PublicCollectionToggle from "@/components/PublicCollectionToggle";
 import ConnectedAccounts from "@/components/ConnectedAccounts";
 import TransactionHistory from "@/components/TransactionHistory";
+import { usePushNotifications } from "@/hooks/use-push-notifications";
 
 interface Card {
   id: string;
