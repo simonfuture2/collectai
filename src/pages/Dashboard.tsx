@@ -199,6 +199,14 @@ const Dashboard = () => {
                 <div className="mt-6">
                   <TransactionHistory />
                 </div>
+                <div className="mt-6 border-t border-border pt-6">
+                  <Link to="/delete-account">
+                    <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive hover:bg-destructive/10 gap-2">
+                      <Trash2 className="w-4 h-4" />
+                      Delete Account
+                    </Button>
+                  </Link>
+                </div>
               </>
             )}
           </>
