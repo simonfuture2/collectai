@@ -294,18 +294,38 @@ const LeadsTab = () => {
       </Card>
 
       {/* Email Dialog */}
-      <Dialog open={emailDialog.open} onOpenChange={(o) => !o && setEmailDialog({ ...emailDialog, open: false })}>
-        <DialogContent>
+      <Dialog open={emailDialog.open} onOpenChange={(o) => { if (!o) { setEmailDialog({ ...emailDialog, open: false }); setSelectedTemplateId(""); } }}>
+        <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>Send Email to {emailDialog.leadName}</DialogTitle>
-            <DialogDescription>Placeholders: {"{{name}}"}, {"{{email}}"}, {"{{company}}"}, {"{{partner_code}}"}</DialogDescription>
+            <DialogDescription>Select a template or write a custom email. Placeholders: {"{{name}}"}, {"{{email}}"}, {"{{company}}"}, {"{{partner_code}}"}</DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
+            <div>
+              <Label>Template</Label>
+              <Select value={selectedTemplateId} onValueChange={(v) => {
+                setSelectedTemplateId(v);
+                if (v === "custom") {
+                  setEmailForm({ subject: "", body: "" });
+                } else {
+                  const tmpl = emailTemplates.find((t) => t.id === v);
+                  if (tmpl) setEmailForm({ subject: tmpl.subject || "", body: tmpl.body });
+                }
+              }}>
+                <SelectTrigger><SelectValue placeholder="Choose a template..." /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="custom">✏️ Custom Email</SelectItem>
+                  {emailTemplates.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <div><Label>Subject</Label><Input value={emailForm.subject} onChange={(e) => setEmailForm({ ...emailForm, subject: e.target.value })} placeholder="Email subject" /></div>
             <div><Label>Body (HTML)</Label><Textarea value={emailForm.body} onChange={(e) => setEmailForm({ ...emailForm, body: e.target.value })} rows={6} placeholder="<p>Hi {{name}},...</p>" /></div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEmailDialog({ ...emailDialog, open: false })}>Cancel</Button>
+            <Button variant="outline" onClick={() => { setEmailDialog({ ...emailDialog, open: false }); setSelectedTemplateId(""); }}>Cancel</Button>
             <Button onClick={handleSendEmail} disabled={actionLoading}>{actionLoading ? "Sending..." : "Send Email"}</Button>
           </DialogFooter>
         </DialogContent>
