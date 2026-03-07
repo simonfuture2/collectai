@@ -450,12 +450,19 @@ Respond in JSON format with this structure:
       };
     }
 
-    // Deduct credit for non-Pro users AFTER successful parsing
+    // Atomically deduct credit for non-Pro users AFTER successful parsing
     if (!isPro) {
-      await supabaseAdmin
-        .from("user_credits")
-        .update({ credits: (creditsData?.credits ?? 1) - 1 })
-        .eq("user_id", user.id);
+      const { data: remaining, error: deductError } = await supabaseAdmin.rpc("deduct_credit", {
+        _user_id: user.id,
+      });
+
+      if (deductError || remaining === -1) {
+        console.error("Failed to deduct credit (race condition prevented):", deductError?.message);
+        return new Response(
+          JSON.stringify({ error: "Insufficient credits. Please purchase credits or upgrade to Pro." }),
+          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
 
       await supabaseAdmin
         .from("credit_transactions")
@@ -466,7 +473,7 @@ Respond in JSON format with this structure:
           description: `AI scan: ${analysis.cardName || "Unknown card"}`,
         });
 
-      console.log("Deducted 1 credit for user:", user.id);
+      console.log("Deducted 1 credit for user:", user.id, "remaining:", remaining);
     }
 
     return new Response(JSON.stringify(analysis), {
