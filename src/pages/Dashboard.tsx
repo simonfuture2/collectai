@@ -4,7 +4,7 @@ import collectaiLogo from "@/assets/collectai-logo.png";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Camera, LogOut, Wallet, TrendingUp, Layers, BarChart3, Crown, Shield } from "lucide-react";
+import { Camera, LogOut, Wallet, TrendingUp, Layers, BarChart3, Crown, Shield, Trash2 } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
 import PortfolioAnalytics from "@/components/PortfolioAnalytics";
 import PoweredByW3AI from "@/components/PoweredByW3AI";
@@ -198,6 +198,14 @@ const Dashboard = () => {
                 </div>
                 <div className="mt-6">
                   <TransactionHistory />
+                </div>
+                <div className="mt-6 border-t border-border pt-6">
+                  <Link to="/delete-account">
+                    <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive hover:bg-destructive/10 gap-2">
+                      <Trash2 className="w-4 h-4" />
+                      Delete Account
+                    </Button>
+                  </Link>
                 </div>
               </>
             )}
