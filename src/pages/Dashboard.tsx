@@ -40,6 +40,7 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const { credits, isPro, loading: creditsLoading } = useCredits();
   const { isAdmin } = useAdmin();
+  usePushNotifications();
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
