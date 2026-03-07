@@ -36,6 +36,13 @@ interface Activity {
   created_at: string;
 }
 
+interface EmailTemplate {
+  id: string;
+  name: string;
+  subject: string | null;
+  body: string;
+}
+
 const STATUS_OPTIONS = ["new", "contacted", "interested", "converted", "lost"] as const;
 
 const statusColor: Record<string, string> = {
