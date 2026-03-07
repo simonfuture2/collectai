@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Sparkles } from "lucide-react";
+import { lovable } from "@/integrations/lovable/index";
 import collectaiLogo from "@/assets/collectai-logo.png";
 import comboGraphic from "@/assets/mycollectai-authentiseal-combo.png";
 import Footer from "@/components/Footer";
