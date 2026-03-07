@@ -336,15 +336,37 @@ const LeadsTab = () => {
       </Dialog>
 
       {/* SMS Dialog */}
-      <Dialog open={smsDialog.open} onOpenChange={(o) => !o && setSmsDialog({ ...smsDialog, open: false })}>
+      <Dialog open={smsDialog.open} onOpenChange={(o) => { if (!o) { setSmsDialog({ ...smsDialog, open: false }); setSelectedSmsTemplateId(""); } }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Send SMS to {smsDialog.leadName}</DialogTitle>
-            <DialogDescription>Placeholders: {"{{name}}"}, {"{{company}}"}, {"{{partner_code}}"}</DialogDescription>
+            <DialogDescription>Select a template or write a custom message. Placeholders: {"{{name}}"}, {"{{company}}"}, {"{{partner_code}}"}</DialogDescription>
           </DialogHeader>
-          <div><Label>Message</Label><Textarea value={smsForm.body} onChange={(e) => setSmsForm({ body: e.target.value })} rows={4} placeholder="Hi {{name}}, ..." /></div>
+          <div className="space-y-3">
+            <div>
+              <Label>Template</Label>
+              <Select value={selectedSmsTemplateId} onValueChange={(v) => {
+                setSelectedSmsTemplateId(v);
+                if (v === "custom") {
+                  setSmsForm({ body: "" });
+                } else {
+                  const tmpl = smsTemplates.find((t) => t.id === v);
+                  if (tmpl) setSmsForm({ body: tmpl.body });
+                }
+              }}>
+                <SelectTrigger><SelectValue placeholder="Choose a template..." /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="custom">✏️ Custom Message</SelectItem>
+                  {smsTemplates.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div><Label>Message</Label><Textarea value={smsForm.body} onChange={(e) => setSmsForm({ body: e.target.value })} rows={4} placeholder="Hi {{name}}, ..." /></div>
+          </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setSmsDialog({ ...smsDialog, open: false })}>Cancel</Button>
+            <Button variant="outline" onClick={() => { setSmsDialog({ ...smsDialog, open: false }); setSelectedSmsTemplateId(""); }}>Cancel</Button>
             <Button onClick={handleSendSMS} disabled={actionLoading}>{actionLoading ? "Sending..." : "Send SMS"}</Button>
           </DialogFooter>
         </DialogContent>
