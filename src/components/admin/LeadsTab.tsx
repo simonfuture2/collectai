@@ -70,6 +70,7 @@ const LeadsTab = () => {
   const [emailForm, setEmailForm] = useState({ subject: "", body: "" });
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
   const [smsForm, setSmsForm] = useState({ body: "" });
+  const [selectedSmsTemplateId, setSelectedSmsTemplateId] = useState<string>("");
   const [noteContent, setNoteContent] = useState("");
   const [newLead, setNewLead] = useState({ name: "", email: "", phone: "", company: "", notes: "" });
   const [actionLoading, setActionLoading] = useState(false);
