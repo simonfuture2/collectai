@@ -25,6 +25,7 @@ import PartnerSignup from "./pages/PartnerSignup";
 import FreeGuide from "./pages/FreeGuide";
 import Install from "./pages/Install";
 import DeleteAccount from "./pages/DeleteAccount";
+import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -58,6 +59,7 @@ const App = () => (
           <Route path="/u/:slug" element={<PublicCollection />} />
           <Route path="/install" element={<Install />} />
           <Route path="/delete-account" element={<DeleteAccount />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

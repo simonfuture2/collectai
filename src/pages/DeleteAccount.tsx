@@ -23,22 +23,15 @@ const DeleteAccount = () => {
     if (confirmText !== "DELETE") return;
     setSubmitting(true);
     try {
-      // Delete user's cards
-      await supabase.from("cards").delete().eq("user_id", user.id);
-      // Delete user's folders
-      await supabase.from("folders").delete().eq("user_id", user.id);
-      // Delete user's credits
-      await supabase.from("user_credits").delete().eq("user_id", user.id);
-      // Delete user's credit transactions
-      await supabase.from("credit_transactions").delete().eq("user_id", user.id);
-      // Delete user's profile
-      await supabase.from("profiles").delete().eq("id", user.id);
-      // Sign out
+      const { data, error } = await supabase.functions.invoke("delete-account");
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
       await supabase.auth.signOut();
       setSubmitted(true);
-      toast.success("Your data has been deleted. Your account removal will be finalized within 30 days.");
-    } catch (err) {
-      toast.error("Something went wrong. Please email support@collectai.app for assistance.");
+      toast.success("Your account and all data have been permanently deleted.");
+    } catch (err: any) {
+      toast.error(err.message || "Something went wrong. Please email support@collectai.app for assistance.");
     } finally {
       setSubmitting(false);
     }
@@ -50,9 +43,9 @@ const DeleteAccount = () => {
         <Card className="max-w-md w-full border-border/50">
           <CardContent className="pt-8 text-center space-y-4">
             <CheckCircle2 className="h-12 w-12 text-green-500 mx-auto" />
-            <h2 className="text-xl font-display font-bold">Deletion Request Submitted</h2>
+            <h2 className="text-xl font-display font-bold">Account Deleted</h2>
             <p className="text-sm text-muted-foreground">
-              Your data has been removed and your account will be fully deleted within 30 days.
+              Your account and all associated data have been permanently removed.
               If you have questions, email <a href="mailto:support@collectai.app" className="text-primary hover:underline">support@collectai.app</a>.
             </p>
             <Link to="/">

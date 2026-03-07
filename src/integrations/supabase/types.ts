@@ -529,9 +529,33 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      public_profiles: {
+        Row: {
+          avatar_url: string | null
+          display_name: string | null
+          id: string | null
+          public_collection_enabled: boolean | null
+          public_collection_slug: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          display_name?: string | null
+          id?: string | null
+          public_collection_enabled?: boolean | null
+          public_collection_slug?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          display_name?: string | null
+          id?: string | null
+          public_collection_enabled?: boolean | null
+          public_collection_slug?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
+      deduct_credit: { Args: { _user_id: string }; Returns: number }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {

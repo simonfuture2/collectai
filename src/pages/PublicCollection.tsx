@@ -32,11 +32,10 @@ export default function PublicCollection() {
     const fetchCollection = async () => {
       if (!slug) return;
 
-      const { data: prof, error: profError } = await supabase
-        .from("profiles")
-        .select("id, display_name, public_collection_enabled")
+      const { data: prof, error: profError } = await (supabase as any)
+        .from("public_profiles")
+        .select("id, display_name")
         .eq("public_collection_slug", slug)
-        .eq("public_collection_enabled", true)
         .maybeSingle();
 
       if (profError || !prof) {
