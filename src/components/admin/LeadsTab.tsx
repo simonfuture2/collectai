@@ -55,6 +55,7 @@ const statusColor: Record<string, string> = {
 
 const LeadsTab = () => {
   const [leads, setLeads] = useState<Lead[]>([]);
+  const [emailTemplates, setEmailTemplates] = useState<EmailTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
