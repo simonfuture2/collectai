@@ -222,6 +222,7 @@ const Admin = () => {
             <TabsTrigger value="transactions">Transactions</TabsTrigger>
             <TabsTrigger value="leads">Leads</TabsTrigger>
             <TabsTrigger value="campaigns">Campaigns</TabsTrigger>
+            <TabsTrigger value="push">Push</TabsTrigger>
           </TabsList>
 
           {/* Users Tab */}
