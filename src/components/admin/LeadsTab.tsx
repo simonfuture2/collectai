@@ -68,6 +68,7 @@ const LeadsTab = () => {
   const [noteDialog, setNoteDialog] = useState<{ open: boolean; leadId: string }>({ open: false, leadId: "" });
   const [addLeadDialog, setAddLeadDialog] = useState(false);
   const [emailForm, setEmailForm] = useState({ subject: "", body: "" });
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
   const [smsForm, setSmsForm] = useState({ body: "" });
   const [noteContent, setNoteContent] = useState("");
   const [newLead, setNewLead] = useState({ name: "", email: "", phone: "", company: "", notes: "" });
@@ -75,8 +76,12 @@ const LeadsTab = () => {
 
   const fetchLeads = useCallback(async () => {
     setLoading(true);
-    const { data, error } = await supabase.from("leads").select("*").order("created_at", { ascending: false });
-    if (!error && data) setLeads(data as Lead[]);
+    const [leadsRes, templatesRes] = await Promise.all([
+      supabase.from("leads").select("*").order("created_at", { ascending: false }),
+      supabase.from("campaign_templates").select("id, name, subject, body").eq("channel", "email" as any).order("name"),
+    ]);
+    if (!leadsRes.error && leadsRes.data) setLeads(leadsRes.data as Lead[]);
+    if (!templatesRes.error && templatesRes.data) setEmailTemplates(templatesRes.data as EmailTemplate[]);
     setLoading(false);
   }, []);
 
