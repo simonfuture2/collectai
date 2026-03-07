@@ -78,12 +78,14 @@ const LeadsTab = () => {
 
   const fetchLeads = useCallback(async () => {
     setLoading(true);
-    const [leadsRes, templatesRes] = await Promise.all([
+    const [leadsRes, emailTmplRes, smsTmplRes] = await Promise.all([
       supabase.from("leads").select("*").order("created_at", { ascending: false }),
       supabase.from("campaign_templates").select("id, name, subject, body").eq("channel", "email" as any).order("name"),
+      supabase.from("campaign_templates").select("id, name, subject, body").eq("channel", "sms" as any).order("name"),
     ]);
     if (!leadsRes.error && leadsRes.data) setLeads(leadsRes.data as Lead[]);
-    if (!templatesRes.error && templatesRes.data) setEmailTemplates(templatesRes.data as EmailTemplate[]);
+    if (!emailTmplRes.error && emailTmplRes.data) setEmailTemplates(emailTmplRes.data as EmailTemplate[]);
+    if (!smsTmplRes.error && smsTmplRes.data) setSmsTemplates(smsTmplRes.data as EmailTemplate[]);
     setLoading(false);
   }, []);
 
