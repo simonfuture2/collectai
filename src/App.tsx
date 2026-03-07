@@ -25,6 +25,7 @@ import PartnerSignup from "./pages/PartnerSignup";
 import FreeGuide from "./pages/FreeGuide";
 import Install from "./pages/Install";
 import DeleteAccount from "./pages/DeleteAccount";
+import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
