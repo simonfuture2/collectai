@@ -56,6 +56,7 @@ const statusColor: Record<string, string> = {
 const LeadsTab = () => {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [emailTemplates, setEmailTemplates] = useState<EmailTemplate[]>([]);
+  const [smsTemplates, setSmsTemplates] = useState<EmailTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -70,18 +71,21 @@ const LeadsTab = () => {
   const [emailForm, setEmailForm] = useState({ subject: "", body: "" });
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
   const [smsForm, setSmsForm] = useState({ body: "" });
+  const [selectedSmsTemplateId, setSelectedSmsTemplateId] = useState<string>("");
   const [noteContent, setNoteContent] = useState("");
   const [newLead, setNewLead] = useState({ name: "", email: "", phone: "", company: "", notes: "" });
   const [actionLoading, setActionLoading] = useState(false);
 
   const fetchLeads = useCallback(async () => {
     setLoading(true);
-    const [leadsRes, templatesRes] = await Promise.all([
+    const [leadsRes, emailTmplRes, smsTmplRes] = await Promise.all([
       supabase.from("leads").select("*").order("created_at", { ascending: false }),
       supabase.from("campaign_templates").select("id, name, subject, body").eq("channel", "email" as any).order("name"),
+      supabase.from("campaign_templates").select("id, name, subject, body").eq("channel", "sms" as any).order("name"),
     ]);
     if (!leadsRes.error && leadsRes.data) setLeads(leadsRes.data as Lead[]);
-    if (!templatesRes.error && templatesRes.data) setEmailTemplates(templatesRes.data as EmailTemplate[]);
+    if (!emailTmplRes.error && emailTmplRes.data) setEmailTemplates(emailTmplRes.data as EmailTemplate[]);
+    if (!smsTmplRes.error && smsTmplRes.data) setSmsTemplates(smsTmplRes.data as EmailTemplate[]);
     setLoading(false);
   }, []);
 
@@ -332,15 +336,37 @@ const LeadsTab = () => {
       </Dialog>
 
       {/* SMS Dialog */}
-      <Dialog open={smsDialog.open} onOpenChange={(o) => !o && setSmsDialog({ ...smsDialog, open: false })}>
+      <Dialog open={smsDialog.open} onOpenChange={(o) => { if (!o) { setSmsDialog({ ...smsDialog, open: false }); setSelectedSmsTemplateId(""); } }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Send SMS to {smsDialog.leadName}</DialogTitle>
-            <DialogDescription>Placeholders: {"{{name}}"}, {"{{company}}"}, {"{{partner_code}}"}</DialogDescription>
+            <DialogDescription>Select a template or write a custom message. Placeholders: {"{{name}}"}, {"{{company}}"}, {"{{partner_code}}"}</DialogDescription>
           </DialogHeader>
-          <div><Label>Message</Label><Textarea value={smsForm.body} onChange={(e) => setSmsForm({ body: e.target.value })} rows={4} placeholder="Hi {{name}}, ..." /></div>
+          <div className="space-y-3">
+            <div>
+              <Label>Template</Label>
+              <Select value={selectedSmsTemplateId} onValueChange={(v) => {
+                setSelectedSmsTemplateId(v);
+                if (v === "custom") {
+                  setSmsForm({ body: "" });
+                } else {
+                  const tmpl = smsTemplates.find((t) => t.id === v);
+                  if (tmpl) setSmsForm({ body: tmpl.body });
+                }
+              }}>
+                <SelectTrigger><SelectValue placeholder="Choose a template..." /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="custom">✏️ Custom Message</SelectItem>
+                  {smsTemplates.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div><Label>Message</Label><Textarea value={smsForm.body} onChange={(e) => setSmsForm({ body: e.target.value })} rows={4} placeholder="Hi {{name}}, ..." /></div>
+          </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setSmsDialog({ ...smsDialog, open: false })}>Cancel</Button>
+            <Button variant="outline" onClick={() => { setSmsDialog({ ...smsDialog, open: false }); setSelectedSmsTemplateId(""); }}>Cancel</Button>
             <Button onClick={handleSendSMS} disabled={actionLoading}>{actionLoading ? "Sending..." : "Send SMS"}</Button>
           </DialogFooter>
         </DialogContent>
