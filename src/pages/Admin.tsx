@@ -21,6 +21,7 @@ import {
 import ThemeToggle from "@/components/ThemeToggle";
 import LeadsTab from "@/components/admin/LeadsTab";
 import CampaignsTab from "@/components/admin/CampaignsTab";
+import PushNotificationsTab from "@/components/admin/PushNotificationsTab";
 import { toast } from "sonner";
 
 interface UserCredit {
