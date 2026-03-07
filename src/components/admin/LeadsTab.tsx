@@ -36,6 +36,13 @@ interface Activity {
   created_at: string;
 }
 
+interface EmailTemplate {
+  id: string;
+  name: string;
+  subject: string | null;
+  body: string;
+}
+
 const STATUS_OPTIONS = ["new", "contacted", "interested", "converted", "lost"] as const;
 
 const statusColor: Record<string, string> = {
@@ -48,6 +55,7 @@ const statusColor: Record<string, string> = {
 
 const LeadsTab = () => {
   const [leads, setLeads] = useState<Lead[]>([]);
+  const [emailTemplates, setEmailTemplates] = useState<EmailTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -60,6 +68,7 @@ const LeadsTab = () => {
   const [noteDialog, setNoteDialog] = useState<{ open: boolean; leadId: string }>({ open: false, leadId: "" });
   const [addLeadDialog, setAddLeadDialog] = useState(false);
   const [emailForm, setEmailForm] = useState({ subject: "", body: "" });
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
   const [smsForm, setSmsForm] = useState({ body: "" });
   const [noteContent, setNoteContent] = useState("");
   const [newLead, setNewLead] = useState({ name: "", email: "", phone: "", company: "", notes: "" });
@@ -67,8 +76,12 @@ const LeadsTab = () => {
 
   const fetchLeads = useCallback(async () => {
     setLoading(true);
-    const { data, error } = await supabase.from("leads").select("*").order("created_at", { ascending: false });
-    if (!error && data) setLeads(data as Lead[]);
+    const [leadsRes, templatesRes] = await Promise.all([
+      supabase.from("leads").select("*").order("created_at", { ascending: false }),
+      supabase.from("campaign_templates").select("id, name, subject, body").eq("channel", "email" as any).order("name"),
+    ]);
+    if (!leadsRes.error && leadsRes.data) setLeads(leadsRes.data as Lead[]);
+    if (!templatesRes.error && templatesRes.data) setEmailTemplates(templatesRes.data as EmailTemplate[]);
     setLoading(false);
   }, []);
 
@@ -281,18 +294,38 @@ const LeadsTab = () => {
       </Card>
 
       {/* Email Dialog */}
-      <Dialog open={emailDialog.open} onOpenChange={(o) => !o && setEmailDialog({ ...emailDialog, open: false })}>
-        <DialogContent>
+      <Dialog open={emailDialog.open} onOpenChange={(o) => { if (!o) { setEmailDialog({ ...emailDialog, open: false }); setSelectedTemplateId(""); } }}>
+        <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>Send Email to {emailDialog.leadName}</DialogTitle>
-            <DialogDescription>Placeholders: {"{{name}}"}, {"{{email}}"}, {"{{company}}"}, {"{{partner_code}}"}</DialogDescription>
+            <DialogDescription>Select a template or write a custom email. Placeholders: {"{{name}}"}, {"{{email}}"}, {"{{company}}"}, {"{{partner_code}}"}</DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
+            <div>
+              <Label>Template</Label>
+              <Select value={selectedTemplateId} onValueChange={(v) => {
+                setSelectedTemplateId(v);
+                if (v === "custom") {
+                  setEmailForm({ subject: "", body: "" });
+                } else {
+                  const tmpl = emailTemplates.find((t) => t.id === v);
+                  if (tmpl) setEmailForm({ subject: tmpl.subject || "", body: tmpl.body });
+                }
+              }}>
+                <SelectTrigger><SelectValue placeholder="Choose a template..." /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="custom">✏️ Custom Email</SelectItem>
+                  {emailTemplates.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <div><Label>Subject</Label><Input value={emailForm.subject} onChange={(e) => setEmailForm({ ...emailForm, subject: e.target.value })} placeholder="Email subject" /></div>
             <div><Label>Body (HTML)</Label><Textarea value={emailForm.body} onChange={(e) => setEmailForm({ ...emailForm, body: e.target.value })} rows={6} placeholder="<p>Hi {{name}},...</p>" /></div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEmailDialog({ ...emailDialog, open: false })}>Cancel</Button>
+            <Button variant="outline" onClick={() => { setEmailDialog({ ...emailDialog, open: false }); setSelectedTemplateId(""); }}>Cancel</Button>
             <Button onClick={handleSendEmail} disabled={actionLoading}>{actionLoading ? "Sending..." : "Send Email"}</Button>
           </DialogFooter>
         </DialogContent>
