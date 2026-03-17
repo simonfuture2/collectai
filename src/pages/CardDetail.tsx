@@ -262,8 +262,35 @@ export default function CardDetail() {
       }
 
       setCard(data);
-      setNotes(data.notes || "");
-      setPriceHistory(generatePriceHistory(data.estimated_value_low || 10, data.estimated_value_high || 50));
+      // Fetch real price history
+      const { data: priceData } = await supabase
+        .from("price_history")
+        .select("*")
+        .eq("card_id", data.id)
+        .order("recorded_at", { ascending: true });
+
+      if (priceData && priceData.length > 0) {
+        setHasRealPriceData(true);
+        // Group by recorded_at date and show blended or first available
+        const points: PriceHistoryPoint[] = priceData
+          .filter((p: any) => p.source === "blended" || p.source === "ebay_sold")
+          .map((p: any) => {
+            const d = new Date(p.recorded_at);
+            return {
+              month: d.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+              price: Number(p.median_price) || 0,
+              source: p.source,
+            };
+          });
+        // If only one data point, also add source breakdown
+        if (points.length > 0) {
+          setPriceHistory(points);
+        } else {
+          setPriceHistory(generatePriceHistory(data.estimated_value_low || 10, data.estimated_value_high || 50));
+        }
+      } else {
+        setPriceHistory(generatePriceHistory(data.estimated_value_low || 10, data.estimated_value_high || 50));
+      }
 
       const signed = await getSignedImageUrl(data.image_url);
       setCardImageUrl(signed);
