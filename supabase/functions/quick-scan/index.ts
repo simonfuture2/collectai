@@ -58,7 +58,7 @@ interface CardIdentification {
 }
 
 // Build specific search queries from card identification
-function buildSearchTerms(cardId: CardIdentification): { specific: string; broad: string } {
+function buildSearchTerms(cardId: CardIdentification): { specific: string; broad: string; variant: string } {
   const parts: string[] = [];
   if (cardId.card_name) parts.push(cardId.card_name);
   if (cardId.card_number) parts.push(cardId.card_number);
@@ -66,8 +66,16 @@ function buildSearchTerms(cardId: CardIdentification): { specific: string; broad
   
   const specific = parts.join(" ");
   const broad = `${cardId.card_name} ${cardId.card_set || ""} ${cardId.variant || ""}`.trim();
+  // Variant-focused: just name + variant for maximum recall
+  const variant = `${cardId.card_name} ${cardId.variant && cardId.variant !== "Regular" ? cardId.variant : ""} pokemon card`.trim();
   
-  return { specific, broad };
+  return { specific, broad, variant };
+}
+
+// Extract blended value from market context string
+function extractBlendedValue(marketCtx: string): number {
+  const match = marketCtx.match(/SUGGESTED VALUE: \$([\d.]+)/);
+  return match ? parseFloat(match[1]) : 0;
 }
 
 // Helper: search eBay + TCGPlayer listings via Firecrawl for quick scan
