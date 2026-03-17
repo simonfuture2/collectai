@@ -6,13 +6,58 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-api-key",
 };
 
+// Helper: search eBay sold listings via Firecrawl
+async function searchEbayPrices(cardName: string, cardSet: string, cardYear: string): Promise<string> {
+  const FIRECRAWL_API_KEY = Deno.env.get("FIRECRAWL_API_KEY");
+  if (!FIRECRAWL_API_KEY) return "";
+
+  try {
+    const query = `${cardName} ${cardSet} ${cardYear} sold site:ebay.com`;
+    console.log("Price API eBay search:", query);
+
+    const response = await fetch("https://api.firecrawl.dev/v1/search", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${FIRECRAWL_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        query,
+        limit: 10,
+        tbs: "qdr:m",
+        scrapeOptions: { formats: ["markdown"] },
+      }),
+    });
+
+    if (!response.ok) {
+      console.error("Firecrawl price search error:", response.status);
+      return "";
+    }
+
+    const data = await response.json();
+    const results = (data.data || [])
+      .filter((r: any) => r.url?.includes("ebay.com"))
+      .slice(0, 8);
+
+    if (results.length === 0) return "";
+
+    const listings = results
+      .map((r: any) => `- ${r.title || "Listing"}\n  ${(r.markdown || r.description || "").substring(0, 500)}`)
+      .join("\n\n");
+
+    return `\n\nREAL eBay Sold Listings (retrieved today):\n${listings}\nUse these as your PRIMARY pricing anchor.`;
+  } catch (err) {
+    console.error("Price eBay search failed:", err);
+    return "";
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // Validate API key
     const COLLECTAI_API_KEY = Deno.env.get("COLLECTAI_API_KEY");
     if (!COLLECTAI_API_KEY) {
       throw new Error("COLLECTAI_API_KEY is not configured");
@@ -42,7 +87,18 @@ serve(async (req) => {
 
     console.log("CollectAI Price API called for:", cardName || "image-based lookup");
 
-    const systemPrompt = `You are an expert trading card market analyst. Provide detailed pricing based on current market data.
+    // Search eBay for real pricing data
+    let ebayData = "";
+    if (cardName) {
+      ebayData = await searchEbayPrices(cardName, cardSet || "", cardYear || "");
+    }
+
+    const today = new Date().toISOString().split("T")[0];
+
+    const systemPrompt = `You are an expert trading card market analyst. Today's date is ${today}.
+
+CRITICAL PRICING INSTRUCTIONS:
+${ebayData ? "You are provided with REAL recent eBay sold listing data. Use these actual sold prices as your PRIMARY pricing anchor. Extract real dollar amounts and base your estimates on them." : "You do NOT have real-time market data. Be conservative. Use wider price ranges and set confidence to 'low' if uncertain about current market prices."}
 
 Respond in JSON format:
 {
@@ -75,17 +131,15 @@ Respond in JSON format:
   "valueTrend": "rising" | "stable" | "falling" | "unknown",
   "trendReason": "string",
   "priceFactors": ["array of factors"],
-  "confidence": "high" | "medium" | "low"
+  "confidence": "high" | "medium" | "low",
+  "dataSource": "string describing where pricing data came from"
 }`;
 
-    const userContent: any[] = [
-      {
-        type: "text",
-        text: imageUrl
-          ? "Identify this card and provide detailed current market pricing."
-          : `Provide detailed market pricing for: ${cardName}${cardSet ? `, Set: ${cardSet}` : ""}${cardYear ? `, Year: ${cardYear}` : ""}${edition ? `, Edition: ${edition}` : ""}${rarity ? `, Rarity: ${rarity}` : ""}${condition ? `, Condition: ${condition}` : ""}`,
-      },
-    ];
+    const userText = imageUrl
+      ? `Identify this card and provide detailed current market pricing.${ebayData}`
+      : `Provide detailed market pricing for: ${cardName}${cardSet ? `, Set: ${cardSet}` : ""}${cardYear ? `, Year: ${cardYear}` : ""}${edition ? `, Edition: ${edition}` : ""}${rarity ? `, Rarity: ${rarity}` : ""}${condition ? `, Condition: ${condition}` : ""}${ebayData}`;
+
+    const userContent: any[] = [{ type: "text", text: userText }];
 
     if (imageUrl) {
       userContent.push({ type: "image_url", image_url: { url: imageUrl } });
@@ -98,7 +152,7 @@ Respond in JSON format:
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "google/gemini-2.5-pro",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userContent },
