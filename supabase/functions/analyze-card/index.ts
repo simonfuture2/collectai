@@ -455,7 +455,7 @@ serve(async (req) => {
     console.log("Card identified:", cardId);
 
     // ===== STEP 2: Search eBay + TCGPlayer listings with Firecrawl =====
-    let marketData = { summary: "", hasData: false };
+    let marketData: { summary: string; hasData: boolean; extractedMarketData: ExtractedMarketData } = { summary: "", hasData: false, extractedMarketData: { sources: [], blended: null } };
     if (cardId?.card_name) {
       console.log("Step 2: Searching eBay + TCGPlayer listings...");
       marketData = await searchMarketPrices(
