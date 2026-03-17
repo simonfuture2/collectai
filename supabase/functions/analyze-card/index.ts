@@ -447,16 +447,17 @@ serve(async (req) => {
     const systemPrompt = `You are an expert trading card analyst, appraiser, and professional grader. Today's date is ${today}.
 
 CRITICAL PRICING INSTRUCTIONS:
-${ebayData.summary ? `You are provided with REAL recent eBay price data (sold AND active listings) with extracted dollar amounts below.
+${marketData.hasData ? `You are provided with REAL recent market price data from eBay (sold + active listings) AND TCGPlayer with extracted dollar amounts below.
 
 VALUATION FORMULA (you MUST follow this):
-1. Look at the SOLD listing prices provided — compute their median as your primary anchor.
-2. Look at the ACTIVE listing prices provided — compute their median as a secondary reference.
-3. Estimated fair market value = 70% × median sold price + 30% × median active price.
-4. Adjust this value ±15% based on the specific card's condition relative to what's described in the listings.
-5. Set estimatedValueLow = adjusted value × 0.85, estimatedValueHigh = adjusted value × 1.15.
-6. If sold data clearly shows cards selling for $100+, your estimate MUST reflect that — NOT $5-15.
-7. Compare the card's condition to what the listings describe. Better condition → estimate toward high end. Worse → low end.
+1. Look at the eBay SOLD listing prices — these are your primary anchor (50% weight).
+2. Look at the TCGPlayer prices — these are your secondary anchor (30% weight).
+3. Look at the eBay ACTIVE listing prices — these supplement your estimate (20% weight).
+4. Compute a weighted average from available sources (normalize weights to sources found).
+5. Adjust this value ±15% based on the specific card's condition relative to what's described in the listings.
+6. Set estimatedValueLow = adjusted value × 0.85, estimatedValueHigh = adjusted value × 1.15.
+7. If market data clearly shows cards selling for $100+, your estimate MUST reflect that — NOT $5-15.
+8. Compare the card's condition to what the listings describe. Better condition → estimate toward high end. Worse → low end.
 
 Your estimates MUST be anchored to the real price data. Do NOT override real market data with training knowledge.` : `You do NOT have access to real-time market data. Your training data may contain OUTDATED prices. Be VERY conservative with value estimates. If you are not confident about current market prices, set confidence to "low" and clearly state that values are estimates that may not reflect the current market. It is better to provide a wider range than to give a confidently wrong narrow range.`}
 
