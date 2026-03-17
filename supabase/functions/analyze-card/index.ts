@@ -850,7 +850,7 @@ Respond in JSON format with this structure:
       console.log("Deducted 1 credit for user:", user.id, "remaining:", remaining);
     }
 
-    return new Response(JSON.stringify(analysis), {
+    return new Response(JSON.stringify({ ...analysis, extractedMarketData: marketData.extractedMarketData }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {

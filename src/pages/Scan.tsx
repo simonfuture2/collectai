@@ -162,7 +162,7 @@ const Scan = () => {
     setSaving(true);
     try {
       const primaryPath = result.filePaths?.[0] || uploadedFilePaths[0];
-      const { error } = await supabase.from("cards").insert({
+      const { data: insertedCard, error } = await supabase.from("cards").insert({
         user_id: user.id,
         image_url: primaryPath,
         category: result.category || "Trading Card",
@@ -179,8 +179,44 @@ const Scan = () => {
         tcgplayer_price: result.tcgplayerPrice,
         psa_population_data: result.psaPopulation,
         ai_analysis: result,
-      });
+      }).select("id").single();
       if (error) throw error;
+
+      // Persist price history from extracted market data
+      if (result.extractedMarketData && insertedCard?.id) {
+        const priceRows: any[] = [];
+        const emd = result.extractedMarketData;
+        if (emd.sources) {
+          for (const src of emd.sources) {
+            priceRows.push({
+              card_id: insertedCard.id,
+              user_id: user.id,
+              source: src.source,
+              median_price: src.median,
+              low_price: src.low,
+              high_price: src.high,
+              price_count: src.count,
+              raw_prices: src.prices,
+            });
+          }
+        }
+        if (emd.blended) {
+          priceRows.push({
+            card_id: insertedCard.id,
+            user_id: user.id,
+            source: "blended",
+            median_price: emd.blended.median,
+            low_price: emd.blended.low,
+            high_price: emd.blended.high,
+            price_count: 0,
+            raw_prices: [],
+          });
+        }
+        if (priceRows.length > 0) {
+          await supabase.from("price_history").insert(priceRows);
+        }
+      }
+
       toast({ title: "Card saved!" });
       navigate("/collection");
     } catch (error: any) {
