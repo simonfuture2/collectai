@@ -578,9 +578,9 @@ Respond in JSON format with this structure:
       ? `I'm providing ${images.length} images of this collectible item (${images.map(i => i.label).join(", ")}). Please analyze all views together for a comprehensive identification, condition assessment, and value estimate.`
       : "Please analyze this trading card image and provide a complete identification, condition assessment, and value estimate.";
 
-    const fullUserMessage = userMessage + ebayData;
+    const fullUserMessage = userMessage + ebayData.summary;
 
-    console.log("Step 3: Full analysis with", ebayData ? "real eBay data" : "AI-only estimates");
+    console.log("Step 3: Full analysis with", ebayData.summary ? "real eBay data" : "AI-only estimates");
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
