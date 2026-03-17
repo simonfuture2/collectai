@@ -429,16 +429,16 @@ serve(async (req) => {
     const cardId = await identifyCard(images, LOVABLE_API_KEY);
     console.log("Card identified:", cardId);
 
-    // ===== STEP 2: Search eBay sold + active listings with Firecrawl =====
-    let ebayData = { soldData: "", activeData: "", summary: "" };
+    // ===== STEP 2: Search eBay + TCGPlayer listings with Firecrawl =====
+    let marketData = { summary: "", hasData: false };
     if (cardId?.card_name) {
-      console.log("Step 2: Searching eBay sold + active listings...");
-      ebayData = await searchEbayPrices(
+      console.log("Step 2: Searching eBay + TCGPlayer listings...");
+      marketData = await searchMarketPrices(
         cardId.card_name,
         cardId.card_set || "",
         cardId.card_year || ""
       );
-      console.log("eBay data found:", ebayData.summary ? "Yes" : "No");
+      console.log("Market data found:", marketData.hasData ? "Yes" : "No");
     }
 
     // ===== STEP 3: Full analysis with real market data =====
