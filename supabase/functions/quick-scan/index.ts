@@ -496,8 +496,23 @@ Return ONLY valid JSON, no markdown, no explanation.`;
     }
 
     const result = JSON.parse(toolCall.function.arguments);
+    console.log(`Gemini raw estimate: $${result.estimated_value_low}-$${result.estimated_value_high}, confidence: ${result.confidence}`);
 
-    // ===== STEP 4: Claude verification (primary) =====
+    // ===== STEP 4: PROGRAMMATIC PRICE OVERRIDE from market data =====
+    const blendedValue = extractBlendedValue(marketContext);
+    if (blendedValue > 0) {
+      const origLow = result.estimated_value_low;
+      const origHigh = result.estimated_value_high;
+      result.estimated_value_low = Math.round(blendedValue * 0.85);
+      result.estimated_value_high = Math.round(blendedValue * 1.15);
+      result.confidence = Math.min(95, Math.max(result.confidence, 75));
+      console.log(`Programmatic override: blended=$${blendedValue.toFixed(2)}, $${origLow}-$${origHigh} → $${result.estimated_value_low}-$${result.estimated_value_high}`);
+    } else {
+      console.log("No blended value available — using Gemini estimate as-is");
+    }
+
+    // ===== STEP 5: Claude verification (secondary check) =====
+    console.log(`Claude check prerequisites: ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY ? "set" : "MISSING"}, marketContext=${marketContext ? `${marketContext.length} chars` : "empty"}, cardId=${cardId ? "set" : "null"}`);
     if (ANTHROPIC_API_KEY && marketContext && cardId) {
       const claudeResult = await verifyWithClaude(
         cardId,
@@ -515,6 +530,8 @@ Return ONLY valid JSON, no markdown, no explanation.`;
           console.log(`Claude corrected price: $${origLow}-$${origHigh} → $${claudeResult.verified_low}-$${claudeResult.verified_high}`);
         }
         console.log("Claude verification note:", claudeResult.verification_note);
+      } else {
+        console.log("Claude verification returned null — keeping programmatic estimate");
       }
     }
 
