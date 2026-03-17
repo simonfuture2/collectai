@@ -83,7 +83,7 @@ async function quickMarketSearch(cardId: CardIdentification): Promise<string> {
   const FIRECRAWL_API_KEY = Deno.env.get("FIRECRAWL_API_KEY");
   if (!FIRECRAWL_API_KEY) return "";
 
-  const { specific, broad } = buildSearchTerms(cardId);
+  const { specific, broad, variant } = buildSearchTerms(cardId);
 
   async function doSearch(query: string, limit: number, urlFilter?: string) {
     try {
