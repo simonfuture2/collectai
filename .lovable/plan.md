@@ -1,47 +1,94 @@
 
 
-## Current State
+## Problem Analysis
 
-- **Lead generation page**: The partner signup page is at `/partners` (PartnerSignup.tsx). It captures name, email, phone, company, and message into the `leads` table. There's also the QuickScanChallenge on the landing page for anonymous lead gen.
-- **Landing page header**: Only has logo + Sign In button. No navigation links to Partners, How It Works, or other pages.
-- **No lead magnet / digital product**: There's no email capture mechanism that offers a free digital product in exchange for an email address.
+From the edge function logs, I can see two critical issues:
+
+1. **Market data is too sparse**: The latest scan found only 1 eBay sold + 1 eBay active listing, and the previous scan found 0 results across all sources. With so few results, extracted prices are unreliable noise.
+
+2. **Claude verification never ran**: There are no logs showing "Running Claude price verification" — the function either skipped it (empty `marketContext` or missing key) or timed out before reaching Step 4.
+
+3. **AI ignores pricing instructions**: Even when market data IS provided in the prompt, Gemini still outputs $8-$25 because it relies on its training data rather than following the explicit pricing formula in the system prompt.
+
+**Root cause**: The entire pipeline depends on the AI model "obeying" the pricing instructions in the prompt. This is fundamentally unreliable. The fix is to **compute prices programmatically** from market data and **override** the AI's estimate, rather than asking the AI to do math.
 
 ## Plan
 
-### 1. Add navigation links to landing page header
+### 1. Programmatic price override (critical fix)
 
-Add "How It Works" and "Partners" links to the Landing page header between the logo and Sign In button. On mobile, these can be compact links or a simple nav bar.
+In `quick-scan/index.ts`, after Step 3 (Gemini analysis), if `quickMarketSearch` returned a blended value, **compute estimated_value_low/high directly from the blended median** instead of trusting the AI:
 
-### 2. Create a lead magnet digital product + email capture
+```
+if blended value exists:
+  result.estimated_value_low = Math.round(blended * 0.85)
+  result.estimated_value_high = Math.round(blended * 1.15)
+  result.confidence = 80+
+```
 
-Create a free downloadable guide — something like **"The Collector's Card Grading Cheat Sheet"** — a PDF-style resource that provides real value (grading terminology, what PSA/BGS grades mean, photo tips, value ranges by condition). Users enter their email to receive it.
+This removes dependence on the AI following pricing instructions.
 
-**Implementation:**
-- Create a new `LeadMagnet` component embedded on the landing page (between features and pricing sections)
-- The component shows a compelling preview of the guide with an email capture form
-- On submit, call a new `lead-magnet` edge function that:
-  - Validates the email
-  - Inserts into the `leads` table with `source: 'lead_magnet'`
-  - Sends the digital guide via SendGrid to the captured email
-  - Returns success
-- The guide content will be an HTML email with the cheat sheet content inline (no PDF hosting needed — the email IS the product)
+### 2. Deeper market search when sparse (paid analysis fallback)
 
-**Database change:**
-- The `leads` table `source` column is an enum (`lead_source`). We need to add `'lead_magnet'` as a new enum value.
+When the initial Firecrawl search returns < 3 total results, try additional search strategies:
+- Remove quotes from search query (currently `"Seismitoad 105/086 Illustration Rare"` — too specific for Firecrawl)
+- Try card name + variant only (e.g., `Seismitoad Illustration Rare price`)
+- Try TCGPlayer direct URL scrape (`tcgplayer.com/product/...`)
+- Add a `pricecheck.gg` or `pokemonprices.com` search as supplementary source
 
-### 3. Files to create/modify
+### 3. Fix Claude verification execution
 
-| File | Action |
-|------|--------|
-| `src/pages/Landing.tsx` | Add nav links (Partners, How It Works) to header; add LeadMagnet section |
-| `src/components/LeadMagnet.tsx` | New — email capture component with guide preview |
-| `supabase/functions/lead-magnet/index.ts` | New — validates email, inserts lead, sends guide email via SendGrid |
-| DB migration | Add `'lead_magnet'` to `lead_source` enum |
+Add diagnostic logging before the Claude check at Step 4 to trace why it's being skipped. Ensure `ANTHROPIC_API_KEY` is available and `marketContext` is non-empty when results exist.
+
+### 4. Add comprehensive logging
+
+Add logs after each step showing:
+- Extracted prices from each source (so we can see if $8, $25 are being extracted from noise)
+- Whether blended value was computed and what it was
+- Whether Claude was attempted and what it returned
+- Final values returned to the client
+
+### Files to change
+
+| File | Changes |
+|------|---------|
+| `supabase/functions/quick-scan/index.ts` | Programmatic price override from blended value, deeper fallback searches, fix Claude verification path, add logging |
 
 ### Technical Details
 
-- The `lead_source` enum currently has values used by the system. Adding `'lead_magnet'` requires an `ALTER TYPE` migration.
-- The edge function reuses the existing `SENDGRID_API_KEY` and `SENDGRID_FROM_EMAIL` secrets.
-- The guide email will contain a well-formatted HTML "cheat sheet" covering: grade scale (1-10), condition factors (centering, edges, corners, surface), quick tips, and a CTA back to CollectAI.
-- No new secrets or external dependencies needed.
+The key change is inserting a price override block between lines 472 and 474:
+
+```typescript
+// After parsing Gemini's tool call result (line 472)
+const result = JSON.parse(toolCall.function.arguments);
+
+// PROGRAMMATIC OVERRIDE: If we have real market data, use it directly
+if (marketContext) {
+  // Parse the SUGGESTED VALUE from marketContext
+  const suggestedMatch = marketContext.match(/SUGGESTED VALUE: \$([\d.]+)/);
+  if (suggestedMatch) {
+    const blendedValue = parseFloat(suggestedMatch[1]);
+    if (blendedValue > 0) {
+      result.estimated_value_low = Math.round(blendedValue * 0.85);
+      result.estimated_value_high = Math.round(blendedValue * 1.15);
+      result.confidence = Math.min(95, result.confidence + 20);
+      console.log(`Programmatic override: blended=$${blendedValue}, range=$${result.estimated_value_low}-$${result.estimated_value_high}`);
+    }
+  }
+}
+```
+
+For deeper search, add unquoted fallback queries when total results < 3:
+
+```typescript
+// Additional fallback: unquoted, variant-focused
+if (totalSpecific < 3) {
+  const variantSearch = `${cardId.card_name} ${cardId.variant} price`;
+  const [soldVar, activeVar, tcgVar] = await Promise.all([
+    doSearch(`${variantSearch} sold site:ebay.com`, 8, "ebay.com"),
+    doSearch(`${variantSearch} site:ebay.com`, 6, "ebay.com"),
+    doSearch(`${variantSearch} site:tcgplayer.com`, 5, "tcgplayer.com"),
+  ]);
+  // merge if better
+}
+```
 
