@@ -21,10 +21,25 @@ function median(nums: number[]): number {
   return sorted.length % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
 }
 
+interface MarketSourceData {
+  source: string;
+  median: number;
+  low: number;
+  high: number;
+  count: number;
+  prices: number[];
+}
+
+interface ExtractedMarketData {
+  sources: MarketSourceData[];
+  blended: { median: number; low: number; high: number } | null;
+}
+
 // Helper: search eBay + TCGPlayer via Firecrawl
-async function searchMarketPrices(cardName: string, cardSet: string, cardYear: string): Promise<string> {
+async function searchMarketPrices(cardName: string, cardSet: string, cardYear: string): Promise<{ summary: string; extractedMarketData: ExtractedMarketData }> {
   const FIRECRAWL_API_KEY = Deno.env.get("FIRECRAWL_API_KEY");
-  if (!FIRECRAWL_API_KEY) return "";
+  const emptyMarket: ExtractedMarketData = { sources: [], blended: null };
+  if (!FIRECRAWL_API_KEY) return { summary: "", extractedMarketData: emptyMarket };
 
   const searchTerm = `${cardName} ${cardSet} ${cardYear}`.trim();
 
@@ -74,12 +89,24 @@ async function searchMarketPrices(cardName: string, cardSet: string, cardYear: s
       tcgPrices.push(...extractPrices(text));
     });
 
-    if (soldPrices.length === 0 && activePrices.length === 0 && tcgPrices.length === 0) return "";
+    if (soldPrices.length === 0 && activePrices.length === 0 && tcgPrices.length === 0) return { summary: "", extractedMarketData: emptyMarket };
 
     const medianSold = median(soldPrices);
     const medianActive = median(activePrices);
     const medianTcg = median(tcgPrices);
 
+    // Build structured data
+    const sources: MarketSourceData[] = [];
+    if (soldPrices.length > 0) sources.push({ source: "ebay_sold", median: medianSold, low: Math.min(...soldPrices), high: Math.max(...soldPrices), count: soldPrices.length, prices: soldPrices });
+    if (activePrices.length > 0) sources.push({ source: "ebay_active", median: medianActive, low: Math.min(...activePrices), high: Math.max(...activePrices), count: activePrices.length, prices: activePrices });
+    if (tcgPrices.length > 0) sources.push({ source: "tcgplayer", median: medianTcg, low: Math.min(...tcgPrices), high: Math.max(...tcgPrices), count: tcgPrices.length, prices: tcgPrices });
+
+    const allMedians: { value: number; weight: number }[] = [];
+    if (soldPrices.length > 0) allMedians.push({ value: medianSold, weight: 0.5 });
+    if (tcgPrices.length > 0) allMedians.push({ value: medianTcg, weight: 0.3 });
+    if (activePrices.length > 0) allMedians.push({ value: medianActive, weight: 0.2 });
+
+    let blended: ExtractedMarketData["blended"] = null;
     let summary = "\n\n## REAL MARKET PRICE DATA (from eBay + TCGPlayer, retrieved today)\n";
     if (soldPrices.length > 0) {
       summary += `\neBay SOLD (last 30 days):\n`;
@@ -97,21 +124,18 @@ async function searchMarketPrices(cardName: string, cardSet: string, cardYear: s
       summary += `- Median: $${medianTcg.toFixed(2)} | Range: $${Math.min(...tcgPrices).toFixed(2)} - $${Math.max(...tcgPrices).toFixed(2)}\n`;
     }
 
-    const allMedians: { value: number; weight: number }[] = [];
-    if (soldPrices.length > 0) allMedians.push({ value: medianSold, weight: 0.5 });
-    if (tcgPrices.length > 0) allMedians.push({ value: medianTcg, weight: 0.3 });
-    if (activePrices.length > 0) allMedians.push({ value: medianActive, weight: 0.2 });
-
     if (allMedians.length > 0) {
       const totalWeight = allMedians.reduce((s, m) => s + m.weight, 0);
-      const blended = allMedians.reduce((s, m) => s + m.value * (m.weight / totalWeight), 0);
-      summary += `\nSUGGESTED BLENDED VALUE: $${blended.toFixed(2)} (eBay sold 50% + TCGPlayer 30% + eBay active 20%)\n`;
+      const blendedMedian = allMedians.reduce((s, m) => s + m.value * (m.weight / totalWeight), 0);
+      const allPrices = [...soldPrices, ...activePrices, ...tcgPrices];
+      blended = { median: blendedMedian, low: Math.min(...allPrices), high: Math.max(...allPrices) };
+      summary += `\nSUGGESTED BLENDED VALUE: $${blendedMedian.toFixed(2)} (eBay sold 50% + TCGPlayer 30% + eBay active 20%)\n`;
     }
     summary += "\nCRITICAL: Your estimatedValueLow/High MUST be within the range of these real prices.\n";
-    return summary;
+    return { summary, extractedMarketData: { sources, blended } };
   } catch (err) {
     console.error("Price market search failed:", err);
-    return "";
+    return { summary: "", extractedMarketData: emptyMarket };
   }
 }
 
@@ -121,17 +145,35 @@ serve(async (req) => {
   }
 
   try {
+    // Support both API key auth and Bearer token auth
     const COLLECTAI_API_KEY = Deno.env.get("COLLECTAI_API_KEY");
-    if (!COLLECTAI_API_KEY) {
-      throw new Error("COLLECTAI_API_KEY is not configured");
-    }
-
     const apiKey = req.headers.get("x-api-key");
-    if (!apiKey || apiKey !== COLLECTAI_API_KEY) {
+    const authHeader = req.headers.get("Authorization");
+    
+    const hasApiKey = apiKey && COLLECTAI_API_KEY && apiKey === COLLECTAI_API_KEY;
+    const hasBearerToken = authHeader?.startsWith("Bearer ");
+    
+    if (!hasApiKey && !hasBearerToken) {
       return new Response(
-        JSON.stringify({ error: "Unauthorized: Invalid or missing API key" }),
+        JSON.stringify({ error: "Unauthorized: Invalid or missing authentication" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
+    }
+
+    // Validate bearer token if used
+    if (!hasApiKey && hasBearerToken) {
+      const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2");
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+      const supabase = createClient(supabaseUrl, supabaseAnonKey);
+      const token = authHeader!.replace("Bearer ", "");
+      const { error: authError } = await supabase.auth.getUser(token);
+      if (authError) {
+        return new Response(
+          JSON.stringify({ error: "Unauthorized: Invalid token" }),
+          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
     }
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
@@ -151,10 +193,11 @@ serve(async (req) => {
     console.log("CollectAI Price API called for:", cardName || "image-based lookup");
 
     // Search eBay + TCGPlayer for real pricing data
-    let marketData = "";
+    let marketResult = { summary: "", extractedMarketData: { sources: [], blended: null } as ExtractedMarketData };
     if (cardName) {
-      marketData = await searchMarketPrices(cardName, cardSet || "", cardYear || "");
+      marketResult = await searchMarketPrices(cardName, cardSet || "", cardYear || "");
     }
+    const marketData = marketResult.summary;
 
     const today = new Date().toISOString().split("T")[0];
 
@@ -262,7 +305,7 @@ Respond in JSON format:
     }
 
     return new Response(
-      JSON.stringify({ success: true, source: "CollectAI", data: pricing }),
+      JSON.stringify({ success: true, source: "CollectAI", data: pricing, extractedMarketData: marketResult.extractedMarketData }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {

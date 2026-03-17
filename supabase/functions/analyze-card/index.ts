@@ -22,14 +22,29 @@ function median(nums: number[]): number {
   return sorted.length % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
 }
 
+interface MarketSourceData {
+  source: string;
+  median: number;
+  low: number;
+  high: number;
+  count: number;
+  prices: number[];
+}
+
+interface ExtractedMarketData {
+  sources: MarketSourceData[];
+  blended: { median: number; low: number; high: number } | null;
+}
+
 // Helper: search market listings via Firecrawl and return structured price data
 async function searchMarketPrices(
   cardName: string,
   cardSet: string,
   cardYear: string
-): Promise<{ summary: string; hasData: boolean }> {
+): Promise<{ summary: string; hasData: boolean; extractedMarketData: ExtractedMarketData }> {
   const FIRECRAWL_API_KEY = Deno.env.get("FIRECRAWL_API_KEY");
-  const empty = { summary: "", hasData: false };
+  const emptyMarket: ExtractedMarketData = { sources: [], blended: null };
+  const empty = { summary: "", hasData: false, extractedMarketData: emptyMarket };
   if (!FIRECRAWL_API_KEY) {
     console.log("FIRECRAWL_API_KEY not available, skipping market search");
     return empty;
@@ -57,7 +72,6 @@ async function searchMarketPrices(
   }
 
   try {
-    // Run eBay sold, eBay active, and TCGPlayer searches in parallel
     const [soldResults, activeResults, tcgResults] = await Promise.all([
       doSearch(`${searchTerm} sold site:ebay.com`, 10, "ebay.com"),
       doSearch(`${searchTerm} site:ebay.com`, 8, "ebay.com"),
@@ -66,7 +80,6 @@ async function searchMarketPrices(
 
     console.log(`Market results: ${soldResults.length} eBay sold, ${activeResults.length} eBay active, ${tcgResults.length} TCGPlayer`);
 
-    // Extract prices from eBay sold listings
     const soldPrices: number[] = [];
     const soldListings = soldResults.slice(0, 8).map((r: any) => {
       const text = `${r.title || ""} ${r.description || ""} ${(r.markdown || "").substring(0, 800)}`;
@@ -75,7 +88,6 @@ async function searchMarketPrices(
       return `- ${r.title || "Listing"} | Prices: ${prices.length > 0 ? prices.map((p) => `$${p.toFixed(2)}`).join(", ") : "none detected"}`;
     });
 
-    // Extract prices from eBay active listings
     const activePrices: number[] = [];
     const activeListings = activeResults.slice(0, 6).map((r: any) => {
       const text = `${r.title || ""} ${r.description || ""} ${(r.markdown || "").substring(0, 800)}`;
@@ -84,7 +96,6 @@ async function searchMarketPrices(
       return `- ${r.title || "Listing"} | Prices: ${prices.length > 0 ? prices.map((p) => `$${p.toFixed(2)}`).join(", ") : "none detected"}`;
     });
 
-    // Extract prices from TCGPlayer
     const tcgPrices: number[] = [];
     const tcgListings = tcgResults.slice(0, 5).map((r: any) => {
       const text = `${r.title || ""} ${r.description || ""} ${(r.markdown || "").substring(0, 800)}`;
@@ -98,6 +109,28 @@ async function searchMarketPrices(
     const medianSold = median(soldPrices);
     const medianActive = median(activePrices);
     const medianTcg = median(tcgPrices);
+
+    // Build extractedMarketData
+    const sources: MarketSourceData[] = [];
+    if (soldPrices.length > 0) sources.push({ source: "ebay_sold", median: medianSold, low: Math.min(...soldPrices), high: Math.max(...soldPrices), count: soldPrices.length, prices: soldPrices });
+    if (activePrices.length > 0) sources.push({ source: "ebay_active", median: medianActive, low: Math.min(...activePrices), high: Math.max(...activePrices), count: activePrices.length, prices: activePrices });
+    if (tcgPrices.length > 0) sources.push({ source: "tcgplayer", median: medianTcg, low: Math.min(...tcgPrices), high: Math.max(...tcgPrices), count: tcgPrices.length, prices: tcgPrices });
+
+    // Compute blended value
+    const allMedians: { value: number; weight: number }[] = [];
+    if (soldPrices.length > 0) allMedians.push({ value: medianSold, weight: 0.5 });
+    if (activePrices.length > 0) allMedians.push({ value: medianActive, weight: 0.2 });
+    if (tcgPrices.length > 0) allMedians.push({ value: medianTcg, weight: 0.3 });
+
+    let blended: ExtractedMarketData["blended"] = null;
+    if (allMedians.length > 0) {
+      const totalWeight = allMedians.reduce((s, m) => s + m.weight, 0);
+      const blendedMedian = allMedians.reduce((s, m) => s + m.value * (m.weight / totalWeight), 0);
+      const allPrices = [...soldPrices, ...activePrices, ...tcgPrices];
+      blended = { median: blendedMedian, low: Math.min(...allPrices), high: Math.max(...allPrices) };
+    }
+
+    const extractedMarketData: ExtractedMarketData = { sources, blended };
 
     let summary = "\n\n## REAL MARKET PRICE DATA (retrieved today from multiple sources)\n";
 
@@ -124,22 +157,14 @@ async function searchMarketPrices(
       summary += `\nDetails:\n${tcgListings.join("\n")}\n`;
     }
 
-    // Compute suggested value using all sources
-    const allMedians: { value: number; weight: number }[] = [];
-    if (soldPrices.length > 0) allMedians.push({ value: medianSold, weight: 0.5 });
-    if (activePrices.length > 0) allMedians.push({ value: medianActive, weight: 0.2 });
-    if (tcgPrices.length > 0) allMedians.push({ value: medianTcg, weight: 0.3 });
-
-    if (allMedians.length > 0) {
-      const totalWeight = allMedians.reduce((s, m) => s + m.weight, 0);
-      const blended = allMedians.reduce((s, m) => s + m.value * (m.weight / totalWeight), 0);
-      summary += `\n### SUGGESTED BLENDED VALUE: $${blended.toFixed(2)}`;
+    if (blended) {
+      summary += `\n### SUGGESTED BLENDED VALUE: $${blended.median.toFixed(2)}`;
       summary += `\n(Weights: eBay sold 50%, TCGPlayer 30%, eBay active 20% — normalized to available sources)\n`;
     }
 
     summary += `\nCRITICAL: Your estimatedValueLow and estimatedValueHigh MUST be within the range of these real prices. Do NOT ignore this data.\n`;
 
-    return { summary, hasData: true };
+    return { summary, hasData: true, extractedMarketData };
   } catch (err) {
     console.error("Market price search failed:", err);
     return empty;
@@ -825,7 +850,7 @@ Respond in JSON format with this structure:
       console.log("Deducted 1 credit for user:", user.id, "remaining:", remaining);
     }
 
-    return new Response(JSON.stringify(analysis), {
+    return new Response(JSON.stringify({ ...analysis, extractedMarketData: marketData.extractedMarketData }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {

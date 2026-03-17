@@ -383,6 +383,53 @@ export type Database = {
           },
         ]
       }
+      price_history: {
+        Row: {
+          card_id: string
+          high_price: number | null
+          id: string
+          low_price: number | null
+          median_price: number | null
+          price_count: number | null
+          raw_prices: Json | null
+          recorded_at: string
+          source: string
+          user_id: string
+        }
+        Insert: {
+          card_id: string
+          high_price?: number | null
+          id?: string
+          low_price?: number | null
+          median_price?: number | null
+          price_count?: number | null
+          raw_prices?: Json | null
+          recorded_at?: string
+          source: string
+          user_id: string
+        }
+        Update: {
+          card_id?: string
+          high_price?: number | null
+          id?: string
+          low_price?: number | null
+          median_price?: number | null
+          price_count?: number | null
+          raw_prices?: Json | null
+          recorded_at?: string
+          source?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "price_history_card_id_fkey"
+            columns: ["card_id"]
+            isOneToOne: false
+            referencedRelation: "cards"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null

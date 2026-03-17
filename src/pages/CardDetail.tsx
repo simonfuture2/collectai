@@ -203,17 +203,28 @@ interface AIAnalysis {
   verificationNote?: string;
 }
 
-// Mock price history data (in a real app, this would come from an API)
+// Generate mock price history as fallback
 const generatePriceHistory = (valueLow: number, valueHigh: number) => {
   const avgValue = (valueLow + valueHigh) / 2;
   const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   const currentMonth = new Date().getMonth();
   
-  return months.slice(0, currentMonth + 1).map((month, i) => ({
+  return months.slice(0, currentMonth + 1).map((month) => ({
     month,
     price: Math.round(avgValue * (0.85 + Math.random() * 0.3) * 100) / 100,
+    source: "simulated" as string,
   }));
 };
+
+interface PriceHistoryPoint {
+  month: string;
+  price: number;
+  source: string;
+  ebay_sold?: number;
+  ebay_active?: number;
+  tcgplayer?: number;
+  blended?: number;
+}
 
 export default function CardDetail() {
   const { id } = useParams<{ id: string }>();
@@ -223,7 +234,9 @@ export default function CardDetail() {
   const [loading, setLoading] = useState(true);
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
-  const [priceHistory, setPriceHistory] = useState<{ month: string; price: number }[]>([]);
+  const [priceHistory, setPriceHistory] = useState<PriceHistoryPoint[]>([]);
+  const [hasRealPriceData, setHasRealPriceData] = useState(false);
+  const [rescanning, setRescanning] = useState(false);
 
   useEffect(() => {
     const fetchCard = async () => {
@@ -249,8 +262,35 @@ export default function CardDetail() {
       }
 
       setCard(data);
-      setNotes(data.notes || "");
-      setPriceHistory(generatePriceHistory(data.estimated_value_low || 10, data.estimated_value_high || 50));
+      // Fetch real price history
+      const { data: priceData } = await supabase
+        .from("price_history")
+        .select("*")
+        .eq("card_id", data.id)
+        .order("recorded_at", { ascending: true });
+
+      if (priceData && priceData.length > 0) {
+        setHasRealPriceData(true);
+        // Group by recorded_at date and show blended or first available
+        const points: PriceHistoryPoint[] = priceData
+          .filter((p: any) => p.source === "blended" || p.source === "ebay_sold")
+          .map((p: any) => {
+            const d = new Date(p.recorded_at);
+            return {
+              month: d.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+              price: Number(p.median_price) || 0,
+              source: p.source,
+            };
+          });
+        // If only one data point, also add source breakdown
+        if (points.length > 0) {
+          setPriceHistory(points);
+        } else {
+          setPriceHistory(generatePriceHistory(data.estimated_value_low || 10, data.estimated_value_high || 50));
+        }
+      } else {
+        setPriceHistory(generatePriceHistory(data.estimated_value_low || 10, data.estimated_value_high || 50));
+      }
 
       const signed = await getSignedImageUrl(data.image_url);
       setCardImageUrl(signed);
@@ -276,6 +316,89 @@ export default function CardDetail() {
       toast.success("Notes saved!");
     }
     setSaving(false);
+  };
+
+  const rescanPrices = async () => {
+    if (!card || !id) return;
+    setRescanning(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error("Please sign in to re-scan prices");
+        return;
+      }
+      const { data, error } = await supabase.functions.invoke("collectai-price", {
+        body: {
+          cardName: card.card_name || "",
+          cardSet: card.card_set || "",
+          cardYear: card.card_year || "",
+        },
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      if (error) throw error;
+
+      // Insert new price history rows
+      if (data?.extractedMarketData?.sources) {
+        const user = session.user;
+        const priceRows: any[] = [];
+        for (const src of data.extractedMarketData.sources) {
+          priceRows.push({
+            card_id: id,
+            user_id: user.id,
+            source: src.source,
+            median_price: src.median,
+            low_price: src.low,
+            high_price: src.high,
+            price_count: src.count,
+            raw_prices: src.prices,
+          });
+        }
+        if (data.extractedMarketData.blended) {
+          priceRows.push({
+            card_id: id,
+            user_id: user.id,
+            source: "blended",
+            median_price: data.extractedMarketData.blended.median,
+            low_price: data.extractedMarketData.blended.low,
+            high_price: data.extractedMarketData.blended.high,
+            price_count: 0,
+            raw_prices: [],
+          });
+        }
+        if (priceRows.length > 0) {
+          await supabase.from("price_history").insert(priceRows);
+        }
+
+        // Refresh price history display
+        const { data: priceData } = await supabase
+          .from("price_history")
+          .select("*")
+          .eq("card_id", id)
+          .order("recorded_at", { ascending: true });
+
+        if (priceData && priceData.length > 0) {
+          setHasRealPriceData(true);
+          const points: PriceHistoryPoint[] = priceData
+            .filter((p: any) => p.source === "blended" || p.source === "ebay_sold")
+            .map((p: any) => {
+              const d = new Date(p.recorded_at);
+              return {
+                month: d.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+                price: Number(p.median_price) || 0,
+                source: p.source,
+              };
+            });
+          if (points.length > 0) setPriceHistory(points);
+        }
+        toast.success("Prices updated with fresh market data!");
+      } else {
+        toast.error("No market data found for this card");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to re-scan prices");
+    } finally {
+      setRescanning(false);
+    }
   };
 
   if (loading) {
@@ -543,7 +666,18 @@ export default function CardDetail() {
                     <TrendingUp className="w-5 h-5 text-primary" />
                     <h2 className="font-display font-bold text-lg">Price History</h2>
                   </div>
-                  <span className="text-[10px] uppercase tracking-wider text-muted-foreground bg-muted px-2 py-0.5 rounded-full">Simulated</span>
+                  <div className="flex items-center gap-2">
+                    <span className={`text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                      hasRealPriceData
+                        ? "bg-green-500/15 text-green-600 dark:text-green-400"
+                        : "text-muted-foreground bg-muted"
+                    }`}>
+                      {hasRealPriceData ? "Real Data" : "Simulated"}
+                    </span>
+                    <Button variant="ghost" size="sm" onClick={rescanPrices} disabled={rescanning} className="h-7 px-2">
+                      <RefreshCw className={`w-3.5 h-3.5 ${rescanning ? "animate-spin" : ""}`} />
+                    </Button>
+                  </div>
                 </div>
                 <div className="h-[200px]">
                   <ResponsiveContainer width="100%" height="100%">
@@ -577,7 +711,9 @@ export default function CardDetail() {
                   </ResponsiveContainer>
                 </div>
                 <p className="text-xs text-muted-foreground mt-2 text-center">
-                  Based on AI market research and similar card sales
+                  {hasRealPriceData
+                    ? "Based on real eBay & TCGPlayer market data • Re-scan to add new data points"
+                    : "Based on AI market research • Scan again to build real price history"}
                 </p>
               </div>
 
@@ -1021,7 +1157,18 @@ export default function CardDetail() {
                     <TrendingUp className="w-5 h-5 text-primary" />
                     <h2 className="font-display font-bold text-lg">Price History</h2>
                   </div>
-                  <span className="text-[10px] uppercase tracking-wider text-muted-foreground bg-muted px-2 py-0.5 rounded-full">Simulated</span>
+                  <div className="flex items-center gap-2">
+                    <span className={`text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                      hasRealPriceData
+                        ? "bg-green-500/15 text-green-600 dark:text-green-400"
+                        : "text-muted-foreground bg-muted"
+                    }`}>
+                      {hasRealPriceData ? "Real Data" : "Simulated"}
+                    </span>
+                    <Button variant="ghost" size="sm" onClick={rescanPrices} disabled={rescanning} className="h-7 px-2">
+                      <RefreshCw className={`w-3.5 h-3.5 ${rescanning ? "animate-spin" : ""}`} />
+                    </Button>
+                  </div>
                 </div>
                 <div className="h-[200px]">
                   <ResponsiveContainer width="100%" height="100%">
@@ -1055,7 +1202,9 @@ export default function CardDetail() {
                   </ResponsiveContainer>
                 </div>
                 <p className="text-xs text-muted-foreground mt-2 text-center">
-                  Based on AI market research and similar card sales
+                  {hasRealPriceData
+                    ? "Based on real eBay & TCGPlayer market data • Re-scan to add new data points"
+                    : "Based on AI market research • Scan again to build real price history"}
                 </p>
               </div>
 
