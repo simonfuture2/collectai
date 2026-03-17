@@ -58,7 +58,7 @@ interface CardIdentification {
 }
 
 // Build specific search queries from card identification
-function buildSearchTerms(cardId: CardIdentification): { specific: string; broad: string } {
+function buildSearchTerms(cardId: CardIdentification): { specific: string; broad: string; variant: string } {
   const parts: string[] = [];
   if (cardId.card_name) parts.push(cardId.card_name);
   if (cardId.card_number) parts.push(cardId.card_number);
@@ -66,8 +66,16 @@ function buildSearchTerms(cardId: CardIdentification): { specific: string; broad
   
   const specific = parts.join(" ");
   const broad = `${cardId.card_name} ${cardId.card_set || ""} ${cardId.variant || ""}`.trim();
+  // Variant-focused: just name + variant for maximum recall
+  const variant = `${cardId.card_name} ${cardId.variant && cardId.variant !== "Regular" ? cardId.variant : ""} pokemon card`.trim();
   
-  return { specific, broad };
+  return { specific, broad, variant };
+}
+
+// Extract blended value from market context string
+function extractBlendedValue(marketCtx: string): number {
+  const match = marketCtx.match(/SUGGESTED VALUE: \$([\d.]+)/);
+  return match ? parseFloat(match[1]) : 0;
 }
 
 // Helper: search eBay + TCGPlayer listings via Firecrawl for quick scan
@@ -75,7 +83,7 @@ async function quickMarketSearch(cardId: CardIdentification): Promise<string> {
   const FIRECRAWL_API_KEY = Deno.env.get("FIRECRAWL_API_KEY");
   if (!FIRECRAWL_API_KEY) return "";
 
-  const { specific, broad } = buildSearchTerms(cardId);
+  const { specific, broad, variant } = buildSearchTerms(cardId);
 
   async function doSearch(query: string, limit: number, urlFilter?: string) {
     try {
@@ -105,7 +113,7 @@ async function quickMarketSearch(cardId: CardIdentification): Promise<string> {
     ]);
 
     // Fallback to broader search if specific returned nothing
-    const totalSpecific = soldResults.length + activeResults.length + tcgResults.length;
+    let totalSpecific = soldResults.length + activeResults.length + tcgResults.length;
     if (totalSpecific < 3 && broad !== specific) {
       console.log("Specific search yielded few results, trying broader search...");
       const [soldBroad, activeBroad, tcgBroad] = await Promise.all([
@@ -113,10 +121,28 @@ async function quickMarketSearch(cardId: CardIdentification): Promise<string> {
         doSearch(`${broad} site:ebay.com`, 6, "ebay.com"),
         doSearch(`${broad} price site:tcgplayer.com`, 5, "tcgplayer.com"),
       ]);
-      if (soldBroad.length + activeBroad.length + tcgBroad.length > totalSpecific) {
+      const totalBroad = soldBroad.length + activeBroad.length + tcgBroad.length;
+      if (totalBroad > totalSpecific) {
         soldResults = soldBroad;
         activeResults = activeBroad;
         tcgResults = tcgBroad;
+        totalSpecific = totalBroad;
+      }
+    }
+
+    // Variant-focused fallback: unquoted, simpler terms for maximum recall
+    if (totalSpecific < 3 && variant) {
+      console.log("Still sparse, trying variant-focused search:", variant);
+      const [soldVar, activeVar, tcgVar] = await Promise.all([
+        doSearch(`${variant} sold site:ebay.com`, 8, "ebay.com"),
+        doSearch(`${variant} site:ebay.com`, 6, "ebay.com"),
+        doSearch(`${variant} price site:tcgplayer.com`, 5, "tcgplayer.com"),
+      ]);
+      const totalVar = soldVar.length + activeVar.length + tcgVar.length;
+      if (totalVar > totalSpecific) {
+        soldResults = soldVar;
+        activeResults = activeVar;
+        tcgResults = tcgVar;
       }
     }
 
@@ -470,8 +496,23 @@ Return ONLY valid JSON, no markdown, no explanation.`;
     }
 
     const result = JSON.parse(toolCall.function.arguments);
+    console.log(`Gemini raw estimate: $${result.estimated_value_low}-$${result.estimated_value_high}, confidence: ${result.confidence}`);
 
-    // ===== STEP 4: Claude verification (primary) =====
+    // ===== STEP 4: PROGRAMMATIC PRICE OVERRIDE from market data =====
+    const blendedValue = extractBlendedValue(marketContext);
+    if (blendedValue > 0) {
+      const origLow = result.estimated_value_low;
+      const origHigh = result.estimated_value_high;
+      result.estimated_value_low = Math.round(blendedValue * 0.85);
+      result.estimated_value_high = Math.round(blendedValue * 1.15);
+      result.confidence = Math.min(95, Math.max(result.confidence, 75));
+      console.log(`Programmatic override: blended=$${blendedValue.toFixed(2)}, $${origLow}-$${origHigh} → $${result.estimated_value_low}-$${result.estimated_value_high}`);
+    } else {
+      console.log("No blended value available — using Gemini estimate as-is");
+    }
+
+    // ===== STEP 5: Claude verification (secondary check) =====
+    console.log(`Claude check prerequisites: ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY ? "set" : "MISSING"}, marketContext=${marketContext ? `${marketContext.length} chars` : "empty"}, cardId=${cardId ? "set" : "null"}`);
     if (ANTHROPIC_API_KEY && marketContext && cardId) {
       const claudeResult = await verifyWithClaude(
         cardId,
@@ -489,6 +530,8 @@ Return ONLY valid JSON, no markdown, no explanation.`;
           console.log(`Claude corrected price: $${origLow}-$${origHigh} → $${claudeResult.verified_low}-$${claudeResult.verified_high}`);
         }
         console.log("Claude verification note:", claudeResult.verification_note);
+      } else {
+        console.log("Claude verification returned null — keeping programmatic estimate");
       }
     }
 
