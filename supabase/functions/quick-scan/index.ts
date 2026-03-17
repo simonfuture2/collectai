@@ -113,7 +113,7 @@ async function quickMarketSearch(cardId: CardIdentification): Promise<string> {
     ]);
 
     // Fallback to broader search if specific returned nothing
-    const totalSpecific = soldResults.length + activeResults.length + tcgResults.length;
+    let totalSpecific = soldResults.length + activeResults.length + tcgResults.length;
     if (totalSpecific < 3 && broad !== specific) {
       console.log("Specific search yielded few results, trying broader search...");
       const [soldBroad, activeBroad, tcgBroad] = await Promise.all([
@@ -121,10 +121,28 @@ async function quickMarketSearch(cardId: CardIdentification): Promise<string> {
         doSearch(`${broad} site:ebay.com`, 6, "ebay.com"),
         doSearch(`${broad} price site:tcgplayer.com`, 5, "tcgplayer.com"),
       ]);
-      if (soldBroad.length + activeBroad.length + tcgBroad.length > totalSpecific) {
+      const totalBroad = soldBroad.length + activeBroad.length + tcgBroad.length;
+      if (totalBroad > totalSpecific) {
         soldResults = soldBroad;
         activeResults = activeBroad;
         tcgResults = tcgBroad;
+        totalSpecific = totalBroad;
+      }
+    }
+
+    // Variant-focused fallback: unquoted, simpler terms for maximum recall
+    if (totalSpecific < 3 && variant) {
+      console.log("Still sparse, trying variant-focused search:", variant);
+      const [soldVar, activeVar, tcgVar] = await Promise.all([
+        doSearch(`${variant} sold site:ebay.com`, 8, "ebay.com"),
+        doSearch(`${variant} site:ebay.com`, 6, "ebay.com"),
+        doSearch(`${variant} price site:tcgplayer.com`, 5, "tcgplayer.com"),
+      ]);
+      const totalVar = soldVar.length + activeVar.length + tcgVar.length;
+      if (totalVar > totalSpecific) {
+        soldResults = soldVar;
+        activeResults = activeVar;
+        tcgResults = tcgVar;
       }
     }
 
