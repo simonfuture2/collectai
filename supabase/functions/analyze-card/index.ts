@@ -7,64 +7,120 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Helper: search eBay sold listings via Firecrawl
-async function searchEbaySoldListings(cardName: string, cardSet: string, cardYear: string): Promise<string> {
+// Helper: extract dollar amounts from text
+function extractPrices(text: string): number[] {
+  const matches = text.match(/\$[\d,]+\.?\d*/g) || [];
+  return matches
+    .map((m) => parseFloat(m.replace(/[$,]/g, "")))
+    .filter((n) => n > 0.5 && n < 100000);
+}
+
+function median(nums: number[]): number {
+  if (nums.length === 0) return 0;
+  const sorted = [...nums].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+}
+
+// Helper: search eBay via Firecrawl and return structured price data
+async function searchEbayPrices(
+  cardName: string,
+  cardSet: string,
+  cardYear: string
+): Promise<{ soldData: string; activeData: string; summary: string }> {
   const FIRECRAWL_API_KEY = Deno.env.get("FIRECRAWL_API_KEY");
+  const empty = { soldData: "", activeData: "", summary: "" };
   if (!FIRECRAWL_API_KEY) {
     console.log("FIRECRAWL_API_KEY not available, skipping eBay search");
-    return "";
+    return empty;
+  }
+
+  const searchTerm = `${cardName} ${cardSet} ${cardYear}`.trim();
+
+  async function doSearch(query: string, limit: number) {
+    try {
+      const response = await fetch("https://api.firecrawl.dev/v1/search", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${FIRECRAWL_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ query, limit, tbs: "qdr:m", scrapeOptions: { formats: ["markdown"] } }),
+      });
+      if (!response.ok) return [];
+      const data = await response.json();
+      return (data.data || []).filter((r: any) => r.url?.includes("ebay.com"));
+    } catch {
+      return [];
+    }
   }
 
   try {
-    const query = `${cardName} ${cardSet} ${cardYear} sold site:ebay.com`;
-    console.log("Firecrawl search query:", query);
+    // Run sold + active searches in parallel
+    const [soldResults, activeResults] = await Promise.all([
+      doSearch(`${searchTerm} sold site:ebay.com`, 10),
+      doSearch(`${searchTerm} site:ebay.com`, 8),
+    ]);
 
-    const response = await fetch("https://api.firecrawl.dev/v1/search", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${FIRECRAWL_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        query,
-        limit: 10,
-        tbs: "qdr:m", // last month
-        scrapeOptions: { formats: ["markdown"] },
-      }),
+    console.log(`eBay results: ${soldResults.length} sold, ${activeResults.length} active`);
+
+    // Extract prices from sold listings
+    const soldPrices: number[] = [];
+    const soldListings = soldResults.slice(0, 8).map((r: any) => {
+      const text = `${r.title || ""} ${r.description || ""} ${(r.markdown || "").substring(0, 800)}`;
+      const prices = extractPrices(text);
+      soldPrices.push(...prices);
+      return `- ${r.title || "Listing"} | Prices found: ${prices.length > 0 ? prices.map((p) => `$${p.toFixed(2)}`).join(", ") : "none detected"}`;
     });
 
-    if (!response.ok) {
-      console.error("Firecrawl search error:", response.status, await response.text());
-      return "";
+    // Extract prices from active listings
+    const activePrices: number[] = [];
+    const activeListings = activeResults.slice(0, 6).map((r: any) => {
+      const text = `${r.title || ""} ${r.description || ""} ${(r.markdown || "").substring(0, 800)}`;
+      const prices = extractPrices(text);
+      activePrices.push(...prices);
+      return `- ${r.title || "Listing"} | Prices found: ${prices.length > 0 ? prices.map((p) => `$${p.toFixed(2)}`).join(", ") : "none detected"}`;
+    });
+
+    const medianSold = median(soldPrices);
+    const medianActive = median(activePrices);
+
+    let summary = "";
+    if (soldPrices.length > 0 || activePrices.length > 0) {
+      summary += "\n\n## MARKET PRICE DATA (extracted from real eBay listings today)\n";
+      if (soldPrices.length > 0) {
+        summary += `\nSOLD LISTINGS (last 30 days):\n`;
+        summary += `- All prices found: ${soldPrices.map((p) => `$${p.toFixed(2)}`).join(", ")}\n`;
+        summary += `- Median sold price: $${medianSold.toFixed(2)}\n`;
+        summary += `- Range: $${Math.min(...soldPrices).toFixed(2)} - $${Math.max(...soldPrices).toFixed(2)}\n`;
+        summary += `- Number of price points: ${soldPrices.length}\n`;
+        summary += `\nSold listing details:\n${soldListings.join("\n")}\n`;
+      }
+      if (activePrices.length > 0) {
+        summary += `\nACTIVE LISTINGS (current asking prices):\n`;
+        summary += `- All prices found: ${activePrices.map((p) => `$${p.toFixed(2)}`).join(", ")}\n`;
+        summary += `- Median asking price: $${medianActive.toFixed(2)}\n`;
+        summary += `- Range: $${Math.min(...activePrices).toFixed(2)} - $${Math.max(...activePrices).toFixed(2)}\n`;
+        summary += `\nActive listing details:\n${activeListings.join("\n")}\n`;
+      }
+      // Compute suggested value
+      if (soldPrices.length > 0 && activePrices.length > 0) {
+        const blended = medianSold * 0.7 + medianActive * 0.3;
+        summary += `\nSUGGESTED BLENDED VALUE: $${blended.toFixed(2)} (70% sold median + 30% active median)\n`;
+      } else if (soldPrices.length > 0) {
+        summary += `\nSUGGESTED VALUE ANCHOR: $${medianSold.toFixed(2)} (median of sold prices)\n`;
+      }
+      summary += `\nCRITICAL: Your estimatedValueLow and estimatedValueHigh MUST be within the range of these real prices. Do NOT ignore this data.\n`;
     }
 
-    const data = await response.json();
-    const results = data.data || [];
-
-    if (results.length === 0) {
-      console.log("No Firecrawl results found");
-      return "";
-    }
-
-    // Build a concise summary of eBay sold listings
-    const listings = results
-      .filter((r: any) => r.url?.includes("ebay.com"))
-      .slice(0, 8)
-      .map((r: any) => {
-        const title = r.title || "Unknown listing";
-        const url = r.url || "";
-        // Extract price from description/markdown if available
-        const content = (r.markdown || r.description || "").substring(0, 500);
-        return `- ${title}\n  URL: ${url}\n  Content: ${content}`;
-      })
-      .join("\n\n");
-
-    if (!listings) return "";
-
-    return `\n\n## REAL eBay Sold Listings Data (from web search, retrieved today)\nThese are ACTUAL recent eBay sold/completed listings. Use these as your PRIMARY pricing anchor:\n\n${listings}`;
+    return {
+      soldData: soldListings.join("\n"),
+      activeData: activeListings.join("\n"),
+      summary,
+    };
   } catch (err) {
-    console.error("Firecrawl search failed:", err);
-    return "";
+    console.error("eBay price search failed:", err);
+    return empty;
   }
 }
 
@@ -270,16 +326,16 @@ serve(async (req) => {
     const cardId = await identifyCard(images, LOVABLE_API_KEY);
     console.log("Card identified:", cardId);
 
-    // ===== STEP 2: Search eBay sold listings with Firecrawl =====
-    let ebayData = "";
+    // ===== STEP 2: Search eBay sold + active listings with Firecrawl =====
+    let ebayData = { soldData: "", activeData: "", summary: "" };
     if (cardId?.card_name) {
-      console.log("Step 2: Searching eBay sold listings...");
-      ebayData = await searchEbaySoldListings(
+      console.log("Step 2: Searching eBay sold + active listings...");
+      ebayData = await searchEbayPrices(
         cardId.card_name,
         cardId.card_set || "",
         cardId.card_year || ""
       );
-      console.log("eBay data found:", ebayData ? "Yes" : "No");
+      console.log("eBay data found:", ebayData.summary ? "Yes" : "No");
     }
 
     // ===== STEP 3: Full analysis with real market data =====
@@ -288,7 +344,18 @@ serve(async (req) => {
     const systemPrompt = `You are an expert trading card analyst, appraiser, and professional grader. Today's date is ${today}.
 
 CRITICAL PRICING INSTRUCTIONS:
-${ebayData ? `You are provided with REAL recent eBay sold listing data below. You MUST use these actual sold prices as your PRIMARY valuation anchor. Do NOT rely on outdated training data for pricing. Extract actual dollar amounts from the eBay listings and use them to set your estimated value range.` : `You do NOT have access to real-time market data. Your training data may contain OUTDATED prices. Be VERY conservative with value estimates. If you are not confident about current market prices, set confidence to "low" and clearly state that values are estimates that may not reflect the current market. It is better to provide a wider range than to give a confidently wrong narrow range.`}
+${ebayData.summary ? `You are provided with REAL recent eBay price data (sold AND active listings) with extracted dollar amounts below.
+
+VALUATION FORMULA (you MUST follow this):
+1. Look at the SOLD listing prices provided — compute their median as your primary anchor.
+2. Look at the ACTIVE listing prices provided — compute their median as a secondary reference.
+3. Estimated fair market value = 70% × median sold price + 30% × median active price.
+4. Adjust this value ±15% based on the specific card's condition relative to what's described in the listings.
+5. Set estimatedValueLow = adjusted value × 0.85, estimatedValueHigh = adjusted value × 1.15.
+6. If sold data clearly shows cards selling for $100+, your estimate MUST reflect that — NOT $5-15.
+7. Compare the card's condition to what the listings describe. Better condition → estimate toward high end. Worse → low end.
+
+Your estimates MUST be anchored to the real price data. Do NOT override real market data with training knowledge.` : `You do NOT have access to real-time market data. Your training data may contain OUTDATED prices. Be VERY conservative with value estimates. If you are not confident about current market prices, set confidence to "low" and clearly state that values are estimates that may not reflect the current market. It is better to provide a wider range than to give a confidently wrong narrow range.`}
 
 When shown an image of a trading card, you will:
 
@@ -339,7 +406,7 @@ When shown an image of a trading card, you will:
    - Parallel/Refractor types
 
 4. PROVIDE DETAILED MARKET RESEARCH:
-   ${ebayData ? "Use the REAL eBay sold listing data provided to anchor your pricing. Extract actual prices from the listings." : "Provide your best estimate but flag confidence as low if uncertain about current market prices."}
+   ${ebayData.summary ? "Use the REAL eBay price data (sold + active) provided. The extracted prices and computed medians are your valuation anchors." : "Provide your best estimate but flag confidence as low if uncertain about current market prices."}
    
    a) eBay Market Data:
       - Recent sold prices for this specific card in similar condition
@@ -511,9 +578,9 @@ Respond in JSON format with this structure:
       ? `I'm providing ${images.length} images of this collectible item (${images.map(i => i.label).join(", ")}). Please analyze all views together for a comprehensive identification, condition assessment, and value estimate.`
       : "Please analyze this trading card image and provide a complete identification, condition assessment, and value estimate.";
 
-    const fullUserMessage = userMessage + ebayData;
+    const fullUserMessage = userMessage + ebayData.summary;
 
-    console.log("Step 3: Full analysis with", ebayData ? "real eBay data" : "AI-only estimates");
+    console.log("Step 3: Full analysis with", ebayData.summary ? "real eBay data" : "AI-only estimates");
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -600,8 +667,8 @@ Respond in JSON format with this structure:
 
     // Add data source info if not present
     if (!analysis.dataSource) {
-      analysis.dataSource = ebayData
-        ? "Real eBay sold data + AI analysis"
+      analysis.dataSource = ebayData.summary
+        ? "Real eBay sold + active listing data + AI analysis"
         : "AI estimate only - no live market data available";
     }
 

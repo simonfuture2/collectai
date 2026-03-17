@@ -21,45 +21,82 @@ function isRateLimited(ip: string): boolean {
   return false;
 }
 
-// Helper: search eBay sold listings via Firecrawl for quick scan
+// Helper: extract dollar amounts from text
+function extractPrices(text: string): number[] {
+  const matches = text.match(/\$[\d,]+\.?\d*/g) || [];
+  return matches
+    .map((m) => parseFloat(m.replace(/[$,]/g, "")))
+    .filter((n) => n > 0.5 && n < 100000);
+}
+
+function median(nums: number[]): number {
+  if (nums.length === 0) return 0;
+  const sorted = [...nums].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+}
+
+// Helper: search eBay sold + active listings via Firecrawl for quick scan
 async function quickEbaySearch(cardName: string, cardSet: string, cardYear: string): Promise<string> {
   const FIRECRAWL_API_KEY = Deno.env.get("FIRECRAWL_API_KEY");
   if (!FIRECRAWL_API_KEY) return "";
 
-  try {
-    const query = `${cardName} ${cardSet} ${cardYear} sold site:ebay.com`;
-    console.log("Quick scan eBay search:", query);
+  const searchTerm = `${cardName} ${cardSet} ${cardYear}`.trim();
 
-    const response = await fetch("https://api.firecrawl.dev/v1/search", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${FIRECRAWL_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        query,
-        limit: 5,
-        tbs: "qdr:m",
-      }),
+  async function doSearch(query: string, limit: number) {
+    try {
+      const response = await fetch("https://api.firecrawl.dev/v1/search", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${FIRECRAWL_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ query, limit, tbs: "qdr:m" }),
+      });
+      if (!response.ok) return [];
+      const data = await response.json();
+      return (data.data || []).filter((r: any) => r.url?.includes("ebay.com"));
+    } catch {
+      return [];
+    }
+  }
+
+  try {
+    const [soldResults, activeResults] = await Promise.all([
+      doSearch(`${searchTerm} sold site:ebay.com`, 6),
+      doSearch(`${searchTerm} site:ebay.com`, 5),
+    ]);
+
+    const soldPrices: number[] = [];
+    soldResults.slice(0, 5).forEach((r: any) => {
+      const text = `${r.title || ""} ${r.description || ""} ${(r.markdown || "").substring(0, 600)}`;
+      soldPrices.push(...extractPrices(text));
     });
 
-    if (!response.ok) {
-      console.error("Firecrawl quick search error:", response.status);
-      return "";
+    const activePrices: number[] = [];
+    activeResults.slice(0, 4).forEach((r: any) => {
+      const text = `${r.title || ""} ${r.description || ""} ${(r.markdown || "").substring(0, 600)}`;
+      activePrices.push(...extractPrices(text));
+    });
+
+    if (soldPrices.length === 0 && activePrices.length === 0) return "";
+
+    const medianSold = median(soldPrices);
+    const medianActive = median(activePrices);
+
+    let summary = "\n\n## REAL MARKET PRICE DATA (from eBay, retrieved today)\n";
+    if (soldPrices.length > 0) {
+      summary += `SOLD prices: ${soldPrices.map((p) => `$${p.toFixed(2)}`).join(", ")} | Median: $${medianSold.toFixed(2)}\n`;
     }
-
-    const data = await response.json();
-    const results = (data.data || [])
-      .filter((r: any) => r.url?.includes("ebay.com"))
-      .slice(0, 5);
-
-    if (results.length === 0) return "";
-
-    const listings = results
-      .map((r: any) => `- ${r.title || "Listing"}: ${(r.description || "").substring(0, 200)}`)
-      .join("\n");
-
-    return `\n\nREAL eBay sold listings found today:\n${listings}\nUse these prices as your PRIMARY value anchor.`;
+    if (activePrices.length > 0) {
+      summary += `ACTIVE listing prices: ${activePrices.map((p) => `$${p.toFixed(2)}`).join(", ")} | Median: $${medianActive.toFixed(2)}\n`;
+    }
+    if (soldPrices.length > 0 && activePrices.length > 0) {
+      const blended = medianSold * 0.7 + medianActive * 0.3;
+      summary += `SUGGESTED VALUE: $${blended.toFixed(2)} (70% sold + 30% active)\n`;
+    }
+    summary += "Your estimated_value_low and estimated_value_high MUST reflect these real prices.\n";
+    return summary;
   } catch (err) {
     console.error("Quick eBay search failed:", err);
     return "";
@@ -174,7 +211,15 @@ serve(async (req) => {
     const systemPrompt = `You are a trading card identification and grading AI. Today's date is ${today}.
 
 CRITICAL PRICING RULES:
-${ebayContext ? "You have REAL eBay sold listing data below. Use these actual sold prices as your PRIMARY value estimate. Do NOT use outdated training data when real prices are available." : "You do NOT have real-time market data. Be CONSERVATIVE with value estimates. Provide wider ranges rather than confidently wrong narrow estimates. If unsure, set confidence below 50."}
+${ebayContext ? `You have REAL eBay price data (sold + active listings) with extracted dollar amounts below.
+
+VALUATION FORMULA (MUST follow):
+1. Use the median SOLD price as your primary anchor (70% weight).
+2. Use the median ACTIVE listing price as secondary (30% weight).
+3. Adjust ±15% based on card condition relative to the listings.
+4. Set estimated_value_low = adjusted value × 0.85, estimated_value_high = adjusted value × 1.15.
+5. If real prices show $100+, your estimate MUST be in that range — NOT $5-15.
+Your estimates MUST match the real data provided.` : "You do NOT have real-time market data. Be CONSERVATIVE with value estimates. Provide wider ranges rather than confidently wrong narrow estimates. If unsure, set confidence below 50."}
 
 Analyze the card image and return ONLY a JSON object with these fields:
 - card_name: string (full card name)
