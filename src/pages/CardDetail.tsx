@@ -234,7 +234,9 @@ export default function CardDetail() {
   const [loading, setLoading] = useState(true);
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
-  const [priceHistory, setPriceHistory] = useState<{ month: string; price: number }[]>([]);
+  const [priceHistory, setPriceHistory] = useState<PriceHistoryPoint[]>([]);
+  const [hasRealPriceData, setHasRealPriceData] = useState(false);
+  const [rescanning, setRescanning] = useState(false);
 
   useEffect(() => {
     const fetchCard = async () => {
