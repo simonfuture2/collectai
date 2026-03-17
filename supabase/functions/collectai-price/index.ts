@@ -21,14 +21,14 @@ function median(nums: number[]): number {
   return sorted.length % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
 }
 
-// Helper: search eBay sold + active listings via Firecrawl
-async function searchEbayPrices(cardName: string, cardSet: string, cardYear: string): Promise<string> {
+// Helper: search eBay + TCGPlayer via Firecrawl
+async function searchMarketPrices(cardName: string, cardSet: string, cardYear: string): Promise<string> {
   const FIRECRAWL_API_KEY = Deno.env.get("FIRECRAWL_API_KEY");
   if (!FIRECRAWL_API_KEY) return "";
 
   const searchTerm = `${cardName} ${cardSet} ${cardYear}`.trim();
 
-  async function doSearch(query: string, limit: number) {
+  async function doSearch(query: string, limit: number, urlFilter?: string) {
     try {
       const response = await fetch("https://api.firecrawl.dev/v1/search", {
         method: "POST",
@@ -40,19 +40,21 @@ async function searchEbayPrices(cardName: string, cardSet: string, cardYear: str
       });
       if (!response.ok) return [];
       const data = await response.json();
-      return (data.data || []).filter((r: any) => r.url?.includes("ebay.com"));
+      const results = data.data || [];
+      return urlFilter ? results.filter((r: any) => r.url?.includes(urlFilter)) : results;
     } catch {
       return [];
     }
   }
 
   try {
-    const [soldResults, activeResults] = await Promise.all([
-      doSearch(`${searchTerm} sold site:ebay.com`, 10),
-      doSearch(`${searchTerm} site:ebay.com`, 8),
+    const [soldResults, activeResults, tcgResults] = await Promise.all([
+      doSearch(`${searchTerm} sold site:ebay.com`, 10, "ebay.com"),
+      doSearch(`${searchTerm} site:ebay.com`, 8, "ebay.com"),
+      doSearch(`${searchTerm} price site:tcgplayer.com`, 6, "tcgplayer.com"),
     ]);
 
-    console.log(`Price API eBay results: ${soldResults.length} sold, ${activeResults.length} active`);
+    console.log(`Price API results: ${soldResults.length} eBay sold, ${activeResults.length} eBay active, ${tcgResults.length} TCGPlayer`);
 
     const soldPrices: number[] = [];
     soldResults.slice(0, 8).forEach((r: any) => {
@@ -66,32 +68,49 @@ async function searchEbayPrices(cardName: string, cardSet: string, cardYear: str
       activePrices.push(...extractPrices(text));
     });
 
-    if (soldPrices.length === 0 && activePrices.length === 0) return "";
+    const tcgPrices: number[] = [];
+    tcgResults.slice(0, 5).forEach((r: any) => {
+      const text = `${r.title || ""} ${r.description || ""} ${(r.markdown || "").substring(0, 800)}`;
+      tcgPrices.push(...extractPrices(text));
+    });
+
+    if (soldPrices.length === 0 && activePrices.length === 0 && tcgPrices.length === 0) return "";
 
     const medianSold = median(soldPrices);
     const medianActive = median(activePrices);
+    const medianTcg = median(tcgPrices);
 
-    let summary = "\n\n## REAL MARKET PRICE DATA (from eBay, retrieved today)\n";
+    let summary = "\n\n## REAL MARKET PRICE DATA (from eBay + TCGPlayer, retrieved today)\n";
     if (soldPrices.length > 0) {
-      summary += `\nSOLD LISTINGS (last 30 days):\n`;
-      summary += `- Prices found: ${soldPrices.map((p) => `$${p.toFixed(2)}`).join(", ")}\n`;
-      summary += `- Median sold: $${medianSold.toFixed(2)}\n`;
-      summary += `- Range: $${Math.min(...soldPrices).toFixed(2)} - $${Math.max(...soldPrices).toFixed(2)}\n`;
+      summary += `\neBay SOLD (last 30 days):\n`;
+      summary += `- Prices: ${soldPrices.map((p) => `$${p.toFixed(2)}`).join(", ")}\n`;
+      summary += `- Median sold: $${medianSold.toFixed(2)} | Range: $${Math.min(...soldPrices).toFixed(2)} - $${Math.max(...soldPrices).toFixed(2)}\n`;
     }
     if (activePrices.length > 0) {
-      summary += `\nACTIVE LISTINGS (current asking prices):\n`;
-      summary += `- Prices found: ${activePrices.map((p) => `$${p.toFixed(2)}`).join(", ")}\n`;
-      summary += `- Median asking: $${medianActive.toFixed(2)}\n`;
-      summary += `- Range: $${Math.min(...activePrices).toFixed(2)} - $${Math.max(...activePrices).toFixed(2)}\n`;
+      summary += `\neBay ACTIVE:\n`;
+      summary += `- Prices: ${activePrices.map((p) => `$${p.toFixed(2)}`).join(", ")}\n`;
+      summary += `- Median asking: $${medianActive.toFixed(2)} | Range: $${Math.min(...activePrices).toFixed(2)} - $${Math.max(...activePrices).toFixed(2)}\n`;
     }
-    if (soldPrices.length > 0 && activePrices.length > 0) {
-      const blended = medianSold * 0.7 + medianActive * 0.3;
-      summary += `\nSUGGESTED BLENDED VALUE: $${blended.toFixed(2)} (70% sold + 30% active)\n`;
+    if (tcgPrices.length > 0) {
+      summary += `\nTCGPlayer:\n`;
+      summary += `- Prices: ${tcgPrices.map((p) => `$${p.toFixed(2)}`).join(", ")}\n`;
+      summary += `- Median: $${medianTcg.toFixed(2)} | Range: $${Math.min(...tcgPrices).toFixed(2)} - $${Math.max(...tcgPrices).toFixed(2)}\n`;
+    }
+
+    const allMedians: { value: number; weight: number }[] = [];
+    if (soldPrices.length > 0) allMedians.push({ value: medianSold, weight: 0.5 });
+    if (tcgPrices.length > 0) allMedians.push({ value: medianTcg, weight: 0.3 });
+    if (activePrices.length > 0) allMedians.push({ value: medianActive, weight: 0.2 });
+
+    if (allMedians.length > 0) {
+      const totalWeight = allMedians.reduce((s, m) => s + m.weight, 0);
+      const blended = allMedians.reduce((s, m) => s + m.value * (m.weight / totalWeight), 0);
+      summary += `\nSUGGESTED BLENDED VALUE: $${blended.toFixed(2)} (eBay sold 50% + TCGPlayer 30% + eBay active 20%)\n`;
     }
     summary += "\nCRITICAL: Your estimatedValueLow/High MUST be within the range of these real prices.\n";
     return summary;
   } catch (err) {
-    console.error("Price eBay search failed:", err);
+    console.error("Price market search failed:", err);
     return "";
   }
 }
@@ -131,10 +150,10 @@ serve(async (req) => {
 
     console.log("CollectAI Price API called for:", cardName || "image-based lookup");
 
-    // Search eBay for real pricing data
-    let ebayData = "";
+    // Search eBay + TCGPlayer for real pricing data
+    let marketData = "";
     if (cardName) {
-      ebayData = await searchEbayPrices(cardName, cardSet || "", cardYear || "");
+      marketData = await searchMarketPrices(cardName, cardSet || "", cardYear || "");
     }
 
     const today = new Date().toISOString().split("T")[0];
@@ -142,14 +161,15 @@ serve(async (req) => {
     const systemPrompt = `You are an expert trading card market analyst. Today's date is ${today}.
 
 CRITICAL PRICING INSTRUCTIONS:
-${ebayData ? `You are provided with REAL eBay price data (sold + active listings) with extracted dollar amounts.
+${marketData ? `You are provided with REAL market price data from eBay (sold + active) AND TCGPlayer with extracted dollar amounts.
 
 VALUATION FORMULA (MUST follow):
-1. Use the median SOLD price as primary anchor (70% weight).
-2. Use the median ACTIVE listing price as secondary (30% weight).
-3. Adjust ±15% based on the card's condition relative to what's described in the listings.
-4. Set estimatedValueLow = adjusted value × 0.85, estimatedValueHigh = adjusted value × 1.15.
-5. If sold data shows cards at $100+, your estimate MUST reflect that — NOT $5-15.
+1. Use the eBay median SOLD price as primary anchor (50% weight).
+2. Use the TCGPlayer median price as secondary (30% weight).
+3. Use the eBay median ACTIVE listing price as tertiary (20% weight).
+4. Normalize weights to available sources. Adjust ±15% based on condition.
+5. Set estimatedValueLow = adjusted value × 0.85, estimatedValueHigh = adjusted value × 1.15.
+6. If sold data shows cards at $100+, your estimate MUST reflect that — NOT $5-15.
 Your estimates MUST match the real data provided.` : "You do NOT have real-time market data. Be conservative. Use wider price ranges and set confidence to 'low' if uncertain about current market prices."}
 
 Respond in JSON format:
@@ -188,8 +208,8 @@ Respond in JSON format:
 }`;
 
     const userText = imageUrl
-      ? `Identify this card and provide detailed current market pricing.${ebayData}`
-      : `Provide detailed market pricing for: ${cardName}${cardSet ? `, Set: ${cardSet}` : ""}${cardYear ? `, Year: ${cardYear}` : ""}${edition ? `, Edition: ${edition}` : ""}${rarity ? `, Rarity: ${rarity}` : ""}${condition ? `, Condition: ${condition}` : ""}${ebayData}`;
+      ? `Identify this card and provide detailed current market pricing.${marketData}`
+      : `Provide detailed market pricing for: ${cardName}${cardSet ? `, Set: ${cardSet}` : ""}${cardYear ? `, Year: ${cardYear}` : ""}${edition ? `, Edition: ${edition}` : ""}${rarity ? `, Rarity: ${rarity}` : ""}${condition ? `, Condition: ${condition}` : ""}${marketData}`;
 
     const userContent: any[] = [{ type: "text", text: userText }];
 

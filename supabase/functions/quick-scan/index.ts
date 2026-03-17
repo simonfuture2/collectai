@@ -36,14 +36,14 @@ function median(nums: number[]): number {
   return sorted.length % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
 }
 
-// Helper: search eBay sold + active listings via Firecrawl for quick scan
-async function quickEbaySearch(cardName: string, cardSet: string, cardYear: string): Promise<string> {
+// Helper: search eBay + TCGPlayer listings via Firecrawl for quick scan
+async function quickMarketSearch(cardName: string, cardSet: string, cardYear: string): Promise<string> {
   const FIRECRAWL_API_KEY = Deno.env.get("FIRECRAWL_API_KEY");
   if (!FIRECRAWL_API_KEY) return "";
 
   const searchTerm = `${cardName} ${cardSet} ${cardYear}`.trim();
 
-  async function doSearch(query: string, limit: number) {
+  async function doSearch(query: string, limit: number, urlFilter?: string) {
     try {
       const response = await fetch("https://api.firecrawl.dev/v1/search", {
         method: "POST",
@@ -55,16 +55,18 @@ async function quickEbaySearch(cardName: string, cardSet: string, cardYear: stri
       });
       if (!response.ok) return [];
       const data = await response.json();
-      return (data.data || []).filter((r: any) => r.url?.includes("ebay.com"));
+      const results = data.data || [];
+      return urlFilter ? results.filter((r: any) => r.url?.includes(urlFilter)) : results;
     } catch {
       return [];
     }
   }
 
   try {
-    const [soldResults, activeResults] = await Promise.all([
-      doSearch(`${searchTerm} sold site:ebay.com`, 6),
-      doSearch(`${searchTerm} site:ebay.com`, 5),
+    const [soldResults, activeResults, tcgResults] = await Promise.all([
+      doSearch(`${searchTerm} sold site:ebay.com`, 6, "ebay.com"),
+      doSearch(`${searchTerm} site:ebay.com`, 5, "ebay.com"),
+      doSearch(`${searchTerm} price site:tcgplayer.com`, 4, "tcgplayer.com"),
     ]);
 
     const soldPrices: number[] = [];
@@ -79,26 +81,44 @@ async function quickEbaySearch(cardName: string, cardSet: string, cardYear: stri
       activePrices.push(...extractPrices(text));
     });
 
-    if (soldPrices.length === 0 && activePrices.length === 0) return "";
+    const tcgPrices: number[] = [];
+    tcgResults.slice(0, 4).forEach((r: any) => {
+      const text = `${r.title || ""} ${r.description || ""} ${(r.markdown || "").substring(0, 600)}`;
+      tcgPrices.push(...extractPrices(text));
+    });
+
+    if (soldPrices.length === 0 && activePrices.length === 0 && tcgPrices.length === 0) return "";
 
     const medianSold = median(soldPrices);
     const medianActive = median(activePrices);
+    const medianTcg = median(tcgPrices);
 
-    let summary = "\n\n## REAL MARKET PRICE DATA (from eBay, retrieved today)\n";
+    let summary = "\n\n## REAL MARKET PRICE DATA (from eBay + TCGPlayer, retrieved today)\n";
     if (soldPrices.length > 0) {
-      summary += `SOLD prices: ${soldPrices.map((p) => `$${p.toFixed(2)}`).join(", ")} | Median: $${medianSold.toFixed(2)}\n`;
+      summary += `eBay SOLD prices: ${soldPrices.map((p) => `$${p.toFixed(2)}`).join(", ")} | Median: $${medianSold.toFixed(2)}\n`;
     }
     if (activePrices.length > 0) {
-      summary += `ACTIVE listing prices: ${activePrices.map((p) => `$${p.toFixed(2)}`).join(", ")} | Median: $${medianActive.toFixed(2)}\n`;
+      summary += `eBay ACTIVE prices: ${activePrices.map((p) => `$${p.toFixed(2)}`).join(", ")} | Median: $${medianActive.toFixed(2)}\n`;
     }
-    if (soldPrices.length > 0 && activePrices.length > 0) {
-      const blended = medianSold * 0.7 + medianActive * 0.3;
-      summary += `SUGGESTED VALUE: $${blended.toFixed(2)} (70% sold + 30% active)\n`;
+    if (tcgPrices.length > 0) {
+      summary += `TCGPlayer prices: ${tcgPrices.map((p) => `$${p.toFixed(2)}`).join(", ")} | Median: $${medianTcg.toFixed(2)}\n`;
+    }
+
+    // Compute blended value
+    const allMedians: { value: number; weight: number }[] = [];
+    if (soldPrices.length > 0) allMedians.push({ value: medianSold, weight: 0.5 });
+    if (tcgPrices.length > 0) allMedians.push({ value: medianTcg, weight: 0.3 });
+    if (activePrices.length > 0) allMedians.push({ value: medianActive, weight: 0.2 });
+
+    if (allMedians.length > 0) {
+      const totalWeight = allMedians.reduce((s, m) => s + m.weight, 0);
+      const blended = allMedians.reduce((s, m) => s + m.value * (m.weight / totalWeight), 0);
+      summary += `SUGGESTED VALUE: $${blended.toFixed(2)} (eBay sold 50% + TCGPlayer 30% + eBay active 20%)\n`;
     }
     summary += "Your estimated_value_low and estimated_value_high MUST reflect these real prices.\n";
     return summary;
   } catch (err) {
-    console.error("Quick eBay search failed:", err);
+    console.error("Quick market search failed:", err);
     return "";
   }
 }
@@ -199,10 +219,10 @@ serve(async (req) => {
       }
     }
 
-    // ===== STEP 2: Search eBay sold listings =====
-    let ebayContext = "";
+    // ===== STEP 2: Search eBay + TCGPlayer listings =====
+    let marketContext = "";
     if (cardId?.card_name) {
-      ebayContext = await quickEbaySearch(cardId.card_name, cardId.card_set || "", cardId.card_year || "");
+      marketContext = await quickMarketSearch(cardId.card_name, cardId.card_set || "", cardId.card_year || "");
     }
 
     // ===== STEP 3: Full quick scan with market data =====
@@ -211,14 +231,16 @@ serve(async (req) => {
     const systemPrompt = `You are a trading card identification and grading AI. Today's date is ${today}.
 
 CRITICAL PRICING RULES:
-${ebayContext ? `You have REAL eBay price data (sold + active listings) with extracted dollar amounts below.
+${marketContext ? `You have REAL market price data (eBay sold + active listings AND TCGPlayer) with extracted dollar amounts below.
 
 VALUATION FORMULA (MUST follow):
-1. Use the median SOLD price as your primary anchor (70% weight).
-2. Use the median ACTIVE listing price as secondary (30% weight).
-3. Adjust ±15% based on card condition relative to the listings.
-4. Set estimated_value_low = adjusted value × 0.85, estimated_value_high = adjusted value × 1.15.
-5. If real prices show $100+, your estimate MUST be in that range — NOT $5-15.
+1. Use the eBay median SOLD price as your primary anchor (50% weight).
+2. Use the TCGPlayer median price as secondary (30% weight).
+3. Use the eBay median ACTIVE listing price as tertiary (20% weight).
+4. Normalize weights to available sources and compute a weighted average.
+5. Adjust ±15% based on card condition relative to the listings.
+6. Set estimated_value_low = adjusted value × 0.85, estimated_value_high = adjusted value × 1.15.
+7. If real prices show $100+, your estimate MUST be in that range — NOT $5-15.
 Your estimates MUST match the real data provided.` : "You do NOT have real-time market data. Be CONSERVATIVE with value estimates. Provide wider ranges rather than confidently wrong narrow estimates. If unsure, set confidence below 50."}
 
 Analyze the card image and return ONLY a JSON object with these fields:
@@ -226,15 +248,15 @@ Analyze the card image and return ONLY a JSON object with these fields:
 - card_set: string (set/series name)  
 - card_year: string (year)
 - condition_grade: string (e.g. "NM 7", "MT 9", "EX 5")
-- estimated_value_low: number (USD - ${ebayContext ? "based on real eBay sold data" : "conservative low estimate"})
-- estimated_value_high: number (USD - ${ebayContext ? "based on real eBay sold data" : "conservative high estimate"})
-- confidence: number (0-100, ${ebayContext ? "higher since real data available" : "keep LOW if unsure about pricing"})
+- estimated_value_low: number (USD - ${marketContext ? "based on real market data" : "conservative low estimate"})
+- estimated_value_high: number (USD - ${marketContext ? "based on real market data" : "conservative high estimate"})
+- confidence: number (0-100, ${marketContext ? "higher since real data available" : "keep LOW if unsure about pricing"})
 - category: string (e.g. "Pokémon", "Sports Card", "Yu-Gi-Oh!", "Magic: The Gathering")
 
 Return ONLY valid JSON, no markdown, no explanation.`;
 
-    const userText = ebayContext
-      ? `Identify this trading card, estimate its condition grade, and provide a market value range based on the real eBay sold data provided.${ebayContext}`
+    const userText = marketContext
+      ? `Identify this trading card, estimate its condition grade, and provide a market value range based on the real market data provided.${marketContext}`
       : "Identify this trading card, estimate its condition grade, and provide a market value range. Be conservative if unsure about current prices.";
 
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
