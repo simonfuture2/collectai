@@ -203,17 +203,28 @@ interface AIAnalysis {
   verificationNote?: string;
 }
 
-// Mock price history data (in a real app, this would come from an API)
+// Generate mock price history as fallback
 const generatePriceHistory = (valueLow: number, valueHigh: number) => {
   const avgValue = (valueLow + valueHigh) / 2;
   const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   const currentMonth = new Date().getMonth();
   
-  return months.slice(0, currentMonth + 1).map((month, i) => ({
+  return months.slice(0, currentMonth + 1).map((month) => ({
     month,
     price: Math.round(avgValue * (0.85 + Math.random() * 0.3) * 100) / 100,
+    source: "simulated" as string,
   }));
 };
+
+interface PriceHistoryPoint {
+  month: string;
+  price: number;
+  source: string;
+  ebay_sold?: number;
+  ebay_active?: number;
+  tcgplayer?: number;
+  blended?: number;
+}
 
 export default function CardDetail() {
   const { id } = useParams<{ id: string }>();
