@@ -7,6 +7,136 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Helper: search eBay sold listings via Firecrawl
+async function searchEbaySoldListings(cardName: string, cardSet: string, cardYear: string): Promise<string> {
+  const FIRECRAWL_API_KEY = Deno.env.get("FIRECRAWL_API_KEY");
+  if (!FIRECRAWL_API_KEY) {
+    console.log("FIRECRAWL_API_KEY not available, skipping eBay search");
+    return "";
+  }
+
+  try {
+    const query = `${cardName} ${cardSet} ${cardYear} sold site:ebay.com`;
+    console.log("Firecrawl search query:", query);
+
+    const response = await fetch("https://api.firecrawl.dev/v1/search", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${FIRECRAWL_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        query,
+        limit: 10,
+        tbs: "qdr:m", // last month
+        scrapeOptions: { formats: ["markdown"] },
+      }),
+    });
+
+    if (!response.ok) {
+      console.error("Firecrawl search error:", response.status, await response.text());
+      return "";
+    }
+
+    const data = await response.json();
+    const results = data.data || [];
+
+    if (results.length === 0) {
+      console.log("No Firecrawl results found");
+      return "";
+    }
+
+    // Build a concise summary of eBay sold listings
+    const listings = results
+      .filter((r: any) => r.url?.includes("ebay.com"))
+      .slice(0, 8)
+      .map((r: any) => {
+        const title = r.title || "Unknown listing";
+        const url = r.url || "";
+        // Extract price from description/markdown if available
+        const content = (r.markdown || r.description || "").substring(0, 500);
+        return `- ${title}\n  URL: ${url}\n  Content: ${content}`;
+      })
+      .join("\n\n");
+
+    if (!listings) return "";
+
+    return `\n\n## REAL eBay Sold Listings Data (from web search, retrieved today)\nThese are ACTUAL recent eBay sold/completed listings. Use these as your PRIMARY pricing anchor:\n\n${listings}`;
+  } catch (err) {
+    console.error("Firecrawl search failed:", err);
+    return "";
+  }
+}
+
+// Helper: quick identification call to get card name/set/year from image
+async function identifyCard(
+  images: { label: string; url: string }[],
+  LOVABLE_API_KEY: string
+): Promise<{ card_name: string; card_set: string; card_year: string } | null> {
+  try {
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages: [
+          {
+            role: "system",
+            content: "You are a trading card identification expert. Look at this card image and identify ONLY the card name, set/series, and year. Return ONLY JSON.",
+          },
+          {
+            role: "user",
+            content: [
+              { type: "text", text: "Identify this card. Return only: card_name, card_set, card_year." },
+              ...images.slice(0, 1).map((img) => ({
+                type: "image_url" as const,
+                image_url: { url: img.url },
+              })),
+            ],
+          },
+        ],
+        tools: [
+          {
+            type: "function",
+            function: {
+              name: "identify_card",
+              description: "Return the card identification.",
+              parameters: {
+                type: "object",
+                properties: {
+                  card_name: { type: "string" },
+                  card_set: { type: "string" },
+                  card_year: { type: "string" },
+                },
+                required: ["card_name", "card_set", "card_year"],
+                additionalProperties: false,
+              },
+            },
+          },
+        ],
+        tool_choice: { type: "function", function: { name: "identify_card" } },
+      }),
+    });
+
+    if (!response.ok) {
+      console.error("Identification call failed:", response.status);
+      return null;
+    }
+
+    const data = await response.json();
+    const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
+    if (!toolCall?.function?.arguments) return null;
+
+    return JSON.parse(toolCall.function.arguments);
+  } catch (err) {
+    console.error("Card identification failed:", err);
+    return null;
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -45,7 +175,7 @@ serve(async (req) => {
 
     console.log("Authenticated user:", user.id);
 
-    // Credit check: use service role to read user_credits
+    // Credit check
     const supabaseAdmin = createClient(supabaseUrl, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '');
     const { data: creditsData } = await supabaseAdmin
       .from("user_credits")
@@ -98,7 +228,7 @@ serve(async (req) => {
       }
     }
 
-    // Validate ownership and file type for all images
+    // Validate ownership and file type
     const validExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
     for (const img of images) {
       try {
@@ -135,7 +265,32 @@ serve(async (req) => {
 
     console.log(`Analyzing ${images.length} image(s) for user:`, user.id);
 
-    const systemPrompt = `You are an expert trading card analyst, appraiser, and professional grader with deep knowledge of current trading card market prices. When shown an image of a trading card, you will:
+    // ===== STEP 1: Quick identification to get card name/set/year =====
+    console.log("Step 1: Identifying card...");
+    const cardId = await identifyCard(images, LOVABLE_API_KEY);
+    console.log("Card identified:", cardId);
+
+    // ===== STEP 2: Search eBay sold listings with Firecrawl =====
+    let ebayData = "";
+    if (cardId?.card_name) {
+      console.log("Step 2: Searching eBay sold listings...");
+      ebayData = await searchEbaySoldListings(
+        cardId.card_name,
+        cardId.card_set || "",
+        cardId.card_year || ""
+      );
+      console.log("eBay data found:", ebayData ? "Yes" : "No");
+    }
+
+    // ===== STEP 3: Full analysis with real market data =====
+    const today = new Date().toISOString().split("T")[0];
+
+    const systemPrompt = `You are an expert trading card analyst, appraiser, and professional grader. Today's date is ${today}.
+
+CRITICAL PRICING INSTRUCTIONS:
+${ebayData ? `You are provided with REAL recent eBay sold listing data below. You MUST use these actual sold prices as your PRIMARY valuation anchor. Do NOT rely on outdated training data for pricing. Extract actual dollar amounts from the eBay listings and use them to set your estimated value range.` : `You do NOT have access to real-time market data. Your training data may contain OUTDATED prices. Be VERY conservative with value estimates. If you are not confident about current market prices, set confidence to "low" and clearly state that values are estimates that may not reflect the current market. It is better to provide a wider range than to give a confidently wrong narrow range.`}
+
+When shown an image of a trading card, you will:
 
 1. IDENTIFY the card completely:
    - Card name (character, player, or item name)
@@ -184,7 +339,7 @@ serve(async (req) => {
    - Parallel/Refractor types
 
 4. PROVIDE DETAILED MARKET RESEARCH:
-   Based on your training data and knowledge of the trading card market, provide realistic pricing estimates:
+   ${ebayData ? "Use the REAL eBay sold listing data provided to anchor your pricing. Extract actual prices from the listings." : "Provide your best estimate but flag confidence as low if uncertain about current market prices."}
    
    a) eBay Market Data:
       - Recent sold prices for this specific card in similar condition
@@ -204,7 +359,7 @@ serve(async (req) => {
    
    d) Market Trend Analysis:
       - Is demand rising, falling, or stable?
-      - Any upcoming events that could affect price (anniversaries, new releases, etc.)
+      - Any upcoming events that could affect price
       - Collector sentiment
 
 5. PRICE FACTORS - Identify what's driving the value:
@@ -214,14 +369,14 @@ serve(async (req) => {
    - Historical significance
    - Current meta relevance (for playable cards)
 
-6. GRADED VALUE ESTIMATES - Provide estimated values if this card were professionally graded:
+6. GRADED VALUE ESTIMATES:
    For each major grading company (PSA, BGS, CGC, SGC), provide:
-   - Estimated value at the grade you assessed (raw card grade equivalent)
+   - Estimated value at the grade you assessed
    - Estimated value at PSA 10/BGS 10 (Gem Mint)
    - Estimated value at PSA 9/BGS 9.5 (Mint)
    - Estimated value at PSA 8/BGS 8.5 (Near Mint-Mint)
-   - Grading cost vs. potential value increase (is it worth grading?)
-   - Which grading company would maximize value for this specific card
+   - Grading cost vs. potential value increase
+   - Which grading company would maximize value
 
 Respond in JSON format with this structure:
 {
@@ -232,88 +387,78 @@ Respond in JSON format with this structure:
   "edition": "string",
   "rarity": "string",
   "cardNumber": "string or null",
-  "parallelVariant": "string or null (e.g., 'Refractor', 'Prizm Silver', 'Rainbow Rare')",
+  "parallelVariant": "string or null",
   "conditionGrade": "string (e.g., 'Near Mint (7)')",
   "conditionNotes": "string explaining condition assessment",
   "preGradingAnalysis": {
     "centering": {
-      "score": number (1-10),
-      "frontLeftRight": "string (e.g., '55/45')",
-      "frontTopBottom": "string (e.g., '50/50')",
-      "backLeftRight": "string (e.g., '60/40')",
-      "backTopBottom": "string (e.g., '55/45')",
-      "notes": "string with detailed centering observations",
+      "score": number,
+      "frontLeftRight": "string",
+      "frontTopBottom": "string",
+      "backLeftRight": "string",
+      "backTopBottom": "string",
+      "notes": "string",
       "psa10Eligible": boolean
     },
     "corners": {
-      "score": number (1-10),
-      "topLeft": "string describing condition",
-      "topRight": "string describing condition",
-      "bottomLeft": "string describing condition",
-      "bottomRight": "string describing condition",
-      "notes": "string with detailed corner observations"
+      "score": number,
+      "topLeft": "string",
+      "topRight": "string",
+      "bottomLeft": "string",
+      "bottomRight": "string",
+      "notes": "string"
     },
     "edges": {
-      "score": number (1-10),
-      "top": "string describing condition",
-      "bottom": "string describing condition",
-      "left": "string describing condition",
-      "right": "string describing condition",
-      "notes": "string with detailed edge observations"
+      "score": number,
+      "top": "string",
+      "bottom": "string",
+      "left": "string",
+      "right": "string",
+      "notes": "string"
     },
     "surface": {
-      "score": number (1-10),
-      "front": "string describing front surface",
-      "back": "string describing back surface",
-      "holoCondition": "string or null (for holo cards)",
-      "notes": "string with detailed surface observations"
+      "score": number,
+      "front": "string",
+      "back": "string",
+      "holoCondition": "string or null",
+      "notes": "string"
     },
-    "overallScore": number (average of all scores),
-    "predictedGrades": {
-      "psa": number,
-      "bgs": number,
-      "cgc": number,
-      "sgc": number
-    },
-    "bgsSubgrades": {
-      "centering": number,
-      "corners": number,
-      "edges": number,
-      "surface": number
-    },
-    "gradingRecommendation": "string (comprehensive recommendation)"
+    "overallScore": number,
+    "predictedGrades": { "psa": number, "bgs": number, "cgc": number, "sgc": number },
+    "bgsSubgrades": { "centering": number, "corners": number, "edges": number, "surface": number },
+    "gradingRecommendation": "string"
   },
-  "specialFeatures": ["array of special features"],
+  "specialFeatures": ["array"],
   "estimatedValueLow": number,
   "estimatedValueHigh": number,
   "valueCurrency": "USD",
   "ebayRecentSales": {
-    "description": "detailed description of recent eBay sold listings",
+    "description": "string",
     "averagePrice": number,
     "lowPrice": number,
     "highPrice": number,
-    "recentSalesCount": "string describing activity level",
-    "notableSales": ["array of notable recent sales with prices"]
+    "recentSalesCount": "string",
+    "notableSales": ["array"]
   },
   "tcgplayerPrice": {
     "marketPrice": number,
     "lowPrice": number,
     "midPrice": number, 
     "highPrice": number,
-    "description": "string describing TCGPlayer market"
+    "description": "string"
   },
   "psaPopulation": {
-    "description": "string about graded population",
+    "description": "string",
     "estimatedPopulation": "string",
-    "gradedPremium": "string describing premium for graded copies",
-    "recentGradedSales": ["array of recent graded sales if known"]
+    "gradedPremium": "string",
+    "recentGradedSales": ["array"]
   },
   "gradedValueEstimates": {
-    "currentGradeEstimate": "string describing what grade this card would likely receive",
+    "currentGradeEstimate": "string",
     "worthGrading": boolean,
-    "worthGradingReason": "string explaining if grading is worth the cost",
+    "worthGradingReason": "string",
     "recommendedGrader": "PSA" | "BGS" | "CGC" | "SGC",
-    "recommendedGraderReason": "string explaining why this grader is recommended",
+    "recommendedGraderReason": "string",
     "psa": {
       "estimatedGrade": number,
       "valueAtGrade": number,
@@ -331,7 +476,7 @@ Respond in JSON format with this structure:
       "valueAtBGS9": number,
       "gradingCost": number,
       "turnaroundTime": "string",
-      "blackLabelPotential": "string describing chance of black label"
+      "blackLabelPotential": "string"
     },
     "cgc": {
       "estimatedGrade": number,
@@ -352,14 +497,23 @@ Respond in JSON format with this structure:
       "turnaroundTime": "string"
     }
   },
-  "priceFactors": ["array of factors influencing the price"],
+  "priceFactors": ["array"],
   "valueTrend": "rising" | "stable" | "falling" | "unknown",
-  "trendReason": "string explaining why the trend",
+  "trendReason": "string",
   "confidence": "high" | "medium" | "low",
-  "confidenceReason": "string explaining confidence level",
-  "investmentOutlook": "string with brief investment perspective",
-  "additionalNotes": "string with any other relevant observations"
+  "confidenceReason": "string",
+  "investmentOutlook": "string",
+  "additionalNotes": "string",
+  "dataSource": "string (e.g., 'Real eBay sold data + AI analysis' or 'AI estimate only - no live market data')"
 }`;
+
+    const userMessage = images.length > 1
+      ? `I'm providing ${images.length} images of this collectible item (${images.map(i => i.label).join(", ")}). Please analyze all views together for a comprehensive identification, condition assessment, and value estimate.`
+      : "Please analyze this trading card image and provide a complete identification, condition assessment, and value estimate.";
+
+    const fullUserMessage = userMessage + ebayData;
+
+    console.log("Step 3: Full analysis with", ebayData ? "real eBay data" : "AI-only estimates");
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -368,18 +522,13 @@ Respond in JSON format with this structure:
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "google/gemini-2.5-pro",
         messages: [
           { role: "system", content: systemPrompt },
           {
             role: "user",
             content: [
-              {
-                type: "text",
-                text: images.length > 1
-                  ? `I'm providing ${images.length} images of this collectible item (${images.map(i => i.label).join(", ")}). Please analyze all views together for a comprehensive identification, condition assessment, and value estimate.`
-                  : "Please analyze this trading card image and provide a complete identification, condition assessment, and value estimate.",
-              },
+              { type: "text", text: fullUserMessage },
               ...images.map((img) => ({
                 type: "image_url" as const,
                 image_url: { url: img.url },
@@ -419,16 +568,14 @@ Respond in JSON format with this structure:
 
     console.log("AI response received for user:", user.id);
 
-    // Parse the JSON response from the AI FIRST before deducting credits
+    // Parse the JSON response
     let analysis;
     try {
-      // Extract JSON from the response (handle markdown code blocks)
       const jsonMatch = content.match(/```json\n?([\s\S]*?)\n?```/) || content.match(/\{[\s\S]*\}/);
       const jsonStr = jsonMatch ? (jsonMatch[1] || jsonMatch[0]) : content;
       analysis = JSON.parse(jsonStr);
     } catch (parseError) {
       console.error("Failed to parse AI response as JSON:", parseError);
-      // Return a structured error response without deducting credits
       analysis = {
         cardName: "Unable to identify",
         cardSet: "Unknown",
@@ -447,17 +594,25 @@ Respond in JSON format with this structure:
         valueTrend: "unknown",
         confidence: "low",
         additionalNotes: "The AI was unable to properly analyze this image. Please ensure the card is clearly visible and try again.",
+        dataSource: "Analysis failed",
       };
     }
 
-    // Atomically deduct credit for non-Pro users AFTER successful parsing
+    // Add data source info if not present
+    if (!analysis.dataSource) {
+      analysis.dataSource = ebayData
+        ? "Real eBay sold data + AI analysis"
+        : "AI estimate only - no live market data available";
+    }
+
+    // Deduct credit for non-Pro users
     if (!isPro) {
       const { data: remaining, error: deductError } = await supabaseAdmin.rpc("deduct_credit", {
         _user_id: user.id,
       });
 
       if (deductError || remaining === -1) {
-        console.error("Failed to deduct credit (race condition prevented):", deductError?.message);
+        console.error("Failed to deduct credit:", deductError?.message);
         return new Response(
           JSON.stringify({ error: "Insufficient credits. Please purchase credits or upgrade to Pro." }),
           { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }

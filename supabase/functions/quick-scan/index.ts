@@ -21,6 +21,51 @@ function isRateLimited(ip: string): boolean {
   return false;
 }
 
+// Helper: search eBay sold listings via Firecrawl for quick scan
+async function quickEbaySearch(cardName: string, cardSet: string, cardYear: string): Promise<string> {
+  const FIRECRAWL_API_KEY = Deno.env.get("FIRECRAWL_API_KEY");
+  if (!FIRECRAWL_API_KEY) return "";
+
+  try {
+    const query = `${cardName} ${cardSet} ${cardYear} sold site:ebay.com`;
+    console.log("Quick scan eBay search:", query);
+
+    const response = await fetch("https://api.firecrawl.dev/v1/search", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${FIRECRAWL_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        query,
+        limit: 5,
+        tbs: "qdr:m",
+      }),
+    });
+
+    if (!response.ok) {
+      console.error("Firecrawl quick search error:", response.status);
+      return "";
+    }
+
+    const data = await response.json();
+    const results = (data.data || [])
+      .filter((r: any) => r.url?.includes("ebay.com"))
+      .slice(0, 5);
+
+    if (results.length === 0) return "";
+
+    const listings = results
+      .map((r: any) => `- ${r.title || "Listing"}: ${(r.description || "").substring(0, 200)}`)
+      .join("\n");
+
+    return `\n\nREAL eBay sold listings found today:\n${listings}\nUse these prices as your PRIMARY value anchor.`;
+  } catch (err) {
+    console.error("Quick eBay search failed:", err);
+    return "";
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -47,7 +92,6 @@ serve(async (req) => {
       );
     }
 
-    // Limit image size (~5MB base64)
     if (imageBase64.length > 7_000_000) {
       return new Response(
         JSON.stringify({ error: "Image too large. Max 5MB." }),
@@ -62,7 +106,9 @@ serve(async (req) => {
     const mimeType = mimeMatch ? mimeMatch[1] : "image/jpeg";
     const cleanBase64 = imageBase64.replace(/^data:image\/\w+;base64,/, "");
 
-    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    // ===== STEP 1: Quick identification =====
+    console.log("Quick scan Step 1: Identifying card...");
+    const idResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${LOVABLE_API_KEY}`,
@@ -73,22 +119,93 @@ serve(async (req) => {
         messages: [
           {
             role: "system",
-            content: `You are a trading card identification and grading AI. Analyze the card image and return ONLY a JSON object with these fields:
-- card_name: string (full card name)
-- card_set: string (set/series name)  
-- card_year: string (year)
-- condition_grade: string (e.g. "NM 7", "MT 9", "EX 5")
-- estimated_value_low: number (USD)
-- estimated_value_high: number (USD)
-- confidence: number (0-100)
-- category: string (e.g. "Pokémon", "Sports Card", "Yu-Gi-Oh!", "Magic: The Gathering")
-
-Return ONLY valid JSON, no markdown, no explanation.`,
+            content: "Identify this trading card. Return ONLY card_name, card_set, card_year as JSON.",
           },
           {
             role: "user",
             content: [
-              { type: "text", text: "Identify this trading card, estimate its condition grade, and provide a market value range." },
+              { type: "text", text: "Identify this card." },
+              { type: "image_url", image_url: { url: `data:${mimeType};base64,${cleanBase64}` } },
+            ],
+          },
+        ],
+        tools: [
+          {
+            type: "function",
+            function: {
+              name: "identify_card",
+              description: "Return the card identification.",
+              parameters: {
+                type: "object",
+                properties: {
+                  card_name: { type: "string" },
+                  card_set: { type: "string" },
+                  card_year: { type: "string" },
+                },
+                required: ["card_name", "card_set", "card_year"],
+                additionalProperties: false,
+              },
+            },
+          },
+        ],
+        tool_choice: { type: "function", function: { name: "identify_card" } },
+      }),
+    });
+
+    let cardId: { card_name: string; card_set: string; card_year: string } | null = null;
+    if (idResponse.ok) {
+      const idData = await idResponse.json();
+      const toolCall = idData.choices?.[0]?.message?.tool_calls?.[0];
+      if (toolCall?.function?.arguments) {
+        cardId = JSON.parse(toolCall.function.arguments);
+        console.log("Card identified:", cardId);
+      }
+    }
+
+    // ===== STEP 2: Search eBay sold listings =====
+    let ebayContext = "";
+    if (cardId?.card_name) {
+      ebayContext = await quickEbaySearch(cardId.card_name, cardId.card_set || "", cardId.card_year || "");
+    }
+
+    // ===== STEP 3: Full quick scan with market data =====
+    const today = new Date().toISOString().split("T")[0];
+
+    const systemPrompt = `You are a trading card identification and grading AI. Today's date is ${today}.
+
+CRITICAL PRICING RULES:
+${ebayContext ? "You have REAL eBay sold listing data below. Use these actual sold prices as your PRIMARY value estimate. Do NOT use outdated training data when real prices are available." : "You do NOT have real-time market data. Be CONSERVATIVE with value estimates. Provide wider ranges rather than confidently wrong narrow estimates. If unsure, set confidence below 50."}
+
+Analyze the card image and return ONLY a JSON object with these fields:
+- card_name: string (full card name)
+- card_set: string (set/series name)  
+- card_year: string (year)
+- condition_grade: string (e.g. "NM 7", "MT 9", "EX 5")
+- estimated_value_low: number (USD - ${ebayContext ? "based on real eBay sold data" : "conservative low estimate"})
+- estimated_value_high: number (USD - ${ebayContext ? "based on real eBay sold data" : "conservative high estimate"})
+- confidence: number (0-100, ${ebayContext ? "higher since real data available" : "keep LOW if unsure about pricing"})
+- category: string (e.g. "Pokémon", "Sports Card", "Yu-Gi-Oh!", "Magic: The Gathering")
+
+Return ONLY valid JSON, no markdown, no explanation.`;
+
+    const userText = ebayContext
+      ? `Identify this trading card, estimate its condition grade, and provide a market value range based on the real eBay sold data provided.${ebayContext}`
+      : "Identify this trading card, estimate its condition grade, and provide a market value range. Be conservative if unsure about current prices.";
+
+    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages: [
+          { role: "system", content: systemPrompt },
+          {
+            role: "user",
+            content: [
+              { type: "text", text: userText },
               { type: "image_url", image_url: { url: `data:${mimeType};base64,${cleanBase64}` } },
             ],
           },
