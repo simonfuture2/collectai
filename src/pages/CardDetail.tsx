@@ -387,6 +387,16 @@ export default function CardDetail() {
                 {analysis.confidenceReason && (
                   <p className="text-xs text-muted-foreground">{analysis.confidenceReason}</p>
                 )}
+
+                {analysis.verificationNote && (
+                  <div className="flex items-start gap-2 p-3 rounded-lg bg-green-500/10 border border-green-500/20">
+                    <CheckCircle className="w-4 h-4 text-green-500 mt-0.5 shrink-0" />
+                    <div>
+                      <p className="text-xs font-medium text-foreground">AI Verification</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{analysis.verificationNote}</p>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
