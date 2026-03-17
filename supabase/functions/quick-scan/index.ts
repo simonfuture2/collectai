@@ -206,64 +206,6 @@ async function quickMarketSearch(cardId: CardIdentification): Promise<string> {
   }
 }
 
-// Claude verification of pricing
-async function verifyWithClaude(
-  cardId: CardIdentification,
-  estimatedLow: number,
-  estimatedHigh: number,
-  marketContext: string,
-  ANTHROPIC_API_KEY: string
-): Promise<{ verified_low: number; verified_high: number; verification_note: string } | null> {
-  try {
-    console.log("Running Claude price verification...");
-    const prompt = `You are a trading card price verification expert. Verify this estimate against the real market data.
-
-Card: ${cardId.card_name} ${cardId.card_number || ""} ${cardId.variant || ""} (${cardId.card_set || ""} ${cardId.card_year || ""})
-
-AI estimated value: $${estimatedLow.toFixed(2)} - $${estimatedHigh.toFixed(2)}
-
-${marketContext}
-
-TASK: Based ONLY on the real market data above, determine the correct value range for this card in raw Near Mint condition. 
-- If the AI estimate is wildly wrong (e.g., $5-50 when data shows $100+), CORRECT IT.
-- Your verified_low should be approximately the blended value × 0.85
-- Your verified_high should be approximately the blended value × 1.15
-- If no real data is available, return the AI's original estimate.
-
-Return ONLY valid JSON:
-{"verified_low": number, "verified_high": number, "verification_note": "brief explanation"}`;
-
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 512,
-        messages: [{ role: "user", content: prompt }],
-      }),
-    });
-
-    if (!response.ok) {
-      console.error("Claude verification failed:", response.status);
-      return null;
-    }
-
-    const data = await response.json();
-    const text = data.content?.[0]?.text;
-    if (!text) return null;
-
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) return null;
-    return JSON.parse(jsonMatch[0]);
-  } catch (err) {
-    console.error("Claude verification error:", err);
-    return null;
-  }
-}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -301,7 +243,6 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
-    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
 
     const mimeMatch = imageBase64.match(/^data:(image\/\w+);base64,/);
     const mimeType = mimeMatch ? mimeMatch[1] : "image/jpeg";
@@ -380,160 +321,137 @@ Be EXTREMELY specific. Do NOT return generic names. Include the card number and 
       marketContext = await quickMarketSearch(cardId);
     }
 
-    // ===== STEP 3: Full quick scan with market data using Gemini Pro =====
+    // ===== STEP 3: Use Claude for full analysis + pricing =====
+    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
+    if (!ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY not configured");
+
     const today = new Date().toISOString().split("T")[0];
+    const cardContext = cardId
+      ? `\nIdentified card: ${cardId.card_name} ${cardId.card_number || ""} (${cardId.card_set || ""}, ${cardId.card_year || ""}, ${cardId.variant || ""}, ${cardId.rarity || ""})`
+      : "";
 
-    const systemPrompt = `You are a trading card identification and grading AI. Today's date is ${today}.
+    const claudePrompt = `You are a trading card expert. Today is ${today}.
+${cardContext}
+${marketContext ? `\n${marketContext}` : "\nNo real-time market data available. Use your knowledge to estimate a fair value range."}
 
-CRITICAL PRICING RULES:
-${marketContext ? `You have REAL market price data (eBay sold + active listings AND TCGPlayer) with extracted dollar amounts below.
+Analyze this trading card image. Return a JSON object with these exact fields:
+- card_name: string (full name)
+- card_set: string (set/series)
+- card_year: string
+- condition_grade: string (e.g. "NM 7", "MT 9")
+- estimated_value_low: number (USD)
+- estimated_value_high: number (USD)
+- confidence: number (0-100)
+- category: string (e.g. "Pokémon", "Sports Card")
 
-VALUATION FORMULA (MUST follow):
-1. Use the eBay median SOLD price as your primary anchor (50% weight).
-2. Use the TCGPlayer median price as secondary (30% weight).
-3. Use the eBay median ACTIVE listing price as tertiary (20% weight).
-4. Normalize weights to available sources and compute a weighted average.
-5. Adjust ±15% based on card condition relative to the listings.
-6. Set estimated_value_low = adjusted value × 0.85, estimated_value_high = adjusted value × 1.15.
-7. If real prices show $100+, your estimate MUST be in that range — NOT $5-15.
-Your estimates MUST match the real data provided.` : "You do NOT have real-time market data. Be CONSERVATIVE with value estimates. Provide wider ranges rather than confidently wrong narrow estimates. If unsure, set confidence below 50."}
+${marketContext ? `CRITICAL: The SUGGESTED VALUE in the market data is the most reliable price. Use it:
+- estimated_value_low = SUGGESTED VALUE × 0.85 (rounded)
+- estimated_value_high = SUGGESTED VALUE × 1.15 (rounded)
+- If market data shows prices in the $50-200 range, your estimate MUST be in that range, NOT $5-25.` : "Be conservative but reasonable. Use your training knowledge of card values."}
 
-Analyze the card image and return ONLY a JSON object with these fields:
-- card_name: string (full card name including any variant designation)
-- card_set: string (set/series name)  
-- card_year: string (year)
-- condition_grade: string (e.g. "NM 7", "MT 9", "EX 5")
-- estimated_value_low: number (USD - ${marketContext ? "based on real market data" : "conservative low estimate"})
-- estimated_value_high: number (USD - ${marketContext ? "based on real market data" : "conservative high estimate"})
-- confidence: number (0-100, ${marketContext ? "higher since real data available" : "keep LOW if unsure about pricing"})
-- category: string (e.g. "Pokémon", "Sports Card", "Yu-Gi-Oh!", "Magic: The Gathering")
+Return ONLY the JSON object, no other text.`;
 
-Return ONLY valid JSON, no markdown, no explanation.`;
-
-    const userText = marketContext
-      ? `Identify this trading card, estimate its condition grade, and provide a market value range based on the real market data provided.${marketContext}`
-      : "Identify this trading card, estimate its condition grade, and provide a market value range. Be conservative if unsure about current prices.";
-
-    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    console.log("Quick scan Step 3: Sending to Claude for analysis...");
+    const claudeResponse = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
+        "x-api-key": ANTHROPIC_API_KEY,
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-pro",
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 1024,
         messages: [
-          { role: "system", content: systemPrompt },
           {
             role: "user",
             content: [
-              { type: "text", text: userText },
-              { type: "image_url", image_url: { url: `data:${mimeType};base64,${cleanBase64}` } },
+              {
+                type: "image",
+                source: {
+                  type: "base64",
+                  media_type: mimeType,
+                  data: cleanBase64,
+                },
+              },
+              { type: "text", text: claudePrompt },
             ],
           },
         ],
-        tools: [
-          {
-            type: "function",
-            function: {
-              name: "quick_scan_result",
-              description: "Return the quick scan result for a trading card.",
-              parameters: {
-                type: "object",
-                properties: {
-                  card_name: { type: "string" },
-                  card_set: { type: "string" },
-                  card_year: { type: "string" },
-                  condition_grade: { type: "string" },
-                  estimated_value_low: { type: "number" },
-                  estimated_value_high: { type: "number" },
-                  confidence: { type: "number" },
-                  category: { type: "string" },
-                },
-                required: ["card_name", "card_set", "card_year", "condition_grade", "estimated_value_low", "estimated_value_high", "confidence", "category"],
-                additionalProperties: false,
-              },
-            },
-          },
-        ],
-        tool_choice: { type: "function", function: { name: "quick_scan_result" } },
       }),
     });
 
-    if (!aiResponse.ok) {
-      const status = aiResponse.status;
-      const text = await aiResponse.text();
-      console.error("AI gateway error:", status, text);
-
-      if (status === 429) {
-        return new Response(
-          JSON.stringify({ error: "AI service is busy. Please try again in a moment." }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      if (status === 402) {
-        return new Response(
-          JSON.stringify({ error: "Service temporarily unavailable." }),
-          { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
+    if (!claudeResponse.ok) {
+      const status = claudeResponse.status;
+      const errText = await claudeResponse.text();
+      console.error("Claude API error:", status, errText);
       return new Response(
-        JSON.stringify({ error: "Failed to analyze card" }),
+        JSON.stringify({ error: "Failed to analyze card. Please try again." }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const aiData = await aiResponse.json();
-    const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
-    
-    if (!toolCall?.function?.arguments) {
-      console.error("Unexpected AI response:", JSON.stringify(aiData));
-      return new Response(
-        JSON.stringify({ error: "Could not identify this card. Try a clearer photo." }),
-        { status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    const claudeData = await claudeResponse.json();
+    const responseText = claudeData.content?.[0]?.text || "";
+    console.log("Claude raw response:", responseText.substring(0, 500));
+
+    // Extract JSON from Claude's response
+    let result: any;
+    try {
+      // Try direct parse first
+      result = JSON.parse(responseText);
+    } catch {
+      // Find JSON in mixed text
+      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        try {
+          result = JSON.parse(jsonMatch[0]);
+        } catch {
+          console.error("Failed to parse JSON from Claude response");
+          return new Response(
+            JSON.stringify({ error: "Could not identify this card. Try a clearer photo." }),
+            { status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+      } else {
+        console.error("No JSON found in Claude response:", responseText);
+        return new Response(
+          JSON.stringify({ error: "Could not identify this card. Try a clearer photo." }),
+          { status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
     }
 
-    const result = JSON.parse(toolCall.function.arguments);
-    console.log(`Gemini raw estimate: $${result.estimated_value_low}-$${result.estimated_value_high}, confidence: ${result.confidence}`);
+    // Ensure all required fields exist with defaults
+    result.card_name = result.card_name || cardId?.card_name || "Unknown Card";
+    result.card_set = result.card_set || cardId?.card_set || "Unknown Set";
+    result.card_year = result.card_year || cardId?.card_year || "";
+    result.condition_grade = result.condition_grade || "NM 7";
+    result.estimated_value_low = result.estimated_value_low ?? 0;
+    result.estimated_value_high = result.estimated_value_high ?? 0;
+    result.confidence = result.confidence ?? 50;
+    result.category = result.category || "Pokémon";
+
+    console.log(`Claude estimate: $${result.estimated_value_low}-$${result.estimated_value_high}, confidence: ${result.confidence}`);
 
     // ===== STEP 4: PROGRAMMATIC PRICE OVERRIDE from market data =====
     const blendedValue = extractBlendedValue(marketContext);
     if (blendedValue > 0) {
-      const origLow = result.estimated_value_low;
-      const origHigh = result.estimated_value_high;
-      result.estimated_value_low = Math.round(blendedValue * 0.85);
-      result.estimated_value_high = Math.round(blendedValue * 1.15);
-      result.confidence = Math.min(95, Math.max(result.confidence, 75));
-      console.log(`Programmatic override: blended=$${blendedValue.toFixed(2)}, $${origLow}-$${origHigh} → $${result.estimated_value_low}-$${result.estimated_value_high}`);
-    } else {
-      console.log("No blended value available — using Gemini estimate as-is");
-    }
-
-    // ===== STEP 5: Claude verification (secondary check) =====
-    console.log(`Claude check prerequisites: ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY ? "set" : "MISSING"}, marketContext=${marketContext ? `${marketContext.length} chars` : "empty"}, cardId=${cardId ? "set" : "null"}`);
-    if (ANTHROPIC_API_KEY && marketContext && cardId) {
-      const claudeResult = await verifyWithClaude(
-        cardId,
-        result.estimated_value_low,
-        result.estimated_value_high,
-        marketContext,
-        ANTHROPIC_API_KEY
-      );
-      if (claudeResult) {
-        const origLow = result.estimated_value_low;
-        const origHigh = result.estimated_value_high;
-        result.estimated_value_low = claudeResult.verified_low;
-        result.estimated_value_high = claudeResult.verified_high;
-        if (origLow !== claudeResult.verified_low || origHigh !== claudeResult.verified_high) {
-          console.log(`Claude corrected price: $${origLow}-$${origHigh} → $${claudeResult.verified_low}-$${claudeResult.verified_high}`);
-        }
-        console.log("Claude verification note:", claudeResult.verification_note);
+      const progLow = Math.round(blendedValue * 0.85);
+      const progHigh = Math.round(blendedValue * 1.15);
+      // Only override if Claude's estimate seems off (more than 2x different from blended)
+      const claudeMid = (result.estimated_value_low + result.estimated_value_high) / 2;
+      if (claudeMid < blendedValue * 0.5 || claudeMid > blendedValue * 2) {
+        console.log(`Programmatic override: Claude mid=$${claudeMid.toFixed(2)} vs blended=$${blendedValue.toFixed(2)} — overriding`);
+        result.estimated_value_low = progLow;
+        result.estimated_value_high = progHigh;
+        result.confidence = Math.min(95, Math.max(result.confidence, 75));
       } else {
-        console.log("Claude verification returned null — keeping programmatic estimate");
+        console.log(`Claude estimate aligns with market data (mid=$${claudeMid.toFixed(2)}, blended=$${blendedValue.toFixed(2)}) — keeping Claude's values`);
       }
     }
+
+    console.log(`Final result: $${result.estimated_value_low}-$${result.estimated_value_high}`);
 
     return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
