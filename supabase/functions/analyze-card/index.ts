@@ -406,7 +406,7 @@ When shown an image of a trading card, you will:
    - Parallel/Refractor types
 
 4. PROVIDE DETAILED MARKET RESEARCH:
-   ${ebayData ? "Use the REAL eBay sold listing data provided to anchor your pricing. Extract actual prices from the listings." : "Provide your best estimate but flag confidence as low if uncertain about current market prices."}
+   ${ebayData.summary ? "Use the REAL eBay price data (sold + active) provided. The extracted prices and computed medians are your valuation anchors." : "Provide your best estimate but flag confidence as low if uncertain about current market prices."}
    
    a) eBay Market Data:
       - Recent sold prices for this specific card in similar condition
