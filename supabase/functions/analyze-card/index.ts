@@ -675,7 +675,7 @@ Respond in JSON format with this structure:
   "confidenceReason": "string",
   "investmentOutlook": "string",
   "additionalNotes": "string",
-  "dataSource": "string (e.g., 'Real eBay sold data + AI analysis' or 'AI estimate only - no live market data')"
+  "dataSource": "string (e.g., 'Real eBay + TCGPlayer data + AI analysis' or 'AI estimate only - no live market data')"
 }`;
 
     const userMessage = images.length > 1
