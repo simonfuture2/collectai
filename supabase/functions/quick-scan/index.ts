@@ -231,14 +231,16 @@ serve(async (req) => {
     const systemPrompt = `You are a trading card identification and grading AI. Today's date is ${today}.
 
 CRITICAL PRICING RULES:
-${ebayContext ? `You have REAL eBay price data (sold + active listings) with extracted dollar amounts below.
+${marketContext ? `You have REAL market price data (eBay sold + active listings AND TCGPlayer) with extracted dollar amounts below.
 
 VALUATION FORMULA (MUST follow):
-1. Use the median SOLD price as your primary anchor (70% weight).
-2. Use the median ACTIVE listing price as secondary (30% weight).
-3. Adjust ±15% based on card condition relative to the listings.
-4. Set estimated_value_low = adjusted value × 0.85, estimated_value_high = adjusted value × 1.15.
-5. If real prices show $100+, your estimate MUST be in that range — NOT $5-15.
+1. Use the eBay median SOLD price as your primary anchor (50% weight).
+2. Use the TCGPlayer median price as secondary (30% weight).
+3. Use the eBay median ACTIVE listing price as tertiary (20% weight).
+4. Normalize weights to available sources and compute a weighted average.
+5. Adjust ±15% based on card condition relative to the listings.
+6. Set estimated_value_low = adjusted value × 0.85, estimated_value_high = adjusted value × 1.15.
+7. If real prices show $100+, your estimate MUST be in that range — NOT $5-15.
 Your estimates MUST match the real data provided.` : "You do NOT have real-time market data. Be CONSERVATIVE with value estimates. Provide wider ranges rather than confidently wrong narrow estimates. If unsure, set confidence below 50."}
 
 Analyze the card image and return ONLY a JSON object with these fields:
@@ -246,15 +248,15 @@ Analyze the card image and return ONLY a JSON object with these fields:
 - card_set: string (set/series name)  
 - card_year: string (year)
 - condition_grade: string (e.g. "NM 7", "MT 9", "EX 5")
-- estimated_value_low: number (USD - ${ebayContext ? "based on real eBay sold data" : "conservative low estimate"})
-- estimated_value_high: number (USD - ${ebayContext ? "based on real eBay sold data" : "conservative high estimate"})
-- confidence: number (0-100, ${ebayContext ? "higher since real data available" : "keep LOW if unsure about pricing"})
+- estimated_value_low: number (USD - ${marketContext ? "based on real market data" : "conservative low estimate"})
+- estimated_value_high: number (USD - ${marketContext ? "based on real market data" : "conservative high estimate"})
+- confidence: number (0-100, ${marketContext ? "higher since real data available" : "keep LOW if unsure about pricing"})
 - category: string (e.g. "Pokémon", "Sports Card", "Yu-Gi-Oh!", "Magic: The Gathering")
 
 Return ONLY valid JSON, no markdown, no explanation.`;
 
-    const userText = ebayContext
-      ? `Identify this trading card, estimate its condition grade, and provide a market value range based on the real eBay sold data provided.${ebayContext}`
+    const userText = marketContext
+      ? `Identify this trading card, estimate its condition grade, and provide a market value range based on the real market data provided.${marketContext}`
       : "Identify this trading card, estimate its condition grade, and provide a market value range. Be conservative if unsure about current prices.";
 
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {

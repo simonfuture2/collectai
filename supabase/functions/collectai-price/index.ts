@@ -208,8 +208,8 @@ Respond in JSON format:
 }`;
 
     const userText = imageUrl
-      ? `Identify this card and provide detailed current market pricing.${ebayData}`
-      : `Provide detailed market pricing for: ${cardName}${cardSet ? `, Set: ${cardSet}` : ""}${cardYear ? `, Year: ${cardYear}` : ""}${edition ? `, Edition: ${edition}` : ""}${rarity ? `, Rarity: ${rarity}` : ""}${condition ? `, Condition: ${condition}` : ""}${ebayData}`;
+      ? `Identify this card and provide detailed current market pricing.${marketData}`
+      : `Provide detailed market pricing for: ${cardName}${cardSet ? `, Set: ${cardSet}` : ""}${cardYear ? `, Year: ${cardYear}` : ""}${edition ? `, Edition: ${edition}` : ""}${rarity ? `, Rarity: ${rarity}` : ""}${condition ? `, Condition: ${condition}` : ""}${marketData}`;
 
     const userContent: any[] = [{ type: "text", text: userText }];
 
