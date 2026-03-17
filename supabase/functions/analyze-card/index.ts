@@ -22,22 +22,22 @@ function median(nums: number[]): number {
   return sorted.length % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
 }
 
-// Helper: search eBay via Firecrawl and return structured price data
-async function searchEbayPrices(
+// Helper: search market listings via Firecrawl and return structured price data
+async function searchMarketPrices(
   cardName: string,
   cardSet: string,
   cardYear: string
-): Promise<{ soldData: string; activeData: string; summary: string }> {
+): Promise<{ summary: string; hasData: boolean }> {
   const FIRECRAWL_API_KEY = Deno.env.get("FIRECRAWL_API_KEY");
-  const empty = { soldData: "", activeData: "", summary: "" };
+  const empty = { summary: "", hasData: false };
   if (!FIRECRAWL_API_KEY) {
-    console.log("FIRECRAWL_API_KEY not available, skipping eBay search");
+    console.log("FIRECRAWL_API_KEY not available, skipping market search");
     return empty;
   }
 
   const searchTerm = `${cardName} ${cardSet} ${cardYear}`.trim();
 
-  async function doSearch(query: string, limit: number) {
+  async function doSearch(query: string, limit: number, urlFilter?: string) {
     try {
       const response = await fetch("https://api.firecrawl.dev/v1/search", {
         method: "POST",
@@ -49,78 +49,181 @@ async function searchEbayPrices(
       });
       if (!response.ok) return [];
       const data = await response.json();
-      return (data.data || []).filter((r: any) => r.url?.includes("ebay.com"));
+      const results = data.data || [];
+      return urlFilter ? results.filter((r: any) => r.url?.includes(urlFilter)) : results;
     } catch {
       return [];
     }
   }
 
   try {
-    // Run sold + active searches in parallel
-    const [soldResults, activeResults] = await Promise.all([
-      doSearch(`${searchTerm} sold site:ebay.com`, 10),
-      doSearch(`${searchTerm} site:ebay.com`, 8),
+    // Run eBay sold, eBay active, and TCGPlayer searches in parallel
+    const [soldResults, activeResults, tcgResults] = await Promise.all([
+      doSearch(`${searchTerm} sold site:ebay.com`, 10, "ebay.com"),
+      doSearch(`${searchTerm} site:ebay.com`, 8, "ebay.com"),
+      doSearch(`${searchTerm} price site:tcgplayer.com`, 6, "tcgplayer.com"),
     ]);
 
-    console.log(`eBay results: ${soldResults.length} sold, ${activeResults.length} active`);
+    console.log(`Market results: ${soldResults.length} eBay sold, ${activeResults.length} eBay active, ${tcgResults.length} TCGPlayer`);
 
-    // Extract prices from sold listings
+    // Extract prices from eBay sold listings
     const soldPrices: number[] = [];
     const soldListings = soldResults.slice(0, 8).map((r: any) => {
       const text = `${r.title || ""} ${r.description || ""} ${(r.markdown || "").substring(0, 800)}`;
       const prices = extractPrices(text);
       soldPrices.push(...prices);
-      return `- ${r.title || "Listing"} | Prices found: ${prices.length > 0 ? prices.map((p) => `$${p.toFixed(2)}`).join(", ") : "none detected"}`;
+      return `- ${r.title || "Listing"} | Prices: ${prices.length > 0 ? prices.map((p) => `$${p.toFixed(2)}`).join(", ") : "none detected"}`;
     });
 
-    // Extract prices from active listings
+    // Extract prices from eBay active listings
     const activePrices: number[] = [];
     const activeListings = activeResults.slice(0, 6).map((r: any) => {
       const text = `${r.title || ""} ${r.description || ""} ${(r.markdown || "").substring(0, 800)}`;
       const prices = extractPrices(text);
       activePrices.push(...prices);
-      return `- ${r.title || "Listing"} | Prices found: ${prices.length > 0 ? prices.map((p) => `$${p.toFixed(2)}`).join(", ") : "none detected"}`;
+      return `- ${r.title || "Listing"} | Prices: ${prices.length > 0 ? prices.map((p) => `$${p.toFixed(2)}`).join(", ") : "none detected"}`;
     });
+
+    // Extract prices from TCGPlayer
+    const tcgPrices: number[] = [];
+    const tcgListings = tcgResults.slice(0, 5).map((r: any) => {
+      const text = `${r.title || ""} ${r.description || ""} ${(r.markdown || "").substring(0, 800)}`;
+      const prices = extractPrices(text);
+      tcgPrices.push(...prices);
+      return `- ${r.title || "Listing"} | Prices: ${prices.length > 0 ? prices.map((p) => `$${p.toFixed(2)}`).join(", ") : "none detected"}`;
+    });
+
+    if (soldPrices.length === 0 && activePrices.length === 0 && tcgPrices.length === 0) return empty;
 
     const medianSold = median(soldPrices);
     const medianActive = median(activePrices);
+    const medianTcg = median(tcgPrices);
 
-    let summary = "";
-    if (soldPrices.length > 0 || activePrices.length > 0) {
-      summary += "\n\n## MARKET PRICE DATA (extracted from real eBay listings today)\n";
-      if (soldPrices.length > 0) {
-        summary += `\nSOLD LISTINGS (last 30 days):\n`;
-        summary += `- All prices found: ${soldPrices.map((p) => `$${p.toFixed(2)}`).join(", ")}\n`;
-        summary += `- Median sold price: $${medianSold.toFixed(2)}\n`;
-        summary += `- Range: $${Math.min(...soldPrices).toFixed(2)} - $${Math.max(...soldPrices).toFixed(2)}\n`;
-        summary += `- Number of price points: ${soldPrices.length}\n`;
-        summary += `\nSold listing details:\n${soldListings.join("\n")}\n`;
-      }
-      if (activePrices.length > 0) {
-        summary += `\nACTIVE LISTINGS (current asking prices):\n`;
-        summary += `- All prices found: ${activePrices.map((p) => `$${p.toFixed(2)}`).join(", ")}\n`;
-        summary += `- Median asking price: $${medianActive.toFixed(2)}\n`;
-        summary += `- Range: $${Math.min(...activePrices).toFixed(2)} - $${Math.max(...activePrices).toFixed(2)}\n`;
-        summary += `\nActive listing details:\n${activeListings.join("\n")}\n`;
-      }
-      // Compute suggested value
-      if (soldPrices.length > 0 && activePrices.length > 0) {
-        const blended = medianSold * 0.7 + medianActive * 0.3;
-        summary += `\nSUGGESTED BLENDED VALUE: $${blended.toFixed(2)} (70% sold median + 30% active median)\n`;
-      } else if (soldPrices.length > 0) {
-        summary += `\nSUGGESTED VALUE ANCHOR: $${medianSold.toFixed(2)} (median of sold prices)\n`;
-      }
-      summary += `\nCRITICAL: Your estimatedValueLow and estimatedValueHigh MUST be within the range of these real prices. Do NOT ignore this data.\n`;
+    let summary = "\n\n## REAL MARKET PRICE DATA (retrieved today from multiple sources)\n";
+
+    if (soldPrices.length > 0) {
+      summary += `\n### eBay SOLD LISTINGS (last 30 days):\n`;
+      summary += `- All prices found: ${soldPrices.map((p) => `$${p.toFixed(2)}`).join(", ")}\n`;
+      summary += `- Median sold price: $${medianSold.toFixed(2)}\n`;
+      summary += `- Range: $${Math.min(...soldPrices).toFixed(2)} - $${Math.max(...soldPrices).toFixed(2)}\n`;
+      summary += `- Count: ${soldPrices.length} price points\n`;
+      summary += `\nDetails:\n${soldListings.join("\n")}\n`;
+    }
+    if (activePrices.length > 0) {
+      summary += `\n### eBay ACTIVE LISTINGS (current asking prices):\n`;
+      summary += `- All prices found: ${activePrices.map((p) => `$${p.toFixed(2)}`).join(", ")}\n`;
+      summary += `- Median asking price: $${medianActive.toFixed(2)}\n`;
+      summary += `- Range: $${Math.min(...activePrices).toFixed(2)} - $${Math.max(...activePrices).toFixed(2)}\n`;
+      summary += `\nDetails:\n${activeListings.join("\n")}\n`;
+    }
+    if (tcgPrices.length > 0) {
+      summary += `\n### TCGPlayer PRICES:\n`;
+      summary += `- All prices found: ${tcgPrices.map((p) => `$${p.toFixed(2)}`).join(", ")}\n`;
+      summary += `- Median TCGPlayer price: $${medianTcg.toFixed(2)}\n`;
+      summary += `- Range: $${Math.min(...tcgPrices).toFixed(2)} - $${Math.max(...tcgPrices).toFixed(2)}\n`;
+      summary += `\nDetails:\n${tcgListings.join("\n")}\n`;
     }
 
+    // Compute suggested value using all sources
+    const allMedians: { value: number; weight: number }[] = [];
+    if (soldPrices.length > 0) allMedians.push({ value: medianSold, weight: 0.5 });
+    if (activePrices.length > 0) allMedians.push({ value: medianActive, weight: 0.2 });
+    if (tcgPrices.length > 0) allMedians.push({ value: medianTcg, weight: 0.3 });
+
+    if (allMedians.length > 0) {
+      const totalWeight = allMedians.reduce((s, m) => s + m.weight, 0);
+      const blended = allMedians.reduce((s, m) => s + m.value * (m.weight / totalWeight), 0);
+      summary += `\n### SUGGESTED BLENDED VALUE: $${blended.toFixed(2)}`;
+      summary += `\n(Weights: eBay sold 50%, TCGPlayer 30%, eBay active 20% — normalized to available sources)\n`;
+    }
+
+    summary += `\nCRITICAL: Your estimatedValueLow and estimatedValueHigh MUST be within the range of these real prices. Do NOT ignore this data.\n`;
+
+    return { summary, hasData: true };
+  } catch (err) {
+    console.error("Market price search failed:", err);
+    return empty;
+  }
+}
+
+// Helper: AI verification of estimated value against market data
+async function verifyPriceWithAI(
+  analysis: any,
+  marketSummary: string,
+  LOVABLE_API_KEY: string
+): Promise<{ verifiedLow: number; verifiedHigh: number; verificationNote: string } | null> {
+  if (!marketSummary || !analysis?.estimatedValueLow) return null;
+
+  try {
+    console.log("Running AI price verification...");
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages: [
+          {
+            role: "system",
+            content: `You are a price verification AI. Your ONLY job is to check if a card's estimated value is reasonable given real market data. Be precise and numerical.`,
+          },
+          {
+            role: "user",
+            content: `A card analysis estimated this card at $${analysis.estimatedValueLow} - $${analysis.estimatedValueHigh}.
+
+Card: ${analysis.cardName || "Unknown"} (${analysis.cardSet || ""} ${analysis.cardYear || ""})
+Condition: ${analysis.conditionGrade || "Unknown"}
+
+Here is the REAL market data:
+${marketSummary}
+
+Verify if the estimate is reasonable. If the real data shows significantly different prices, correct the estimate. Return corrected values.`,
+          },
+        ],
+        tools: [
+          {
+            type: "function",
+            function: {
+              name: "verify_price",
+              description: "Return verified price range and a note about the verification.",
+              parameters: {
+                type: "object",
+                properties: {
+                  verified_low: { type: "number", description: "Corrected low estimate in USD" },
+                  verified_high: { type: "number", description: "Corrected high estimate in USD" },
+                  verification_note: { type: "string", description: "Brief explanation of any corrections made or confirmation that estimate is accurate" },
+                },
+                required: ["verified_low", "verified_high", "verification_note"],
+                additionalProperties: false,
+              },
+            },
+          },
+        ],
+        tool_choice: { type: "function", function: { name: "verify_price" } },
+      }),
+    });
+
+    if (!response.ok) {
+      console.error("Price verification failed:", response.status);
+      return null;
+    }
+
+    const data = await response.json();
+    const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
+    if (!toolCall?.function?.arguments) return null;
+
+    const result = JSON.parse(toolCall.function.arguments);
+    console.log("Price verification result:", result);
     return {
-      soldData: soldListings.join("\n"),
-      activeData: activeListings.join("\n"),
-      summary,
+      verifiedLow: result.verified_low,
+      verifiedHigh: result.verified_high,
+      verificationNote: result.verification_note,
     };
   } catch (err) {
-    console.error("eBay price search failed:", err);
-    return empty;
+    console.error("Price verification error:", err);
+    return null;
   }
 }
 
