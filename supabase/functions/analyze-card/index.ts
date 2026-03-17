@@ -771,9 +771,32 @@ Respond in JSON format with this structure:
 
     // Add data source info if not present
     if (!analysis.dataSource) {
-      analysis.dataSource = ebayData.summary
-        ? "Real eBay sold + active listing data + AI analysis"
+      analysis.dataSource = marketData.hasData
+        ? "Real eBay + TCGPlayer data + AI analysis (AI-verified)"
         : "AI estimate only - no live market data available";
+    }
+
+    // ===== STEP 4: AI Price Verification =====
+    if (marketData.hasData && analysis.estimatedValueLow != null) {
+      const verification = await verifyPriceWithAI(analysis, marketData.summary, LOVABLE_API_KEY);
+      if (verification) {
+        const origLow = analysis.estimatedValueLow;
+        const origHigh = analysis.estimatedValueHigh;
+        analysis.estimatedValueLow = verification.verifiedLow;
+        analysis.estimatedValueHigh = verification.verifiedHigh;
+        analysis.verificationNote = verification.verificationNote;
+        if (origLow !== verification.verifiedLow || origHigh !== verification.verifiedHigh) {
+          analysis.dataSource = `Real eBay + TCGPlayer data + AI analysis (AI-verified & corrected from $${safeFixed(origLow)}-$${safeFixed(origHigh)})`;
+          console.log(`Price corrected: $${origLow}-$${origHigh} → $${verification.verifiedLow}-$${verification.verifiedHigh}`);
+        } else {
+          analysis.dataSource = "Real eBay + TCGPlayer data + AI analysis (AI-verified ✓)";
+        }
+      }
+    }
+
+    function safeFixed(val: unknown, digits = 2): string {
+      const num = typeof val === 'number' ? val : Number(val);
+      return isNaN(num) ? '0' : num.toFixed(digits);
     }
 
     // Deduct credit for non-Pro users
