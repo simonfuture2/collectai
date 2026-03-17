@@ -200,6 +200,7 @@ interface AIAnalysis {
   investmentOutlook?: string;
   additionalNotes?: string;
   dataSource?: string;
+  verificationNote?: string;
 }
 
 // Mock price history data (in a real app, this would come from an API)
