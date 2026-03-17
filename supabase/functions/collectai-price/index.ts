@@ -145,17 +145,35 @@ serve(async (req) => {
   }
 
   try {
+    // Support both API key auth and Bearer token auth
     const COLLECTAI_API_KEY = Deno.env.get("COLLECTAI_API_KEY");
-    if (!COLLECTAI_API_KEY) {
-      throw new Error("COLLECTAI_API_KEY is not configured");
-    }
-
     const apiKey = req.headers.get("x-api-key");
-    if (!apiKey || apiKey !== COLLECTAI_API_KEY) {
+    const authHeader = req.headers.get("Authorization");
+    
+    const hasApiKey = apiKey && COLLECTAI_API_KEY && apiKey === COLLECTAI_API_KEY;
+    const hasBearerToken = authHeader?.startsWith("Bearer ");
+    
+    if (!hasApiKey && !hasBearerToken) {
       return new Response(
-        JSON.stringify({ error: "Unauthorized: Invalid or missing API key" }),
+        JSON.stringify({ error: "Unauthorized: Invalid or missing authentication" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
+    }
+
+    // Validate bearer token if used
+    if (!hasApiKey && hasBearerToken) {
+      const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2");
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+      const supabase = createClient(supabaseUrl, supabaseAnonKey);
+      const token = authHeader!.replace("Bearer ", "");
+      const { error: authError } = await supabase.auth.getUser(token);
+      if (authError) {
+        return new Response(
+          JSON.stringify({ error: "Unauthorized: Invalid token" }),
+          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
     }
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
