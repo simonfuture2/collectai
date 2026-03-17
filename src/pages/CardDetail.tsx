@@ -318,6 +318,89 @@ export default function CardDetail() {
     setSaving(false);
   };
 
+  const rescanPrices = async () => {
+    if (!card || !id) return;
+    setRescanning(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error("Please sign in to re-scan prices");
+        return;
+      }
+      const { data, error } = await supabase.functions.invoke("collectai-price", {
+        body: {
+          cardName: card.card_name || "",
+          cardSet: card.card_set || "",
+          cardYear: card.card_year || "",
+        },
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      if (error) throw error;
+
+      // Insert new price history rows
+      if (data?.extractedMarketData?.sources) {
+        const user = session.user;
+        const priceRows: any[] = [];
+        for (const src of data.extractedMarketData.sources) {
+          priceRows.push({
+            card_id: id,
+            user_id: user.id,
+            source: src.source,
+            median_price: src.median,
+            low_price: src.low,
+            high_price: src.high,
+            price_count: src.count,
+            raw_prices: src.prices,
+          });
+        }
+        if (data.extractedMarketData.blended) {
+          priceRows.push({
+            card_id: id,
+            user_id: user.id,
+            source: "blended",
+            median_price: data.extractedMarketData.blended.median,
+            low_price: data.extractedMarketData.blended.low,
+            high_price: data.extractedMarketData.blended.high,
+            price_count: 0,
+            raw_prices: [],
+          });
+        }
+        if (priceRows.length > 0) {
+          await supabase.from("price_history").insert(priceRows);
+        }
+
+        // Refresh price history display
+        const { data: priceData } = await supabase
+          .from("price_history")
+          .select("*")
+          .eq("card_id", id)
+          .order("recorded_at", { ascending: true });
+
+        if (priceData && priceData.length > 0) {
+          setHasRealPriceData(true);
+          const points: PriceHistoryPoint[] = priceData
+            .filter((p: any) => p.source === "blended" || p.source === "ebay_sold")
+            .map((p: any) => {
+              const d = new Date(p.recorded_at);
+              return {
+                month: d.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+                price: Number(p.median_price) || 0,
+                source: p.source,
+              };
+            });
+          if (points.length > 0) setPriceHistory(points);
+        }
+        toast.success("Prices updated with fresh market data!");
+      } else {
+        toast.error("No market data found for this card");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to re-scan prices");
+    } finally {
+      setRescanning(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
