@@ -326,16 +326,16 @@ serve(async (req) => {
     const cardId = await identifyCard(images, LOVABLE_API_KEY);
     console.log("Card identified:", cardId);
 
-    // ===== STEP 2: Search eBay sold listings with Firecrawl =====
-    let ebayData = "";
+    // ===== STEP 2: Search eBay sold + active listings with Firecrawl =====
+    let ebayData = { soldData: "", activeData: "", summary: "" };
     if (cardId?.card_name) {
-      console.log("Step 2: Searching eBay sold listings...");
-      ebayData = await searchEbaySoldListings(
+      console.log("Step 2: Searching eBay sold + active listings...");
+      ebayData = await searchEbayPrices(
         cardId.card_name,
         cardId.card_set || "",
         cardId.card_year || ""
       );
-      console.log("eBay data found:", ebayData ? "Yes" : "No");
+      console.log("eBay data found:", ebayData.summary ? "Yes" : "No");
     }
 
     // ===== STEP 3: Full analysis with real market data =====
