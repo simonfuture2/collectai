@@ -666,7 +666,18 @@ export default function CardDetail() {
                     <TrendingUp className="w-5 h-5 text-primary" />
                     <h2 className="font-display font-bold text-lg">Price History</h2>
                   </div>
-                  <span className="text-[10px] uppercase tracking-wider text-muted-foreground bg-muted px-2 py-0.5 rounded-full">Simulated</span>
+                  <div className="flex items-center gap-2">
+                    <span className={`text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                      hasRealPriceData
+                        ? "bg-green-500/15 text-green-600 dark:text-green-400"
+                        : "text-muted-foreground bg-muted"
+                    }`}>
+                      {hasRealPriceData ? "Real Data" : "Simulated"}
+                    </span>
+                    <Button variant="ghost" size="sm" onClick={rescanPrices} disabled={rescanning} className="h-7 px-2">
+                      <RefreshCw className={`w-3.5 h-3.5 ${rescanning ? "animate-spin" : ""}`} />
+                    </Button>
+                  </div>
                 </div>
                 <div className="h-[200px]">
                   <ResponsiveContainer width="100%" height="100%">
@@ -700,7 +711,9 @@ export default function CardDetail() {
                   </ResponsiveContainer>
                 </div>
                 <p className="text-xs text-muted-foreground mt-2 text-center">
-                  Based on AI market research and similar card sales
+                  {hasRealPriceData
+                    ? "Based on real eBay & TCGPlayer market data • Re-scan to add new data points"
+                    : "Based on AI market research • Scan again to build real price history"}
                 </p>
               </div>
 
