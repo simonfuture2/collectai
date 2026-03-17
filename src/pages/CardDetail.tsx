@@ -199,6 +199,7 @@ interface AIAnalysis {
   confidenceReason?: string;
   investmentOutlook?: string;
   additionalNotes?: string;
+  dataSource?: string;
 }
 
 // Mock price history data (in a real app, this would come from an API)
@@ -349,6 +350,44 @@ export default function CardDetail() {
                 <p className="text-xs text-muted-foreground">AI Assessed</p>
               </div>
             </div>
+
+            {/* Data Source & Confidence Badge */}
+            {analysis && (
+              <div className="bg-card border border-border rounded-xl p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <BarChart3 className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm font-medium text-foreground">Pricing Confidence</span>
+                  </div>
+                  <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${
+                    analysis.confidence === "high"
+                      ? "bg-green-500/15 text-green-600 dark:text-green-400 border border-green-500/25"
+                      : analysis.confidence === "medium"
+                      ? "bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/25"
+                      : "bg-red-500/15 text-red-600 dark:text-red-400 border border-red-500/25"
+                  }`}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${
+                      analysis.confidence === "high" ? "bg-green-500" : analysis.confidence === "medium" ? "bg-amber-500" : "bg-red-500"
+                    }`} />
+                    {analysis.confidence === "high" ? "High" : analysis.confidence === "medium" ? "Medium" : "Low"} Confidence
+                  </span>
+                </div>
+
+                {analysis.dataSource && (
+                  <div className="flex items-start gap-2 p-3 rounded-lg bg-muted/50">
+                    <Sparkles className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+                    <div>
+                      <p className="text-xs font-medium text-foreground">Data Source</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{analysis.dataSource}</p>
+                    </div>
+                  </div>
+                )}
+
+                {analysis.confidenceReason && (
+                  <p className="text-xs text-muted-foreground">{analysis.confidenceReason}</p>
+                )}
+              </div>
+            )}
 
             {/* Graded Value Estimates - Desktop only under photo */}
             <div className="hidden lg:block space-y-6">
