@@ -305,7 +305,7 @@ Respond in JSON format:
     }
 
     return new Response(
-      JSON.stringify({ success: true, source: "CollectAI", data: pricing }),
+      JSON.stringify({ success: true, source: "CollectAI", data: pricing, extractedMarketData: marketResult.extractedMarketData }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
