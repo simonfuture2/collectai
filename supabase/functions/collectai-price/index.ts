@@ -6,46 +6,90 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-api-key",
 };
 
-// Helper: search eBay sold listings via Firecrawl
+// Helper: extract dollar amounts from text
+function extractPrices(text: string): number[] {
+  const matches = text.match(/\$[\d,]+\.?\d*/g) || [];
+  return matches
+    .map((m) => parseFloat(m.replace(/[$,]/g, "")))
+    .filter((n) => n > 0.5 && n < 100000);
+}
+
+function median(nums: number[]): number {
+  if (nums.length === 0) return 0;
+  const sorted = [...nums].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+}
+
+// Helper: search eBay sold + active listings via Firecrawl
 async function searchEbayPrices(cardName: string, cardSet: string, cardYear: string): Promise<string> {
   const FIRECRAWL_API_KEY = Deno.env.get("FIRECRAWL_API_KEY");
   if (!FIRECRAWL_API_KEY) return "";
 
-  try {
-    const query = `${cardName} ${cardSet} ${cardYear} sold site:ebay.com`;
-    console.log("Price API eBay search:", query);
+  const searchTerm = `${cardName} ${cardSet} ${cardYear}`.trim();
 
-    const response = await fetch("https://api.firecrawl.dev/v1/search", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${FIRECRAWL_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        query,
-        limit: 10,
-        tbs: "qdr:m",
-        scrapeOptions: { formats: ["markdown"] },
-      }),
+  async function doSearch(query: string, limit: number) {
+    try {
+      const response = await fetch("https://api.firecrawl.dev/v1/search", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${FIRECRAWL_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ query, limit, tbs: "qdr:m", scrapeOptions: { formats: ["markdown"] } }),
+      });
+      if (!response.ok) return [];
+      const data = await response.json();
+      return (data.data || []).filter((r: any) => r.url?.includes("ebay.com"));
+    } catch {
+      return [];
+    }
+  }
+
+  try {
+    const [soldResults, activeResults] = await Promise.all([
+      doSearch(`${searchTerm} sold site:ebay.com`, 10),
+      doSearch(`${searchTerm} site:ebay.com`, 8),
+    ]);
+
+    console.log(`Price API eBay results: ${soldResults.length} sold, ${activeResults.length} active`);
+
+    const soldPrices: number[] = [];
+    soldResults.slice(0, 8).forEach((r: any) => {
+      const text = `${r.title || ""} ${r.description || ""} ${(r.markdown || "").substring(0, 800)}`;
+      soldPrices.push(...extractPrices(text));
     });
 
-    if (!response.ok) {
-      console.error("Firecrawl price search error:", response.status);
-      return "";
+    const activePrices: number[] = [];
+    activeResults.slice(0, 6).forEach((r: any) => {
+      const text = `${r.title || ""} ${r.description || ""} ${(r.markdown || "").substring(0, 800)}`;
+      activePrices.push(...extractPrices(text));
+    });
+
+    if (soldPrices.length === 0 && activePrices.length === 0) return "";
+
+    const medianSold = median(soldPrices);
+    const medianActive = median(activePrices);
+
+    let summary = "\n\n## REAL MARKET PRICE DATA (from eBay, retrieved today)\n";
+    if (soldPrices.length > 0) {
+      summary += `\nSOLD LISTINGS (last 30 days):\n`;
+      summary += `- Prices found: ${soldPrices.map((p) => `$${p.toFixed(2)}`).join(", ")}\n`;
+      summary += `- Median sold: $${medianSold.toFixed(2)}\n`;
+      summary += `- Range: $${Math.min(...soldPrices).toFixed(2)} - $${Math.max(...soldPrices).toFixed(2)}\n`;
     }
-
-    const data = await response.json();
-    const results = (data.data || [])
-      .filter((r: any) => r.url?.includes("ebay.com"))
-      .slice(0, 8);
-
-    if (results.length === 0) return "";
-
-    const listings = results
-      .map((r: any) => `- ${r.title || "Listing"}\n  ${(r.markdown || r.description || "").substring(0, 500)}`)
-      .join("\n\n");
-
-    return `\n\nREAL eBay Sold Listings (retrieved today):\n${listings}\nUse these as your PRIMARY pricing anchor.`;
+    if (activePrices.length > 0) {
+      summary += `\nACTIVE LISTINGS (current asking prices):\n`;
+      summary += `- Prices found: ${activePrices.map((p) => `$${p.toFixed(2)}`).join(", ")}\n`;
+      summary += `- Median asking: $${medianActive.toFixed(2)}\n`;
+      summary += `- Range: $${Math.min(...activePrices).toFixed(2)} - $${Math.max(...activePrices).toFixed(2)}\n`;
+    }
+    if (soldPrices.length > 0 && activePrices.length > 0) {
+      const blended = medianSold * 0.7 + medianActive * 0.3;
+      summary += `\nSUGGESTED BLENDED VALUE: $${blended.toFixed(2)} (70% sold + 30% active)\n`;
+    }
+    summary += "\nCRITICAL: Your estimatedValueLow/High MUST be within the range of these real prices.\n";
+    return summary;
   } catch (err) {
     console.error("Price eBay search failed:", err);
     return "";
