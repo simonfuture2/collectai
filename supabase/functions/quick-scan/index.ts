@@ -211,7 +211,15 @@ serve(async (req) => {
     const systemPrompt = `You are a trading card identification and grading AI. Today's date is ${today}.
 
 CRITICAL PRICING RULES:
-${ebayContext ? "You have REAL eBay sold listing data below. Use these actual sold prices as your PRIMARY value estimate. Do NOT use outdated training data when real prices are available." : "You do NOT have real-time market data. Be CONSERVATIVE with value estimates. Provide wider ranges rather than confidently wrong narrow estimates. If unsure, set confidence below 50."}
+${ebayContext ? `You have REAL eBay price data (sold + active listings) with extracted dollar amounts below.
+
+VALUATION FORMULA (MUST follow):
+1. Use the median SOLD price as your primary anchor (70% weight).
+2. Use the median ACTIVE listing price as secondary (30% weight).
+3. Adjust ±15% based on card condition relative to the listings.
+4. Set estimated_value_low = adjusted value × 0.85, estimated_value_high = adjusted value × 1.15.
+5. If real prices show $100+, your estimate MUST be in that range — NOT $5-15.
+Your estimates MUST match the real data provided.` : "You do NOT have real-time market data. Be CONSERVATIVE with value estimates. Provide wider ranges rather than confidently wrong narrow estimates. If unsure, set confidence below 50."}
 
 Analyze the card image and return ONLY a JSON object with these fields:
 - card_name: string (full card name)

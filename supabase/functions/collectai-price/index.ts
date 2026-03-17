@@ -142,7 +142,15 @@ serve(async (req) => {
     const systemPrompt = `You are an expert trading card market analyst. Today's date is ${today}.
 
 CRITICAL PRICING INSTRUCTIONS:
-${ebayData ? "You are provided with REAL recent eBay sold listing data. Use these actual sold prices as your PRIMARY pricing anchor. Extract real dollar amounts and base your estimates on them." : "You do NOT have real-time market data. Be conservative. Use wider price ranges and set confidence to 'low' if uncertain about current market prices."}
+${ebayData ? `You are provided with REAL eBay price data (sold + active listings) with extracted dollar amounts.
+
+VALUATION FORMULA (MUST follow):
+1. Use the median SOLD price as primary anchor (70% weight).
+2. Use the median ACTIVE listing price as secondary (30% weight).
+3. Adjust ±15% based on the card's condition relative to what's described in the listings.
+4. Set estimatedValueLow = adjusted value × 0.85, estimatedValueHigh = adjusted value × 1.15.
+5. If sold data shows cards at $100+, your estimate MUST reflect that — NOT $5-15.
+Your estimates MUST match the real data provided.` : "You do NOT have real-time market data. Be conservative. Use wider price ranges and set confidence to 'low' if uncertain about current market prices."}
 
 Respond in JSON format:
 {

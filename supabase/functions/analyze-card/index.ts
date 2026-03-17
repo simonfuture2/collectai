@@ -667,8 +667,8 @@ Respond in JSON format with this structure:
 
     // Add data source info if not present
     if (!analysis.dataSource) {
-      analysis.dataSource = ebayData
-        ? "Real eBay sold data + AI analysis"
+      analysis.dataSource = ebayData.summary
+        ? "Real eBay sold + active listing data + AI analysis"
         : "AI estimate only - no live market data available";
     }
 
