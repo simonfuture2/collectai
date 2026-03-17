@@ -1,47 +1,63 @@
 
 
-## Current State
+## Problem
 
-- **Lead generation page**: The partner signup page is at `/partners` (PartnerSignup.tsx). It captures name, email, phone, company, and message into the `leads` table. There's also the QuickScanChallenge on the landing page for anonymous lead gen.
-- **Landing page header**: Only has logo + Sign In button. No navigation links to Partners, How It Works, or other pages.
-- **No lead magnet / digital product**: There's no email capture mechanism that offers a free digital product in exchange for an email address.
+The AI is returning wildly inaccurate value estimates (e.g., $5-15 when eBay sold comps are $125) because:
+
+1. **No real-time data**: Both `analyze-card` and `quick-scan` rely purely on the AI model's training data for pricing — the model has no access to current market data and its knowledge cutoff means prices are stale or hallucinated.
+2. **No grounding instruction**: The prompts don't tell the AI to account for today's date or emphasize using the most current data possible.
+3. **No web search**: The system never fetches actual eBay sold listings or any live pricing source.
 
 ## Plan
 
-### 1. Add navigation links to landing page header
+### 1. Add web search for real market prices (eBay sold listings)
 
-Add "How It Works" and "Partners" links to the Landing page header between the logo and Sign In button. On mobile, these can be compact links or a simple nav bar.
+Before calling the AI for analysis, use Firecrawl (already available as a connector option) or the Lovable AI's built-in web search/grounding to fetch **actual recent eBay sold listings** for the card. This real data gets injected into the AI prompt so estimates are anchored to reality.
 
-### 2. Create a lead magnet digital product + email capture
+**Approach**: Use a two-step process in `analyze-card`:
+- **Step 1**: Quick AI call to identify the card (name, set, year) — lightweight, no pricing
+- **Step 2**: Search eBay sold listings using Firecrawl search (e.g., `"card name set year sold" site:ebay.com`)
+- **Step 3**: Full AI analysis call with the real eBay data injected into the prompt context
 
-Create a free downloadable guide — something like **"The Collector's Card Grading Cheat Sheet"** — a PDF-style resource that provides real value (grading terminology, what PSA/BGS grades mean, photo tips, value ranges by condition). Users enter their email to receive it.
+For `quick-scan`, do the same two-step approach but lighter weight.
 
-**Implementation:**
-- Create a new `LeadMagnet` component embedded on the landing page (between features and pricing sections)
-- The component shows a compelling preview of the guide with an email capture form
-- On submit, call a new `lead-magnet` edge function that:
-  - Validates the email
-  - Inserts into the `leads` table with `source: 'lead_magnet'`
-  - Sends the digital guide via SendGrid to the captured email
-  - Returns success
-- The guide content will be an HTML email with the cheat sheet content inline (no PDF hosting needed — the email IS the product)
+### 2. Update prompts with date awareness and pricing anchors
 
-**Database change:**
-- The `leads` table `source` column is an enum (`lead_source`). We need to add `'lead_magnet'` as a new enum value.
+Both functions' system prompts will be updated to:
+- Include today's date explicitly: `"Today's date is ${new Date().toISOString().split('T')[0]}"`
+- Instruct the AI: "Base your value estimates ONLY on the provided market data. Do NOT guess prices from training data."
+- Include the actual eBay sold data in the user message
 
-### 3. Files to create/modify
+### 3. Upgrade model for pricing accuracy
 
-| File | Action |
-|------|--------|
-| `src/pages/Landing.tsx` | Add nav links (Partners, How It Works) to header; add LeadMagnet section |
-| `src/components/LeadMagnet.tsx` | New — email capture component with guide preview |
-| `supabase/functions/lead-magnet/index.ts` | New — validates email, inserts lead, sends guide email via SendGrid |
-| DB migration | Add `'lead_magnet'` to `lead_source` enum |
+Switch from `google/gemini-2.5-flash` to `google/gemini-2.5-pro` for the full `analyze-card` function — the pro model is better at reasoning about pricing data. Keep flash for quick-scan step 1 (identification only).
 
-### Technical Details
+### Technical Changes
 
-- The `lead_source` enum currently has values used by the system. Adding `'lead_magnet'` requires an `ALTER TYPE` migration.
-- The edge function reuses the existing `SENDGRID_API_KEY` and `SENDGRID_FROM_EMAIL` secrets.
-- The guide email will contain a well-formatted HTML "cheat sheet" covering: grade scale (1-10), condition factors (centering, edges, corners, surface), quick tips, and a CTA back to CollectAI.
-- No new secrets or external dependencies needed.
+**File: `supabase/functions/analyze-card/index.ts`**
+- Add Step 1: lightweight identification call (card name + set + year only) using flash model
+- Add Step 2: Firecrawl search for `"{card_name} {card_set} {card_year} sold" site:ebay.com` to get real sold prices
+- Add Step 3: inject eBay results + today's date into the full analysis prompt
+- Update system prompt to say: "You are provided with REAL recent eBay sold listing data below. Use these prices as your primary valuation anchor. Today's date is {date}."
+- Switch model to `google/gemini-2.5-pro`
+
+**File: `supabase/functions/quick-scan/index.ts`**
+- Add today's date to system prompt
+- Add instruction: "Provide conservative estimates. If unsure about current market value, indicate low confidence rather than guessing."
+- Optionally add a quick Firecrawl search step (if latency is acceptable for quick scan)
+
+**Connector**: Connect Firecrawl for eBay search capability (or fall back to AI-only with strong date grounding if Firecrawl isn't connected)
+
+### Fallback Strategy
+
+If Firecrawl isn't available or search fails:
+- Still inject today's date
+- Add explicit prompt: "Your training data may have outdated prices. Clearly state that values are estimates and may not reflect current market. Set confidence to 'low' for pricing."
+- The AI disclaimer component already exists for the frontend
+
+### Summary of Impact
+
+- **analyze-card**: Real eBay data → accurate $125 range instead of $5-15 hallucination
+- **quick-scan**: Date-aware + conservative prompting → less misleading estimates
+- **Both**: Model knows today's date, anchors to real data when available
 
