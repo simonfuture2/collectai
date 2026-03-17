@@ -6,12 +6,23 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-api-key",
 };
 
-// Helper: extract dollar amounts from text
+// Helper: extract dollar amounts from text, filtering noise
 function extractPrices(text: string): number[] {
-  const matches = text.match(/\$[\d,]+\.?\d*/g) || [];
+  const cleaned = text.replace(/\$[\d,]+\.?\d*\s*(shipping|ship|s\/h|postage|delivery)/gi, "");
+  const matches = cleaned.match(/\$[\d,]+\.?\d*/g) || [];
   return matches
     .map((m) => parseFloat(m.replace(/[$,]/g, "")))
-    .filter((n) => n > 0.5 && n < 100000);
+    .filter((n) => n > 0.99 && n < 100000);
+}
+
+// IQR-based outlier filtering
+function filterOutliers(prices: number[]): number[] {
+  if (prices.length < 4) return prices;
+  const sorted = [...prices].sort((a, b) => a - b);
+  const q1 = sorted[Math.floor(sorted.length * 0.25)];
+  const q3 = sorted[Math.floor(sorted.length * 0.75)];
+  const iqr = q3 - q1;
+  return prices.filter((p) => p >= q1 - 1.5 * iqr && p <= q3 + 1.5 * iqr);
 }
 
 function median(nums: number[]): number {
@@ -35,13 +46,19 @@ interface ExtractedMarketData {
   blended: { median: number; low: number; high: number } | null;
 }
 
-// Helper: search eBay + TCGPlayer via Firecrawl
+// Build search terms with specificity
+function buildSearchTerms(cardName: string, cardSet: string, cardYear: string): { specific: string; broad: string } {
+  const specific = `${cardName} ${cardSet} ${cardYear}`.trim();
+  const broad = `${cardName} ${cardSet}`.trim();
+  return { specific, broad };
+}
+
 async function searchMarketPrices(cardName: string, cardSet: string, cardYear: string): Promise<{ summary: string; extractedMarketData: ExtractedMarketData }> {
   const FIRECRAWL_API_KEY = Deno.env.get("FIRECRAWL_API_KEY");
   const emptyMarket: ExtractedMarketData = { sources: [], blended: null };
   if (!FIRECRAWL_API_KEY) return { summary: "", extractedMarketData: emptyMarket };
 
-  const searchTerm = `${cardName} ${cardSet} ${cardYear}`.trim();
+  const { specific } = buildSearchTerms(cardName, cardSet, cardYear);
 
   async function doSearch(query: string, limit: number, urlFilter?: string) {
     try {
@@ -64,30 +81,33 @@ async function searchMarketPrices(cardName: string, cardSet: string, cardYear: s
 
   try {
     const [soldResults, activeResults, tcgResults] = await Promise.all([
-      doSearch(`${searchTerm} sold site:ebay.com`, 10, "ebay.com"),
-      doSearch(`${searchTerm} site:ebay.com`, 8, "ebay.com"),
-      doSearch(`${searchTerm} price site:tcgplayer.com`, 6, "tcgplayer.com"),
+      doSearch(`"${specific}" sold site:ebay.com`, 10, "ebay.com"),
+      doSearch(`"${specific}" site:ebay.com`, 8, "ebay.com"),
+      doSearch(`"${specific}" price site:tcgplayer.com`, 6, "tcgplayer.com"),
     ]);
 
     console.log(`Price API results: ${soldResults.length} eBay sold, ${activeResults.length} eBay active, ${tcgResults.length} TCGPlayer`);
 
-    const soldPrices: number[] = [];
+    let soldPrices: number[] = [];
     soldResults.slice(0, 8).forEach((r: any) => {
       const text = `${r.title || ""} ${r.description || ""} ${(r.markdown || "").substring(0, 800)}`;
       soldPrices.push(...extractPrices(text));
     });
+    soldPrices = filterOutliers(soldPrices);
 
-    const activePrices: number[] = [];
+    let activePrices: number[] = [];
     activeResults.slice(0, 6).forEach((r: any) => {
       const text = `${r.title || ""} ${r.description || ""} ${(r.markdown || "").substring(0, 800)}`;
       activePrices.push(...extractPrices(text));
     });
+    activePrices = filterOutliers(activePrices);
 
-    const tcgPrices: number[] = [];
+    let tcgPrices: number[] = [];
     tcgResults.slice(0, 5).forEach((r: any) => {
       const text = `${r.title || ""} ${r.description || ""} ${(r.markdown || "").substring(0, 800)}`;
       tcgPrices.push(...extractPrices(text));
     });
+    tcgPrices = filterOutliers(tcgPrices);
 
     if (soldPrices.length === 0 && activePrices.length === 0 && tcgPrices.length === 0) return { summary: "", extractedMarketData: emptyMarket };
 
@@ -95,7 +115,6 @@ async function searchMarketPrices(cardName: string, cardSet: string, cardYear: s
     const medianActive = median(activePrices);
     const medianTcg = median(tcgPrices);
 
-    // Build structured data
     const sources: MarketSourceData[] = [];
     if (soldPrices.length > 0) sources.push({ source: "ebay_sold", median: medianSold, low: Math.min(...soldPrices), high: Math.max(...soldPrices), count: soldPrices.length, prices: soldPrices });
     if (activePrices.length > 0) sources.push({ source: "ebay_active", median: medianActive, low: Math.min(...activePrices), high: Math.max(...activePrices), count: activePrices.length, prices: activePrices });
@@ -108,19 +127,21 @@ async function searchMarketPrices(cardName: string, cardSet: string, cardYear: s
 
     let blended: ExtractedMarketData["blended"] = null;
     let summary = "\n\n## REAL MARKET PRICE DATA (from eBay + TCGPlayer, retrieved today)\n";
+    summary += `Card searched: ${specific}\n`;
+    
     if (soldPrices.length > 0) {
       summary += `\neBay SOLD (last 30 days):\n`;
-      summary += `- Prices: ${soldPrices.map((p) => `$${p.toFixed(2)}`).join(", ")}\n`;
+      summary += `- Filtered prices: ${soldPrices.map((p) => `$${p.toFixed(2)}`).join(", ")}\n`;
       summary += `- Median sold: $${medianSold.toFixed(2)} | Range: $${Math.min(...soldPrices).toFixed(2)} - $${Math.max(...soldPrices).toFixed(2)}\n`;
     }
     if (activePrices.length > 0) {
       summary += `\neBay ACTIVE:\n`;
-      summary += `- Prices: ${activePrices.map((p) => `$${p.toFixed(2)}`).join(", ")}\n`;
+      summary += `- Filtered prices: ${activePrices.map((p) => `$${p.toFixed(2)}`).join(", ")}\n`;
       summary += `- Median asking: $${medianActive.toFixed(2)} | Range: $${Math.min(...activePrices).toFixed(2)} - $${Math.max(...activePrices).toFixed(2)}\n`;
     }
     if (tcgPrices.length > 0) {
       summary += `\nTCGPlayer:\n`;
-      summary += `- Prices: ${tcgPrices.map((p) => `$${p.toFixed(2)}`).join(", ")}\n`;
+      summary += `- Filtered prices: ${tcgPrices.map((p) => `$${p.toFixed(2)}`).join(", ")}\n`;
       summary += `- Median: $${medianTcg.toFixed(2)} | Range: $${Math.min(...tcgPrices).toFixed(2)} - $${Math.max(...tcgPrices).toFixed(2)}\n`;
     }
 
@@ -145,7 +166,6 @@ serve(async (req) => {
   }
 
   try {
-    // Support both API key auth and Bearer token auth
     const COLLECTAI_API_KEY = Deno.env.get("COLLECTAI_API_KEY");
     const apiKey = req.headers.get("x-api-key");
     const authHeader = req.headers.get("Authorization");
@@ -160,7 +180,6 @@ serve(async (req) => {
       );
     }
 
-    // Validate bearer token if used
     if (!hasApiKey && hasBearerToken) {
       const { createClient } = await import("npm:@supabase/supabase-js@2");
       const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -177,9 +196,9 @@ serve(async (req) => {
     }
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
-    }
+    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+
+    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
 
     const { cardName, cardSet, cardYear, edition, rarity, condition, imageUrl } = await req.json();
 
@@ -192,7 +211,6 @@ serve(async (req) => {
 
     console.log("CollectAI Price API called for:", cardName || "image-based lookup");
 
-    // Search eBay + TCGPlayer for real pricing data
     let marketResult = { summary: "", extractedMarketData: { sources: [], blended: null } as ExtractedMarketData };
     if (cardName) {
       marketResult = await searchMarketPrices(cardName, cardSet || "", cardYear || "");
@@ -223,31 +241,14 @@ Respond in JSON format:
   "estimatedValueLow": number,
   "estimatedValueHigh": number,
   "valueCurrency": "USD",
-  "ebayRecentSales": {
-    "averagePrice": number,
-    "lowPrice": number,
-    "highPrice": number,
-    "recentSalesCount": "string",
-    "notableSales": ["array"]
-  },
-  "tcgplayerPrice": {
-    "marketPrice": number,
-    "lowPrice": number,
-    "midPrice": number,
-    "highPrice": number
-  },
-  "gradedValues": {
-    "psa10": number,
-    "psa9": number,
-    "psa8": number,
-    "bgs10": number,
-    "bgs9_5": number
-  },
+  "ebayRecentSales": { "averagePrice": number, "lowPrice": number, "highPrice": number, "recentSalesCount": "string", "notableSales": ["array"] },
+  "tcgplayerPrice": { "marketPrice": number, "lowPrice": number, "midPrice": number, "highPrice": number },
+  "gradedValues": { "psa10": number, "psa9": number, "psa8": number, "bgs10": number, "bgs9_5": number },
   "valueTrend": "rising" | "stable" | "falling" | "unknown",
   "trendReason": "string",
-  "priceFactors": ["array of factors"],
+  "priceFactors": ["array"],
   "confidence": "high" | "medium" | "low",
-  "dataSource": "string describing where pricing data came from"
+  "dataSource": "string"
 }`;
 
     const userText = imageUrl
@@ -302,6 +303,53 @@ Respond in JSON format:
         JSON.stringify({ error: "Failed to parse pricing data" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
+    }
+
+    // Claude verification if available
+    if (ANTHROPIC_API_KEY && marketData && pricing.estimatedValueLow != null) {
+      try {
+        console.log("Running Claude price verification for API...");
+        const verifyPrompt = `Verify this trading card price estimate against real market data.
+
+Card: ${cardName} (${cardSet || ""} ${cardYear || ""})
+AI estimate: $${pricing.estimatedValueLow} - $${pricing.estimatedValueHigh}
+
+${marketData}
+
+If the estimate is wrong based on the data, correct it. Return ONLY JSON:
+{"verified_low": number, "verified_high": number, "verification_note": "brief explanation"}`;
+
+        const claudeResp = await fetch("https://api.anthropic.com/v1/messages", {
+          method: "POST",
+          headers: {
+            "x-api-key": ANTHROPIC_API_KEY,
+            "anthropic-version": "2023-06-01",
+            "content-type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "claude-sonnet-4-20250514",
+            max_tokens: 512,
+            messages: [{ role: "user", content: verifyPrompt }],
+          }),
+        });
+
+        if (claudeResp.ok) {
+          const claudeData = await claudeResp.json();
+          const claudeText = claudeData.content?.[0]?.text;
+          if (claudeText) {
+            const match = claudeText.match(/\{[\s\S]*\}/);
+            if (match) {
+              const verified = JSON.parse(match[0]);
+              pricing.estimatedValueLow = verified.verified_low;
+              pricing.estimatedValueHigh = verified.verified_high;
+              pricing.verificationNote = verified.verification_note;
+              console.log("Claude verified:", verified.verification_note);
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Claude verification failed:", err);
+      }
     }
 
     return new Response(

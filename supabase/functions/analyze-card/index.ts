@@ -7,12 +7,23 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Helper: extract dollar amounts from text
+// Helper: extract dollar amounts from text, filtering noise
 function extractPrices(text: string): number[] {
-  const matches = text.match(/\$[\d,]+\.?\d*/g) || [];
+  const cleaned = text.replace(/\$[\d,]+\.?\d*\s*(shipping|ship|s\/h|postage|delivery)/gi, "");
+  const matches = cleaned.match(/\$[\d,]+\.?\d*/g) || [];
   return matches
     .map((m) => parseFloat(m.replace(/[$,]/g, "")))
-    .filter((n) => n > 0.5 && n < 100000);
+    .filter((n) => n > 0.99 && n < 100000);
+}
+
+// IQR-based outlier filtering
+function filterOutliers(prices: number[]): number[] {
+  if (prices.length < 4) return prices;
+  const sorted = [...prices].sort((a, b) => a - b);
+  const q1 = sorted[Math.floor(sorted.length * 0.25)];
+  const q3 = sorted[Math.floor(sorted.length * 0.75)];
+  const iqr = q3 - q1;
+  return prices.filter((p) => p >= q1 - 1.5 * iqr && p <= q3 + 1.5 * iqr);
 }
 
 function median(nums: number[]): number {
@@ -20,6 +31,20 @@ function median(nums: number[]): number {
   const sorted = [...nums].sort((a, b) => a - b);
   const mid = Math.floor(sorted.length / 2);
   return sorted.length % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+}
+
+function safeFixed(val: unknown, digits = 2): string {
+  const num = typeof val === 'number' ? val : Number(val);
+  return isNaN(num) ? '0' : num.toFixed(digits);
+}
+
+interface CardIdentification {
+  card_name: string;
+  card_number: string;
+  card_set: string;
+  card_year: string;
+  variant: string;
+  rarity: string;
 }
 
 interface MarketSourceData {
@@ -36,11 +61,22 @@ interface ExtractedMarketData {
   blended: { median: number; low: number; high: number } | null;
 }
 
+// Build specific search queries from card identification
+function buildSearchTerms(cardId: CardIdentification): { specific: string; broad: string } {
+  const parts: string[] = [];
+  if (cardId.card_name) parts.push(cardId.card_name);
+  if (cardId.card_number) parts.push(cardId.card_number);
+  if (cardId.variant && cardId.variant !== "Regular" && cardId.variant !== "Standard") parts.push(cardId.variant);
+  
+  const specific = parts.join(" ");
+  const broad = `${cardId.card_name} ${cardId.card_set || ""} ${cardId.variant || ""}`.trim();
+  
+  return { specific, broad };
+}
+
 // Helper: search market listings via Firecrawl and return structured price data
 async function searchMarketPrices(
-  cardName: string,
-  cardSet: string,
-  cardYear: string
+  cardId: CardIdentification
 ): Promise<{ summary: string; hasData: boolean; extractedMarketData: ExtractedMarketData }> {
   const FIRECRAWL_API_KEY = Deno.env.get("FIRECRAWL_API_KEY");
   const emptyMarket: ExtractedMarketData = { sources: [], blended: null };
@@ -50,7 +86,7 @@ async function searchMarketPrices(
     return empty;
   }
 
-  const searchTerm = `${cardName} ${cardSet} ${cardYear}`.trim();
+  const { specific, broad } = buildSearchTerms(cardId);
 
   async function doSearch(query: string, limit: number, urlFilter?: string) {
     try {
@@ -72,37 +108,57 @@ async function searchMarketPrices(
   }
 
   try {
-    const [soldResults, activeResults, tcgResults] = await Promise.all([
-      doSearch(`${searchTerm} sold site:ebay.com`, 10, "ebay.com"),
-      doSearch(`${searchTerm} site:ebay.com`, 8, "ebay.com"),
-      doSearch(`${searchTerm} price site:tcgplayer.com`, 6, "tcgplayer.com"),
+    // Try specific search first
+    let [soldResults, activeResults, tcgResults] = await Promise.all([
+      doSearch(`"${specific}" sold site:ebay.com`, 10, "ebay.com"),
+      doSearch(`"${specific}" site:ebay.com`, 8, "ebay.com"),
+      doSearch(`"${specific}" price site:tcgplayer.com`, 6, "tcgplayer.com"),
     ]);
+
+    // Fallback to broader search if specific returned few results
+    const totalSpecific = soldResults.length + activeResults.length + tcgResults.length;
+    if (totalSpecific < 3 && broad !== specific) {
+      console.log("Specific search yielded few results, trying broader search...");
+      const [soldBroad, activeBroad, tcgBroad] = await Promise.all([
+        doSearch(`${broad} sold site:ebay.com`, 10, "ebay.com"),
+        doSearch(`${broad} site:ebay.com`, 8, "ebay.com"),
+        doSearch(`${broad} price site:tcgplayer.com`, 6, "tcgplayer.com"),
+      ]);
+      if (soldBroad.length + activeBroad.length + tcgBroad.length > totalSpecific) {
+        soldResults = soldBroad;
+        activeResults = activeBroad;
+        tcgResults = tcgBroad;
+      }
+    }
 
     console.log(`Market results: ${soldResults.length} eBay sold, ${activeResults.length} eBay active, ${tcgResults.length} TCGPlayer`);
 
-    const soldPrices: number[] = [];
+    let soldPrices: number[] = [];
     const soldListings = soldResults.slice(0, 8).map((r: any) => {
       const text = `${r.title || ""} ${r.description || ""} ${(r.markdown || "").substring(0, 800)}`;
       const prices = extractPrices(text);
       soldPrices.push(...prices);
       return `- ${r.title || "Listing"} | Prices: ${prices.length > 0 ? prices.map((p) => `$${p.toFixed(2)}`).join(", ") : "none detected"}`;
     });
+    soldPrices = filterOutliers(soldPrices);
 
-    const activePrices: number[] = [];
+    let activePrices: number[] = [];
     const activeListings = activeResults.slice(0, 6).map((r: any) => {
       const text = `${r.title || ""} ${r.description || ""} ${(r.markdown || "").substring(0, 800)}`;
       const prices = extractPrices(text);
       activePrices.push(...prices);
       return `- ${r.title || "Listing"} | Prices: ${prices.length > 0 ? prices.map((p) => `$${p.toFixed(2)}`).join(", ") : "none detected"}`;
     });
+    activePrices = filterOutliers(activePrices);
 
-    const tcgPrices: number[] = [];
+    let tcgPrices: number[] = [];
     const tcgListings = tcgResults.slice(0, 5).map((r: any) => {
       const text = `${r.title || ""} ${r.description || ""} ${(r.markdown || "").substring(0, 800)}`;
       const prices = extractPrices(text);
       tcgPrices.push(...prices);
       return `- ${r.title || "Listing"} | Prices: ${prices.length > 0 ? prices.map((p) => `$${p.toFixed(2)}`).join(", ") : "none detected"}`;
     });
+    tcgPrices = filterOutliers(tcgPrices);
 
     if (soldPrices.length === 0 && activePrices.length === 0 && tcgPrices.length === 0) return empty;
 
@@ -133,10 +189,11 @@ async function searchMarketPrices(
     const extractedMarketData: ExtractedMarketData = { sources, blended };
 
     let summary = "\n\n## REAL MARKET PRICE DATA (retrieved today from multiple sources)\n";
+    summary += `Card searched: ${specific}\n`;
 
     if (soldPrices.length > 0) {
       summary += `\n### eBay SOLD LISTINGS (last 30 days):\n`;
-      summary += `- All prices found: ${soldPrices.map((p) => `$${p.toFixed(2)}`).join(", ")}\n`;
+      summary += `- Filtered prices: ${soldPrices.map((p) => `$${p.toFixed(2)}`).join(", ")}\n`;
       summary += `- Median sold price: $${medianSold.toFixed(2)}\n`;
       summary += `- Range: $${Math.min(...soldPrices).toFixed(2)} - $${Math.max(...soldPrices).toFixed(2)}\n`;
       summary += `- Count: ${soldPrices.length} price points\n`;
@@ -144,14 +201,14 @@ async function searchMarketPrices(
     }
     if (activePrices.length > 0) {
       summary += `\n### eBay ACTIVE LISTINGS (current asking prices):\n`;
-      summary += `- All prices found: ${activePrices.map((p) => `$${p.toFixed(2)}`).join(", ")}\n`;
+      summary += `- Filtered prices: ${activePrices.map((p) => `$${p.toFixed(2)}`).join(", ")}\n`;
       summary += `- Median asking price: $${medianActive.toFixed(2)}\n`;
       summary += `- Range: $${Math.min(...activePrices).toFixed(2)} - $${Math.max(...activePrices).toFixed(2)}\n`;
       summary += `\nDetails:\n${activeListings.join("\n")}\n`;
     }
     if (tcgPrices.length > 0) {
       summary += `\n### TCGPlayer PRICES:\n`;
-      summary += `- All prices found: ${tcgPrices.map((p) => `$${p.toFixed(2)}`).join(", ")}\n`;
+      summary += `- Filtered prices: ${tcgPrices.map((p) => `$${p.toFixed(2)}`).join(", ")}\n`;
       summary += `- Median TCGPlayer price: $${medianTcg.toFixed(2)}\n`;
       summary += `- Range: $${Math.min(...tcgPrices).toFixed(2)} - $${Math.max(...tcgPrices).toFixed(2)}\n`;
       summary += `\nDetails:\n${tcgListings.join("\n")}\n`;
@@ -171,8 +228,72 @@ async function searchMarketPrices(
   }
 }
 
-// Helper: AI verification of estimated value against market data
-async function verifyPriceWithAI(
+// Claude verification of pricing (primary verifier)
+async function verifyWithClaude(
+  cardId: CardIdentification,
+  analysis: any,
+  marketSummary: string,
+  ANTHROPIC_API_KEY: string
+): Promise<{ verifiedLow: number; verifiedHigh: number; verificationNote: string } | null> {
+  try {
+    console.log("Running Claude price verification (primary)...");
+    const prompt = `You are a trading card price verification expert. Verify this estimate against the real market data.
+
+Card: ${cardId.card_name} ${cardId.card_number || ""} ${cardId.variant || ""} (${cardId.card_set || ""} ${cardId.card_year || ""})
+Condition: ${analysis.conditionGrade || "Unknown"}
+
+AI estimated value: $${safeFixed(analysis.estimatedValueLow)} - $${safeFixed(analysis.estimatedValueHigh)}
+
+${marketSummary}
+
+TASK: Based ONLY on the real market data above, determine the correct value range for this card.
+- If the AI estimate is wildly wrong (e.g., $5-50 when data shows $100+), CORRECT IT.
+- Your verified_low should be approximately the blended value × 0.85
+- Your verified_high should be approximately the blended value × 1.15
+- Adjust based on condition relative to what's described in listings.
+
+Return ONLY valid JSON:
+{"verified_low": number, "verified_high": number, "verification_note": "brief explanation"}`;
+
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "x-api-key": ANTHROPIC_API_KEY,
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 512,
+        messages: [{ role: "user", content: prompt }],
+      }),
+    });
+
+    if (!response.ok) {
+      console.error("Claude verification failed:", response.status);
+      return null;
+    }
+
+    const data = await response.json();
+    const text = data.content?.[0]?.text;
+    if (!text) return null;
+
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return null;
+    const result = JSON.parse(jsonMatch[0]);
+    return {
+      verifiedLow: result.verified_low,
+      verifiedHigh: result.verified_high,
+      verificationNote: result.verification_note,
+    };
+  } catch (err) {
+    console.error("Claude verification error:", err);
+    return null;
+  }
+}
+
+// Fallback: Gemini verification
+async function verifyWithGemini(
   analysis: any,
   marketSummary: string,
   LOVABLE_API_KEY: string
@@ -180,7 +301,7 @@ async function verifyPriceWithAI(
   if (!marketSummary || !analysis?.estimatedValueLow) return null;
 
   try {
-    console.log("Running AI price verification...");
+    console.log("Running Gemini price verification (fallback)...");
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -196,7 +317,7 @@ async function verifyPriceWithAI(
           },
           {
             role: "user",
-            content: `A card analysis estimated this card at $${analysis.estimatedValueLow} - $${analysis.estimatedValueHigh}.
+            content: `A card analysis estimated this card at $${safeFixed(analysis.estimatedValueLow)} - $${safeFixed(analysis.estimatedValueHigh)}.
 
 Card: ${analysis.cardName || "Unknown"} (${analysis.cardSet || ""} ${analysis.cardYear || ""})
 Condition: ${analysis.conditionGrade || "Unknown"}
@@ -204,7 +325,7 @@ Condition: ${analysis.conditionGrade || "Unknown"}
 Here is the REAL market data:
 ${marketSummary}
 
-Verify if the estimate is reasonable. If the real data shows significantly different prices, correct the estimate. Return corrected values.`,
+Verify if the estimate is reasonable. If the real data shows significantly different prices, correct the estimate.`,
           },
         ],
         tools: [
@@ -212,13 +333,13 @@ Verify if the estimate is reasonable. If the real data shows significantly diffe
             type: "function",
             function: {
               name: "verify_price",
-              description: "Return verified price range and a note about the verification.",
+              description: "Return verified price range.",
               parameters: {
                 type: "object",
                 properties: {
-                  verified_low: { type: "number", description: "Corrected low estimate in USD" },
-                  verified_high: { type: "number", description: "Corrected high estimate in USD" },
-                  verification_note: { type: "string", description: "Brief explanation of any corrections made or confirmation that estimate is accurate" },
+                  verified_low: { type: "number" },
+                  verified_high: { type: "number" },
+                  verification_note: { type: "string" },
                 },
                 required: ["verified_low", "verified_high", "verification_note"],
                 additionalProperties: false,
@@ -230,33 +351,29 @@ Verify if the estimate is reasonable. If the real data shows significantly diffe
       }),
     });
 
-    if (!response.ok) {
-      console.error("Price verification failed:", response.status);
-      return null;
-    }
+    if (!response.ok) return null;
 
     const data = await response.json();
     const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
     if (!toolCall?.function?.arguments) return null;
 
     const result = JSON.parse(toolCall.function.arguments);
-    console.log("Price verification result:", result);
     return {
       verifiedLow: result.verified_low,
       verifiedHigh: result.verified_high,
       verificationNote: result.verification_note,
     };
   } catch (err) {
-    console.error("Price verification error:", err);
+    console.error("Gemini verification error:", err);
     return null;
   }
 }
 
-// Helper: quick identification call to get card name/set/year from image
+// Detailed card identification
 async function identifyCard(
   images: { label: string; url: string }[],
   LOVABLE_API_KEY: string
-): Promise<{ card_name: string; card_set: string; card_year: string } | null> {
+): Promise<CardIdentification | null> {
   try {
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -265,16 +382,24 @@ async function identifyCard(
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "google/gemini-2.5-pro",
         messages: [
           {
             role: "system",
-            content: "You are a trading card identification expert. Look at this card image and identify ONLY the card name, set/series, and year. Return ONLY JSON.",
+            content: `You are a trading card identification expert. Look at this card image VERY carefully. Read ALL text on the card including:
+- The card name (character/player name)
+- The card NUMBER (e.g., "105/086", "25/198") - look at bottom of card
+- The full set/series name and any set symbols
+- The year of release
+- The variant type (Illustration Rare, Full Art, Alt Art, Holo, Reverse Holo, Regular, etc.)
+- The rarity symbol and level
+
+Be EXTREMELY specific. Do NOT return generic names. Include the card number and variant type.`,
           },
           {
             role: "user",
             content: [
-              { type: "text", text: "Identify this card. Return only: card_name, card_set, card_year." },
+              { type: "text", text: "Identify this trading card with maximum specificity. Read the card number, variant type, and all visible text." },
               ...images.slice(0, 1).map((img) => ({
                 type: "image_url" as const,
                 image_url: { url: img.url },
@@ -287,15 +412,18 @@ async function identifyCard(
             type: "function",
             function: {
               name: "identify_card",
-              description: "Return the card identification.",
+              description: "Return the detailed card identification.",
               parameters: {
                 type: "object",
                 properties: {
-                  card_name: { type: "string" },
-                  card_set: { type: "string" },
-                  card_year: { type: "string" },
+                  card_name: { type: "string", description: "Full character/player name on the card" },
+                  card_number: { type: "string", description: "Card number as printed (e.g., '105/086'). Empty string if not visible." },
+                  card_set: { type: "string", description: "Full set/series name" },
+                  card_year: { type: "string", description: "Year of release" },
+                  variant: { type: "string", description: "Variant type: Illustration Rare, Full Art, Alt Art, Holo, Reverse Holo, Regular, etc." },
+                  rarity: { type: "string", description: "Rarity level" },
                 },
-                required: ["card_name", "card_set", "card_year"],
+                required: ["card_name", "card_number", "card_set", "card_year", "variant", "rarity"],
                 additionalProperties: false,
               },
             },
@@ -327,10 +455,8 @@ serve(async (req) => {
   }
 
   try {
-    // Authenticate the request
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
-      console.error("Missing authorization header");
       return new Response(
         JSON.stringify({ error: 'Unauthorized - missing authorization header' }), 
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -341,16 +467,12 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
     
-    if (!supabaseUrl || !supabaseAnonKey) {
-      console.error("Missing Supabase configuration");
-      throw new Error("Server configuration error");
-    }
+    if (!supabaseUrl || !supabaseAnonKey) throw new Error("Server configuration error");
 
     const supabase = createClient(supabaseUrl, supabaseAnonKey);
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
     
     if (authError || !user) {
-      console.error("Auth error:", authError?.message || "Invalid token");
       return new Response(
         JSON.stringify({ error: 'Invalid authentication' }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -359,7 +481,6 @@ serve(async (req) => {
 
     console.log("Authenticated user:", user.id);
 
-    // Credit check
     const supabaseAdmin = createClient(supabaseUrl, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '');
     const { data: creditsData } = await supabaseAdmin
       .from("user_credits")
@@ -371,7 +492,6 @@ serve(async (req) => {
     const hasCredits = (creditsData?.credits ?? 0) > 0;
 
     if (!isPro && !hasCredits) {
-      console.log("Insufficient credits for user:", user.id);
       return new Response(
         JSON.stringify({ error: "Insufficient credits. Please purchase credits or upgrade to Pro." }),
         { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -380,12 +500,10 @@ serve(async (req) => {
 
     const body = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
 
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
-    }
+    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
-    // Support both new multi-image format and legacy single imageUrl
     const images: { label: string; url: string }[] = body.images || [];
     if (images.length === 0 && body.imageUrl) {
       images.push({ label: "Front", url: body.imageUrl });
@@ -404,7 +522,6 @@ serve(async (req) => {
 
     for (const img of images) {
       if (!img.url.startsWith(signedUrlPattern)) {
-        console.error("Invalid image URL origin:", img.url.substring(0, 100));
         return new Response(
           JSON.stringify({ error: `Invalid image URL for "${img.label}" - must be from card-images bucket` }),
           { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -412,34 +529,28 @@ serve(async (req) => {
       }
     }
 
-    // Validate ownership and file type
     const validExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
     for (const img of images) {
       try {
         const url = new URL(img.url);
         const pathParts = url.pathname.split('/');
         const bucketIndex = pathParts.indexOf('card-images');
-        if (bucketIndex === -1 || bucketIndex + 1 >= pathParts.length) {
-          throw new Error("Invalid path structure");
-        }
+        if (bucketIndex === -1 || bucketIndex + 1 >= pathParts.length) throw new Error("Invalid path");
         const imageUserId = pathParts[bucketIndex + 1];
         if (imageUserId !== user.id) {
-          console.error("User ID mismatch for", img.label);
           return new Response(
             JSON.stringify({ error: 'Unauthorized - can only analyze your own images' }),
             { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
           );
         }
         const urlPath = url.pathname.toLowerCase();
-        const hasValidExt = validExtensions.some(ext => urlPath.includes(ext));
-        if (!hasValidExt) {
+        if (!validExtensions.some(ext => urlPath.includes(ext))) {
           return new Response(
             JSON.stringify({ error: `Invalid file type for "${img.label}" - must be an image` }),
             { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
           );
         }
       } catch (urlParseError) {
-        console.error("Failed to parse image URL:", urlParseError);
         return new Response(
           JSON.stringify({ error: 'Invalid image URL format' }),
           { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -449,20 +560,16 @@ serve(async (req) => {
 
     console.log(`Analyzing ${images.length} image(s) for user:`, user.id);
 
-    // ===== STEP 1: Quick identification to get card name/set/year =====
-    console.log("Step 1: Identifying card...");
+    // ===== STEP 1: Detailed identification with Gemini Pro =====
+    console.log("Step 1: Identifying card with Pro model...");
     const cardId = await identifyCard(images, LOVABLE_API_KEY);
-    console.log("Card identified:", cardId);
+    console.log("Card identified (detailed):", JSON.stringify(cardId));
 
-    // ===== STEP 2: Search eBay + TCGPlayer listings with Firecrawl =====
+    // ===== STEP 2: Search eBay + TCGPlayer with specific details =====
     let marketData: { summary: string; hasData: boolean; extractedMarketData: ExtractedMarketData } = { summary: "", hasData: false, extractedMarketData: { sources: [], blended: null } };
     if (cardId?.card_name) {
-      console.log("Step 2: Searching eBay + TCGPlayer listings...");
-      marketData = await searchMarketPrices(
-        cardId.card_name,
-        cardId.card_set || "",
-        cardId.card_year || ""
-      );
+      console.log("Step 2: Searching eBay + TCGPlayer with specific query...");
+      marketData = await searchMarketPrices(cardId);
       console.log("Market data found:", marketData.hasData ? "Yes" : "No");
     }
 
@@ -484,99 +591,32 @@ VALUATION FORMULA (you MUST follow this):
 7. If market data clearly shows cards selling for $100+, your estimate MUST reflect that — NOT $5-15.
 8. Compare the card's condition to what the listings describe. Better condition → estimate toward high end. Worse → low end.
 
-Your estimates MUST be anchored to the real price data. Do NOT override real market data with training knowledge.` : `You do NOT have access to real-time market data. Your training data may contain OUTDATED prices. Be VERY conservative with value estimates. If you are not confident about current market prices, set confidence to "low" and clearly state that values are estimates that may not reflect the current market. It is better to provide a wider range than to give a confidently wrong narrow range.`}
+Your estimates MUST be anchored to the real price data. Do NOT override real market data with training knowledge.` : `You do NOT have access to real-time market data. Your training data may contain OUTDATED prices. Be VERY conservative with value estimates. If you are not confident about current market prices, set confidence to "low" and clearly state that values are estimates that may not reflect the current market.`}
 
 When shown an image of a trading card, you will:
 
 1. IDENTIFY the card completely:
-   - Card name (character, player, or item name)
-   - Card set/series name
-   - Year of release
-   - Edition (1st Edition, Unlimited, Shadowless, etc.)
-   - Rarity (Common, Uncommon, Rare, Ultra Rare, Secret Rare, etc.)
-   - Card number if visible
-   - Parallel/Variant type if applicable (Refractor, Prizm, Rainbow, etc.)
+   - Card name, card number, set/series, year, edition, rarity, variant/parallel type
 
-2. PERFORM DETAILED PRE-GRADING ANALYSIS (like a professional grader):
-   Analyze each attribute on a scale of 1-10 and provide specific observations:
-   
-   a) CENTERING (1-10):
-      - Measure left/right and top/bottom centering percentages
-      - Note if centering meets PSA 10 standards (60/40 or better front, 75/25 back)
-      - Identify any print shifts or off-center cuts
-   
-   b) CORNERS (1-10):
-      - Examine all four corners for whitening, dings, or wear
-      - Check for factory defects vs handling damage
-      - Note any layering or peeling
-   
-   c) EDGES (1-10):
-      - Look for chipping, whitening, or roughness along all edges
-      - Check for factory cutting issues
-      - Note any nicks or notches
-   
-   d) SURFACE (1-10):
-      - Check for scratches, scuffs, or print lines
-      - Look for holo scratching on holographic cards
-      - Note any staining, residue, or fingerprints
-      - Check for creases or dents
-   
-   e) OVERALL GRADE PREDICTION:
-      - Provide predicted grade for PSA, BGS, CGC, and SGC
-      - Calculate sub-grade breakdown for BGS style grading
+2. PERFORM DETAILED PRE-GRADING ANALYSIS:
+   a) CENTERING (1-10): left/right and top/bottom percentages
+   b) CORNERS (1-10): examine all four corners
+   c) EDGES (1-10): chipping, whitening, roughness
+   d) SURFACE (1-10): scratches, scuffs, holo condition
+   e) OVERALL GRADE PREDICTION: PSA, BGS, CGC, SGC
 
-3. IDENTIFY special features:
-   - Holographic/Foil patterns
-   - First Edition stamps
-   - Error cards (miscuts, misprints, wrong backs)
-   - Autographs
-   - Special print runs
-   - Promotional markings
-   - Parallel/Refractor types
+3. IDENTIFY special features
 
-4. PROVIDE DETAILED MARKET RESEARCH:
-   ${ebayData.summary ? "Use the REAL eBay price data (sold + active) provided. The extracted prices and computed medians are your valuation anchors." : "Provide your best estimate but flag confidence as low if uncertain about current market prices."}
-   
-   a) eBay Market Data:
-      - Recent sold prices for this specific card in similar condition
-      - Price range (low, average, high)
-      - Number of recent sales activity level
-      - Note any outlier sales
-   
-   b) TCGPlayer Market Data:
-      - Current market price
-      - Low/Mid/High price points
-      - Recent price trends
-   
-   c) Graded Card Values (if applicable):
-      - PSA/BGS population estimates for this grade
-      - Premium for graded vs raw
-      - Recent auction results for graded copies
-   
-   d) Market Trend Analysis:
-      - Is demand rising, falling, or stable?
-      - Any upcoming events that could affect price
-      - Collector sentiment
+4. PROVIDE MARKET RESEARCH:
+   ${marketData.hasData ? "Use the REAL market price data provided. The extracted prices and computed medians are your valuation anchors." : "Provide your best estimate but flag confidence as low if uncertain."}
 
-5. PRICE FACTORS - Identify what's driving the value:
-   - Rarity and print run
-   - Popularity of character/player
-   - Condition scarcity at this grade
-   - Historical significance
-   - Current meta relevance (for playable cards)
+5. PRICE FACTORS
 
-6. GRADED VALUE ESTIMATES:
-   For each major grading company (PSA, BGS, CGC, SGC), provide:
-   - Estimated value at the grade you assessed
-   - Estimated value at PSA 10/BGS 10 (Gem Mint)
-   - Estimated value at PSA 9/BGS 9.5 (Mint)
-   - Estimated value at PSA 8/BGS 8.5 (Near Mint-Mint)
-   - Grading cost vs. potential value increase
-   - Which grading company would maximize value
+6. GRADED VALUE ESTIMATES
 
 Respond in JSON format with this structure:
 {
-  "category": "string (auto-categorize: 'Pokémon', 'Magic: The Gathering', 'Yu-Gi-Oh!', 'Sports Card', 'Trading Card', 'Comic Book', 'Coin', or 'Other')",
+  "category": "string",
   "cardName": "string",
   "cardSet": "string", 
   "cardYear": "string",
@@ -584,41 +624,13 @@ Respond in JSON format with this structure:
   "rarity": "string",
   "cardNumber": "string or null",
   "parallelVariant": "string or null",
-  "conditionGrade": "string (e.g., 'Near Mint (7)')",
-  "conditionNotes": "string explaining condition assessment",
+  "conditionGrade": "string",
+  "conditionNotes": "string",
   "preGradingAnalysis": {
-    "centering": {
-      "score": number,
-      "frontLeftRight": "string",
-      "frontTopBottom": "string",
-      "backLeftRight": "string",
-      "backTopBottom": "string",
-      "notes": "string",
-      "psa10Eligible": boolean
-    },
-    "corners": {
-      "score": number,
-      "topLeft": "string",
-      "topRight": "string",
-      "bottomLeft": "string",
-      "bottomRight": "string",
-      "notes": "string"
-    },
-    "edges": {
-      "score": number,
-      "top": "string",
-      "bottom": "string",
-      "left": "string",
-      "right": "string",
-      "notes": "string"
-    },
-    "surface": {
-      "score": number,
-      "front": "string",
-      "back": "string",
-      "holoCondition": "string or null",
-      "notes": "string"
-    },
+    "centering": { "score": number, "frontLeftRight": "string", "frontTopBottom": "string", "backLeftRight": "string", "backTopBottom": "string", "notes": "string", "psa10Eligible": boolean },
+    "corners": { "score": number, "topLeft": "string", "topRight": "string", "bottomLeft": "string", "bottomRight": "string", "notes": "string" },
+    "edges": { "score": number, "top": "string", "bottom": "string", "left": "string", "right": "string", "notes": "string" },
+    "surface": { "score": number, "front": "string", "back": "string", "holoCondition": "string or null", "notes": "string" },
     "overallScore": number,
     "predictedGrades": { "psa": number, "bgs": number, "cgc": number, "sgc": number },
     "bgsSubgrades": { "centering": number, "corners": number, "edges": number, "surface": number },
@@ -628,70 +640,19 @@ Respond in JSON format with this structure:
   "estimatedValueLow": number,
   "estimatedValueHigh": number,
   "valueCurrency": "USD",
-  "ebayRecentSales": {
-    "description": "string",
-    "averagePrice": number,
-    "lowPrice": number,
-    "highPrice": number,
-    "recentSalesCount": "string",
-    "notableSales": ["array"]
-  },
-  "tcgplayerPrice": {
-    "marketPrice": number,
-    "lowPrice": number,
-    "midPrice": number, 
-    "highPrice": number,
-    "description": "string"
-  },
-  "psaPopulation": {
-    "description": "string",
-    "estimatedPopulation": "string",
-    "gradedPremium": "string",
-    "recentGradedSales": ["array"]
-  },
+  "ebayRecentSales": { "description": "string", "averagePrice": number, "lowPrice": number, "highPrice": number, "recentSalesCount": "string", "notableSales": ["array"] },
+  "tcgplayerPrice": { "marketPrice": number, "lowPrice": number, "midPrice": number, "highPrice": number, "description": "string" },
+  "psaPopulation": { "description": "string", "estimatedPopulation": "string", "gradedPremium": "string", "recentGradedSales": ["array"] },
   "gradedValueEstimates": {
     "currentGradeEstimate": "string",
     "worthGrading": boolean,
     "worthGradingReason": "string",
-    "recommendedGrader": "PSA" | "BGS" | "CGC" | "SGC",
+    "recommendedGrader": "PSA",
     "recommendedGraderReason": "string",
-    "psa": {
-      "estimatedGrade": number,
-      "valueAtGrade": number,
-      "valueAtPSA10": number,
-      "valueAtPSA9": number,
-      "valueAtPSA8": number,
-      "gradingCost": number,
-      "turnaroundTime": "string"
-    },
-    "bgs": {
-      "estimatedGrade": number,
-      "valueAtGrade": number,
-      "valueAtBGS10": number,
-      "valueAtBGS9_5": number,
-      "valueAtBGS9": number,
-      "gradingCost": number,
-      "turnaroundTime": "string",
-      "blackLabelPotential": "string"
-    },
-    "cgc": {
-      "estimatedGrade": number,
-      "valueAtGrade": number,
-      "valueAtCGC10": number,
-      "valueAtCGC9_5": number,
-      "valueAtCGC9": number,
-      "gradingCost": number,
-      "turnaroundTime": "string"
-    },
-    "sgc": {
-      "estimatedGrade": number,
-      "valueAtGrade": number,
-      "valueAtSGC10": number,
-      "valueAtSGC9_5": number,
-      "valueAtSGC9": number,
-      "gradingCost": number,
-      "turnaroundTime": "string"
-    }
+    "psa": { "estimatedGrade": number, "valueAtGrade": number, "valueAtPSA10": number, "valueAtPSA9": number, "valueAtPSA8": number, "gradingCost": number, "turnaroundTime": "string" },
+    "bgs": { "estimatedGrade": number, "valueAtGrade": number, "valueAtBGS10": number, "valueAtBGS9_5": number, "valueAtBGS9": number, "gradingCost": number, "turnaroundTime": "string", "blackLabelPotential": "string" },
+    "cgc": { "estimatedGrade": number, "valueAtGrade": number, "valueAtCGC10": number, "valueAtCGC9_5": number, "valueAtCGC9": number, "gradingCost": number, "turnaroundTime": "string" },
+    "sgc": { "estimatedGrade": number, "valueAtGrade": number, "valueAtSGC10": number, "valueAtSGC9_5": number, "valueAtSGC9": number, "gradingCost": number, "turnaroundTime": "string" }
   },
   "priceFactors": ["array"],
   "valueTrend": "rising" | "stable" | "falling" | "unknown",
@@ -700,7 +661,7 @@ Respond in JSON format with this structure:
   "confidenceReason": "string",
   "investmentOutlook": "string",
   "additionalNotes": "string",
-  "dataSource": "string (e.g., 'Real eBay + TCGPlayer data + AI analysis' or 'AI estimate only - no live market data')"
+  "dataSource": "string"
 }`;
 
     const userMessage = images.length > 1
@@ -758,13 +719,10 @@ Respond in JSON format with this structure:
     const data = await response.json();
     const content = data.choices?.[0]?.message?.content;
 
-    if (!content) {
-      throw new Error("No response from AI");
-    }
+    if (!content) throw new Error("No response from AI");
 
     console.log("AI response received for user:", user.id);
 
-    // Parse the JSON response
     let analysis;
     try {
       const jsonMatch = content.match(/```json\n?([\s\S]*?)\n?```/) || content.match(/\{[\s\S]*\}/);
@@ -794,16 +752,26 @@ Respond in JSON format with this structure:
       };
     }
 
-    // Add data source info if not present
     if (!analysis.dataSource) {
       analysis.dataSource = marketData.hasData
-        ? "Real eBay + TCGPlayer data + AI analysis (AI-verified)"
+        ? "Real eBay + TCGPlayer data + AI analysis"
         : "AI estimate only - no live market data available";
     }
 
-    // ===== STEP 4: AI Price Verification =====
+    // ===== STEP 4: Claude Price Verification (primary), Gemini fallback =====
     if (marketData.hasData && analysis.estimatedValueLow != null) {
-      const verification = await verifyPriceWithAI(analysis, marketData.summary, LOVABLE_API_KEY);
+      let verification = null;
+
+      // Try Claude first (primary)
+      if (ANTHROPIC_API_KEY && cardId) {
+        verification = await verifyWithClaude(cardId, analysis, marketData.summary, ANTHROPIC_API_KEY);
+      }
+
+      // Fallback to Gemini
+      if (!verification) {
+        verification = await verifyWithGemini(analysis, marketData.summary, LOVABLE_API_KEY);
+      }
+
       if (verification) {
         const origLow = analysis.estimatedValueLow;
         const origHigh = analysis.estimatedValueHigh;
@@ -811,17 +779,12 @@ Respond in JSON format with this structure:
         analysis.estimatedValueHigh = verification.verifiedHigh;
         analysis.verificationNote = verification.verificationNote;
         if (origLow !== verification.verifiedLow || origHigh !== verification.verifiedHigh) {
-          analysis.dataSource = `Real eBay + TCGPlayer data + AI analysis (AI-verified & corrected from $${safeFixed(origLow)}-$${safeFixed(origHigh)})`;
+          analysis.dataSource = `Real eBay + TCGPlayer data + AI analysis (Claude-verified & corrected from $${safeFixed(origLow)}-$${safeFixed(origHigh)})`;
           console.log(`Price corrected: $${origLow}-$${origHigh} → $${verification.verifiedLow}-$${verification.verifiedHigh}`);
         } else {
-          analysis.dataSource = "Real eBay + TCGPlayer data + AI analysis (AI-verified ✓)";
+          analysis.dataSource = "Real eBay + TCGPlayer data + AI analysis (Claude-verified ✓)";
         }
       }
-    }
-
-    function safeFixed(val: unknown, digits = 2): string {
-      const num = typeof val === 'number' ? val : Number(val);
-      return isNaN(num) ? '0' : num.toFixed(digits);
     }
 
     // Deduct credit for non-Pro users
@@ -831,7 +794,6 @@ Respond in JSON format with this structure:
       });
 
       if (deductError || remaining === -1) {
-        console.error("Failed to deduct credit:", deductError?.message);
         return new Response(
           JSON.stringify({ error: "Insufficient credits. Please purchase credits or upgrade to Pro." }),
           { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
