@@ -193,10 +193,11 @@ serve(async (req) => {
     console.log("CollectAI Price API called for:", cardName || "image-based lookup");
 
     // Search eBay + TCGPlayer for real pricing data
-    let marketData = "";
+    let marketResult = { summary: "", extractedMarketData: { sources: [], blended: null } as ExtractedMarketData };
     if (cardName) {
-      marketData = await searchMarketPrices(cardName, cardSet || "", cardYear || "");
+      marketResult = await searchMarketPrices(cardName, cardSet || "", cardYear || "");
     }
+    const marketData = marketResult.summary;
 
     const today = new Date().toISOString().split("T")[0];
 
