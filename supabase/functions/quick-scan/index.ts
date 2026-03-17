@@ -219,10 +219,10 @@ serve(async (req) => {
       }
     }
 
-    // ===== STEP 2: Search eBay sold listings =====
-    let ebayContext = "";
+    // ===== STEP 2: Search eBay + TCGPlayer listings =====
+    let marketContext = "";
     if (cardId?.card_name) {
-      ebayContext = await quickEbaySearch(cardId.card_name, cardId.card_set || "", cardId.card_year || "");
+      marketContext = await quickMarketSearch(cardId.card_name, cardId.card_set || "", cardId.card_year || "");
     }
 
     // ===== STEP 3: Full quick scan with market data =====
