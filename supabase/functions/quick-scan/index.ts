@@ -206,64 +206,6 @@ async function quickMarketSearch(cardId: CardIdentification): Promise<string> {
   }
 }
 
-// Claude verification of pricing
-async function verifyWithClaude(
-  cardId: CardIdentification,
-  estimatedLow: number,
-  estimatedHigh: number,
-  marketContext: string,
-  ANTHROPIC_API_KEY: string
-): Promise<{ verified_low: number; verified_high: number; verification_note: string } | null> {
-  try {
-    console.log("Running Claude price verification...");
-    const prompt = `You are a trading card price verification expert. Verify this estimate against the real market data.
-
-Card: ${cardId.card_name} ${cardId.card_number || ""} ${cardId.variant || ""} (${cardId.card_set || ""} ${cardId.card_year || ""})
-
-AI estimated value: $${estimatedLow.toFixed(2)} - $${estimatedHigh.toFixed(2)}
-
-${marketContext}
-
-TASK: Based ONLY on the real market data above, determine the correct value range for this card in raw Near Mint condition. 
-- If the AI estimate is wildly wrong (e.g., $5-50 when data shows $100+), CORRECT IT.
-- Your verified_low should be approximately the blended value × 0.85
-- Your verified_high should be approximately the blended value × 1.15
-- If no real data is available, return the AI's original estimate.
-
-Return ONLY valid JSON:
-{"verified_low": number, "verified_high": number, "verification_note": "brief explanation"}`;
-
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 512,
-        messages: [{ role: "user", content: prompt }],
-      }),
-    });
-
-    if (!response.ok) {
-      console.error("Claude verification failed:", response.status);
-      return null;
-    }
-
-    const data = await response.json();
-    const text = data.content?.[0]?.text;
-    if (!text) return null;
-
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) return null;
-    return JSON.parse(jsonMatch[0]);
-  } catch (err) {
-    console.error("Claude verification error:", err);
-    return null;
-  }
-}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
