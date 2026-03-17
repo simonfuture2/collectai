@@ -199,6 +199,7 @@ interface AIAnalysis {
   confidenceReason?: string;
   investmentOutlook?: string;
   additionalNotes?: string;
+  dataSource?: string;
 }
 
 // Mock price history data (in a real app, this would come from an API)
