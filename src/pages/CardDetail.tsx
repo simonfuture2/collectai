@@ -457,7 +457,7 @@ export default function CardDetail() {
 
             {/* Quick Stats */}
             <div className="grid grid-cols-2 gap-4">
-              <div className="bg-gradient-primary rounded-xl p-4">
+              <div className="gradient-primary rounded-xl p-4">
                 <p className="text-sm text-white/80">Estimated Value</p>
                 <p className="text-2xl font-display font-bold text-white">
                   ${safeFixed(avgValue)}
