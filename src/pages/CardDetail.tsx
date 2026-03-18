@@ -479,7 +479,7 @@ export default function CardDetail() {
             <Button
               onClick={rescanPrices}
               disabled={rescanning}
-              className="w-full bg-gradient-primary hover:opacity-90 text-white"
+              className="w-full gradient-primary hover:opacity-90 text-white"
             >
               <RefreshCw className={`w-4 h-4 ${rescanning ? 'animate-spin' : ''}`} />
               {rescanning ? 'Re-Scanning...' : 'Re-Scan & Update Prices'}

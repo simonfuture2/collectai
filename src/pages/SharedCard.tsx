@@ -137,7 +137,7 @@ export default function SharedCard() {
 
         {/* Stats */}
         <div className="grid grid-cols-2 gap-4 mb-6">
-          <div className="bg-gradient-primary text-primary-foreground rounded-xl p-4">
+          <div className="gradient-primary text-white rounded-xl p-4">
             <p className="text-sm opacity-80">Estimated Value</p>
             <p className="text-2xl font-display font-bold">${avgValue.toFixed(2)}</p>
             <p className="text-xs opacity-70">${card.estimated_value_low?.toFixed(2)} – ${card.estimated_value_high?.toFixed(2)}</p>
