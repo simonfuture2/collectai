@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@/components/ui/table";
-import { ArrowLeft, Camera, Trash2, Search, X, SlidersHorizontal, ChevronDown, LayoutGrid, List, Download, CheckSquare, FolderPlus, Check, Shield } from "lucide-react";
+import { ArrowLeft, Camera, Trash2, Search, X, SlidersHorizontal, ChevronDown, LayoutGrid, List, Download, CheckSquare, FolderPlus, Check, Shield, RefreshCw } from "lucide-react";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -73,6 +73,7 @@ const Collection = () => {
   const [folders, setFolders] = useState<FolderData[]>([]);
   const [activeFolder, setActiveFolder] = useState<string | null>(null);
   const [cardFolderMap, setCardFolderMap] = useState<Record<string, string[]>>({});
+  const [rescanningId, setRescanningId] = useState<string | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -306,6 +307,46 @@ const Collection = () => {
   };
 
   const cardValue = (c: Card) => ((c.estimated_value_low || 0) + (c.estimated_value_high || 0)) / 2;
+
+  const rescanCard = async (card: Card, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    if (rescanningId) return;
+    setRescanningId(card.id);
+    try {
+      // Get the storage path from the image URL
+      const match = card.image_url.match(/card-images\/([^?]+)/);
+      const imagePath = match ? match[1] : card.image_url;
+
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Not authenticated");
+
+      const response = await supabase.functions.invoke("analyze-card", {
+        body: { imageUrl: imagePath, cardId: card.id },
+      });
+
+      if (response.error) throw response.error;
+
+      const result = response.data;
+      // Update local state with new values
+      setCards(prev => prev.map(c => c.id === card.id ? {
+        ...c,
+        card_name: result.card_name || c.card_name,
+        card_set: result.card_set || c.card_set,
+        card_year: result.card_year || c.card_year,
+        rarity: result.rarity || c.rarity,
+        category: result.category || c.category,
+        condition_grade: result.condition_grade || c.condition_grade,
+        estimated_value_low: result.estimated_value_low ?? c.estimated_value_low,
+        estimated_value_high: result.estimated_value_high ?? c.estimated_value_high,
+      } : c));
+
+      toast({ title: "Re-Scan Complete", description: `${result.card_name || card.card_name || "Card"} has been updated.` });
+    } catch (err: any) {
+      toast({ title: "Re-Scan Failed", description: err.message || "Something went wrong", variant: "destructive" });
+    } finally {
+      setRescanningId(null);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -594,23 +635,28 @@ const Collection = () => {
                     </TableCell>
                     <TableCell className="text-right font-medium">${cardValue(card).toFixed(0)}</TableCell>
                     <TableCell>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => e.stopPropagation()}>
-                            <Trash2 className="w-3.5 h-3.5 text-destructive" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent onClick={(e) => e.stopPropagation()}>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Delete {card.card_name || "this item"}?</AlertDialogTitle>
-                            <AlertDialogDescription>This action cannot be undone.</AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => deleteCard(card.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete</AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
+                      <div className="flex items-center gap-0.5">
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => rescanCard(card, e)} disabled={rescanningId === card.id} title="Re-Scan">
+                          <RefreshCw className={`w-3.5 h-3.5 text-primary ${rescanningId === card.id ? "animate-spin" : ""}`} />
+                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => e.stopPropagation()}>
+                              <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete {card.card_name || "this item"}?</AlertDialogTitle>
+                              <AlertDialogDescription>This action cannot be undone.</AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => deleteCard(card.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete</AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -668,32 +714,44 @@ const Collection = () => {
                           ${cardValue(card).toFixed(0)}
                         </span>
                         {!bulkMode && (
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-7 w-7 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <Trash2 className="w-3.5 h-3.5 text-destructive" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent onClick={(e) => e.stopPropagation()}>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Delete {card.card_name || "this item"}?</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  This action cannot be undone. This will permanently remove this item from your collection.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => deleteCard(card.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                                  Delete
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
+                          <div className="flex items-center gap-0.5">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
+                              onClick={(e) => rescanCard(card, e)}
+                              disabled={rescanningId === card.id}
+                              title="Re-Scan"
+                            >
+                              <RefreshCw className={`w-3.5 h-3.5 text-primary ${rescanningId === card.id ? "animate-spin" : ""}`} />
+                            </Button>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Delete {card.card_name || "this item"}?</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    This action cannot be undone. This will permanently remove this item from your collection.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction onClick={() => deleteCard(card.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                                    Delete
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </div>
                         )}
                       </div>
                     </div>

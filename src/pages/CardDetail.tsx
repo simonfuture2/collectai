@@ -457,12 +457,12 @@ export default function CardDetail() {
 
             {/* Quick Stats */}
             <div className="grid grid-cols-2 gap-4">
-              <div className="bg-gradient-primary text-primary-foreground rounded-xl p-4">
-                <p className="text-sm opacity-80">Estimated Value</p>
-                <p className="text-2xl font-display font-bold">
+              <div className="bg-gradient-primary rounded-xl p-4">
+                <p className="text-sm text-white/80">Estimated Value</p>
+                <p className="text-2xl font-display font-bold text-white">
                   ${safeFixed(avgValue)}
                 </p>
-                <p className="text-xs opacity-70">
+                <p className="text-xs text-white/70">
                   ${safeFixed(card.estimated_value_low)} - ${safeFixed(card.estimated_value_high)}
                 </p>
               </div>

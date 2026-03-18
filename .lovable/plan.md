@@ -1,37 +1,47 @@
 
 
-## Plan: Add Re-Scan Button to Collection Cards + Fix White Text
+## Current State
 
-### Problem
-1. No way to re-scan/update card values from the Collection grid view — users must open each card's detail page
-2. The estimated value text on the CardDetail page uses `bg-gradient-primary` with `text-primary-foreground` (white) on a gradient background, which may appear invisible depending on theme
+- **Lead generation page**: The partner signup page is at `/partners` (PartnerSignup.tsx). It captures name, email, phone, company, and message into the `leads` table. There's also the QuickScanChallenge on the landing page for anonymous lead gen.
+- **Landing page header**: Only has logo + Sign In button. No navigation links to Partners, How It Works, or other pages.
+- **No lead magnet / digital product**: There's no email capture mechanism that offers a free digital product in exchange for an email address.
 
-### Changes
+## Plan
 
-#### 1. Add Re-Scan button to Collection grid cards (`src/pages/Collection.tsx`)
-- Import `RefreshCw` icon from lucide-react
-- Add a Re-Scan button next to the delete button in each grid card's footer
-- On click, invoke the `analyze-card` edge function (full analysis, not just pricing) with the card's existing image URL
-- Update the card's state in-place with the new analysis results (name, grade, values)
-- Show a spinner on the button while scanning
-- Add re-scan state tracking (`rescanningId`) to know which card is being re-scanned
+### 1. Add navigation links to landing page header
 
-#### 2. Add Re-Scan to list view (`src/pages/Collection.tsx`)
-- Add a small re-scan icon button in the actions column of the table view as well
+Add "How It Works" and "Partners" links to the Landing page header between the logo and Sign In button. On mobile, these can be compact links or a simple nav bar.
 
-#### 3. Fix estimated value text visibility (`src/pages/CardDetail.tsx`)
-- Line 461: The "Estimated Value" card uses `bg-gradient-primary text-primary-foreground` — the child `<p>` tags inherit white text which should be visible on the gradient. However, line 466 uses `opacity-70` on the range text which may be hard to see.
-- Ensure the value text explicitly uses `text-white` (or `text-primary-foreground`) so it's always visible regardless of theme, since the background is always a purple-blue gradient.
+### 2. Create a lead magnet digital product + email capture
 
-#### 4. Re-scan function logic
-- Reuse the existing `analyze-card` edge function which already handles full re-analysis
-- Pass the card's stored `image_url` (the storage path, not the signed URL) so the edge function can re-process it
-- On success, update the local `cards` state array with new values from the response
-- The edge function already updates the DB row, so we just need to refresh local state
+Create a free downloadable guide — something like **"The Collector's Card Grading Cheat Sheet"** — a PDF-style resource that provides real value (grading terminology, what PSA/BGS grades mean, photo tips, value ranges by condition). Users enter their email to receive it.
 
-### Files to change
-| File | Changes |
-|------|---------|
-| `src/pages/Collection.tsx` | Add `RefreshCw` import, `rescanningId` state, `rescanCard()` handler, Re-Scan button in grid and list views |
-| `src/pages/CardDetail.tsx` | Change value text classes to explicitly use `text-white` instead of relying on `text-primary-foreground` |
+**Implementation:**
+- Create a new `LeadMagnet` component embedded on the landing page (between features and pricing sections)
+- The component shows a compelling preview of the guide with an email capture form
+- On submit, call a new `lead-magnet` edge function that:
+  - Validates the email
+  - Inserts into the `leads` table with `source: 'lead_magnet'`
+  - Sends the digital guide via SendGrid to the captured email
+  - Returns success
+- The guide content will be an HTML email with the cheat sheet content inline (no PDF hosting needed — the email IS the product)
+
+**Database change:**
+- The `leads` table `source` column is an enum (`lead_source`). We need to add `'lead_magnet'` as a new enum value.
+
+### 3. Files to create/modify
+
+| File | Action |
+|------|--------|
+| `src/pages/Landing.tsx` | Add nav links (Partners, How It Works) to header; add LeadMagnet section |
+| `src/components/LeadMagnet.tsx` | New — email capture component with guide preview |
+| `supabase/functions/lead-magnet/index.ts` | New — validates email, inserts lead, sends guide email via SendGrid |
+| DB migration | Add `'lead_magnet'` to `lead_source` enum |
+
+### Technical Details
+
+- The `lead_source` enum currently has values used by the system. Adding `'lead_magnet'` requires an `ALTER TYPE` migration.
+- The edge function reuses the existing `SENDGRID_API_KEY` and `SENDGRID_FROM_EMAIL` secrets.
+- The guide email will contain a well-formatted HTML "cheat sheet" covering: grade scale (1-10), condition factors (centering, edges, corners, surface), quick tips, and a CTA back to CollectAI.
+- No new secrets or external dependencies needed.
 
