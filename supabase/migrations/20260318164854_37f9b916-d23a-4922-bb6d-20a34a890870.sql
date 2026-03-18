@@ -1,0 +1,1 @@
+DROP POLICY "Users can insert their own transactions" ON public.credit_transactions;
