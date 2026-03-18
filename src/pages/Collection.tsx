@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@/components/ui/table";
-import { ArrowLeft, Camera, Trash2, Search, X, SlidersHorizontal, ChevronDown, LayoutGrid, List, Download, CheckSquare, FolderPlus, Check, Shield } from "lucide-react";
+import { ArrowLeft, Camera, Trash2, Search, X, SlidersHorizontal, ChevronDown, LayoutGrid, List, Download, CheckSquare, FolderPlus, Check, Shield, RefreshCw } from "lucide-react";
 import {
   ContextMenu,
   ContextMenuContent,
