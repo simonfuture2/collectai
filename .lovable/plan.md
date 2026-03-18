@@ -1,33 +1,47 @@
 
 
-# Migrate collectai-identify & collectai-grade to Claude API
+## Current State
 
-## What changes
+- **Lead generation page**: The partner signup page is at `/partners` (PartnerSignup.tsx). It captures name, email, phone, company, and message into the `leads` table. There's also the QuickScanChallenge on the landing page for anonymous lead gen.
+- **Landing page header**: Only has logo + Sign In button. No navigation links to Partners, How It Works, or other pages.
+- **No lead magnet / digital product**: There's no email capture mechanism that offers a free digital product in exchange for an email address.
 
-Both edge functions currently call the Lovable AI Gateway with Gemini 2.5 Flash. We'll switch them to call the Anthropic Messages API directly using your existing `ANTHROPIC_API_KEY` secret.
+## Plan
 
-## Key differences
+### 1. Add navigation links to landing page header
 
-- **Endpoint**: `https://ai.gateway.lovable.dev/v1/chat/completions` → `https://api.anthropic.com/v1/messages`
-- **Auth header**: `Authorization: Bearer LOVABLE_API_KEY` → `x-api-key: ANTHROPIC_API_KEY`
-- **Model**: `google/gemini-2.5-flash` → `claude-sonnet-4-20250514` (strong vision model for card analysis)
-- **Request format**: OpenAI-compatible → Anthropic Messages API format (system prompt is a top-level field, image uses `source.type: "url"`)
-- **Response parsing**: `data.choices[0].message.content` → `data.content[0].text`
-- **Required headers**: Add `anthropic-version: 2023-06-01`
+Add "How It Works" and "Partners" links to the Landing page header between the logo and Sign In button. On mobile, these can be compact links or a simple nav bar.
 
-## Files to edit
+### 2. Create a lead magnet digital product + email capture
 
-1. **`supabase/functions/collectai-grade/index.ts`**
-   - Remove `LOVABLE_API_KEY` check, add `ANTHROPIC_API_KEY` check
-   - Rewrite fetch call to Anthropic Messages API
-   - Update response parsing
+Create a free downloadable guide — something like **"The Collector's Card Grading Cheat Sheet"** — a PDF-style resource that provides real value (grading terminology, what PSA/BGS grades mean, photo tips, value ranges by condition). Users enter their email to receive it.
 
-2. **`supabase/functions/collectai-identify/index.ts`**
-   - Same changes as above
+**Implementation:**
+- Create a new `LeadMagnet` component embedded on the landing page (between features and pricing sections)
+- The component shows a compelling preview of the guide with an email capture form
+- On submit, call a new `lead-magnet` edge function that:
+  - Validates the email
+  - Inserts into the `leads` table with `source: 'lead_magnet'`
+  - Sends the digital guide via SendGrid to the captured email
+  - Returns success
+- The guide content will be an HTML email with the cheat sheet content inline (no PDF hosting needed — the email IS the product)
 
-## No other changes needed
+**Database change:**
+- The `leads` table `source` column is an enum (`lead_source`). We need to add `'lead_magnet'` as a new enum value.
 
-- `ANTHROPIC_API_KEY` is already configured as a secret
-- No database or frontend changes required
-- The JSON response structure returned to callers stays identical
+### 3. Files to create/modify
+
+| File | Action |
+|------|--------|
+| `src/pages/Landing.tsx` | Add nav links (Partners, How It Works) to header; add LeadMagnet section |
+| `src/components/LeadMagnet.tsx` | New — email capture component with guide preview |
+| `supabase/functions/lead-magnet/index.ts` | New — validates email, inserts lead, sends guide email via SendGrid |
+| DB migration | Add `'lead_magnet'` to `lead_source` enum |
+
+### Technical Details
+
+- The `lead_source` enum currently has values used by the system. Adding `'lead_magnet'` requires an `ALTER TYPE` migration.
+- The edge function reuses the existing `SENDGRID_API_KEY` and `SENDGRID_FROM_EMAIL` secrets.
+- The guide email will contain a well-formatted HTML "cheat sheet" covering: grade scale (1-10), condition factors (centering, edges, corners, surface), quick tips, and a CTA back to CollectAI.
+- No new secrets or external dependencies needed.
 

@@ -12,7 +12,6 @@ serve(async (req) => {
   }
 
   try {
-    // Validate API key
     const COLLECTAI_API_KEY = Deno.env.get("COLLECTAI_API_KEY");
     if (!COLLECTAI_API_KEY) {
       throw new Error("COLLECTAI_API_KEY is not configured");
@@ -26,9 +25,9 @@ serve(async (req) => {
       );
     }
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
+    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
+    if (!ANTHROPIC_API_KEY) {
+      throw new Error("ANTHROPIC_API_KEY is not configured");
     }
 
     const { imageUrl } = await req.json();
@@ -40,7 +39,7 @@ serve(async (req) => {
       );
     }
 
-    console.log("CollectAI Identify API called");
+    console.log("CollectAI Identify API called (Claude)");
 
     const systemPrompt = `You are an expert trading card identifier. Analyze the card image and identify all details.
 
@@ -60,21 +59,29 @@ Respond in JSON format:
   "confidenceReason": "string"
 }`;
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "x-api-key": ANTHROPIC_API_KEY,
+        "anthropic-version": "2023-06-01",
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 4096,
+        system: systemPrompt,
         messages: [
-          { role: "system", content: systemPrompt },
           {
             role: "user",
             content: [
-              { type: "text", text: "Identify this trading card. Provide complete details about what card this is." },
-              { type: "image_url", image_url: { url: imageUrl } },
+              {
+                type: "image",
+                source: { type: "url", url: imageUrl },
+              },
+              {
+                type: "text",
+                text: "Identify this trading card. Provide complete details about what card this is.",
+              },
             ],
           },
         ],
@@ -83,18 +90,15 @@ Respond in JSON format:
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("AI gateway error:", response.status, errorText);
+      console.error("Anthropic API error:", response.status, errorText);
       if (response.status === 429) {
         return new Response(JSON.stringify({ error: "Rate limit exceeded" }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
-      if (response.status === 402) {
-        return new Response(JSON.stringify({ error: "AI usage limit reached" }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      }
-      throw new Error(`AI gateway error: ${response.status}`);
+      throw new Error(`Anthropic API error: ${response.status}`);
     }
 
     const data = await response.json();
-    const content = data.choices?.[0]?.message?.content;
+    const content = data.content?.[0]?.text;
 
     if (!content) throw new Error("No response from AI");
 
