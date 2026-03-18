@@ -73,6 +73,7 @@ const Collection = () => {
   const [folders, setFolders] = useState<FolderData[]>([]);
   const [activeFolder, setActiveFolder] = useState<string | null>(null);
   const [cardFolderMap, setCardFolderMap] = useState<Record<string, string[]>>({});
+  const [rescanningId, setRescanningId] = useState<string | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
 
