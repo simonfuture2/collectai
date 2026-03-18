@@ -308,6 +308,46 @@ const Collection = () => {
 
   const cardValue = (c: Card) => ((c.estimated_value_low || 0) + (c.estimated_value_high || 0)) / 2;
 
+  const rescanCard = async (card: Card, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    if (rescanningId) return;
+    setRescanningId(card.id);
+    try {
+      // Get the storage path from the image URL
+      const match = card.image_url.match(/card-images\/([^?]+)/);
+      const imagePath = match ? match[1] : card.image_url;
+
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Not authenticated");
+
+      const response = await supabase.functions.invoke("analyze-card", {
+        body: { imageUrl: imagePath, cardId: card.id },
+      });
+
+      if (response.error) throw response.error;
+
+      const result = response.data;
+      // Update local state with new values
+      setCards(prev => prev.map(c => c.id === card.id ? {
+        ...c,
+        card_name: result.card_name || c.card_name,
+        card_set: result.card_set || c.card_set,
+        card_year: result.card_year || c.card_year,
+        rarity: result.rarity || c.rarity,
+        category: result.category || c.category,
+        condition_grade: result.condition_grade || c.condition_grade,
+        estimated_value_low: result.estimated_value_low ?? c.estimated_value_low,
+        estimated_value_high: result.estimated_value_high ?? c.estimated_value_high,
+      } : c));
+
+      toast({ title: "Re-Scan Complete", description: `${result.card_name || card.card_name || "Card"} has been updated.` });
+    } catch (err: any) {
+      toast({ title: "Re-Scan Failed", description: err.message || "Something went wrong", variant: "destructive" });
+    } finally {
+      setRescanningId(null);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border sticky top-0 z-20 bg-background/95 backdrop-blur-sm">
