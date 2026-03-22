@@ -3,7 +3,8 @@ import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Upload, Loader2, Check, Sparkles, Plus, X, RotateCcw } from "lucide-react";
+import { ArrowLeft, Upload, Loader2, Check, Sparkles, Plus, X, RotateCcw, Camera, Search, Brain, Save } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
 import AIDisclaimer from "@/components/AIDisclaimer";
 import Footer from "@/components/Footer";
 import type { Session, User } from "@supabase/supabase-js";
@@ -29,6 +30,7 @@ const Scan = () => {
   const [user, setUser] = useState<User | null>(null);
   const [slots, setSlots] = useState<ImageSlot[]>(DEFAULT_SLOTS);
   const [analyzing, setAnalyzing] = useState(false);
+  const [scanStep, setScanStep] = useState(0);
   const [result, setResult] = useState<any>(null);
   const [saving, setSaving] = useState(false);
   const [uploadedFilePaths, setUploadedFilePaths] = useState<string[]>([]);
@@ -108,6 +110,7 @@ const Scan = () => {
     }
 
     setAnalyzing(true);
+    setScanStep(1);
     try {
       const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
       if (refreshError) throw refreshError;
@@ -136,6 +139,7 @@ const Scan = () => {
       }
 
       setUploadedFilePaths(imageEntries.map((e) => e.filePath));
+      setScanStep(2);
 
       const { data, error } = await supabase.functions.invoke("analyze-card", {
         body: {
@@ -147,10 +151,13 @@ const Scan = () => {
       });
       if (error) throw error;
 
+      setScanStep(3);
       const analysisResult = { ...data, filePaths: imageEntries.map((e) => e.filePath) };
       setResult(analysisResult);
       toast({ title: "Analysis complete!", description: `Identified: ${data.cardName}` });
       refreshCredits();
+
+      setScanStep(4);
 
       // Auto-save to collection
       try {
@@ -222,6 +229,7 @@ const Scan = () => {
       toast({ title: "Analysis failed", description: error.message, variant: "destructive" });
     } finally {
       setAnalyzing(false);
+      setScanStep(0);
     }
   };
 
@@ -380,14 +388,40 @@ const Scan = () => {
               </button>
             </div>
 
-            {hasImages && (
+            {hasImages && !analyzing && (
               <Button onClick={analyzeCard} disabled={analyzing} className="w-full gradient-primary py-6 text-lg">
-                {analyzing ? (
-                  <><Loader2 className="mr-2 w-5 h-5 animate-spin" />Analyzing {filledSlots.length} image{filledSlots.length > 1 ? "s" : ""}...</>
-                ) : (
-                  <><Sparkles className="mr-2 w-5 h-5" />Analyze ({filledSlots.length} image{filledSlots.length > 1 ? "s" : ""})</>
-                )}
+                <Sparkles className="mr-2 w-5 h-5" />Analyze ({filledSlots.length} image{filledSlots.length > 1 ? "s" : ""})
               </Button>
+            )}
+
+            {analyzing && (
+              <div className="space-y-4 bg-card border border-border rounded-2xl p-6">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="font-display font-bold text-lg">Scanning...</h3>
+                  <Loader2 className="w-5 h-5 animate-spin text-primary" />
+                </div>
+                <Progress value={scanStep === 1 ? 15 : scanStep === 2 ? 45 : scanStep === 3 ? 80 : scanStep === 4 ? 95 : 0} className="h-2" />
+                <div className="space-y-3 mt-4">
+                  {[
+                    { step: 1, icon: Camera, label: "Uploading images", desc: "Preparing your photos for analysis" },
+                    { step: 2, icon: Search, label: "Identifying card", desc: "Recognizing card details & searching prices" },
+                    { step: 3, icon: Brain, label: "AI analysis complete", desc: "Grading condition & estimating value" },
+                    { step: 4, icon: Save, label: "Saving to collection", desc: "Adding card to your portfolio" },
+                  ].map(({ step, icon: Icon, label, desc }) => (
+                    <div key={step} className={`flex items-start gap-3 transition-opacity duration-300 ${scanStep >= step ? "opacity-100" : "opacity-30"}`}>
+                      <div className={`mt-0.5 flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center transition-colors duration-300 ${
+                        scanStep > step ? "bg-primary text-primary-foreground" : scanStep === step ? "bg-primary/20 text-primary border-2 border-primary" : "bg-muted text-muted-foreground"
+                      }`}>
+                        {scanStep > step ? <Check className="w-4 h-4" /> : <Icon className="w-3.5 h-3.5" />}
+                      </div>
+                      <div>
+                        <p className={`text-sm font-medium ${scanStep >= step ? "text-foreground" : "text-muted-foreground"}`}>{label}</p>
+                        <p className="text-xs text-muted-foreground">{desc}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             )}
           </div>
         ) : (
