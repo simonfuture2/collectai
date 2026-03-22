@@ -229,6 +229,7 @@ const Scan = () => {
       toast({ title: "Analysis failed", description: error.message, variant: "destructive" });
     } finally {
       setAnalyzing(false);
+      setScanStep(0);
     }
   };
 
