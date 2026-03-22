@@ -30,6 +30,7 @@ const Scan = () => {
   const [user, setUser] = useState<User | null>(null);
   const [slots, setSlots] = useState<ImageSlot[]>(DEFAULT_SLOTS);
   const [analyzing, setAnalyzing] = useState(false);
+  const [scanStep, setScanStep] = useState(0);
   const [result, setResult] = useState<any>(null);
   const [saving, setSaving] = useState(false);
   const [uploadedFilePaths, setUploadedFilePaths] = useState<string[]>([]);
