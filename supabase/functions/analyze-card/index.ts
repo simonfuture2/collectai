@@ -228,7 +228,7 @@ async function searchMarketPrices(
   }
 }
 
-// Claude verification of pricing (primary verifier)
+// Claude verification of pricing
 async function verifyWithClaude(
   cardId: CardIdentification,
   analysis: any,
@@ -236,7 +236,7 @@ async function verifyWithClaude(
   ANTHROPIC_API_KEY: string
 ): Promise<{ verifiedLow: number; verifiedHigh: number; verificationNote: string } | null> {
   try {
-    console.log("Running Claude price verification (primary)...");
+    console.log("Running Claude price verification...");
     const prompt = `You are a trading card price verification expert. Verify this estimate against the real market data.
 
 Card: ${cardId.card_name} ${cardId.card_number || ""} ${cardId.variant || ""} (${cardId.card_set || ""} ${cardId.card_year || ""})
@@ -292,101 +292,13 @@ Return ONLY valid JSON:
   }
 }
 
-// Fallback: Gemini verification
-async function verifyWithGemini(
-  analysis: any,
-  marketSummary: string,
-  LOVABLE_API_KEY: string
-): Promise<{ verifiedLow: number; verifiedHigh: number; verificationNote: string } | null> {
-  if (!marketSummary || !analysis?.estimatedValueLow) return null;
-
-  try {
-    console.log("Running Gemini price verification (fallback)...");
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          {
-            role: "system",
-            content: `You are a price verification AI. Your ONLY job is to check if a card's estimated value is reasonable given real market data. Be precise and numerical.`,
-          },
-          {
-            role: "user",
-            content: `A card analysis estimated this card at $${safeFixed(analysis.estimatedValueLow)} - $${safeFixed(analysis.estimatedValueHigh)}.
-
-Card: ${analysis.cardName || "Unknown"} (${analysis.cardSet || ""} ${analysis.cardYear || ""})
-Condition: ${analysis.conditionGrade || "Unknown"}
-
-Here is the REAL market data:
-${marketSummary}
-
-Verify if the estimate is reasonable. If the real data shows significantly different prices, correct the estimate.`,
-          },
-        ],
-        tools: [
-          {
-            type: "function",
-            function: {
-              name: "verify_price",
-              description: "Return verified price range.",
-              parameters: {
-                type: "object",
-                properties: {
-                  verified_low: { type: "number" },
-                  verified_high: { type: "number" },
-                  verification_note: { type: "string" },
-                },
-                required: ["verified_low", "verified_high", "verification_note"],
-                additionalProperties: false,
-              },
-            },
-          },
-        ],
-        tool_choice: { type: "function", function: { name: "verify_price" } },
-      }),
-    });
-
-    if (!response.ok) return null;
-
-    const data = await response.json();
-    const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
-    if (!toolCall?.function?.arguments) return null;
-
-    const result = JSON.parse(toolCall.function.arguments);
-    return {
-      verifiedLow: result.verified_low,
-      verifiedHigh: result.verified_high,
-      verificationNote: result.verification_note,
-    };
-  } catch (err) {
-    console.error("Gemini verification error:", err);
-    return null;
-  }
-}
-
-// Detailed card identification
+// Detailed card identification via Claude
 async function identifyCard(
   images: { label: string; url: string }[],
-  LOVABLE_API_KEY: string
+  ANTHROPIC_API_KEY: string
 ): Promise<CardIdentification | null> {
   try {
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-pro",
-        messages: [
-          {
-            role: "system",
-            content: `You are a trading card identification expert. Look at this card image VERY carefully. Read ALL text on the card including:
+    const systemPrompt = `You are a trading card identification expert. Look at this card image VERY carefully. Read ALL text on the card including:
 - The card name (character/player name)
 - The card NUMBER (e.g., "105/086", "25/198") - look at bottom of card
 - The full set/series name and any set symbols
@@ -394,42 +306,41 @@ async function identifyCard(
 - The variant type (Illustration Rare, Full Art, Alt Art, Holo, Reverse Holo, Regular, etc.)
 - The rarity symbol and level
 
-Be EXTREMELY specific. Do NOT return generic names. Include the card number and variant type.`,
-          },
+Be EXTREMELY specific. Do NOT return generic names. Include the card number and variant type.
+
+Respond with ONLY valid JSON in this exact format:
+{
+  "card_name": "Full character/player name on the card",
+  "card_number": "Card number as printed (e.g., '105/086'). Empty string if not visible.",
+  "card_set": "Full set/series name",
+  "card_year": "Year of release",
+  "variant": "Variant type: Illustration Rare, Full Art, Alt Art, Holo, Reverse Holo, Regular, etc.",
+  "rarity": "Rarity level"
+}`;
+
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "x-api-key": ANTHROPIC_API_KEY,
+        "anthropic-version": "2023-06-01",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 1024,
+        system: systemPrompt,
+        messages: [
           {
             role: "user",
             content: [
               { type: "text", text: "Identify this trading card with maximum specificity. Read the card number, variant type, and all visible text." },
               ...images.slice(0, 1).map((img) => ({
-                type: "image_url" as const,
-                image_url: { url: img.url },
+                type: "image" as const,
+                source: { type: "url" as const, url: img.url },
               })),
             ],
           },
         ],
-        tools: [
-          {
-            type: "function",
-            function: {
-              name: "identify_card",
-              description: "Return the detailed card identification.",
-              parameters: {
-                type: "object",
-                properties: {
-                  card_name: { type: "string", description: "Full character/player name on the card" },
-                  card_number: { type: "string", description: "Card number as printed (e.g., '105/086'). Empty string if not visible." },
-                  card_set: { type: "string", description: "Full set/series name" },
-                  card_year: { type: "string", description: "Year of release" },
-                  variant: { type: "string", description: "Variant type: Illustration Rare, Full Art, Alt Art, Holo, Reverse Holo, Regular, etc." },
-                  rarity: { type: "string", description: "Rarity level" },
-                },
-                required: ["card_name", "card_number", "card_set", "card_year", "variant", "rarity"],
-                additionalProperties: false,
-              },
-            },
-          },
-        ],
-        tool_choice: { type: "function", function: { name: "identify_card" } },
       }),
     });
 
@@ -439,10 +350,12 @@ Be EXTREMELY specific. Do NOT return generic names. Include the card number and 
     }
 
     const data = await response.json();
-    const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
-    if (!toolCall?.function?.arguments) return null;
+    const text = data.content?.[0]?.text;
+    if (!text) return null;
 
-    return JSON.parse(toolCall.function.arguments);
+    const jsonMatch = text.match(/```json\n?([\s\S]*?)\n?```/) || text.match(/\{[\s\S]*\}/);
+    const jsonStr = jsonMatch ? (jsonMatch[1] || jsonMatch[0]) : text;
+    return JSON.parse(jsonStr);
   } catch (err) {
     console.error("Card identification failed:", err);
     return null;
@@ -499,10 +412,9 @@ serve(async (req) => {
     }
 
     const body = await req.json();
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
 
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+    if (!ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY is not configured");
 
     const images: { label: string; url: string }[] = body.images || [];
     if (images.length === 0 && body.imageUrl) {
@@ -560,9 +472,9 @@ serve(async (req) => {
 
     console.log(`Analyzing ${images.length} image(s) for user:`, user.id);
 
-    // ===== STEP 1: Detailed identification with Gemini Pro =====
-    console.log("Step 1: Identifying card with Pro model...");
-    const cardId = await identifyCard(images, LOVABLE_API_KEY);
+    // ===== STEP 1: Detailed identification with Claude Sonnet =====
+    console.log("Step 1: Identifying card with Claude Sonnet...");
+    const cardId = await identifyCard(images, ANTHROPIC_API_KEY);
     console.log("Card identified (detailed):", JSON.stringify(cardId));
 
     // ===== STEP 2: Search eBay + TCGPlayer with specific details =====
@@ -573,7 +485,7 @@ serve(async (req) => {
       console.log("Market data found:", marketData.hasData ? "Yes" : "No");
     }
 
-    // ===== STEP 3: Full analysis with real market data =====
+    // ===== STEP 3: Full analysis with Claude =====
     const today = new Date().toISOString().split("T")[0];
 
     const systemPrompt = `You are an expert trading card analyst, appraiser, and professional grader. Today's date is ${today}.
@@ -614,7 +526,7 @@ When shown an image of a trading card, you will:
 
 6. GRADED VALUE ESTIMATES
 
-Respond in JSON format with this structure:
+Respond with ONLY valid JSON (no markdown code fences) with this structure:
 {
   "category": "string",
   "cardName": "string",
@@ -670,25 +582,27 @@ Respond in JSON format with this structure:
 
     const fullUserMessage = userMessage + marketData.summary;
 
-    console.log("Step 3: Full analysis with", marketData.hasData ? "real market data" : "AI-only estimates");
+    console.log("Step 3: Full analysis with Claude,", marketData.hasData ? "real market data" : "AI-only estimates");
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "x-api-key": ANTHROPIC_API_KEY,
+        "anthropic-version": "2023-06-01",
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-pro",
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 8192,
+        system: systemPrompt,
         messages: [
-          { role: "system", content: systemPrompt },
           {
             role: "user",
             content: [
               { type: "text", text: fullUserMessage },
               ...images.map((img) => ({
-                type: "image_url" as const,
-                image_url: { url: img.url },
+                type: "image" as const,
+                source: { type: "url" as const, url: img.url },
               })),
             ],
           },
@@ -698,7 +612,7 @@ Respond in JSON format with this structure:
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("AI gateway error:", response.status, errorText);
+      console.error("Claude API error:", response.status, errorText);
       
       if (response.status === 429) {
         return new Response(
@@ -706,18 +620,12 @@ Respond in JSON format with this structure:
           { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-      if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ error: "AI usage limit reached. Please add credits to continue." }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
       
-      throw new Error(`AI gateway error: ${response.status}`);
+      throw new Error(`Claude API error: ${response.status}`);
     }
 
     const data = await response.json();
-    const content = data.choices?.[0]?.message?.content;
+    const content = data.content?.[0]?.text;
 
     if (!content) throw new Error("No response from AI");
 
@@ -758,19 +666,9 @@ Respond in JSON format with this structure:
         : "AI estimate only - no live market data available";
     }
 
-    // ===== STEP 4: Claude Price Verification (primary), Gemini fallback =====
-    if (marketData.hasData && analysis.estimatedValueLow != null) {
-      let verification = null;
-
-      // Try Claude first (primary)
-      if (ANTHROPIC_API_KEY && cardId) {
-        verification = await verifyWithClaude(cardId, analysis, marketData.summary, ANTHROPIC_API_KEY);
-      }
-
-      // Fallback to Gemini
-      if (!verification) {
-        verification = await verifyWithGemini(analysis, marketData.summary, LOVABLE_API_KEY);
-      }
+    // ===== STEP 4: Claude Price Verification =====
+    if (marketData.hasData && analysis.estimatedValueLow != null && cardId) {
+      const verification = await verifyWithClaude(cardId, analysis, marketData.summary, ANTHROPIC_API_KEY);
 
       if (verification) {
         const origLow = analysis.estimatedValueLow;

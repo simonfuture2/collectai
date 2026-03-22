@@ -147,9 +147,77 @@ const Scan = () => {
       });
       if (error) throw error;
 
-      setResult({ ...data, filePaths: imageEntries.map((e) => e.filePath) });
+      const analysisResult = { ...data, filePaths: imageEntries.map((e) => e.filePath) };
+      setResult(analysisResult);
       toast({ title: "Analysis complete!", description: `Identified: ${data.cardName}` });
       refreshCredits();
+
+      // Auto-save to collection
+      try {
+        const primaryPath = analysisResult.filePaths?.[0] || imageEntries[0]?.filePath;
+        const { data: insertedCard, error: saveError } = await supabase.from("cards").insert({
+          user_id: user.id,
+          image_url: primaryPath,
+          category: analysisResult.category || "Trading Card",
+          card_name: analysisResult.cardName,
+          card_set: analysisResult.cardSet,
+          card_year: analysisResult.cardYear,
+          edition: analysisResult.edition,
+          rarity: analysisResult.rarity,
+          condition_grade: analysisResult.conditionGrade,
+          special_features: analysisResult.specialFeatures || [],
+          estimated_value_low: analysisResult.estimatedValueLow,
+          estimated_value_high: analysisResult.estimatedValueHigh,
+          ebay_recent_sales: analysisResult.ebayRecentSales,
+          tcgplayer_price: analysisResult.tcgplayerPrice,
+          psa_population_data: analysisResult.psaPopulation,
+          ai_analysis: analysisResult,
+        }).select("id").single();
+
+        if (saveError) throw saveError;
+
+        // Persist price history
+        if (analysisResult.extractedMarketData && insertedCard?.id) {
+          const priceRows: any[] = [];
+          const emd = analysisResult.extractedMarketData;
+          if (emd.sources) {
+            for (const src of emd.sources) {
+              priceRows.push({
+                card_id: insertedCard.id,
+                user_id: user.id,
+                source: src.source,
+                median_price: src.median,
+                low_price: src.low,
+                high_price: src.high,
+                price_count: src.count,
+                raw_prices: src.prices,
+              });
+            }
+          }
+          if (emd.blended) {
+            priceRows.push({
+              card_id: insertedCard.id,
+              user_id: user.id,
+              source: "blended",
+              median_price: emd.blended.median,
+              low_price: emd.blended.low,
+              high_price: emd.blended.high,
+              price_count: 0,
+              raw_prices: [],
+            });
+          }
+          if (priceRows.length > 0) {
+            await supabase.from("price_history").insert(priceRows);
+          }
+        }
+
+        toast({ title: "Card saved to collection!" });
+        navigate(`/card/${insertedCard.id}`);
+        return;
+      } catch (saveErr: any) {
+        console.error("Auto-save failed:", saveErr);
+        toast({ title: "Card analyzed but save failed", description: "You can still save manually.", variant: "destructive" });
+      }
     } catch (error: any) {
       toast({ title: "Analysis failed", description: error.message, variant: "destructive" });
     } finally {
@@ -365,7 +433,7 @@ const Scan = () => {
             <div className="flex gap-4">
               <Button onClick={saveToCollection} disabled={saving} className="flex-1 gradient-primary">
                 {saving ? <Loader2 className="mr-2 w-4 h-4 animate-spin" /> : <Check className="mr-2 w-4 h-4" />}
-                Add to Collection
+                Save to Collection
               </Button>
               <Button variant="outline" onClick={resetScan}>
                 <RotateCcw className="mr-2 w-4 h-4" />Scan Another
