@@ -1,47 +1,40 @@
 
 
-## Current State
+# Fix: Auto-save scan results + Migrate analyze-card to Claude + Speed improvements
 
-- **Lead generation page**: The partner signup page is at `/partners` (PartnerSignup.tsx). It captures name, email, phone, company, and message into the `leads` table. There's also the QuickScanChallenge on the landing page for anonymous lead gen.
-- **Landing page header**: Only has logo + Sign In button. No navigation links to Partners, How It Works, or other pages.
-- **No lead magnet / digital product**: There's no email capture mechanism that offers a free digital product in exchange for an email address.
+## Problem Summary
+1. Credit deducted but card not in collection — user must manually click "Add to Collection" which is easy to miss
+2. Scan takes ~60s due to 4+ sequential AI calls
+3. `analyze-card` still uses Lovable AI Gateway (will break when credits deplete)
 
-## Plan
+## Changes
 
-### 1. Add navigation links to landing page header
+### 1. Auto-save card after successful scan
+**File: `src/pages/Scan.tsx`**
+- After `analyze-card` returns successfully (line 150), automatically call the same save logic currently in `saveToCollection`
+- Insert the card into the `cards` table and price history immediately
+- Navigate to the card detail page (`/card/:id`) instead of showing an intermediate "Add to Collection" screen
+- Remove the manual "Add to Collection" button; replace with "View Card" if needed
+- This ensures credits are never wasted on unsaved results
 
-Add "How It Works" and "Partners" links to the Landing page header between the logo and Sign In button. On mobile, these can be compact links or a simple nav bar.
+### 2. Migrate analyze-card to Claude API
+**File: `supabase/functions/analyze-card/index.ts`**
+- **Step 1 (identifyCard function, line 373)**: Replace Lovable AI Gateway call with Anthropic Claude API (`claude-sonnet-4-20250514`). Convert from OpenAI-compatible format to Anthropic Messages format. Use structured JSON response instead of tool_choice (Claude handles JSON output well).
+- **Step 3 (full analysis, line 675)**: Same migration — replace gateway call with Claude API. Move system prompt to top-level `system` field, convert image_url blocks to Anthropic image blocks.
+- **Remove Gemini fallback verifier** (lines 296-370): No longer needed since Claude is primary for everything.
+- **Remove `LOVABLE_API_KEY` dependency**: Function will only need `ANTHROPIC_API_KEY`.
 
-### 2. Create a lead magnet digital product + email capture
+### 3. Minor speed optimization
+- In Step 1 (identification), use `claude-sonnet-4-20250514` instead of the slower Pro model — Sonnet is fast and excellent at vision tasks
+- In Step 3 (full analysis), also use Sonnet — the detailed prompt guides output quality more than model tier
+- This should reduce total time from ~60s to ~30-40s
 
-Create a free downloadable guide — something like **"The Collector's Card Grading Cheat Sheet"** — a PDF-style resource that provides real value (grading terminology, what PSA/BGS grades mean, photo tips, value ranges by condition). Users enter their email to receive it.
+## Files to edit
+1. `src/pages/Scan.tsx` — auto-save after scan
+2. `supabase/functions/analyze-card/index.ts` — migrate to Claude API
 
-**Implementation:**
-- Create a new `LeadMagnet` component embedded on the landing page (between features and pricing sections)
-- The component shows a compelling preview of the guide with an email capture form
-- On submit, call a new `lead-magnet` edge function that:
-  - Validates the email
-  - Inserts into the `leads` table with `source: 'lead_magnet'`
-  - Sends the digital guide via SendGrid to the captured email
-  - Returns success
-- The guide content will be an HTML email with the cheat sheet content inline (no PDF hosting needed — the email IS the product)
-
-**Database change:**
-- The `leads` table `source` column is an enum (`lead_source`). We need to add `'lead_magnet'` as a new enum value.
-
-### 3. Files to create/modify
-
-| File | Action |
-|------|--------|
-| `src/pages/Landing.tsx` | Add nav links (Partners, How It Works) to header; add LeadMagnet section |
-| `src/components/LeadMagnet.tsx` | New — email capture component with guide preview |
-| `supabase/functions/lead-magnet/index.ts` | New — validates email, inserts lead, sends guide email via SendGrid |
-| DB migration | Add `'lead_magnet'` to `lead_source` enum |
-
-### Technical Details
-
-- The `lead_source` enum currently has values used by the system. Adding `'lead_magnet'` requires an `ALTER TYPE` migration.
-- The edge function reuses the existing `SENDGRID_API_KEY` and `SENDGRID_FROM_EMAIL` secrets.
-- The guide email will contain a well-formatted HTML "cheat sheet" covering: grade scale (1-10), condition factors (centering, edges, corners, surface), quick tips, and a CTA back to CollectAI.
-- No new secrets or external dependencies needed.
+## No other changes needed
+- `ANTHROPIC_API_KEY` is already configured
+- Database schema unchanged
+- Card detail page already handles viewing saved cards
 
