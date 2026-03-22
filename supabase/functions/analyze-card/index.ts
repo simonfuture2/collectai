@@ -685,32 +685,128 @@ Respond with ONLY valid JSON (no markdown code fences) with this structure:
       }
     }
 
-    // Deduct credit for non-Pro users
+    // ===== STEP 5: Save card server-side, then deduct credit =====
+    // Extract the file path from the signed URL
+    const firstImageUrl = images[0]?.url || "";
+    let imagePath = "";
+    try {
+      const urlObj = new URL(firstImageUrl);
+      const pathParts = urlObj.pathname.split("/");
+      const bucketIndex = pathParts.indexOf("card-images");
+      if (bucketIndex !== -1) {
+        imagePath = pathParts.slice(bucketIndex + 1).join("/");
+      }
+    } catch { imagePath = ""; }
+
+    if (!imagePath) {
+      // Fallback: use the body's filePath if provided
+      imagePath = body.filePath || firstImageUrl;
+    }
+
+    // Duplicate prevention: check if card with same image_url exists
+    const { data: existingCard } = await supabaseAdmin
+      .from("cards")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("image_url", imagePath)
+      .maybeSingle();
+
+    if (existingCard) {
+      console.log("Duplicate card detected, returning existing card:", existingCard.id);
+      return new Response(JSON.stringify({ ...analysis, extractedMarketData: marketData.extractedMarketData, cardId: existingCard.id, duplicate: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Insert card into DB
+    const { data: savedCard, error: cardInsertError } = await supabaseAdmin
+      .from("cards")
+      .insert({
+        user_id: user.id,
+        image_url: imagePath,
+        category: analysis.category || "Trading Card",
+        card_name: analysis.cardName || null,
+        card_set: analysis.cardSet || null,
+        card_year: analysis.cardYear || null,
+        edition: analysis.edition || null,
+        rarity: analysis.rarity || null,
+        condition_grade: analysis.conditionGrade || null,
+        special_features: analysis.specialFeatures || [],
+        estimated_value_low: analysis.estimatedValueLow || null,
+        estimated_value_high: analysis.estimatedValueHigh || null,
+        ebay_recent_sales: analysis.ebayRecentSales || null,
+        tcgplayer_price: analysis.tcgplayerPrice || null,
+        psa_population_data: analysis.psaPopulation || null,
+        ai_analysis: analysis,
+      })
+      .select("id")
+      .single();
+
+    if (cardInsertError) {
+      console.error("Failed to save card:", cardInsertError);
+      // Still return analysis so client can attempt manual save
+      return new Response(JSON.stringify({ ...analysis, extractedMarketData: marketData.extractedMarketData, saveError: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    console.log("Card saved server-side:", savedCard.id);
+
+    // Insert price history
+    if (marketData.extractedMarketData && savedCard.id) {
+      const priceRows: any[] = [];
+      const emd = marketData.extractedMarketData;
+      if (emd.sources) {
+        for (const src of emd.sources) {
+          priceRows.push({
+            card_id: savedCard.id,
+            user_id: user.id,
+            source: src.source,
+            median_price: src.median,
+            low_price: src.low,
+            high_price: src.high,
+            price_count: src.count,
+            raw_prices: src.prices,
+          });
+        }
+      }
+      if (emd.blended) {
+        priceRows.push({
+          card_id: savedCard.id,
+          user_id: user.id,
+          source: "blended",
+          median_price: emd.blended.median,
+          low_price: emd.blended.low,
+          high_price: emd.blended.high,
+          price_count: 0,
+          raw_prices: [],
+        });
+      }
+      if (priceRows.length > 0) {
+        await supabaseAdmin.from("price_history").insert(priceRows);
+      }
+    }
+
+    // NOW deduct credit (only after card is saved)
     if (!isPro) {
       const { data: remaining, error: deductError } = await supabaseAdmin.rpc("deduct_credit", {
         _user_id: user.id,
       });
 
       if (deductError || remaining === -1) {
-        return new Response(
-          JSON.stringify({ error: "Insufficient credits. Please purchase credits or upgrade to Pro." }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      await supabaseAdmin
-        .from("credit_transactions")
-        .insert({
+        console.error("Credit deduction failed after save - card already persisted");
+      } else {
+        await supabaseAdmin.from("credit_transactions").insert({
           user_id: user.id,
           amount: -1,
           type: "scan",
           description: `AI scan: ${analysis.cardName || "Unknown card"}`,
         });
-
-      console.log("Deducted 1 credit for user:", user.id, "remaining:", remaining);
+        console.log("Deducted 1 credit for user:", user.id, "remaining:", remaining);
+      }
     }
 
-    return new Response(JSON.stringify({ ...analysis, extractedMarketData: marketData.extractedMarketData }), {
+    return new Response(JSON.stringify({ ...analysis, extractedMarketData: marketData.extractedMarketData, cardId: savedCard.id }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
