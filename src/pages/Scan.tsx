@@ -433,7 +433,7 @@ const Scan = () => {
             <div className="flex gap-4">
               <Button onClick={saveToCollection} disabled={saving} className="flex-1 gradient-primary">
                 {saving ? <Loader2 className="mr-2 w-4 h-4 animate-spin" /> : <Check className="mr-2 w-4 h-4" />}
-                Add to Collection
+                Save to Collection
               </Button>
               <Button variant="outline" onClick={resetScan}>
                 <RotateCcw className="mr-2 w-4 h-4" />Scan Another
