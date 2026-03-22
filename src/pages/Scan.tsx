@@ -110,6 +110,7 @@ const Scan = () => {
     }
 
     setAnalyzing(true);
+    setScanStep(1);
     try {
       const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
       if (refreshError) throw refreshError;
@@ -138,6 +139,7 @@ const Scan = () => {
       }
 
       setUploadedFilePaths(imageEntries.map((e) => e.filePath));
+      setScanStep(2);
 
       const { data, error } = await supabase.functions.invoke("analyze-card", {
         body: {
