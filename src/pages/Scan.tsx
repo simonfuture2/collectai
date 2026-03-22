@@ -151,10 +151,13 @@ const Scan = () => {
       });
       if (error) throw error;
 
+      setScanStep(3);
       const analysisResult = { ...data, filePaths: imageEntries.map((e) => e.filePath) };
       setResult(analysisResult);
       toast({ title: "Analysis complete!", description: `Identified: ${data.cardName}` });
       refreshCredits();
+
+      setScanStep(4);
 
       // Auto-save to collection
       try {
