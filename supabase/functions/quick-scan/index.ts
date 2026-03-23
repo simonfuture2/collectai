@@ -21,9 +21,25 @@ function isRateLimited(ip: string): boolean {
   return false;
 }
 
+// Retry helper with exponential backoff for 429/529 errors
+async function fetchWithRetry(
+  url: string,
+  options: RequestInit,
+  maxRetries = 3
+): Promise<Response> {
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    const response = await fetch(url, options);
+    if (response.status !== 429 && response.status !== 529) return response;
+    const delay = Math.pow(2, attempt + 1) * 1000; // 2s, 4s, 8s
+    console.warn(`API returned ${response.status}, retrying in ${delay}ms (attempt ${attempt + 1}/${maxRetries})`);
+    await new Promise((r) => setTimeout(r, delay));
+  }
+  // Final attempt without retry
+  return fetch(url, options);
+}
+
 // Helper: extract dollar amounts from text, filtering noise
 function extractPrices(text: string): number[] {
-  // Remove shipping-related prices
   const cleaned = text.replace(/\$[\d,]+\.?\d*\s*(shipping|ship|s\/h|postage|delivery)/gi, "");
   const matches = cleaned.match(/\$[\d,]+\.?\d*/g) || [];
   return matches
@@ -66,7 +82,6 @@ function buildSearchTerms(cardId: CardIdentification): { specific: string; broad
   
   const specific = parts.join(" ");
   const broad = `${cardId.card_name} ${cardId.card_set || ""} ${cardId.variant || ""}`.trim();
-  // Variant-focused: just name + variant for maximum recall
   const variant = `${cardId.card_name} ${cardId.variant && cardId.variant !== "Regular" ? cardId.variant : ""} pokemon card`.trim();
   
   return { specific, broad, variant };
@@ -105,14 +120,12 @@ async function quickMarketSearch(cardId: CardIdentification): Promise<string> {
   }
 
   try {
-    // Try specific search first
     let [soldResults, activeResults, tcgResults] = await Promise.all([
       doSearch(`"${specific}" sold site:ebay.com`, 8, "ebay.com"),
       doSearch(`"${specific}" site:ebay.com`, 6, "ebay.com"),
       doSearch(`"${specific}" price site:tcgplayer.com`, 5, "tcgplayer.com"),
     ]);
 
-    // Fallback to broader search if specific returned nothing
     let totalSpecific = soldResults.length + activeResults.length + tcgResults.length;
     if (totalSpecific < 3 && broad !== specific) {
       console.log("Specific search yielded few results, trying broader search...");
@@ -130,7 +143,6 @@ async function quickMarketSearch(cardId: CardIdentification): Promise<string> {
       }
     }
 
-    // Variant-focused fallback: unquoted, simpler terms for maximum recall
     if (totalSpecific < 3 && variant) {
       console.log("Still sparse, trying variant-focused search:", variant);
       const [soldVar, activeVar, tcgVar] = await Promise.all([
@@ -187,7 +199,6 @@ async function quickMarketSearch(cardId: CardIdentification): Promise<string> {
       summary += `TCGPlayer prices (filtered): ${tcgPrices.map((p) => `$${p.toFixed(2)}`).join(", ")} | Median: $${medianTcg.toFixed(2)}\n`;
     }
 
-    // Compute blended value
     const allMedians: { value: number; weight: number }[] = [];
     if (soldPrices.length > 0) allMedians.push({ value: medianSold, weight: 0.5 });
     if (tcgPrices.length > 0) allMedians.push({ value: medianTcg, weight: 0.3 });
@@ -240,28 +251,26 @@ serve(async (req) => {
       );
     }
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
-
+    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
+    if (!ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY not configured");
 
     const mimeMatch = imageBase64.match(/^data:(image\/\w+);base64,/);
     const mimeType = mimeMatch ? mimeMatch[1] : "image/jpeg";
     const cleanBase64 = imageBase64.replace(/^data:image\/\w+;base64,/, "");
 
-    // ===== STEP 1: Detailed identification with Gemini 2.5 Pro =====
-    console.log("Quick scan Step 1: Identifying card with Pro model...");
-    const idResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    // ===== STEP 1: Detailed identification with Claude Sonnet =====
+    console.log("Quick scan Step 1: Identifying card with Claude Sonnet...");
+    const idResponse = await fetchWithRetry("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
+        "x-api-key": ANTHROPIC_API_KEY,
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-pro",
-        messages: [
-          {
-            role: "system",
-            content: `You are a trading card identification expert. Look at this card image VERY carefully. Read ALL text on the card including:
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 1024,
+        system: `You are a trading card identification expert. Look at this card image VERY carefully. Read ALL text on the card including:
 - The card name (character/player name)
 - The card NUMBER (e.g., "105/086", "PSA 10", etc.) - look at bottom of card
 - The set/series name and any set symbols
@@ -269,50 +278,54 @@ serve(async (req) => {
 - The variant type (Illustration Rare, Full Art, Alt Art, Holo, Reverse Holo, Regular, etc.)
 - The rarity symbol and level
 
-Be EXTREMELY specific. Do NOT return generic names. Include the card number and variant type.`,
-          },
+Be EXTREMELY specific. Do NOT return generic names. Include the card number and variant type.
+
+Respond with ONLY a JSON object with these exact fields:
+{
+  "card_name": "Full character/player name on the card",
+  "card_number": "Card number as printed (e.g., '105/086', '25/198'). Empty string if not visible.",
+  "card_set": "Full set/series name (e.g., 'Scarlet & Violet: Black Bolt', NOT abbreviated)",
+  "card_year": "Year of release",
+  "variant": "Variant/parallel type: 'Illustration Rare', 'Full Art', 'Alt Art', 'Holo', 'Reverse Holo', 'Regular', 'Secret Rare', 'Gold', etc.",
+  "rarity": "Rarity level: Common, Uncommon, Rare, Ultra Rare, Secret Rare, etc."
+}`,
+        messages: [
           {
             role: "user",
             content: [
-              { type: "text", text: "Identify this trading card with maximum specificity. Read the card number, variant type, and all visible text." },
-              { type: "image_url", image_url: { url: `data:${mimeType};base64,${cleanBase64}` } },
+              {
+                type: "image",
+                source: {
+                  type: "base64",
+                  media_type: mimeType,
+                  data: cleanBase64,
+                },
+              },
+              {
+                type: "text",
+                text: "Identify this trading card with maximum specificity. Read the card number, variant type, and all visible text. Return ONLY JSON.",
+              },
             ],
           },
         ],
-        tools: [
-          {
-            type: "function",
-            function: {
-              name: "identify_card",
-              description: "Return the detailed card identification.",
-              parameters: {
-                type: "object",
-                properties: {
-                  card_name: { type: "string", description: "Full character/player name on the card" },
-                  card_number: { type: "string", description: "Card number as printed (e.g., '105/086', '25/198'). Empty string if not visible." },
-                  card_set: { type: "string", description: "Full set/series name (e.g., 'Scarlet & Violet: Black Bolt', NOT abbreviated)" },
-                  card_year: { type: "string", description: "Year of release" },
-                  variant: { type: "string", description: "Variant/parallel type: 'Illustration Rare', 'Full Art', 'Alt Art', 'Holo', 'Reverse Holo', 'Regular', 'Secret Rare', 'Gold', etc." },
-                  rarity: { type: "string", description: "Rarity level: Common, Uncommon, Rare, Ultra Rare, Secret Rare, etc." },
-                },
-                required: ["card_name", "card_number", "card_set", "card_year", "variant", "rarity"],
-                additionalProperties: false,
-              },
-            },
-          },
-        ],
-        tool_choice: { type: "function", function: { name: "identify_card" } },
       }),
     });
 
     let cardId: CardIdentification | null = null;
     if (idResponse.ok) {
       const idData = await idResponse.json();
-      const toolCall = idData.choices?.[0]?.message?.tool_calls?.[0];
-      if (toolCall?.function?.arguments) {
-        cardId = JSON.parse(toolCall.function.arguments);
-        console.log("Card identified (detailed):", JSON.stringify(cardId));
+      const idText = idData.content?.[0]?.text || "";
+      try {
+        const jsonMatch = idText.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          cardId = JSON.parse(jsonMatch[0]);
+          console.log("Card identified (detailed):", JSON.stringify(cardId));
+        }
+      } catch (parseErr) {
+        console.error("Failed to parse identification JSON:", parseErr);
       }
+    } else {
+      console.error("Step 1 failed:", idResponse.status, await idResponse.text());
     }
 
     // ===== STEP 2: Search eBay + TCGPlayer with specific details =====
@@ -322,9 +335,6 @@ Be EXTREMELY specific. Do NOT return generic names. Include the card number and 
     }
 
     // ===== STEP 3: Use Claude for full analysis + pricing =====
-    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
-    if (!ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY not configured");
-
     const today = new Date().toISOString().split("T")[0];
     const cardContext = cardId
       ? `\nIdentified card: ${cardId.card_name} ${cardId.card_number || ""} (${cardId.card_set || ""}, ${cardId.card_year || ""}, ${cardId.variant || ""}, ${cardId.rarity || ""})`
@@ -352,7 +362,7 @@ ${marketContext ? `CRITICAL: The SUGGESTED VALUE in the market data is the most 
 Return ONLY the JSON object, no other text.`;
 
     console.log("Quick scan Step 3: Sending to Claude for analysis...");
-    const claudeResponse = await fetch("https://api.anthropic.com/v1/messages", {
+    const claudeResponse = await fetchWithRetry("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
         "x-api-key": ANTHROPIC_API_KEY,
@@ -398,10 +408,8 @@ Return ONLY the JSON object, no other text.`;
     // Extract JSON from Claude's response
     let result: any;
     try {
-      // Try direct parse first
       result = JSON.parse(responseText);
     } catch {
-      // Find JSON in mixed text
       const jsonMatch = responseText.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         try {
@@ -439,7 +447,6 @@ Return ONLY the JSON object, no other text.`;
     if (blendedValue > 0) {
       const progLow = Math.round(blendedValue * 0.85);
       const progHigh = Math.round(blendedValue * 1.15);
-      // Only override if Claude's estimate seems off (more than 2x different from blended)
       const claudeMid = (result.estimated_value_low + result.estimated_value_high) / 2;
       if (claudeMid < blendedValue * 0.5 || claudeMid > blendedValue * 2) {
         console.log(`Programmatic override: Claude mid=$${claudeMid.toFixed(2)} vs blended=$${blendedValue.toFixed(2)} — overriding`);
@@ -459,7 +466,7 @@ Return ONLY the JSON object, no other text.`;
   } catch (e) {
     console.error("quick-scan error:", e);
     return new Response(
-      JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }),
+      JSON.stringify({ error: "An internal error occurred. Please try again." }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
