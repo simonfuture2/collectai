@@ -533,7 +533,15 @@ VALUATION FORMULA (you MUST follow this):
 7. If market data clearly shows cards selling for $100+, your estimate MUST reflect that — NOT $5-15.
 8. Compare the card's condition to what the listings describe. Better condition → estimate toward high end. Worse → low end.
 
-Your estimates MUST be anchored to the real price data. Do NOT override real market data with training knowledge.` : `You do NOT have access to real-time market data. Your training data may contain OUTDATED prices. Be VERY conservative with value estimates. If you are not confident about current market prices, set confidence to "low" and clearly state that values are estimates that may not reflect the current market.`}
+Your estimates MUST be anchored to the real price data. Do NOT override real market data with training knowledge.` : `You do NOT have access to real-time market data. Your training data may contain OUTDATED prices.
+
+CRITICAL NO-MARKET-DATA RULES:
+1. If you cannot confidently identify the exact card variant, ASSUME it is a common/base version.
+2. For sports cards without market data, estimate conservatively — most raw base cards are worth $1-$20 unless they are rookies, autos, or numbered parallels.
+3. NEVER estimate above $100 without market data unless the card is clearly a rare insert, autograph, or serial-numbered parallel that you can specifically identify.
+4. Set confidence to "low" and clearly state that values are rough estimates without live market verification.
+5. Use a WIDE value range (±50%) to communicate uncertainty.
+6. For any card you estimate above $50 without market data, you MUST explain exactly why in confidenceReason (e.g., "rookie card", "autograph", "numbered /25").`}
 
 When shown an image of a trading card, you will:
 
