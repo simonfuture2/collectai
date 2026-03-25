@@ -100,7 +100,8 @@ async function searchMarketPrices(
     return empty;
   }
 
-  const { specific, broad } = buildSearchTerms(cardId);
+  const isSportsCard = /sport|baseball|basketball|football|hockey|soccer/i.test(category || "");
+  const { specific, broad, fallback } = buildSearchTerms(cardId, category);
 
   async function doSearch(query: string, limit: number, urlFilter?: string) {
     try {
