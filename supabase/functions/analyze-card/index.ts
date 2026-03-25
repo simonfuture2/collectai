@@ -704,6 +704,42 @@ Respond with ONLY valid JSON (no markdown code fences) with this structure:
         : "AI estimate only - no live market data available";
     }
 
+    // ===== NO-MARKET-DATA GUARDRAILS =====
+    if (!marketData.hasData) {
+      // Force low confidence
+      analysis.confidence = "low";
+      analysis.noMarketData = true;
+      analysis.confidenceReason = (analysis.confidenceReason || "") + " No real-time market data was found — values are AI estimates only and may be significantly inaccurate.";
+
+      // Cap unreasonable AI-only estimates
+      const highVal = Number(analysis.estimatedValueHigh) || 0;
+      const lowVal = Number(analysis.estimatedValueLow) || 0;
+
+      if (highVal > 100) {
+        // Check if card has identifiable high-value traits
+        const hasHighValueTraits = /auto(graph)?|numbered|\/\d{1,3}$|1st edition|rookie|rc|parallel|refractor|prismatic/i.test(
+          `${analysis.rarity || ""} ${analysis.parallelVariant || ""} ${analysis.specialFeatures?.join(" ") || ""} ${analysis.edition || ""}`
+        );
+
+        if (!hasHighValueTraits) {
+          // Cap at $100 for unverified common cards
+          analysis.estimatedValueHigh = Math.min(highVal, 100);
+          analysis.estimatedValueLow = Math.min(lowVal, analysis.estimatedValueHigh * 0.5);
+          analysis.valuationWarning = "High value estimated without market verification — capped at conservative estimate. Re-scan to check for updated pricing.";
+          console.log(`Capped AI-only estimate from $${lowVal}-$${highVal} to $${analysis.estimatedValueLow}-$${analysis.estimatedValueHigh}`);
+        } else {
+          // Has high-value traits but still widen the range
+          analysis.estimatedValueLow = Math.round(lowVal * 0.5);
+          analysis.estimatedValueHigh = Math.round(highVal * 1.5);
+          analysis.valuationWarning = "High value estimated without market verification — treat as rough estimate. Re-scan to check for updated pricing.";
+        }
+      } else {
+        // Widen range for uncertainty
+        analysis.estimatedValueLow = Math.round(lowVal * 0.5);
+        analysis.estimatedValueHigh = Math.round(highVal * 1.5);
+      }
+    }
+
     // ===== STEP 4: Claude Price Verification =====
     if (marketData.hasData && analysis.estimatedValueLow != null && cardId) {
       const verification = await verifyWithClaude(cardId, analysis, marketData.summary, ANTHROPIC_API_KEY);
