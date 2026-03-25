@@ -62,21 +62,36 @@ interface ExtractedMarketData {
 }
 
 // Build specific search queries from card identification
-function buildSearchTerms(cardId: CardIdentification): { specific: string; broad: string } {
-  const parts: string[] = [];
-  if (cardId.card_name) parts.push(cardId.card_name);
-  if (cardId.card_number) parts.push(cardId.card_number);
-  if (cardId.variant && cardId.variant !== "Regular" && cardId.variant !== "Standard") parts.push(cardId.variant);
-  
-  const specific = parts.join(" ");
-  const broad = `${cardId.card_name} ${cardId.card_set || ""} ${cardId.variant || ""}`.trim();
-  
-  return { specific, broad };
+function buildSearchTerms(cardId: CardIdentification, category?: string): { specific: string; broad: string; fallback: string } {
+  const isSportsCard = /sport|baseball|basketball|football|hockey|soccer/i.test(category || "");
+
+  let specific: string;
+  let broad: string;
+  let fallback: string;
+
+  if (isSportsCard) {
+    // Sports cards: player name + year + set works best on eBay
+    specific = `${cardId.card_name} ${cardId.card_year || ""} ${cardId.card_set || ""}`.trim();
+    broad = `${cardId.card_name} ${cardId.card_year || ""} card`.trim();
+    fallback = `${cardId.card_name} card`.trim();
+  } else {
+    // TCG cards: name + number + variant
+    const parts: string[] = [];
+    if (cardId.card_name) parts.push(cardId.card_name);
+    if (cardId.card_number) parts.push(cardId.card_number);
+    if (cardId.variant && cardId.variant !== "Regular" && cardId.variant !== "Standard") parts.push(cardId.variant);
+    specific = parts.join(" ");
+    broad = `${cardId.card_name} ${cardId.card_set || ""} ${cardId.variant || ""}`.trim();
+    fallback = `${cardId.card_name} ${cardId.card_set || ""} card`.trim();
+  }
+
+  return { specific, broad, fallback };
 }
 
 // Helper: search market listings via Firecrawl and return structured price data
 async function searchMarketPrices(
-  cardId: CardIdentification
+  cardId: CardIdentification,
+  category?: string
 ): Promise<{ summary: string; hasData: boolean; extractedMarketData: ExtractedMarketData }> {
   const FIRECRAWL_API_KEY = Deno.env.get("FIRECRAWL_API_KEY");
   const emptyMarket: ExtractedMarketData = { sources: [], blended: null };
@@ -86,7 +101,8 @@ async function searchMarketPrices(
     return empty;
   }
 
-  const { specific, broad } = buildSearchTerms(cardId);
+  const isSportsCard = /sport|baseball|basketball|football|hockey|soccer/i.test(category || "");
+  const { specific, broad, fallback } = buildSearchTerms(cardId, category);
 
   async function doSearch(query: string, limit: number, urlFilter?: string) {
     try {
@@ -112,7 +128,7 @@ async function searchMarketPrices(
     let [soldResults, activeResults, tcgResults] = await Promise.all([
       doSearch(`"${specific}" sold site:ebay.com`, 10, "ebay.com"),
       doSearch(`"${specific}" site:ebay.com`, 8, "ebay.com"),
-      doSearch(`"${specific}" price site:tcgplayer.com`, 6, "tcgplayer.com"),
+      isSportsCard ? Promise.resolve([]) : doSearch(`"${specific}" price site:tcgplayer.com`, 6, "tcgplayer.com"),
     ]);
 
     // Fallback to broader search if specific returned few results
@@ -122,12 +138,26 @@ async function searchMarketPrices(
       const [soldBroad, activeBroad, tcgBroad] = await Promise.all([
         doSearch(`${broad} sold site:ebay.com`, 10, "ebay.com"),
         doSearch(`${broad} site:ebay.com`, 8, "ebay.com"),
-        doSearch(`${broad} price site:tcgplayer.com`, 6, "tcgplayer.com"),
+        isSportsCard ? Promise.resolve([]) : doSearch(`${broad} price site:tcgplayer.com`, 6, "tcgplayer.com"),
       ]);
       if (soldBroad.length + activeBroad.length + tcgBroad.length > totalSpecific) {
         soldResults = soldBroad;
         activeResults = activeBroad;
         tcgResults = tcgBroad;
+      }
+    }
+
+    // Third-tier fallback: just the card name
+    const totalAfterBroad = soldResults.length + activeResults.length + tcgResults.length;
+    if (totalAfterBroad < 3 && fallback !== broad) {
+      console.log("Broad search yielded few results, trying fallback search...");
+      const [soldFallback, activeFallback] = await Promise.all([
+        doSearch(`${fallback} sold site:ebay.com`, 10, "ebay.com"),
+        doSearch(`${fallback} site:ebay.com`, 8, "ebay.com"),
+      ]);
+      if (soldFallback.length + activeFallback.length > totalAfterBroad) {
+        soldResults = soldFallback;
+        activeResults = activeFallback;
       }
     }
 
@@ -481,7 +511,7 @@ serve(async (req) => {
     let marketData: { summary: string; hasData: boolean; extractedMarketData: ExtractedMarketData } = { summary: "", hasData: false, extractedMarketData: { sources: [], blended: null } };
     if (cardId?.card_name) {
       console.log("Step 2: Searching eBay + TCGPlayer with specific query...");
-      marketData = await searchMarketPrices(cardId);
+      marketData = await searchMarketPrices(cardId, body.category);
       console.log("Market data found:", marketData.hasData ? "Yes" : "No");
     }
 
@@ -503,7 +533,15 @@ VALUATION FORMULA (you MUST follow this):
 7. If market data clearly shows cards selling for $100+, your estimate MUST reflect that — NOT $5-15.
 8. Compare the card's condition to what the listings describe. Better condition → estimate toward high end. Worse → low end.
 
-Your estimates MUST be anchored to the real price data. Do NOT override real market data with training knowledge.` : `You do NOT have access to real-time market data. Your training data may contain OUTDATED prices. Be VERY conservative with value estimates. If you are not confident about current market prices, set confidence to "low" and clearly state that values are estimates that may not reflect the current market.`}
+Your estimates MUST be anchored to the real price data. Do NOT override real market data with training knowledge.` : `You do NOT have access to real-time market data. Your training data may contain OUTDATED prices.
+
+CRITICAL NO-MARKET-DATA RULES:
+1. If you cannot confidently identify the exact card variant, ASSUME it is a common/base version.
+2. For sports cards without market data, estimate conservatively — most raw base cards are worth $1-$20 unless they are rookies, autos, or numbered parallels.
+3. NEVER estimate above $100 without market data unless the card is clearly a rare insert, autograph, or serial-numbered parallel that you can specifically identify.
+4. Set confidence to "low" and clearly state that values are rough estimates without live market verification.
+5. Use a WIDE value range (±50%) to communicate uncertainty.
+6. For any card you estimate above $50 without market data, you MUST explain exactly why in confidenceReason (e.g., "rookie card", "autograph", "numbered /25").`}
 
 When shown an image of a trading card, you will:
 
@@ -664,6 +702,42 @@ Respond with ONLY valid JSON (no markdown code fences) with this structure:
       analysis.dataSource = marketData.hasData
         ? "Real eBay + TCGPlayer data + AI analysis"
         : "AI estimate only - no live market data available";
+    }
+
+    // ===== NO-MARKET-DATA GUARDRAILS =====
+    if (!marketData.hasData) {
+      // Force low confidence
+      analysis.confidence = "low";
+      analysis.noMarketData = true;
+      analysis.confidenceReason = (analysis.confidenceReason || "") + " No real-time market data was found — values are AI estimates only and may be significantly inaccurate.";
+
+      // Cap unreasonable AI-only estimates
+      const highVal = Number(analysis.estimatedValueHigh) || 0;
+      const lowVal = Number(analysis.estimatedValueLow) || 0;
+
+      if (highVal > 100) {
+        // Check if card has identifiable high-value traits
+        const hasHighValueTraits = /auto(graph)?|numbered|\/\d{1,3}$|1st edition|rookie|rc|parallel|refractor|prismatic/i.test(
+          `${analysis.rarity || ""} ${analysis.parallelVariant || ""} ${analysis.specialFeatures?.join(" ") || ""} ${analysis.edition || ""}`
+        );
+
+        if (!hasHighValueTraits) {
+          // Cap at $100 for unverified common cards
+          analysis.estimatedValueHigh = Math.min(highVal, 100);
+          analysis.estimatedValueLow = Math.min(lowVal, analysis.estimatedValueHigh * 0.5);
+          analysis.valuationWarning = "High value estimated without market verification — capped at conservative estimate. Re-scan to check for updated pricing.";
+          console.log(`Capped AI-only estimate from $${lowVal}-$${highVal} to $${analysis.estimatedValueLow}-$${analysis.estimatedValueHigh}`);
+        } else {
+          // Has high-value traits but still widen the range
+          analysis.estimatedValueLow = Math.round(lowVal * 0.5);
+          analysis.estimatedValueHigh = Math.round(highVal * 1.5);
+          analysis.valuationWarning = "High value estimated without market verification — treat as rough estimate. Re-scan to check for updated pricing.";
+        }
+      } else {
+        // Widen range for uncertainty
+        analysis.estimatedValueLow = Math.round(lowVal * 0.5);
+        analysis.estimatedValueHigh = Math.round(highVal * 1.5);
+      }
     }
 
     // ===== STEP 4: Claude Price Verification =====
