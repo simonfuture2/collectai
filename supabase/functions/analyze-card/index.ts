@@ -62,16 +62,30 @@ interface ExtractedMarketData {
 }
 
 // Build specific search queries from card identification
-function buildSearchTerms(cardId: CardIdentification): { specific: string; broad: string } {
-  const parts: string[] = [];
-  if (cardId.card_name) parts.push(cardId.card_name);
-  if (cardId.card_number) parts.push(cardId.card_number);
-  if (cardId.variant && cardId.variant !== "Regular" && cardId.variant !== "Standard") parts.push(cardId.variant);
-  
-  const specific = parts.join(" ");
-  const broad = `${cardId.card_name} ${cardId.card_set || ""} ${cardId.variant || ""}`.trim();
-  
-  return { specific, broad };
+function buildSearchTerms(cardId: CardIdentification, category?: string): { specific: string; broad: string; fallback: string } {
+  const isSportsCard = /sport|baseball|basketball|football|hockey|soccer/i.test(category || "");
+
+  let specific: string;
+  let broad: string;
+  let fallback: string;
+
+  if (isSportsCard) {
+    // Sports cards: player name + year + set works best on eBay
+    specific = `${cardId.card_name} ${cardId.card_year || ""} ${cardId.card_set || ""}`.trim();
+    broad = `${cardId.card_name} ${cardId.card_year || ""} card`.trim();
+    fallback = `${cardId.card_name} card`.trim();
+  } else {
+    // TCG cards: name + number + variant
+    const parts: string[] = [];
+    if (cardId.card_name) parts.push(cardId.card_name);
+    if (cardId.card_number) parts.push(cardId.card_number);
+    if (cardId.variant && cardId.variant !== "Regular" && cardId.variant !== "Standard") parts.push(cardId.variant);
+    specific = parts.join(" ");
+    broad = `${cardId.card_name} ${cardId.card_set || ""} ${cardId.variant || ""}`.trim();
+    fallback = `${cardId.card_name} ${cardId.card_set || ""} card`.trim();
+  }
+
+  return { specific, broad, fallback };
 }
 
 // Helper: search market listings via Firecrawl and return structured price data
