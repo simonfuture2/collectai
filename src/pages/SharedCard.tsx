@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Camera, Shield, Star } from "lucide-react";
 import collectaiLogo from "@/assets/collectai-logo.png";
 import Footer from "@/components/Footer";
+import AIDisclaimer from "@/components/AIDisclaimer";
 
 interface SharedCardData {
   id: string;
