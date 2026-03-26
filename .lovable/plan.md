@@ -1,30 +1,42 @@
 
 
-# Fix: Move referral_code out of profiles table
+# Fix: Re-Scan Updates Card Values + Add "Last Scanned" Date + 1 Free Daily Rescan
 
-## Problem
-The "Public can view public profiles" RLS policy exposes `referral_code` to anyone when `public_collection_enabled = true`. Since RLS is row-level (not column-level), we cannot selectively hide columns. This allows referral code harvesting and abuse.
+## Problems
+1. **Re-scan doesn't update displayed values**: The `rescanPrices` function calls `collectai-price` which returns new market data, but the code never updates the card's `estimated_value_low`, `estimated_value_high`, or `ai_analysis` in the database. The old $5500 value persists.
+2. **No "last scanned" date**: Users can't see when a card was last analyzed.
+3. **No free daily rescan**: Every rescan currently requires credits or Pro.
 
 ## Solution
-Move `referral_code` to a dedicated `referral_codes` table with strict RLS (owner-only read). This mirrors the approach we took for `email` — remove sensitive data from the publicly-readable profiles table entirely.
 
-## Changes
+### 1. Database migration — add `last_scanned_at` column
+- Add `last_scanned_at timestamptz DEFAULT now()` to the `cards` table
+- Backfill existing cards with their `updated_at` value
 
-### Migration
-1. Create `referral_codes` table with columns: `user_id` (PK, references nothing to avoid auth.users FK issues), `code` (text, unique), `created_at`
-2. Migrate existing codes: `INSERT INTO referral_codes SELECT id, referral_code, now() FROM profiles WHERE referral_code IS NOT NULL`
-3. Add RLS: owner can SELECT their own code only
-4. Move the `generate_referral_code` trigger to fire on `referral_codes` insert instead
-5. Drop `referral_code` column from `profiles`
-6. Create a new trigger on `auth.users` insert (or update `handle_new_user`) to also insert into `referral_codes`
+### 2. Fix `rescanPrices` in `CardDetail.tsx` to actually update the card
+After `collectai-price` returns new data with blended prices:
+- Compute new `estimated_value_low` and `estimated_value_high` from the blended market data
+- Update the `cards` row: set `estimated_value_low`, `estimated_value_high`, `last_scanned_at = now()`, and merge new pricing info into `ai_analysis`
+- Refresh local state so the UI reflects new values immediately
+- Show the "Last scanned" date next to the condition badge
 
-### Frontend update
-- **`src/components/ReferralCard.tsx`** — query `referral_codes` table instead of `profiles`
+### 3. Add 1 free daily rescan logic
+- Before calling `collectai-price`, check `last_scanned_at` on the card
+- If the card was last scanned more than 24 hours ago, the rescan is free (no credit check)
+- If scanned within 24 hours, require credits/Pro as usual
+- Display "Free daily rescan available" or "Uses 1 credit" on the button
 
-### Edge function update
-- **`supabase/functions/redeem-referral/index.ts`** — look up referrer by code from `referral_codes` table (uses service role, so no RLS issue)
+### 4. Display "Last Scanned" date on card detail
+- Show below the condition grade: "Last scanned: Mar 26, 2026"
+- Update after each rescan
 
-### No other changes needed
-- `public_profiles` view already excludes `referral_code`
-- Auth page just passes the code string to the edge function — no profile query involved
+## Files to edit
+1. **New migration** — add `last_scanned_at` column to `cards`
+2. **`src/pages/CardDetail.tsx`** — fix `rescanPrices` to update card values in DB + state, add last-scanned display, add free daily rescan logic
+3. **`supabase/functions/analyze-card/index.ts`** — set `last_scanned_at` on initial card insert (already sets `created_at`, just need to include the new column)
+
+## Technical details
+- The blended market data from `collectai-price` contains `extractedMarketData.blended.low` and `.high` — use these directly as the new value range
+- Card update uses `supabase.from("cards").update(...)` which is allowed by the existing "Users can update their own cards" RLS policy
+- Free daily rescan: compare `card.last_scanned_at` to `Date.now() - 86400000` on the client side (no edge function change needed since `collectai-price` doesn't deduct credits — it's a price-only endpoint)
 
