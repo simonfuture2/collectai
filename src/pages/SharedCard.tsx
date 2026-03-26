@@ -150,6 +150,8 @@ export default function SharedCard() {
           </div>
         </div>
 
+        <AIDisclaimer className="mb-6" />
+
         {/* CTA */}
         <div className="text-center bg-card border border-border rounded-2xl p-8">
           <Star className="w-10 h-10 text-primary mx-auto mb-3" />

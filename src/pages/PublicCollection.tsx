@@ -166,6 +166,8 @@ export default function PublicCollection() {
           </div>
         )}
 
+        <AIDisclaimer className="mt-6 mb-6" />
+
         {/* CTA */}
         <div className="text-center mt-12 bg-card border border-border rounded-2xl p-8">
           <h2 className="text-xl font-display font-bold mb-2">Build your own collection</h2>

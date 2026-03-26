@@ -25,10 +25,20 @@ const Terms = () => {
       </section>
 
       <section>
-        <h2 className="text-xl font-display font-bold">4. AI Disclaimer</h2>
+        <h2 className="text-xl font-display font-bold">4. AI Disclaimer &amp; Limitation of AI Services</h2>
         <p className="text-muted-foreground">
-          All card identifications, condition grades, and valuations provided by CollectAI are AI-generated estimates only. <strong>AI grading and valuation features are currently in beta and continuously improving. Results should be considered estimates only.</strong> They are <strong>not</strong> professional appraisals, certified grades, or guaranteed market values. CollectAI is not responsible for any financial decisions made based on our AI-generated estimates. For professional card grading, please consult certified grading services such as PSA, BGS, CGC, or SGC.
+          All card identifications, condition grades, and valuations provided by CollectAI are AI-generated estimates only. <strong>AI grading and valuation features are currently in beta and continuously improving. Results should be considered estimates only.</strong> They are <strong>not</strong> professional appraisals, certified grades, or guaranteed market values.
         </p>
+        <p className="text-muted-foreground mt-2">
+          <strong>You acknowledge and agree that:</strong>
+        </p>
+        <ul className="list-disc pl-5 text-muted-foreground space-y-1 mt-1">
+          <li>AI valuations are rough estimates and may differ significantly from actual market prices. They should never be relied upon as the sole basis for buying, selling, or insuring collectible cards.</li>
+          <li>CollectAI is <strong>not liable</strong> for any financial losses, missed opportunities, or damages arising from decisions made based on AI-generated grades, values, or identifications.</li>
+          <li>For high-value cards or transactions exceeding $100, you should seek professional grading from certified services such as PSA, BGS, CGC, or SGC, and verify market values through independent sources.</li>
+          <li>Market values fluctuate constantly. An estimate provided today may be significantly different from actual sale prices at any given time.</li>
+          <li>AI identification may occasionally misidentify cards, especially variants, parallels, or cards with similar artwork. Always verify identification before making financial decisions.</li>
+        </ul>
       </section>
 
       <section>
