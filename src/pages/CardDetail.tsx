@@ -524,6 +524,12 @@ export default function CardDetail() {
                   {card.condition_grade || "Unknown"}
                 </p>
                 <p className="text-xs text-muted-foreground">AI Assessed</p>
+                {(card as any).last_scanned_at && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    <Calendar className="w-3 h-3 inline mr-1" />
+                    Last scanned: {new Date((card as any).last_scanned_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                  </p>
+                )}
               </div>
             </div>
 
@@ -534,7 +540,7 @@ export default function CardDetail() {
               className="w-full gradient-primary hover:opacity-90 text-white"
             >
               <RefreshCw className={`w-4 h-4 ${rescanning ? 'animate-spin' : ''}`} />
-              {rescanning ? 'Re-Scanning...' : 'Re-Scan & Update Prices'}
+              {rescanning ? 'Re-Scanning...' : isFreeRescanAvailable() ? '🆓 Free Daily Re-Scan' : 'Re-Scan & Update Prices'}
             </Button>
 
             {/* No Market Data Warning */}

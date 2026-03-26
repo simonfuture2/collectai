@@ -829,6 +829,7 @@ Respond with ONLY valid JSON (no markdown code fences) with this structure:
         tcgplayer_price: analysis.tcgplayerPrice || null,
         psa_population_data: analysis.psaPopulation || null,
         ai_analysis: analysis,
+        last_scanned_at: new Date().toISOString(),
       })
       .select("id")
       .single();
