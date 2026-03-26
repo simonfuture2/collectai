@@ -100,6 +100,7 @@ export type Database = {
           id: string
           image_url: string
           is_public: boolean
+          last_scanned_at: string | null
           notes: string | null
           psa_population_data: Json | null
           rarity: string | null
@@ -124,6 +125,7 @@ export type Database = {
           id?: string
           image_url: string
           is_public?: boolean
+          last_scanned_at?: string | null
           notes?: string | null
           psa_population_data?: Json | null
           rarity?: string | null
@@ -148,6 +150,7 @@ export type Database = {
           id?: string
           image_url?: string
           is_public?: boolean
+          last_scanned_at?: string | null
           notes?: string | null
           psa_population_data?: Json | null
           rarity?: string | null
