@@ -64,22 +64,35 @@ Deno.serve(async (req) => {
 
     // ─── GET DASHBOARD ───
     if (action === "get_dashboard") {
-      const [usersRes, profilesRes, transactionsRes, cardsCountRes, scanCountRes, revenueRes] =
+      const [usersRes, profilesRes, transactionsRes, cardsCountRes, scanCountRes, revenueRes, authUsersRes] =
         await Promise.all([
           adminClient.from("user_credits").select("*").order("created_at", { ascending: false }),
-          adminClient.from("profiles").select("id, email, display_name, created_at"),
+          adminClient.from("profiles").select("id, display_name, created_at"),
           adminClient.from("credit_transactions").select("*").order("created_at", { ascending: false }).limit(200),
           adminClient.from("cards").select("id", { count: "exact", head: true }),
           adminClient.from("credit_transactions").select("id", { count: "exact", head: true }).eq("type", "scan_deduction"),
           adminClient.from("credit_transactions").select("amount").eq("type", "credit_purchase"),
+          adminClient.auth.admin.listUsers({ perPage: 1000 }),
         ]);
+
+      // Build email lookup from auth.users
+      const emailMap: Record<string, string> = {};
+      for (const u of authUsersRes.data?.users || []) {
+        if (u.id && u.email) emailMap[u.id] = u.email;
+      }
+
+      // Merge email into profiles for admin display
+      const profilesWithEmail = (profilesRes.data || []).map((p: any) => ({
+        ...p,
+        email: emailMap[p.id] || null,
+      }));
 
       const totalRevenue = (revenueRes.data || []).reduce((sum: number, t: any) => sum + (t.amount || 0), 0);
 
       return new Response(
         JSON.stringify({
           users: usersRes.data || [],
-          profiles: profilesRes.data || [],
+          profiles: profilesWithEmail,
           transactions: transactionsRes.data || [],
           stats: {
             totalCards: cardsCountRes.count || 0,
