@@ -425,6 +425,23 @@ serve(async (req) => {
     console.log("Authenticated user:", user.id);
 
     const supabaseAdmin = createClient(supabaseUrl, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '');
+
+    // Rate limit: max 10 scans per hour per user
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    const { count: recentScans } = await supabaseAdmin
+      .from("credit_transactions")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .eq("type", "scan")
+      .gte("created_at", oneHourAgo);
+
+    if ((recentScans ?? 0) >= 10) {
+      return new Response(
+        JSON.stringify({ error: "Rate limit exceeded — max 10 scans per hour. Please try again later." }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const { data: creditsData } = await supabaseAdmin
       .from("user_credits")
       .select("credits, plan")
