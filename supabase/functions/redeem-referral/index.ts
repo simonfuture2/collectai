@@ -102,7 +102,7 @@ Deno.serve(async (req) => {
 
     // Create referral record
     const { error: insertError } = await supabaseAdmin.from("referrals").insert({
-      referrer_id: referrer.id,
+      referrer_id: referrer.user_id,
       referred_id: referredUserId,
       referral_code: referral_code.toUpperCase(),
       credited: true,
