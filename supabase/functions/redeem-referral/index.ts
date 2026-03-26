@@ -66,7 +66,7 @@ Deno.serve(async (req) => {
     }
 
     // Can't refer yourself
-    if (referrer.id === referredUserId) {
+    if (referrer.user_id === referredUserId) {
       return new Response(JSON.stringify({ error: "Cannot refer yourself" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
