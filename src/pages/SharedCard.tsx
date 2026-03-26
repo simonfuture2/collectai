@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Camera, Shield, Star } from "lucide-react";
 import collectaiLogo from "@/assets/collectai-logo.png";
 import Footer from "@/components/Footer";
+import AIDisclaimer from "@/components/AIDisclaimer";
 
 interface SharedCardData {
   id: string;
@@ -148,6 +149,8 @@ export default function SharedCard() {
             {card.rarity && <p className="text-xs text-muted-foreground">{card.rarity}</p>}
           </div>
         </div>
+
+        <AIDisclaimer className="mb-6" />
 
         {/* CTA */}
         <div className="text-center bg-card border border-border rounded-2xl p-8">

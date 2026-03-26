@@ -87,6 +87,19 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Cap referrals per referrer to prevent farming (max 20 referrals)
+    const { count: referralCount } = await supabaseAdmin
+      .from("referrals")
+      .select("*", { count: "exact", head: true })
+      .eq("referrer_id", referrer.id);
+
+    if ((referralCount ?? 0) >= 20) {
+      return new Response(JSON.stringify({ error: "Referral limit reached" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // Create referral record
     const { error: insertError } = await supabaseAdmin.from("referrals").insert({
       referrer_id: referrer.id,

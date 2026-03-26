@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Camera, User } from "lucide-react";
 import collectaiLogo from "@/assets/collectai-logo.png";
 import Footer from "@/components/Footer";
+import AIDisclaimer from "@/components/AIDisclaimer";
 
 interface PublicCard {
   id: string;
@@ -164,6 +165,8 @@ export default function PublicCollection() {
             })}
           </div>
         )}
+
+        <AIDisclaimer className="mt-6 mb-6" />
 
         {/* CTA */}
         <div className="text-center mt-12 bg-card border border-border rounded-2xl p-8">
