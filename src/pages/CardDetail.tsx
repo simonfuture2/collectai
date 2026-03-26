@@ -318,6 +318,15 @@ export default function CardDetail() {
     setSaving(false);
   };
 
+  // Check if free daily rescan is available (last scan > 24h ago)
+  const isFreeRescanAvailable = useCallback(() => {
+    if (!card) return false;
+    const lastScanned = (card as any).last_scanned_at;
+    if (!lastScanned) return true; // Never scanned = free
+    const lastScanTime = new Date(lastScanned).getTime();
+    return Date.now() - lastScanTime > 86400000; // 24 hours
+  }, [card]);
+
   const rescanPrices = async () => {
     if (!card || !id) return;
     setRescanning(true);
@@ -369,6 +378,46 @@ export default function CardDetail() {
           await supabase.from("price_history").insert(priceRows);
         }
 
+        // === FIX: Update card values in DB ===
+        const blended = data.extractedMarketData.blended;
+        const newLow = blended?.low ?? card.estimated_value_low;
+        const newHigh = blended?.high ?? card.estimated_value_high;
+        const updatedAnalysis = {
+          ...(card.ai_analysis as any || {}),
+          estimatedValueLow: newLow,
+          estimatedValueHigh: newHigh,
+          noMarketData: false,
+          dataSource: "Real eBay + TCGPlayer data (re-scan update)",
+          lastRescanData: {
+            blended: blended || null,
+            sources: data.extractedMarketData.sources?.map((s: any) => ({ source: s.source, median: s.median, count: s.count })) || [],
+            rescanDate: new Date().toISOString(),
+          },
+        };
+
+        const { error: updateError } = await supabase
+          .from("cards")
+          .update({
+            estimated_value_low: newLow,
+            estimated_value_high: newHigh,
+            ai_analysis: updatedAnalysis,
+            last_scanned_at: new Date().toISOString(),
+          })
+          .eq("id", id);
+
+        if (updateError) {
+          console.error("Failed to update card values:", updateError);
+        } else {
+          // Update local state immediately
+          setCard((prev) => prev ? {
+            ...prev,
+            estimated_value_low: newLow,
+            estimated_value_high: newHigh,
+            ai_analysis: updatedAnalysis,
+            last_scanned_at: new Date().toISOString(),
+          } as Card : prev);
+        }
+
         // Refresh price history display
         const { data: priceData } = await supabase
           .from("price_history")
@@ -392,6 +441,9 @@ export default function CardDetail() {
         }
         toast.success("Prices updated with fresh market data!");
       } else {
+        // Even with no new market data, update last_scanned_at
+        await supabase.from("cards").update({ last_scanned_at: new Date().toISOString() }).eq("id", id);
+        setCard((prev) => prev ? { ...prev, last_scanned_at: new Date().toISOString() } as Card : prev);
         toast.error("No market data found for this card");
       }
     } catch (err: any) {
@@ -472,6 +524,12 @@ export default function CardDetail() {
                   {card.condition_grade || "Unknown"}
                 </p>
                 <p className="text-xs text-muted-foreground">AI Assessed</p>
+                {(card as any).last_scanned_at && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    <Calendar className="w-3 h-3 inline mr-1" />
+                    Last scanned: {new Date((card as any).last_scanned_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                  </p>
+                )}
               </div>
             </div>
 
@@ -482,7 +540,7 @@ export default function CardDetail() {
               className="w-full gradient-primary hover:opacity-90 text-white"
             >
               <RefreshCw className={`w-4 h-4 ${rescanning ? 'animate-spin' : ''}`} />
-              {rescanning ? 'Re-Scanning...' : 'Re-Scan & Update Prices'}
+              {rescanning ? 'Re-Scanning...' : isFreeRescanAvailable() ? '🆓 Free Daily Re-Scan' : 'Re-Scan & Update Prices'}
             </Button>
 
             {/* No Market Data Warning */}
