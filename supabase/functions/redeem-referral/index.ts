@@ -132,7 +132,7 @@ Deno.serve(async (req) => {
 
     // Log the transaction
     await supabaseAdmin.from("credit_transactions").insert({
-      user_id: referrer.id,
+      user_id: referrer.user_id,
       amount: 3,
       type: "referral_bonus",
       description: `Referral bonus for inviting a new user`,
