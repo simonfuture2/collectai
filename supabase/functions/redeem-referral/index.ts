@@ -120,7 +120,7 @@ Deno.serve(async (req) => {
     const { data: currentCredits } = await supabaseAdmin
       .from("user_credits")
       .select("credits")
-      .eq("user_id", referrer.id)
+      .eq("user_id", referrer.user_id)
       .maybeSingle();
 
     if (currentCredits) {
