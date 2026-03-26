@@ -1,31 +1,22 @@
 
 
-# Fix: Cards RLS policy exposes all cards when public collection is enabled
+# Fix: Harden user_credits table INSERT restriction
 
-## Problem
-The "Anyone can view cards of public collectors" policy exposes ALL cards (including `is_public = false`) when the owner has `public_collection_enabled = true`. 48 cards with `is_public=false` are currently accessible to anonymous users.
-
-## Solution
-Update the policy's USING condition to require BOTH `is_public = true` on the card AND `public_collection_enabled = true` on the profile.
+## Current State
+The `user_credits` table has RLS enabled with **no INSERT policy for regular users**, which means Postgres already denies inserts by default. However, making this explicit is best practice for auditability.
 
 ## Change
-One database migration:
+One database migration to add an explicit INSERT policy that only allows the service role (via the `handle_new_user_credits` trigger) to insert rows:
 
 ```sql
-DROP POLICY "Anyone can view cards of public collectors" ON public.cards;
-
-CREATE POLICY "Anyone can view cards of public collectors"
-  ON public.cards FOR SELECT
-  TO public
-  USING (
-    is_public = true
-    AND EXISTS (
-      SELECT 1 FROM profiles
-      WHERE profiles.id = cards.user_id
-        AND profiles.public_collection_enabled = true
-    )
-  );
+CREATE POLICY "Only service role can insert credits"
+  ON public.user_credits FOR INSERT
+  TO authenticated
+  WITH CHECK (false);
 ```
 
-No frontend or edge function changes needed — the PublicCollection page already renders whatever cards the query returns.
+This explicitly denies all authenticated user inserts. The `handle_new_user_credits` trigger runs as `SECURITY DEFINER` and bypasses RLS, so new user signup is unaffected. Admin operations use the service role client, also unaffected.
+
+## No frontend or edge function changes needed
+All credit mutations already go through edge functions using the service role key.
 
