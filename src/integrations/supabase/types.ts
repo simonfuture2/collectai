@@ -435,7 +435,6 @@ export type Database = {
           avatar_url: string | null
           created_at: string
           display_name: string | null
-          email: string | null
           id: string
           public_collection_enabled: boolean
           public_collection_slug: string | null
@@ -446,7 +445,6 @@ export type Database = {
           avatar_url?: string | null
           created_at?: string
           display_name?: string | null
-          email?: string | null
           id: string
           public_collection_enabled?: boolean
           public_collection_slug?: string | null
@@ -457,7 +455,6 @@ export type Database = {
           avatar_url?: string | null
           created_at?: string
           display_name?: string | null
-          email?: string | null
           id?: string
           public_collection_enabled?: boolean
           public_collection_slug?: string | null
