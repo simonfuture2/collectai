@@ -127,7 +127,7 @@ Deno.serve(async (req) => {
       await supabaseAdmin
         .from("user_credits")
         .update({ credits: currentCredits.credits + 3 })
-        .eq("user_id", referrer.id);
+        .eq("user_id", referrer.user_id);
     }
 
     // Log the transaction
