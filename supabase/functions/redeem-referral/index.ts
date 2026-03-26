@@ -91,7 +91,7 @@ Deno.serve(async (req) => {
     const { count: referralCount } = await supabaseAdmin
       .from("referrals")
       .select("*", { count: "exact", head: true })
-      .eq("referrer_id", referrer.id);
+      .eq("referrer_id", referrer.user_id);
 
     if ((referralCount ?? 0) >= 20) {
       return new Response(JSON.stringify({ error: "Referral limit reached" }), {
