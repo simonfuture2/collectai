@@ -15,15 +15,15 @@ const ReferralCard = ({ userId }: ReferralCardProps) => {
 
   useEffect(() => {
     const fetchData = async () => {
-      // Get referral code from profile
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("referral_code")
-        .eq("id", userId)
+      // Get referral code from dedicated table
+      const { data: codeRow } = await supabase
+        .from("referral_codes")
+        .select("code")
+        .eq("user_id", userId)
         .maybeSingle();
 
-      if (profile?.referral_code) {
-        setReferralCode(profile.referral_code);
+      if (codeRow?.code) {
+        setReferralCode(codeRow.code);
       }
 
       // Count referrals

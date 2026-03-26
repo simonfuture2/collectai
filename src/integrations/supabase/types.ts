@@ -438,7 +438,6 @@ export type Database = {
           id: string
           public_collection_enabled: boolean
           public_collection_slug: string | null
-          referral_code: string | null
           updated_at: string
         }
         Insert: {
@@ -448,7 +447,6 @@ export type Database = {
           id: string
           public_collection_enabled?: boolean
           public_collection_slug?: string | null
-          referral_code?: string | null
           updated_at?: string
         }
         Update: {
@@ -458,7 +456,6 @@ export type Database = {
           id?: string
           public_collection_enabled?: boolean
           public_collection_slug?: string | null
-          referral_code?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -486,6 +483,24 @@ export type Database = {
           platform?: string
           token?: string
           updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      referral_codes: {
+        Row: {
+          code: string
+          created_at: string
+          user_id: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          user_id: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
           user_id?: string
         }
         Relationships: []

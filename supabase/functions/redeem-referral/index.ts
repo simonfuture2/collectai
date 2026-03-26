@@ -53,9 +53,9 @@ Deno.serve(async (req) => {
 
     // Find the referrer by code
     const { data: referrer, error: referrerError } = await supabaseAdmin
-      .from("profiles")
-      .select("id, referral_code")
-      .eq("referral_code", referral_code.toUpperCase())
+      .from("referral_codes")
+      .select("user_id, code")
+      .eq("code", referral_code.toUpperCase())
       .maybeSingle();
 
     if (referrerError || !referrer) {
@@ -66,7 +66,7 @@ Deno.serve(async (req) => {
     }
 
     // Can't refer yourself
-    if (referrer.id === referredUserId) {
+    if (referrer.user_id === referredUserId) {
       return new Response(JSON.stringify({ error: "Cannot refer yourself" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -91,7 +91,7 @@ Deno.serve(async (req) => {
     const { count: referralCount } = await supabaseAdmin
       .from("referrals")
       .select("*", { count: "exact", head: true })
-      .eq("referrer_id", referrer.id);
+      .eq("referrer_id", referrer.user_id);
 
     if ((referralCount ?? 0) >= 20) {
       return new Response(JSON.stringify({ error: "Referral limit reached" }), {
@@ -102,7 +102,7 @@ Deno.serve(async (req) => {
 
     // Create referral record
     const { error: insertError } = await supabaseAdmin.from("referrals").insert({
-      referrer_id: referrer.id,
+      referrer_id: referrer.user_id,
       referred_id: referredUserId,
       referral_code: referral_code.toUpperCase(),
       credited: true,
@@ -120,19 +120,19 @@ Deno.serve(async (req) => {
     const { data: currentCredits } = await supabaseAdmin
       .from("user_credits")
       .select("credits")
-      .eq("user_id", referrer.id)
+      .eq("user_id", referrer.user_id)
       .maybeSingle();
 
     if (currentCredits) {
       await supabaseAdmin
         .from("user_credits")
         .update({ credits: currentCredits.credits + 3 })
-        .eq("user_id", referrer.id);
+        .eq("user_id", referrer.user_id);
     }
 
     // Log the transaction
     await supabaseAdmin.from("credit_transactions").insert({
-      user_id: referrer.id,
+      user_id: referrer.user_id,
       amount: 3,
       type: "referral_bonus",
       description: `Referral bonus for inviting a new user`,
