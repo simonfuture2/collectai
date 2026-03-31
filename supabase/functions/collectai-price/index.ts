@@ -180,19 +180,51 @@ serve(async (req) => {
       );
     }
 
+    let authenticatedUserId: string | null = null;
+
     if (!hasApiKey && hasBearerToken) {
       const { createClient } = await import("npm:@supabase/supabase-js@2");
       const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
       const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-      const supabase = createClient(supabaseUrl, supabaseAnonKey);
-      const token = authHeader!.replace("Bearer ", "");
-      const { error: authError } = await supabase.auth.getUser(token);
-      if (authError) {
+      const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+        global: { headers: { Authorization: authHeader! } },
+      });
+      const { data: userData, error: authError } = await supabase.auth.getUser();
+      if (authError || !userData?.user) {
         return new Response(
           JSON.stringify({ error: "Unauthorized: Invalid token" }),
           { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
+      authenticatedUserId = userData.user.id;
+
+      // Rate limit: max 10 price lookups per hour for authenticated users
+      const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+      const { count } = await supabaseAdmin
+        .from("credit_transactions")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", authenticatedUserId)
+        .eq("type", "price_lookup")
+        .gte("created_at", oneHourAgo);
+
+      if ((count ?? 0) >= 10) {
+        return new Response(
+          JSON.stringify({ error: "Rate limit exceeded. Max 10 price lookups per hour." }),
+          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Log this price lookup for rate limiting tracking
+      await supabaseAdmin
+        .from("credit_transactions")
+        .insert({
+          user_id: authenticatedUserId,
+          amount: 0,
+          type: "price_lookup",
+          description: "Price lookup via Bearer token",
+        });
     }
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
