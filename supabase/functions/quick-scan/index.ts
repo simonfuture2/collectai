@@ -153,7 +153,7 @@ async function quickMarketSearch(cardId: CardIdentification): Promise<string> {
     if (totalSpecific < 3 && variant) {
       console.log("Still sparse, trying variant-focused search:", variant);
       const [soldVar, activeVar, tcgVar] = await Promise.all([
-        doSearch(`${variant} sold site:ebay.com`, 8, "ebay.com"),
+        searchSold(`${variant} sold site:ebay.com`, 8),
         doSearch(`${variant} site:ebay.com`, 6, "ebay.com"),
         doSearch(`${variant} price site:tcgplayer.com`, 5, "tcgplayer.com"),
       ]);
