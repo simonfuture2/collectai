@@ -104,7 +104,7 @@ async function searchMarketPrices(
   const isSportsCard = /sport|baseball|basketball|football|hockey|soccer/i.test(category || "");
   const { specific, broad, fallback } = buildSearchTerms(cardId, category);
 
-  async function doSearch(query: string, limit: number, urlFilter?: string) {
+  async function doSearch(query: string, limit: number, urlFilter?: string, tbs: string = "qdr:m") {
     try {
       const response = await fetch("https://api.firecrawl.dev/v1/search", {
         method: "POST",
@@ -112,7 +112,7 @@ async function searchMarketPrices(
           Authorization: `Bearer ${FIRECRAWL_API_KEY}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ query, limit, tbs: "qdr:m", scrapeOptions: { formats: ["markdown"] } }),
+        body: JSON.stringify({ query, limit, tbs, scrapeOptions: { formats: ["markdown"] } }),
       });
       if (!response.ok) return [];
       const data = await response.json();
@@ -123,10 +123,17 @@ async function searchMarketPrices(
     }
   }
 
+  // Sold listings: prefer last 14 days for freshness; fall back to last month if sparse
+  async function searchSold(query: string, limit: number) {
+    const fresh = await doSearch(query, limit, "ebay.com", "qdr:w");
+    if (fresh.length >= 2) return fresh;
+    return doSearch(query, limit, "ebay.com", "qdr:m");
+  }
+
   try {
     // Try specific search first
     let [soldResults, activeResults, tcgResults] = await Promise.all([
-      doSearch(`"${specific}" sold site:ebay.com`, 10, "ebay.com"),
+      searchSold(`"${specific}" sold site:ebay.com`, 10),
       doSearch(`"${specific}" site:ebay.com`, 8, "ebay.com"),
       isSportsCard ? Promise.resolve([]) : doSearch(`"${specific}" price site:tcgplayer.com`, 6, "tcgplayer.com"),
     ]);
@@ -136,7 +143,7 @@ async function searchMarketPrices(
     if (totalSpecific < 3 && broad !== specific) {
       console.log("Specific search yielded few results, trying broader search...");
       const [soldBroad, activeBroad, tcgBroad] = await Promise.all([
-        doSearch(`${broad} sold site:ebay.com`, 10, "ebay.com"),
+        searchSold(`${broad} sold site:ebay.com`, 10),
         doSearch(`${broad} site:ebay.com`, 8, "ebay.com"),
         isSportsCard ? Promise.resolve([]) : doSearch(`${broad} price site:tcgplayer.com`, 6, "tcgplayer.com"),
       ]);
