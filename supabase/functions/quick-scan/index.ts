@@ -275,7 +275,7 @@ serve(async (req) => {
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
+        model: "claude-opus-4-5",
         max_tokens: 1024,
         system: `You are a trading card identification expert. Look at this card image VERY carefully. Read ALL text on the card including:
 - The card name (character/player name)
@@ -377,7 +377,7 @@ Return ONLY the JSON object, no other text.`;
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
+        model: "claude-sonnet-4-5",
         max_tokens: 1024,
         messages: [
           {
