@@ -100,7 +100,7 @@ async function quickMarketSearch(cardId: CardIdentification): Promise<string> {
 
   const { specific, broad, variant } = buildSearchTerms(cardId);
 
-  async function doSearch(query: string, limit: number, urlFilter?: string) {
+  async function doSearch(query: string, limit: number, urlFilter?: string, tbs: string = "qdr:m") {
     try {
       const response = await fetch("https://api.firecrawl.dev/v1/search", {
         method: "POST",
@@ -108,7 +108,7 @@ async function quickMarketSearch(cardId: CardIdentification): Promise<string> {
           Authorization: `Bearer ${FIRECRAWL_API_KEY}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ query, limit, tbs: "qdr:m" }),
+        body: JSON.stringify({ query, limit, tbs }),
       });
       if (!response.ok) return [];
       const data = await response.json();
@@ -119,9 +119,16 @@ async function quickMarketSearch(cardId: CardIdentification): Promise<string> {
     }
   }
 
+  // Sold listings: prefer last 14 days for freshness; fall back to last month if sparse
+  async function searchSold(query: string, limit: number) {
+    const fresh = await doSearch(query, limit, "ebay.com", "qdr:w");
+    if (fresh.length >= 2) return fresh;
+    return doSearch(query, limit, "ebay.com", "qdr:m");
+  }
+
   try {
     let [soldResults, activeResults, tcgResults] = await Promise.all([
-      doSearch(`"${specific}" sold site:ebay.com`, 8, "ebay.com"),
+      searchSold(`"${specific}" sold site:ebay.com`, 8),
       doSearch(`"${specific}" site:ebay.com`, 6, "ebay.com"),
       doSearch(`"${specific}" price site:tcgplayer.com`, 5, "tcgplayer.com"),
     ]);
@@ -130,7 +137,7 @@ async function quickMarketSearch(cardId: CardIdentification): Promise<string> {
     if (totalSpecific < 3 && broad !== specific) {
       console.log("Specific search yielded few results, trying broader search...");
       const [soldBroad, activeBroad, tcgBroad] = await Promise.all([
-        doSearch(`${broad} sold site:ebay.com`, 8, "ebay.com"),
+        searchSold(`${broad} sold site:ebay.com`, 8),
         doSearch(`${broad} site:ebay.com`, 6, "ebay.com"),
         doSearch(`${broad} price site:tcgplayer.com`, 5, "tcgplayer.com"),
       ]);
