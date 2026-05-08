@@ -313,7 +313,9 @@ Return ONLY valid JSON:
     }
 
     const data = await response.json();
-    const text = data.content?.[0]?.text;
+    // With extended thinking enabled, content may include thinking blocks; pick the text block
+    const textBlock = (data.content || []).find((b: any) => b?.type === "text");
+    const text = textBlock?.text || data.content?.[0]?.text;
     if (!text) return null;
 
     const jsonMatch = text.match(/\{[\s\S]*\}/);
