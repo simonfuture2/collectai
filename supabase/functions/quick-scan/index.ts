@@ -100,7 +100,7 @@ async function quickMarketSearch(cardId: CardIdentification): Promise<string> {
 
   const { specific, broad, variant } = buildSearchTerms(cardId);
 
-  async function doSearch(query: string, limit: number, urlFilter?: string) {
+  async function doSearch(query: string, limit: number, urlFilter?: string, tbs: string = "qdr:m") {
     try {
       const response = await fetch("https://api.firecrawl.dev/v1/search", {
         method: "POST",
@@ -108,7 +108,7 @@ async function quickMarketSearch(cardId: CardIdentification): Promise<string> {
           Authorization: `Bearer ${FIRECRAWL_API_KEY}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ query, limit, tbs: "qdr:m" }),
+        body: JSON.stringify({ query, limit, tbs }),
       });
       if (!response.ok) return [];
       const data = await response.json();
@@ -119,9 +119,16 @@ async function quickMarketSearch(cardId: CardIdentification): Promise<string> {
     }
   }
 
+  // Sold listings: prefer last 14 days for freshness; fall back to last month if sparse
+  async function searchSold(query: string, limit: number) {
+    const fresh = await doSearch(query, limit, "ebay.com", "qdr:w");
+    if (fresh.length >= 2) return fresh;
+    return doSearch(query, limit, "ebay.com", "qdr:m");
+  }
+
   try {
     let [soldResults, activeResults, tcgResults] = await Promise.all([
-      doSearch(`"${specific}" sold site:ebay.com`, 8, "ebay.com"),
+      searchSold(`"${specific}" sold site:ebay.com`, 8),
       doSearch(`"${specific}" site:ebay.com`, 6, "ebay.com"),
       doSearch(`"${specific}" price site:tcgplayer.com`, 5, "tcgplayer.com"),
     ]);
@@ -130,7 +137,7 @@ async function quickMarketSearch(cardId: CardIdentification): Promise<string> {
     if (totalSpecific < 3 && broad !== specific) {
       console.log("Specific search yielded few results, trying broader search...");
       const [soldBroad, activeBroad, tcgBroad] = await Promise.all([
-        doSearch(`${broad} sold site:ebay.com`, 8, "ebay.com"),
+        searchSold(`${broad} sold site:ebay.com`, 8),
         doSearch(`${broad} site:ebay.com`, 6, "ebay.com"),
         doSearch(`${broad} price site:tcgplayer.com`, 5, "tcgplayer.com"),
       ]);
@@ -146,7 +153,7 @@ async function quickMarketSearch(cardId: CardIdentification): Promise<string> {
     if (totalSpecific < 3 && variant) {
       console.log("Still sparse, trying variant-focused search:", variant);
       const [soldVar, activeVar, tcgVar] = await Promise.all([
-        doSearch(`${variant} sold site:ebay.com`, 8, "ebay.com"),
+        searchSold(`${variant} sold site:ebay.com`, 8),
         doSearch(`${variant} site:ebay.com`, 6, "ebay.com"),
         doSearch(`${variant} price site:tcgplayer.com`, 5, "tcgplayer.com"),
       ]);
@@ -268,7 +275,7 @@ serve(async (req) => {
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
+        model: "claude-opus-4-5",
         max_tokens: 1024,
         system: `You are a trading card identification expert. Look at this card image VERY carefully. Read ALL text on the card including:
 - The card name (character/player name)
@@ -370,7 +377,7 @@ Return ONLY the JSON object, no other text.`;
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
+        model: "claude-sonnet-4-5",
         max_tokens: 1024,
         messages: [
           {
