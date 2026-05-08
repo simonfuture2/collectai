@@ -159,7 +159,7 @@ async function searchMarketPrices(
     if (totalAfterBroad < 3 && fallback !== broad) {
       console.log("Broad search yielded few results, trying fallback search...");
       const [soldFallback, activeFallback] = await Promise.all([
-        doSearch(`${fallback} sold site:ebay.com`, 10, "ebay.com"),
+        searchSold(`${fallback} sold site:ebay.com`, 10),
         doSearch(`${fallback} site:ebay.com`, 8, "ebay.com"),
       ]);
       if (soldFallback.length + activeFallback.length > totalAfterBroad) {
