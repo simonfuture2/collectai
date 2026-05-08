@@ -366,7 +366,7 @@ Respond with ONLY valid JSON in this exact format:
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
+        model: "claude-opus-4-5",
         max_tokens: 1024,
         system: systemPrompt,
         messages: [
@@ -657,7 +657,7 @@ Respond with ONLY valid JSON (no markdown code fences) with this structure:
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
+        model: "claude-sonnet-4-5",
         max_tokens: 8192,
         system: systemPrompt,
         messages: [
