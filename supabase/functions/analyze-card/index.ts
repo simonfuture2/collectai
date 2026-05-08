@@ -300,8 +300,9 @@ Return ONLY valid JSON:
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 512,
+        model: "claude-sonnet-4-5",
+        max_tokens: 2048,
+        thinking: { type: "enabled", budget_tokens: 1024 },
         messages: [{ role: "user", content: prompt }],
       }),
     });
