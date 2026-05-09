@@ -339,6 +339,86 @@ const Achievements = () => {
       </main>
 
       <Footer />
+
+      <Dialog open={!!selectedId} onOpenChange={(open) => !open && setSelectedId(null)}>
+        <DialogContent className="sm:max-w-md">
+          {selected && (() => {
+            const Icon = selected.icon;
+            const pct = selected.progress
+              ? Math.round((selected.progress.current / selected.progress.target) * 100)
+              : selected.unlocked
+              ? 100
+              : 0;
+            return (
+              <>
+                <DialogHeader>
+                  <div className="flex items-center gap-3 mb-2">
+                    <div
+                      className={`w-14 h-14 rounded-2xl flex items-center justify-center ${
+                        selected.unlocked ? "gradient-primary glow-purple" : "bg-muted"
+                      }`}
+                    >
+                      <Icon
+                        className={`w-7 h-7 ${
+                          selected.unlocked ? "text-primary-foreground" : "text-muted-foreground"
+                        }`}
+                      />
+                    </div>
+                    <div>
+                      <DialogTitle className="text-xl">{selected.title}</DialogTitle>
+                      <p className="text-xs mt-1 flex items-center gap-1">
+                        {selected.unlocked ? (
+                          <span className="text-primary flex items-center gap-1">
+                            <CheckCircle2 className="w-3.5 h-3.5" /> Unlocked
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground flex items-center gap-1">
+                            <Lock className="w-3.5 h-3.5" /> Locked
+                          </span>
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                  <DialogDescription>{selected.description}</DialogDescription>
+                </DialogHeader>
+
+                {selected.progress && (
+                  <div className="space-y-2 mt-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Your progress</span>
+                      <span className="font-medium">
+                        {Math.floor(selected.progress.current)}/{selected.progress.target} ({pct}%)
+                      </span>
+                    </div>
+                    <Progress value={pct} className="h-2" />
+                  </div>
+                )}
+
+                {selectedHow && (
+                  <div className="rounded-xl border border-border bg-muted/40 p-4 mt-2">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">
+                      How to unlock
+                    </p>
+                    <p className="text-sm">{selectedHow.tip}</p>
+                  </div>
+                )}
+
+                {!selected.unlocked && selectedHow?.cta && (
+                  <Button
+                    className="w-full mt-2"
+                    onClick={() => {
+                      setSelectedId(null);
+                      navigate(selectedHow.cta!.to);
+                    }}
+                  >
+                    {selectedHow.cta.label}
+                  </Button>
+                )}
+              </>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
