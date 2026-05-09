@@ -178,6 +178,9 @@ const Dashboard = () => {
               <Link to="/scan">
                 <Button className="gradient-primary glow-purple hover-lift"><Camera className="mr-2 w-5 h-5" />Scan New Card</Button>
               </Link>
+              <Link to="/pack-rip">
+                <Button variant="outline" className="hover-lift"><Package className="mr-2 w-5 h-5" />Pack Rip Mode</Button>
+              </Link>
               <Link to="/collection">
                 <Button variant="outline">View Full Collection</Button>
               </Link>
