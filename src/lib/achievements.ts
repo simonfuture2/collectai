@@ -1,4 +1,4 @@
-import { Trophy, Sparkles, Flame, Gem, DollarSign, Layers, Star, Zap, Lock } from "lucide-react";
+import { Trophy, Sparkles, Flame, Gem, DollarSign, Layers, Star, Zap } from "lucide-react";
 
 export interface AchievementCard {
   id: string;
