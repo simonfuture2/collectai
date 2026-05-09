@@ -19,6 +19,7 @@ import PublicCollectionToggle from "@/components/PublicCollectionToggle";
 import ConnectedAccounts from "@/components/ConnectedAccounts";
 import TransactionHistory from "@/components/TransactionHistory";
 import { usePushNotifications } from "@/hooks/use-push-notifications";
+import AchievementsRow from "@/components/AchievementsRow";
 
 interface Card {
   id: string;
@@ -28,6 +29,7 @@ interface Card {
   estimated_value_low: number | null;
   estimated_value_high: number | null;
   created_at: string;
+  special_features?: string[] | null;
 }
 
 const Dashboard = () => {
@@ -57,7 +59,7 @@ const Dashboard = () => {
   useEffect(() => {
     if (user) {
       supabase.from("cards")
-        .select("id, card_name, card_set, rarity, estimated_value_low, estimated_value_high, created_at")
+        .select("id, card_name, card_set, rarity, estimated_value_low, estimated_value_high, created_at, special_features")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false })
         .then(({ data }) => {
