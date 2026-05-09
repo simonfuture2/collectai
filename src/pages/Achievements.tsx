@@ -6,6 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import {
   Trophy,
   ArrowLeft,
   Lock,
@@ -13,7 +20,51 @@ import {
   Calendar,
   ScanLine,
   Award,
+  CheckCircle2,
 } from "lucide-react";
+
+const HOW_TO_UNLOCK: Record<string, { tip: string; cta?: { label: string; to: string } }> = {
+  first_scan: {
+    tip: "Open the scanner and capture any card. Even a common will count — this badge is just to get you started.",
+    cta: { label: "Scan a Card", to: "/scan" },
+  },
+  ten_cards: {
+    tip: "Build out your collection by scanning 10 different cards. Try scanning a few from a recent pack.",
+    cta: { label: "Scan More Cards", to: "/scan" },
+  },
+  fifty_cards: {
+    tip: "Reach 50 scanned cards. Use Pack Rip Mode to add a bunch in one session.",
+    cta: { label: "Try Pack Rip", to: "/pack-rip" },
+  },
+  first_holo: {
+    tip: "Scan a card with a holo, foil, refractor, prizm, or reverse-holo finish. Our AI auto-detects the finish.",
+    cta: { label: "Scan a Holo", to: "/scan" },
+  },
+  hundred_dollar: {
+    tip: "Pull a card valued at $100+ in our valuation. Try modern chase rookies or rare vintage.",
+    cta: { label: "Scan a Card", to: "/scan" },
+  },
+  grail: {
+    tip: "Pull a card valued at $500+. PSA-grade icons, vintage stars, and chase rookies are your best bet.",
+    cta: { label: "Scan a Card", to: "/scan" },
+  },
+  portfolio_1k: {
+    tip: "Get your total collection value to $1,000+. Every scan adds to your portfolio.",
+    cta: { label: "View Collection", to: "/collection" },
+  },
+  streak_3: {
+    tip: "Scan at least one card on 3 consecutive calendar days. Don't break the chain!",
+    cta: { label: "Scan Today", to: "/scan" },
+  },
+  streak_7: {
+    tip: "Scan at least one card every day for 7 days in a row. The hardest part is day 4.",
+    cta: { label: "Scan Today", to: "/scan" },
+  },
+  five_sets: {
+    tip: "Collect cards from 5 different sets. Mix vintage, modern, and special releases.",
+    cta: { label: "Scan a Card", to: "/scan" },
+  },
+};
 import type { User } from "@supabase/supabase-js";
 import { computeAchievements, computeStreak } from "@/lib/achievements";
 import type { AchievementCard } from "@/lib/achievements";
