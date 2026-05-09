@@ -1,64 +1,63 @@
-# AI Scan Review & Upgrade
 
-## Goal
-Bring CollectAI's scanning pipeline to current state-of-the-art for accuracy: latest Claude models, extended thinking on the verification step, and fresher market comps.
+# Competitive Review + Fun Feature Additions for CollectAI
 
-## What changes
+## What we already do well
+Single-photo AI scan, sub-grade breakdown (corners / edges / surface / centering), ROI grading calculator, real-market valuation (eBay sold + TCGPlayer + Claude verification), portfolio analytics, folders, public collection sharing, AuthentiSeal verification, referrals, freemium credits, scan progress timeline.
 
-### 1. Model upgrade (the big lever)
-Currently every Claude call uses `claude-sonnet-4-20250514` (May 2024 — outdated). Replace with the latest snapshots:
+## What top competitors do that we don't (yet)
 
-| Step | File | Old | New |
-|---|---|---|---|
-| Card identification (vision-heavy: read card #, set, variant) | `quick-scan/index.ts` Step 1 | `claude-sonnet-4-20250514` | `claude-opus-4-5` |
-| Card identification | `analyze-card/index.ts` `identifyCard()` | `claude-sonnet-4-20250514` | `claude-opus-4-5` |
-| Card identification | `collectai-identify/index.ts` | `claude-sonnet-4-20250514` | `claude-opus-4-5` |
-| Full analysis + grading | `quick-scan/index.ts` Step 3 | `claude-sonnet-4-20250514` | `claude-sonnet-4-5` |
-| Full analysis + grading | `analyze-card/index.ts` main call | `claude-sonnet-4-20250514` | `claude-sonnet-4-5` |
-| Price verification | `analyze-card/index.ts` `verifyWithClaude()` | `claude-sonnet-4-20250514` | `claude-sonnet-4-5` |
+| App | Standout features |
+|---|---|
+| **CollX** (1M+ installs) | Marketplace (buy/sell/trade), social feed, follow collectors, "Scan+" enhanced AI, monthly buy-credit |
+| **Ludex** | Bulk scan mode, price alerts/watchlist, multi-TCG breadth |
+| **ZeroPop** | **4-angle scan**, defect map overlay, multi-grader estimates (PSA + BGS + CGC), centering ruler |
+| **Guardian TCG** | Realtime camera scan, **market movers feed**, analytics dashboard |
+| **CardGrader** | **"Perfect Pulls"** gamified pack-rip tracker |
+| **Pokedata** | Trend charts, investor-grade transparency |
+| **Pulio** | Custom binders, community posts |
 
-Rationale: Opus 4.5 is the best vision model for reading tiny print (card numbers like `105/086`, set codes, variant labels) — that's the single biggest source of misidentification, which cascades into bad market searches and bad prices. Sonnet 4.5 is enough for the structured grading + pricing JSON output and is much cheaper/faster for the heavy 8K-token analysis call.
+## Recommended additions — ranked by "fun + appeal" impact
 
-### 2. Extended thinking on price verification
-The `verifyWithClaude()` step in `analyze-card` reconciles the AI estimate with real eBay/TCGPlayer data. This is where wrong answers do the most damage. Enable Anthropic's extended thinking on this single call:
+### Tier 1 — Highest delight, moderate effort
 
-```ts
-body: JSON.stringify({
-  model: "claude-sonnet-4-5",
-  max_tokens: 2048,                    // raised from 512 to make room for thinking
-  thinking: { type: "enabled", budget_tokens: 1024 },
-  messages: [{ role: "user", content: prompt }],
-})
-```
+**A. Pack Rip Mode (gamified pulls)**
+A dedicated flow: tap "Open a Pack", pick the set, scan each card you pull. We tally pack value vs. retail, surface a celebratory animation when a chase card is detected (holo / rare / >$50), and save the rip as a session you can share. This is the single most "fun" feature in the category and we already have the scan engine.
 
-Also update the JSON parsing to skip `thinking` content blocks and read the `text` block (Anthropic returns `content: [{type:"thinking",...},{type:"text",...}]` when thinking is on).
+**B. Achievements & Streaks**
+Lightweight badge system: First Scan, First Holo, First $100 Card, 7-Day Streak, "Cracked a Gem" (predicted PSA 10), "Set Completer" (X% of a set scanned). Renders as a row on Dashboard + a /achievements page. Pure presentation layer over existing data.
 
-Not enabled on identification or full-analysis calls — those already perform well and the extra latency/cost isn't justified.
+**C. Defect Map Overlay**
+On the card detail page, render the user's photo with colored pins marking where the AI saw corner wear, edge dings, surface scratches, and centering offsets. Claude already produces sub-grades; we extend its prompt to also return `(x, y)` defect coordinates and render dots on the image. Huge perceived sophistication, ~one prompt change + a SVG overlay.
 
-### 3. Fresher market comps
-In both `quick-scan` and `analyze-card`, the Firecrawl search uses `tbs: "qdr:m"` (last 30 days) for all queries. Tighten the **sold listings** query to last 14 days (`qdr:w` × 2 isn't a thing, so use `qdr:w` for sold). Keep active listings and TCGPlayer at `qdr:m` since active listings turn over fast and TCGPlayer pricing pages aren't time-bound the same way.
+### Tier 2 — Strong "wow" features, larger effort
 
-```ts
-// sold-listings searches:
-body: JSON.stringify({ query, limit, tbs: "qdr:w" }),  // was qdr:m
-// active + tcgplayer searches: keep qdr:m
-```
+**D. Multi-Angle Scan (front + back + 2 corners)**
+Optional 4-photo flow that materially improves sub-grade accuracy and unlocks the defect map. Falls back to single-photo for free tier; gated behind credits or Pro.
 
-If a sold-listings search returns <2 results, fall back to `qdr:m` automatically so we don't lose data on slow-moving cards.
+**E. Market Movers Feed**
+Daily-refreshed home screen widget: "Top 5 cards trending up today" pulled from a scheduled edge function that runs Firecrawl across a curated watchlist (top-scanned cards across the user base). Becomes a reason to open the app daily.
 
-### 4. Update memory note
-Update the `technical/ai-provider` memory: Claude Opus 4.5 (identification) + Claude Sonnet 4.5 (analysis & verification), with extended thinking on verification.
+**F. Watchlist + Price Alerts**
+Star any card → push notification when sold-comp average moves >X% or crosses a target. We already have Capacitor push wired up.
 
-## Files touched
-- `supabase/functions/quick-scan/index.ts` — 2 model strings, market-freshness tweak
-- `supabase/functions/analyze-card/index.ts` — 3 model strings, thinking on verifier, market-freshness tweak + fallback
-- `supabase/functions/collectai-identify/index.ts` — 1 model string
+### Tier 3 — Nice-to-have polish
 
-## Out of scope
-- No prompt rewrites (current prompts are well-tuned; changing them at the same time as the model would muddle attribution if accuracy regresses)
-- No frontend changes
-- No DB / RLS changes
-- No provider switch — staying on direct Anthropic API since `ANTHROPIC_API_KEY` is already configured and billing is consolidated there per project memory
+**G. Card Lore Card** — Claude-generated 2–3 sentence fun fact / historical context shown on the detail page ("This 1986 Fleer Jordan was the only mainstream Jordan rookie..."). Cheap, delightful.
 
-## Risk & rollback
-Anthropic model IDs are the only behavioral change for steps 1–2; if Opus 4.5 ID causes latency complaints we can drop ID back to Sonnet 4.5 by changing one string per file. Extended thinking adds ~1–3s to the verification step but only fires when real market data exists.
+**H. Binder View** — flip-through virtual 9-pocket pages of the user's collection, with shimmer on holos. Pure frontend.
+
+**I. Multi-Grader Estimates** — show predicted PSA / BGS / SGC grades side-by-side instead of just one. Prompt change only.
+
+## My recommendation
+Ship Tier 1 first as a coherent "Fun Pack" release: **Pack Rip Mode + Achievements + Defect Map**. Together they hit pulling, progression, and "wow this is sophisticated" — the three things competitors win on. Tier 2 follows once we see engagement lift.
+
+## Which would you like me to plan in detail / build?
+Options:
+1. **Tier 1 bundle** — Pack Rip + Achievements + Defect Map
+2. Just **Pack Rip Mode** (most fun, most viral)
+3. Just **Achievements & Streaks** (lowest effort, broadest reach)
+4. Just **Defect Map Overlay** (most "smart AI" credibility)
+5. **Tier 2 bundle** — Multi-Angle + Market Movers + Price Alerts
+6. A different combination — tell me which letters
+
+Out of scope until chosen: backend schema for pack-rip sessions, achievement storage, push templates, image-overlay component — I'll plan those once you pick.
