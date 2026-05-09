@@ -386,6 +386,48 @@ export type Database = {
           },
         ]
       }
+      pack_rips: {
+        Row: {
+          best_pull_name: string | null
+          best_pull_value: number | null
+          created_at: string
+          id: string
+          pulls: Json
+          retail_cost: number | null
+          set_name: string
+          share_token: string
+          total_value: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          best_pull_name?: string | null
+          best_pull_value?: number | null
+          created_at?: string
+          id?: string
+          pulls?: Json
+          retail_cost?: number | null
+          set_name: string
+          share_token?: string
+          total_value?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          best_pull_name?: string | null
+          best_pull_value?: number | null
+          created_at?: string
+          id?: string
+          pulls?: Json
+          retail_cost?: number | null
+          set_name?: string
+          share_token?: string
+          total_value?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       price_history: {
         Row: {
           card_id: string
