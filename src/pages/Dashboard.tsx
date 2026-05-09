@@ -4,7 +4,7 @@ import collectaiLogo from "@/assets/collectai-logo.png";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Camera, LogOut, Wallet, TrendingUp, Layers, BarChart3, Crown, Shield, Trash2 } from "lucide-react";
+import { Camera, LogOut, Wallet, TrendingUp, Layers, BarChart3, Crown, Shield, Trash2, Package } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
 import PortfolioAnalytics from "@/components/PortfolioAnalytics";
 import PoweredByW3AI from "@/components/PoweredByW3AI";
@@ -19,6 +19,7 @@ import PublicCollectionToggle from "@/components/PublicCollectionToggle";
 import ConnectedAccounts from "@/components/ConnectedAccounts";
 import TransactionHistory from "@/components/TransactionHistory";
 import { usePushNotifications } from "@/hooks/use-push-notifications";
+import AchievementsRow from "@/components/AchievementsRow";
 
 interface Card {
   id: string;
@@ -28,6 +29,7 @@ interface Card {
   estimated_value_low: number | null;
   estimated_value_high: number | null;
   created_at: string;
+  special_features?: string[] | null;
 }
 
 const Dashboard = () => {
@@ -57,7 +59,7 @@ const Dashboard = () => {
   useEffect(() => {
     if (user) {
       supabase.from("cards")
-        .select("id, card_name, card_set, rarity, estimated_value_low, estimated_value_high, created_at")
+        .select("id, card_name, card_set, rarity, estimated_value_low, estimated_value_high, created_at, special_features")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false })
         .then(({ data }) => {
@@ -163,6 +165,8 @@ const Dashboard = () => {
               ))}
             </div>
 
+            {cards.length > 0 && <AchievementsRow cards={cards} />}
+
             {/* Portfolio Analytics Section */}
             {showAnalytics && cards.length > 0 && (
               <div className="mb-10">
@@ -173,6 +177,9 @@ const Dashboard = () => {
             <div className="flex flex-wrap gap-4 mb-10">
               <Link to="/scan">
                 <Button className="gradient-primary glow-purple hover-lift"><Camera className="mr-2 w-5 h-5" />Scan New Card</Button>
+              </Link>
+              <Link to="/pack-rip">
+                <Button variant="outline" className="hover-lift"><Package className="mr-2 w-5 h-5" />Pack Rip Mode</Button>
               </Link>
               <Link to="/collection">
                 <Button variant="outline">View Full Collection</Button>

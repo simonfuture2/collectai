@@ -8,6 +8,7 @@ import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Scan from "./pages/Scan";
 import Collection from "./pages/Collection";
+import PackRip from "./pages/PackRip";
 import CardDetail from "./pages/CardDetail";
 import Pricing from "./pages/Pricing";
 import CheckoutSuccess from "./pages/CheckoutSuccess";
@@ -42,6 +43,7 @@ const App = () => (
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/scan" element={<Scan />} />
           <Route path="/collection" element={<Collection />} />
+          <Route path="/pack-rip" element={<PackRip />} />
           <Route path="/card/:id" element={<CardDetail />} />
           <Route path="/pricing" element={<Pricing />} />
           <Route path="/checkout/success" element={<CheckoutSuccess />} />

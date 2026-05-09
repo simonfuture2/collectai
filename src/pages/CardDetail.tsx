@@ -47,6 +47,7 @@ import AuthentiSealVerify from "@/components/AuthentiSealVerify";
 import AIDisclaimer from "@/components/AIDisclaimer";
 import Footer from "@/components/Footer";
 import ThemeToggle from "@/components/ThemeToggle";
+import DefectMapOverlay from "@/components/DefectMapOverlay";
 
 type Card = Tables<"cards">;
 
@@ -497,14 +498,11 @@ export default function CardDetail() {
           {/* Left: Card Image + Grading Value Sections (on desktop) */}
           <div className="space-y-6">
             <div className="bg-card border border-border rounded-2xl p-4 overflow-hidden">
-              <div className="aspect-[3/4] rounded-xl overflow-hidden bg-muted">
-                <img
-                  src={cardImageUrl || card.image_url}
-                  alt={card.card_name || "Card"}
-                  loading="lazy"
-                  className="w-full h-full object-contain"
-                />
-              </div>
+              <DefectMapOverlay
+                imageUrl={cardImageUrl || card.image_url}
+                alt={card.card_name || "Card"}
+                defects={Array.isArray((analysis as any)?.defects) ? (analysis as any).defects : []}
+              />
             </div>
 
             {/* Quick Stats */}
