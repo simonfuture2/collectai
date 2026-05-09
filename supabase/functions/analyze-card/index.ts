@@ -613,6 +613,9 @@ Respond with ONLY valid JSON (no markdown code fences) with this structure:
     "bgsSubgrades": { "centering": number, "corners": number, "edges": number, "surface": number },
     "gradingRecommendation": "string"
   },
+  "defects": [
+    { "type": "corner_wear" | "edge_ding" | "scratch" | "print_line" | "whitening" | "centering_offset" | "crease" | "stain", "side": "front" | "back", "x": number, "y": number, "severity": "minor" | "moderate" | "severe", "note": "string" }
+  ],
   "specialFeatures": ["array"],
   "estimatedValueLow": number,
   "estimatedValueHigh": number,
