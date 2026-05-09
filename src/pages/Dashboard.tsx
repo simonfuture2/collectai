@@ -165,6 +165,8 @@ const Dashboard = () => {
               ))}
             </div>
 
+            {cards.length > 0 && <AchievementsRow cards={cards} />}
+
             {/* Portfolio Analytics Section */}
             {showAnalytics && cards.length > 0 && (
               <div className="mb-10">
