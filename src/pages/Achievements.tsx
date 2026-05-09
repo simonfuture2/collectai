@@ -142,9 +142,11 @@ const Achievements = () => {
             ? 100
             : 0;
           return (
-            <div
+            <button
               key={a.id}
-              className={`relative rounded-2xl border p-5 transition-all hover-scale ${
+              type="button"
+              onClick={() => setSelectedId(a.id)}
+              className={`text-left relative rounded-2xl border p-5 transition-all hover-scale focus:outline-none focus:ring-2 focus:ring-primary/40 ${
                 a.unlocked
                   ? "border-primary/40 bg-gradient-to-br from-primary/5 to-primary/10"
                   : "border-border bg-card"
@@ -196,7 +198,7 @@ const Achievements = () => {
                   )}
                 </div>
               </div>
-            </div>
+            </button>
           );
         })}
       </div>
