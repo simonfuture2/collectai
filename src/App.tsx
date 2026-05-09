@@ -11,6 +11,7 @@ import Collection from "./pages/Collection";
 import PackRip from "./pages/PackRip";
 import CardDetail from "./pages/CardDetail";
 import Pricing from "./pages/Pricing";
+import Achievements from "./pages/Achievements";
 import CheckoutSuccess from "./pages/CheckoutSuccess";
 import CheckoutCancel from "./pages/CheckoutCancel";
 import Terms from "./pages/Terms";
