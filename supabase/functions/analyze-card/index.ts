@@ -581,6 +581,7 @@ When shown an image of a trading card, you will:
    c) EDGES (1-10): chipping, whitening, roughness
    d) SURFACE (1-10): scratches, scuffs, holo condition
    e) OVERALL GRADE PREDICTION: PSA, BGS, CGC, SGC
+   f) DEFECT MAP: list each visible flaw with normalized image coordinates (x,y both between 0 and 1, where 0,0 is the top-left of the card and 1,1 is the bottom-right). Mark which side the flaw is on. Limit to the 6 most important flaws. If the card is pristine, return an empty defects array.
 
 3. IDENTIFY special features
 
