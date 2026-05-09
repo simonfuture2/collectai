@@ -11,6 +11,7 @@ import Collection from "./pages/Collection";
 import PackRip from "./pages/PackRip";
 import CardDetail from "./pages/CardDetail";
 import Pricing from "./pages/Pricing";
+import Achievements from "./pages/Achievements";
 import CheckoutSuccess from "./pages/CheckoutSuccess";
 import CheckoutCancel from "./pages/CheckoutCancel";
 import Terms from "./pages/Terms";
@@ -45,6 +46,7 @@ const App = () => (
           <Route path="/collection" element={<Collection />} />
           <Route path="/pack-rip" element={<PackRip />} />
           <Route path="/card/:id" element={<CardDetail />} />
+          <Route path="/achievements" element={<Achievements />} />
           <Route path="/pricing" element={<Pricing />} />
           <Route path="/checkout/success" element={<CheckoutSuccess />} />
           <Route path="/checkout/cancel" element={<CheckoutCancel />} />

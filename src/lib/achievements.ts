@@ -30,7 +30,7 @@ const isHolo = (c: AchievementCard) => {
 };
 
 // Daily-streak: count distinct calendar days with any scan, ending today
-const computeStreak = (cards: AchievementCard[]): number => {
+export const computeStreak = (cards: AchievementCard[]): number => {
   if (cards.length === 0) return 0;
   const days = new Set(
     cards.map((c) => new Date(c.created_at).toISOString().slice(0, 10))
