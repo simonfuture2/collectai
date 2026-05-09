@@ -126,6 +126,10 @@ const Achievements = () => {
       !a.id.startsWith("streak_")
   );
 
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const selected = achievements.find((a) => a.id === selectedId) || null;
+  const selectedHow = selectedId ? HOW_TO_UNLOCK[selectedId] : null;
+
   const renderSection = (title: string, items: typeof achievements) => (
     <div className="mb-10">
       <h3 className="text-xl font-display font-semibold mb-4">{title}</h3>
