@@ -543,6 +543,27 @@ const Collection = () => {
                   </div>
                 )}
 
+                {grades.length > 0 && (
+                  <div>
+                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1.5 font-medium">Grade</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {grades.map((g) => (
+                        <button
+                          key={g}
+                          onClick={() => setActiveGrade(activeGrade === g ? null : g)}
+                          className={`text-xs px-3 py-1 rounded-full border transition-all ${
+                            activeGrade === g
+                              ? "bg-amber-500/15 text-amber-600 border-amber-500/30 ring-1 ring-ring"
+                              : "bg-card text-muted-foreground border-border hover:border-primary/40"
+                          }`}
+                        >
+                          {g}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {hasActiveFilters && (
                   <button
                     onClick={clearFilters}
