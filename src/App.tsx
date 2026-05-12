@@ -56,6 +56,7 @@ const App = () => (
           <Route path="/marketplace" element={<Marketplace />} />
           <Route path="/marketplace/:id" element={<MarketplaceListing />} />
           <Route path="/marketplace/list/:cardId" element={<CreateListing />} />
+          <Route path="/wallets" element={<WalletSettings />} />
           <Route path="/pricing" element={<Pricing />} />
           <Route path="/checkout/success" element={<CheckoutSuccess />} />
           <Route path="/checkout/cancel" element={<CheckoutCancel />} />
