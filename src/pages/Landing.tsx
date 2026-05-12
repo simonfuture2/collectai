@@ -55,6 +55,7 @@ const Landing = () => {
                 <Link to="/partners" className="text-base text-foreground hover:text-primary transition-colors">Partners</Link>
                 <Link to="/faq" className="text-base text-foreground hover:text-primary transition-colors">FAQ</Link>
                 <Link to="/pricing" className="text-base text-foreground hover:text-primary transition-colors">Pricing</Link>
+                <Link to="/marketplace" className="text-base text-foreground hover:text-primary transition-colors">Marketplace</Link>
                 <Link to="/auth">
                   <Button className="w-full gradient-primary">Sign In</Button>
                 </Link>
