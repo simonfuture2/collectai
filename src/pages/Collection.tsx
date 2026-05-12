@@ -53,9 +53,39 @@ const CATEGORY_COLORS: Record<string, string> = {
 const getCategoryStyle = (cat: string | null) =>
   CATEGORY_COLORS[cat || ""] || CATEGORY_COLORS["Other"];
 
-type SortOption = "newest" | "oldest" | "value-high" | "value-low" | "name";
+type SortOption = "newest" | "oldest" | "value-high" | "value-low" | "name" | "grade-high" | "grade-low";
 
 const PAGE_SIZE = 20;
+
+const GRADE_ORDER: Record<string, number> = {
+  "PSA 10": 1000, "BGS 10": 995, "SGC 10": 990, "CGC 10": 985,
+  "PSA 9": 900, "BGS 9.5": 950, "BGS 9": 900, "SGC 9": 890, "CGC 9": 880,
+  "PSA 8": 800, "BGS 8.5": 825, "BGS 8": 800, "SGC 8": 790, "CGC 8": 780,
+  "PSA 7": 700, "BGS 7": 700, "SGC 7": 690, "CGC 7": 680,
+  "PSA 6": 600, "BGS 6": 600, "SGC 6": 590, "CGC 6": 580,
+  "PSA 5": 500, "BGS 5": 500, "SGC 5": 490, "CGC 5": 480,
+  "PSA 4": 400, "BGS 4": 400, "SGC 4": 390, "CGC 4": 380,
+  "PSA 3": 300, "BGS 3": 300, "SGC 3": 290, "CGC 3": 280,
+  "PSA 2": 200, "BGS 2": 200, "SGC 2": 190, "CGC 2": 180,
+  "PSA 1": 100, "BGS 1": 100, "SGC 1": 90, "CGC 1": 80,
+  "Mint": 700, "Near Mint": 650, "Excellent": 550, "Very Good": 400,
+  "Good": 300, "Fair": 200, "Poor": 100,
+  "Raw": 0, "Ungraded": 0, "": -1,
+};
+
+const gradeRank = (g: string | null) => {
+  if (!g) return -1;
+  // exact match
+  if (GRADE_ORDER[g] !== undefined) return GRADE_ORDER[g];
+  // normalize: uppercase, remove extra spaces
+  const normalized = g.toUpperCase().replace(/\s+/g, " ").trim();
+  if (GRADE_ORDER[normalized] !== undefined) return GRADE_ORDER[normalized];
+  // fuzzy prefix match (e.g. "PSA10" -> "PSA 10")
+  for (const [key, val] of Object.entries(GRADE_ORDER)) {
+    if (normalized.includes(key.toUpperCase().replace(/\s/g, ""))) return val;
+  }
+  return -1;
+};
 
 const Collection = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -64,6 +94,7 @@ const Collection = () => {
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [activeRarity, setActiveRarity] = useState<string | null>(null);
+  const [activeGrade, setActiveGrade] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<SortOption>("newest");
   const [showFilters, setShowFilters] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
