@@ -33,6 +33,7 @@ import Marketplace from "./pages/Marketplace";
 import MarketplaceListing from "./pages/MarketplaceListing";
 import CreateListing from "./pages/CreateListing";
 import { Web3Provider } from "./components/Web3Provider";
+import WalletSettings from "./pages/WalletSettings";
 
 const queryClient = new QueryClient();
 
@@ -55,6 +56,7 @@ const App = () => (
           <Route path="/marketplace" element={<Marketplace />} />
           <Route path="/marketplace/:id" element={<MarketplaceListing />} />
           <Route path="/marketplace/list/:cardId" element={<CreateListing />} />
+          <Route path="/wallets" element={<WalletSettings />} />
           <Route path="/pricing" element={<Pricing />} />
           <Route path="/checkout/success" element={<CheckoutSuccess />} />
           <Route path="/checkout/cancel" element={<CheckoutCancel />} />
