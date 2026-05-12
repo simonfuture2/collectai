@@ -42,8 +42,12 @@ export function useCredits() {
 
   useEffect(() => {
     refresh();
+    const { data: sub } = supabase.auth.onAuthStateChange(() => refresh());
     const interval = setInterval(refresh, 60000);
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      sub.subscription.unsubscribe();
+    };
   }, [refresh]);
 
   const isPro = state.plan === "pro" || state.subscribed;
