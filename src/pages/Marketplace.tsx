@@ -41,16 +41,26 @@ export default function Marketplace() {
   useEffect(() => {
     (async () => {
       setLoading(true);
-      const { data } = await supabase
+      const { data: rows } = await supabase
         .from("marketplace_listings")
-        .select("id, card_id, seller_id, chain, payment_token, price, status, created_at, cards(card_name, card_set, image_url, rarity, condition_grade)")
+        .select("id, card_id, seller_id, chain, payment_token, price, status, created_at")
         .eq("status", "active")
         .order("created_at", { ascending: false });
-      setListings((data as any) ?? []);
-      // Resolve signed URLs for card images
+      const listingsRaw = (rows as any[]) ?? [];
+      const cardIds = listingsRaw.map((r) => r.card_id);
+      let cardMap: Record<string, any> = {};
+      if (cardIds.length) {
+        const { data: cards } = await supabase
+          .from("cards")
+          .select("id, card_name, card_set, image_url, rarity, condition_grade")
+          .in("id", cardIds);
+        for (const c of cards ?? []) cardMap[c.id] = c;
+      }
+      const merged: Listing[] = listingsRaw.map((r) => ({ ...r, cards: cardMap[r.card_id] ?? null }));
+      setListings(merged);
       const map: Record<string, string> = {};
-      for (const row of (data as any[]) ?? []) {
-        const path = row?.cards?.image_url;
+      for (const row of merged) {
+        const path = row.cards?.image_url;
         if (path && !path.startsWith("http")) {
           const { data: signed } = await supabase.storage.from("card-images").createSignedUrl(path, 3600);
           if (signed?.signedUrl) map[row.id] = signed.signedUrl;
