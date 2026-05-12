@@ -33,6 +33,7 @@ import Marketplace from "./pages/Marketplace";
 import MarketplaceListing from "./pages/MarketplaceListing";
 import CreateListing from "./pages/CreateListing";
 import { Web3Provider } from "./components/Web3Provider";
+import WalletSettings from "./pages/WalletSettings";
 
 const queryClient = new QueryClient();
 
