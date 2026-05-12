@@ -1,63 +1,122 @@
 
-# Competitive Review + Fun Feature Additions for CollectAI
+# Blockchain Marketplace Plan
 
-## What we already do well
-Single-photo AI scan, sub-grade breakdown (corners / edges / surface / centering), ROI grading calculator, real-market valuation (eBay sold + TCGPlayer + Claude verification), portfolio analytics, folders, public collection sharing, AuthentiSeal verification, referrals, freemium credits, scan progress timeline.
+A peer-to-peer marketplace where collectors list cards, buyers pay in USDC/USDT on Ethereum or Solana, funds are held in on-chain escrow, and after the buyer confirms delivery the escrow releases funds to the seller and mints an authenticity NFT tied to the AuthentiSeal serial.
 
-## What top competitors do that we don't (yet)
+## Scope of this plan
 
-| App | Standout features |
-|---|---|
-| **CollX** (1M+ installs) | Marketplace (buy/sell/trade), social feed, follow collectors, "Scan+" enhanced AI, monthly buy-credit |
-| **Ludex** | Bulk scan mode, price alerts/watchlist, multi-TCG breadth |
-| **ZeroPop** | **4-angle scan**, defect map overlay, multi-grader estimates (PSA + BGS + CGC), centering ruler |
-| **Guardian TCG** | Realtime camera scan, **market movers feed**, analytics dashboard |
-| **CardGrader** | **"Perfect Pulls"** gamified pack-rip tracker |
-| **Pokedata** | Trend charts, investor-grade transparency |
-| **Pulio** | Custom binders, community posts |
+This is a large multi-phase build (smart contracts + indexer + UI + shipping flow). I'll deliver it in **3 shippable phases** so you can review at each stage. This plan covers the architecture and the full Phase 1 build.
 
-## Recommended additions — ranked by "fun + appeal" impact
+---
 
-### Tier 1 — Highest delight, moderate effort
+## Architecture Overview
 
-**A. Pack Rip Mode (gamified pulls)**
-A dedicated flow: tap "Open a Pack", pick the set, scan each card you pull. We tally pack value vs. retail, surface a celebratory animation when a chase card is detected (holo / rare / >$50), and save the rip as a session you can share. This is the single most "fun" feature in the category and we already have the scan engine.
+```text
+   Seller                                                   Buyer
+     |                                                        |
+     | 1. Create listing (card, price, chain, token)          |
+     v                                                        v
+  +----------------------------------------------------------+
+  |  CollectAI Web App  (Reown AppKit: EVM + Solana wallets) |
+  +----------------------------------------------------------+
+     |                          |                       |
+     | listing meta             | escrow tx             | confirm delivery
+     v                          v                       v
+  Supabase DB         Escrow Contracts            Escrow Contracts
+  (listings,          - Ethereum (Solidity)       releaseFunds() ->
+   orders,            - Solana (Anchor)           seller paid in USDC
+   shipments)         Holds USDC/USDT             mintAuthenticityNFT()
+     ^                          |
+     |                          v
+     +-------- Indexer Edge Function (poll/webhook) <--------+
+              writes on-chain state back into Supabase
+```
 
-**B. Achievements & Streaks**
-Lightweight badge system: First Scan, First Holo, First $100 Card, 7-Day Streak, "Cracked a Gem" (predicted PSA 10), "Set Completer" (X% of a set scanned). Renders as a row on Dashboard + a /achievements page. Pure presentation layer over existing data.
+Three layers:
+1. **Smart contracts** — escrow + NFT mint on each chain
+2. **Indexer** — edge functions that watch chain events and sync to DB
+3. **App** — listing UI, buy flow, shipment tracking, dashboard
 
-**C. Defect Map Overlay**
-On the card detail page, render the user's photo with colored pins marking where the AI saw corner wear, edge dings, surface scratches, and centering offsets. Claude already produces sub-grades; we extend its prompt to also return `(x, y)` defect coordinates and render dots on the image. Huge perceived sophistication, ~one prompt change + a SVG overlay.
+---
 
-### Tier 2 — Strong "wow" features, larger effort
+## Phase 1 — Foundation (this build)
 
-**D. Multi-Angle Scan (front + back + 2 corners)**
-Optional 4-photo flow that materially improves sub-grade accuracy and unlocks the defect map. Falls back to single-photo for free tier; gated behind credits or Pro.
+Goal: a user can connect a wallet, create a listing, browse listings, and the data model is ready for escrow integration.
 
-**E. Market Movers Feed**
-Daily-refreshed home screen widget: "Top 5 cards trending up today" pulled from a scheduled edge function that runs Firecrawl across a curated watchlist (top-scanned cards across the user base). Becomes a reason to open the app daily.
+### 1.1 Database schema
+New tables:
+- `wallets` — `user_id, chain ('ethereum'|'solana'), address, is_primary` (RLS: owner-only)
+- `marketplace_listings` — `id, card_id, seller_id, chain, payment_token ('USDC'|'USDT'), price, status ('active'|'pending'|'sold'|'cancelled'), created_at, contract_listing_id` (RLS: public read for active, owner write)
+- `marketplace_orders` — `id, listing_id, buyer_id, seller_id, chain, escrow_tx_hash, escrow_address, amount, status ('escrowed'|'shipped'|'delivered'|'released'|'refunded'|'disputed'), created_at`
+- `order_shipments` — `id, order_id, carrier, tracking_number, ship_address_encrypted, shipped_at, delivered_at, tracking_status, tracking_payload`
+- `nft_certificates` — `id, order_id, chain, contract_address, token_id, mint_tx_hash, authentiseal_serial, metadata_uri, minted_at`
 
-**F. Watchlist + Price Alerts**
-Star any card → push notification when sold-comp average moves >X% or crosses a target. We already have Capacitor push wired up.
+Add `cards.is_listed boolean` for fast filtering.
 
-### Tier 3 — Nice-to-have polish
+### 1.2 Wallet connection (Reown AppKit)
+- Install `@reown/appkit`, `@reown/appkit-adapter-wagmi`, `@reown/appkit-adapter-solana`, `wagmi`, `viem`, `@solana/web3.js`
+- New `src/lib/web3/appkit.ts` — configure Ethereum mainnet + Solana mainnet (and testnets in dev), USDC/USDT token addresses per chain
+- New `src/components/WalletConnectButton.tsx` — opens AppKit modal
+- New `src/hooks/use-wallet.ts` — exposes connected EVM + Solana addresses
+- After connect, persist address to `wallets` table via `supabase.from('wallets').upsert(...)`
+- Add to header nav next to ThemeToggle
 
-**G. Card Lore Card** — Claude-generated 2–3 sentence fun fact / historical context shown on the detail page ("This 1986 Fleer Jordan was the only mainstream Jordan rookie..."). Cheap, delightful.
+### 1.3 Marketplace pages
+- `src/pages/Marketplace.tsx` (`/marketplace`) — grid of active listings, filter by chain/token/category/price, search
+- `src/pages/MarketplaceListing.tsx` (`/marketplace/:id`) — card detail, seller info (display_name only), Buy Now button (Phase 2 wires it to escrow)
+- `src/pages/CreateListing.tsx` (`/marketplace/list/:cardId`) — pick chain, pick token, set price in USDC/USDT, preview, submit
+- "List on Marketplace" action in `CardDetail.tsx` context menu and on the card page
 
-**H. Binder View** — flip-through virtual 9-pocket pages of the user's collection, with shimmer on holos. Pure frontend.
+### 1.4 Routing & nav
+- Add 4 routes to `App.tsx`
+- Add "Marketplace" link to main nav and Dashboard quick actions
 
-**I. Multi-Grader Estimates** — show predicted PSA / BGS / SGC grades side-by-side instead of just one. Prompt change only.
+### 1.5 Required secrets (set in Phase 1)
+- `RPC_ETHEREUM_MAINNET` (Alchemy/Infura URL)
+- `RPC_SOLANA_MAINNET` (Helius URL recommended)
+- `REOWN_PROJECT_ID` (from cloud.reown.com — public, can also be in `.env`)
 
-## My recommendation
-Ship Tier 1 first as a coherent "Fun Pack" release: **Pack Rip Mode + Achievements + Defect Map**. Together they hit pulling, progression, and "wow this is sophisticated" — the three things competitors win on. Tier 2 follows once we see engagement lift.
+---
 
-## Which would you like me to plan in detail / build?
-Options:
-1. **Tier 1 bundle** — Pack Rip + Achievements + Defect Map
-2. Just **Pack Rip Mode** (most fun, most viral)
-3. Just **Achievements & Streaks** (lowest effort, broadest reach)
-4. Just **Defect Map Overlay** (most "smart AI" credibility)
-5. **Tier 2 bundle** — Multi-Angle + Market Movers + Price Alerts
-6. A different combination — tell me which letters
+## Phase 2 — On-chain escrow (next build, separate request)
+- Solidity escrow contract (Ethereum) — `createEscrow(seller, token, amount, listingId)`, `markShipped(tracking)`, `confirmDelivery()`, `releaseFunds()`, `refund()`, `dispute()`
+- Anchor program (Solana) — equivalent instructions over SPL USDC/USDT
+- Frontend buy flow: approve token → call `createEscrow` → store tx hash + escrow address in `marketplace_orders`
+- Indexer edge function (`marketplace-indexer`) — polls each chain every minute, updates order status from on-chain events
+- Shipping flow: seller submits carrier+tracking → call `markShipped` on contract → backend polls EasyPost/Shippo for delivery confirmation → buyer confirms or auto-confirms after 7 days post-delivery → calls `releaseFunds`
 
-Out of scope until chosen: backend schema for pack-rip sessions, achievement storage, push templates, image-overlay component — I'll plan those once you pick.
+## Phase 3 — Authenticity NFTs & polish
+- ERC-721 contract on Ethereum + Metaplex NFT on Solana, minted automatically inside `releaseFunds()` to the buyer
+- Metadata pinned to IPFS (web3.storage or Pinata) including AuthentiSeal serial, scan images, grade
+- Buyer's CardDetail shows "Verified on-chain" badge with link to block explorer
+- Disputes UI + admin resolution panel
+
+---
+
+## Technical Details
+
+**Phase 1 dependencies to add:**
+`@reown/appkit @reown/appkit-adapter-wagmi @reown/appkit-adapter-solana wagmi viem @tanstack/react-query @solana/web3.js @solana/spl-token`
+
+**Token addresses** stored in `src/lib/web3/tokens.ts`:
+- Ethereum USDC: `0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48`
+- Ethereum USDT: `0xdAC17F958D2ee523a2206206994597C13D831ec7`
+- Solana USDC: `EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v`
+- Solana USDT: `Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB`
+
+**Shipping carrier API** — Phase 2 will use **EasyPost** (single API for USPS/UPS/FedEx/DHL). Will require `EASYPOST_API_KEY`.
+
+**Smart contract deployment** — Phase 2 contracts will be deployed by the user from Remix (Ethereum) and `anchor deploy` (Solana); I'll provide the source and verification scripts. Contract addresses then go into Lovable secrets.
+
+**Auto-release window** — 7 days after carrier marks delivered, funds auto-release to prevent buyer holding seller hostage. Either party can dispute within that window to freeze funds for admin review.
+
+**Custody / regulatory** — escrow is fully on-chain; CollectAI never touches funds, which keeps us out of money-transmitter scope. Marketplace fees (0% for now) will later be deducted on-chain at release.
+
+---
+
+## What I will NOT do without confirmation
+- Deploy any smart contracts to mainnet (testnet only by default in Phase 2)
+- Spend any real money on RPC/IPFS providers — I'll use free tiers and tell you when limits apply
+- Touch existing payment/Stripe flows
+
+Ready to build Phase 1 on approval.

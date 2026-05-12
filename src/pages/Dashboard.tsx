@@ -184,6 +184,9 @@ const Dashboard = () => {
               <Link to="/collection">
                 <Button variant="outline">View Full Collection</Button>
               </Link>
+              <Link to="/marketplace">
+                <Button variant="outline" className="hover-lift"><Wallet className="mr-2 w-5 h-5" />Marketplace</Button>
+              </Link>
             </div>
 
             {stats.totalCards === 0 && (

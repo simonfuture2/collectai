@@ -29,11 +29,16 @@ import Install from "./pages/Install";
 import DeleteAccount from "./pages/DeleteAccount";
 import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
+import Marketplace from "./pages/Marketplace";
+import MarketplaceListing from "./pages/MarketplaceListing";
+import CreateListing from "./pages/CreateListing";
+import { Web3Provider } from "./components/Web3Provider";
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
+    <Web3Provider>
     <TooltipProvider>
       <Toaster />
       <Sonner />
@@ -47,6 +52,9 @@ const App = () => (
           <Route path="/pack-rip" element={<PackRip />} />
           <Route path="/card/:id" element={<CardDetail />} />
           <Route path="/achievements" element={<Achievements />} />
+          <Route path="/marketplace" element={<Marketplace />} />
+          <Route path="/marketplace/:id" element={<MarketplaceListing />} />
+          <Route path="/marketplace/list/:cardId" element={<CreateListing />} />
           <Route path="/pricing" element={<Pricing />} />
           <Route path="/checkout/success" element={<CheckoutSuccess />} />
           <Route path="/checkout/cancel" element={<CheckoutCancel />} />
@@ -68,6 +76,7 @@ const App = () => (
         </Routes>
       </BrowserRouter>
     </TooltipProvider>
+    </Web3Provider>
   </QueryClientProvider>
 );
 
