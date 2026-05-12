@@ -283,6 +283,10 @@ const Collection = () => {
       list = list.filter((c) => c.rarity === activeRarity);
     }
 
+    if (activeGrade) {
+      list = list.filter((c) => c.condition_grade === activeGrade);
+    }
+
     switch (sortBy) {
       case "oldest":
         list.reverse();
@@ -296,13 +300,19 @@ const Collection = () => {
       case "name":
         list.sort((a, b) => (a.card_name || "").localeCompare(b.card_name || ""));
         break;
+      case "grade-high":
+        list.sort((a, b) => gradeRank(b.condition_grade) - gradeRank(a.condition_grade));
+        break;
+      case "grade-low":
+        list.sort((a, b) => gradeRank(a.condition_grade) - gradeRank(b.condition_grade));
+        break;
     }
 
     return list;
-  }, [cards, search, activeCategory, activeRarity, sortBy, activeFolder, cardFolderMap]);
+  }, [cards, search, activeCategory, activeRarity, activeGrade, sortBy, activeFolder, cardFolderMap]);
 
   // Reset visible count when filters change
-  useEffect(() => { setVisibleCount(PAGE_SIZE); }, [search, activeCategory, activeRarity, sortBy, activeFolder]);
+  useEffect(() => { setVisibleCount(PAGE_SIZE); }, [search, activeCategory, activeRarity, activeGrade, sortBy, activeFolder]);
 
   const paginatedCards = filtered.slice(0, visibleCount);
   const hasMore = visibleCount < filtered.length;
