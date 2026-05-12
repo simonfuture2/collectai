@@ -99,6 +99,7 @@ export type Database = {
           estimated_value_low: number | null
           id: string
           image_url: string
+          is_listed: boolean
           is_public: boolean
           last_scanned_at: string | null
           notes: string | null
@@ -124,6 +125,7 @@ export type Database = {
           estimated_value_low?: number | null
           id?: string
           image_url: string
+          is_listed?: boolean
           is_public?: boolean
           last_scanned_at?: string | null
           notes?: string | null
@@ -149,6 +151,7 @@ export type Database = {
           estimated_value_low?: number | null
           id?: string
           image_url?: string
+          is_listed?: boolean
           is_public?: boolean
           last_scanned_at?: string | null
           notes?: string | null
@@ -344,6 +347,219 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      marketplace_listings: {
+        Row: {
+          card_id: string
+          chain: Database["public"]["Enums"]["blockchain_network"]
+          contract_listing_id: string | null
+          created_at: string
+          description: string | null
+          id: string
+          payment_token: Database["public"]["Enums"]["payment_token"]
+          price: number
+          seller_id: string
+          seller_wallet: string
+          status: Database["public"]["Enums"]["listing_status"]
+          updated_at: string
+        }
+        Insert: {
+          card_id: string
+          chain: Database["public"]["Enums"]["blockchain_network"]
+          contract_listing_id?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          payment_token: Database["public"]["Enums"]["payment_token"]
+          price: number
+          seller_id: string
+          seller_wallet: string
+          status?: Database["public"]["Enums"]["listing_status"]
+          updated_at?: string
+        }
+        Update: {
+          card_id?: string
+          chain?: Database["public"]["Enums"]["blockchain_network"]
+          contract_listing_id?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          payment_token?: Database["public"]["Enums"]["payment_token"]
+          price?: number
+          seller_id?: string
+          seller_wallet?: string
+          status?: Database["public"]["Enums"]["listing_status"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      marketplace_orders: {
+        Row: {
+          amount: number
+          auto_release_at: string | null
+          buyer_id: string
+          buyer_wallet: string
+          chain: Database["public"]["Enums"]["blockchain_network"]
+          created_at: string
+          delivery_confirmed_at: string | null
+          escrow_address: string | null
+          escrow_tx_hash: string | null
+          id: string
+          listing_id: string
+          payment_token: Database["public"]["Enums"]["payment_token"]
+          release_tx_hash: string | null
+          seller_id: string
+          seller_wallet: string
+          status: Database["public"]["Enums"]["order_status"]
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          auto_release_at?: string | null
+          buyer_id: string
+          buyer_wallet: string
+          chain: Database["public"]["Enums"]["blockchain_network"]
+          created_at?: string
+          delivery_confirmed_at?: string | null
+          escrow_address?: string | null
+          escrow_tx_hash?: string | null
+          id?: string
+          listing_id: string
+          payment_token: Database["public"]["Enums"]["payment_token"]
+          release_tx_hash?: string | null
+          seller_id: string
+          seller_wallet: string
+          status?: Database["public"]["Enums"]["order_status"]
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          auto_release_at?: string | null
+          buyer_id?: string
+          buyer_wallet?: string
+          chain?: Database["public"]["Enums"]["blockchain_network"]
+          created_at?: string
+          delivery_confirmed_at?: string | null
+          escrow_address?: string | null
+          escrow_tx_hash?: string | null
+          id?: string
+          listing_id?: string
+          payment_token?: Database["public"]["Enums"]["payment_token"]
+          release_tx_hash?: string | null
+          seller_id?: string
+          seller_wallet?: string
+          status?: Database["public"]["Enums"]["order_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_orders_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_listings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      nft_certificates: {
+        Row: {
+          authentiseal_serial: string | null
+          card_id: string
+          chain: Database["public"]["Enums"]["blockchain_network"]
+          contract_address: string
+          id: string
+          metadata_uri: string | null
+          mint_tx_hash: string
+          minted_at: string
+          order_id: string
+          owner_wallet: string
+          token_id: string
+        }
+        Insert: {
+          authentiseal_serial?: string | null
+          card_id: string
+          chain: Database["public"]["Enums"]["blockchain_network"]
+          contract_address: string
+          id?: string
+          metadata_uri?: string | null
+          mint_tx_hash: string
+          minted_at?: string
+          order_id: string
+          owner_wallet: string
+          token_id: string
+        }
+        Update: {
+          authentiseal_serial?: string | null
+          card_id?: string
+          chain?: Database["public"]["Enums"]["blockchain_network"]
+          contract_address?: string
+          id?: string
+          metadata_uri?: string | null
+          mint_tx_hash?: string
+          minted_at?: string
+          order_id?: string
+          owner_wallet?: string
+          token_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nft_certificates_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      order_shipments: {
+        Row: {
+          carrier: string
+          created_at: string
+          delivered_at: string | null
+          id: string
+          order_id: string
+          ship_address_encrypted: string | null
+          shipped_at: string | null
+          tracking_number: string
+          tracking_payload: Json | null
+          tracking_status: string | null
+          updated_at: string
+        }
+        Insert: {
+          carrier: string
+          created_at?: string
+          delivered_at?: string | null
+          id?: string
+          order_id: string
+          ship_address_encrypted?: string | null
+          shipped_at?: string | null
+          tracking_number: string
+          tracking_payload?: Json | null
+          tracking_status?: string | null
+          updated_at?: string
+        }
+        Update: {
+          carrier?: string
+          created_at?: string
+          delivered_at?: string | null
+          id?: string
+          order_id?: string
+          ship_address_encrypted?: string | null
+          shipped_at?: string | null
+          tracking_number?: string
+          tracking_payload?: Json | null
+          tracking_status?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_shipments_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_orders"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       outreach_campaigns: {
         Row: {
@@ -631,6 +847,33 @@ export type Database = {
         }
         Relationships: []
       }
+      wallets: {
+        Row: {
+          address: string
+          chain: Database["public"]["Enums"]["blockchain_network"]
+          created_at: string
+          id: string
+          is_primary: boolean
+          user_id: string
+        }
+        Insert: {
+          address: string
+          chain: Database["public"]["Enums"]["blockchain_network"]
+          created_at?: string
+          id?: string
+          is_primary?: boolean
+          user_id: string
+        }
+        Update: {
+          address?: string
+          chain?: Database["public"]["Enums"]["blockchain_network"]
+          created_at?: string
+          id?: string
+          is_primary?: boolean
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       public_profiles: {
@@ -669,10 +912,20 @@ export type Database = {
         | "status_change"
         | "note"
         | "call"
+      blockchain_network: "ethereum" | "solana"
       campaign_channel: "email" | "sms"
       campaign_status: "draft" | "sending" | "sent"
       lead_source: "form" | "manual" | "csv" | "lead_magnet"
       lead_status: "new" | "contacted" | "interested" | "converted" | "lost"
+      listing_status: "active" | "pending" | "sold" | "cancelled"
+      order_status:
+        | "escrowed"
+        | "shipped"
+        | "delivered"
+        | "released"
+        | "refunded"
+        | "disputed"
+      payment_token: "USDC" | "USDT"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -807,10 +1060,21 @@ export const Constants = {
         "note",
         "call",
       ],
+      blockchain_network: ["ethereum", "solana"],
       campaign_channel: ["email", "sms"],
       campaign_status: ["draft", "sending", "sent"],
       lead_source: ["form", "manual", "csv", "lead_magnet"],
       lead_status: ["new", "contacted", "interested", "converted", "lost"],
+      listing_status: ["active", "pending", "sold", "cancelled"],
+      order_status: [
+        "escrowed",
+        "shipped",
+        "delivered",
+        "released",
+        "refunded",
+        "disputed",
+      ],
+      payment_token: ["USDC", "USDT"],
     },
   },
 } as const
