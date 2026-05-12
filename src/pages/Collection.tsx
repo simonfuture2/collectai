@@ -244,6 +244,11 @@ const Collection = () => {
     return Array.from(rars).sort();
   }, [cards]);
 
+  const grades = useMemo(() => {
+    const grs = new Set(cards.filter((c) => c.condition_grade).map((c) => c.condition_grade!));
+    return Array.from(grs).sort((a, b) => gradeRank(b) - gradeRank(a));
+  }, [cards]);
+
   // Filter and sort
   const filtered = useMemo(() => {
     let list = [...cards];
