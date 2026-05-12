@@ -7,7 +7,7 @@ import { solana } from "@reown/appkit/networks";
 // Public Reown project ID. Replace via env if needed.
 const projectId =
   (import.meta.env.VITE_REOWN_PROJECT_ID as string | undefined) ||
-  "a3b1c8d4e5f60718293a4b5c6d7e8f90";
+  "08d568ba6a3be40fbcfa2e8fce2f34c2";
 
 const metadata = {
   name: "CollectAI Marketplace",
