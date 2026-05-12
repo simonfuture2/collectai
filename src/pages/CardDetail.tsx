@@ -541,6 +541,15 @@ export default function CardDetail() {
               {rescanning ? 'Re-Scanning...' : isFreeRescanAvailable() ? '🆓 Free Daily Re-Scan' : 'Re-Scan & Update Prices'}
             </Button>
 
+            {/* List on Marketplace */}
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={() => navigate(`/marketplace/list/${card.id}`)}
+            >
+              List on Marketplace
+            </Button>
+
             {/* No Market Data Warning */}
             {analysis && (analysis as any).noMarketData && (
               <div className="flex items-start gap-3 p-4 rounded-xl bg-amber-500/10 border border-amber-500/30">
