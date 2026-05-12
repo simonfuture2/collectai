@@ -20,6 +20,11 @@ export function useCredits() {
 
   const refresh = useCallback(async () => {
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        setState({ credits: 0, plan: "free", subscribed: false, subscriptionEnd: null, loading: false });
+        return;
+      }
       const { data, error } = await supabase.functions.invoke("check-subscription");
       if (error) throw error;
       setState({
