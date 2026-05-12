@@ -336,11 +336,12 @@ const Collection = () => {
     setSearch("");
     setActiveCategory(null);
     setActiveRarity(null);
+    setActiveGrade(null);
     setSortBy("newest");
     setActiveFolder(null);
   };
 
-  const hasActiveFilters = search || activeCategory || activeRarity || sortBy !== "newest" || activeFolder;
+  const hasActiveFilters = search || activeCategory || activeRarity || activeGrade || sortBy !== "newest" || activeFolder;
 
   const toggleCardFolder = async (cardId: string, folderId: string) => {
     const isInFolder = (cardFolderMap[cardId] || []).includes(folderId);
