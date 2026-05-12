@@ -24,22 +24,29 @@ export default function MarketplaceListing() {
     if (!id) return;
     (async () => {
       setLoading(true);
-      const { data } = await supabase
+      const { data: l } = await supabase
         .from("marketplace_listings")
-        .select("*, cards(card_name, card_set, card_year, image_url, rarity, condition_grade, authentiseal_serial, category)")
+        .select("*")
         .eq("id", id)
         .maybeSingle();
-      setListing(data);
-      if (data?.cards?.image_url) {
-        const path = data.cards.image_url;
+      if (!l) { setLoading(false); return; }
+      const { data: c } = await supabase
+        .from("cards")
+        .select("card_name, card_set, card_year, image_url, rarity, condition_grade, authentiseal_serial, category")
+        .eq("id", l.card_id)
+        .maybeSingle();
+      const merged: any = { ...l, cards: c };
+      setListing(merged);
+      if (c?.image_url) {
+        const path = c.image_url;
         if (path.startsWith("http")) setImgUrl(path);
         else {
           const { data: s } = await supabase.storage.from("card-images").createSignedUrl(path, 3600);
           if (s?.signedUrl) setImgUrl(s.signedUrl);
         }
       }
-      if (data?.seller_id) {
-        const { data: p } = await supabase.from("profiles").select("display_name").eq("id", data.seller_id).maybeSingle();
+      if (l.seller_id) {
+        const { data: p } = await supabase.from("profiles").select("display_name").eq("id", l.seller_id).maybeSingle();
         setSeller(p ?? null);
       }
       setLoading(false);
