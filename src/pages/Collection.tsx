@@ -491,6 +491,8 @@ const Collection = () => {
                   <option value="value-high">Value: High → Low</option>
                   <option value="value-low">Value: Low → High</option>
                   <option value="name">Name A–Z</option>
+                  <option value="grade-high">Grade: High → Low</option>
+                  <option value="grade-low">Grade: Low → High</option>
                 </select>
                 <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
               </div>
