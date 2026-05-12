@@ -53,9 +53,39 @@ const CATEGORY_COLORS: Record<string, string> = {
 const getCategoryStyle = (cat: string | null) =>
   CATEGORY_COLORS[cat || ""] || CATEGORY_COLORS["Other"];
 
-type SortOption = "newest" | "oldest" | "value-high" | "value-low" | "name";
+type SortOption = "newest" | "oldest" | "value-high" | "value-low" | "name" | "grade-high" | "grade-low";
 
 const PAGE_SIZE = 20;
+
+const GRADE_ORDER: Record<string, number> = {
+  "PSA 10": 1000, "BGS 10": 995, "SGC 10": 990, "CGC 10": 985,
+  "PSA 9": 900, "BGS 9.5": 950, "BGS 9": 900, "SGC 9": 890, "CGC 9": 880,
+  "PSA 8": 800, "BGS 8.5": 825, "BGS 8": 800, "SGC 8": 790, "CGC 8": 780,
+  "PSA 7": 700, "BGS 7": 700, "SGC 7": 690, "CGC 7": 680,
+  "PSA 6": 600, "BGS 6": 600, "SGC 6": 590, "CGC 6": 580,
+  "PSA 5": 500, "BGS 5": 500, "SGC 5": 490, "CGC 5": 480,
+  "PSA 4": 400, "BGS 4": 400, "SGC 4": 390, "CGC 4": 380,
+  "PSA 3": 300, "BGS 3": 300, "SGC 3": 290, "CGC 3": 280,
+  "PSA 2": 200, "BGS 2": 200, "SGC 2": 190, "CGC 2": 180,
+  "PSA 1": 100, "BGS 1": 100, "SGC 1": 90, "CGC 1": 80,
+  "Mint": 700, "Near Mint": 650, "Excellent": 550, "Very Good": 400,
+  "Good": 300, "Fair": 200, "Poor": 100,
+  "Raw": 0, "Ungraded": 0, "": -1,
+};
+
+const gradeRank = (g: string | null) => {
+  if (!g) return -1;
+  // exact match
+  if (GRADE_ORDER[g] !== undefined) return GRADE_ORDER[g];
+  // normalize: uppercase, remove extra spaces
+  const normalized = g.toUpperCase().replace(/\s+/g, " ").trim();
+  if (GRADE_ORDER[normalized] !== undefined) return GRADE_ORDER[normalized];
+  // fuzzy prefix match (e.g. "PSA10" -> "PSA 10")
+  for (const [key, val] of Object.entries(GRADE_ORDER)) {
+    if (normalized.includes(key.toUpperCase().replace(/\s/g, ""))) return val;
+  }
+  return -1;
+};
 
 const Collection = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -64,6 +94,7 @@ const Collection = () => {
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [activeRarity, setActiveRarity] = useState<string | null>(null);
+  const [activeGrade, setActiveGrade] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<SortOption>("newest");
   const [showFilters, setShowFilters] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
@@ -213,6 +244,11 @@ const Collection = () => {
     return Array.from(rars).sort();
   }, [cards]);
 
+  const grades = useMemo(() => {
+    const grs = new Set(cards.filter((c) => c.condition_grade).map((c) => c.condition_grade!));
+    return Array.from(grs).sort((a, b) => gradeRank(b) - gradeRank(a));
+  }, [cards]);
+
   // Filter and sort
   const filtered = useMemo(() => {
     let list = [...cards];
@@ -247,6 +283,10 @@ const Collection = () => {
       list = list.filter((c) => c.rarity === activeRarity);
     }
 
+    if (activeGrade) {
+      list = list.filter((c) => c.condition_grade === activeGrade);
+    }
+
     switch (sortBy) {
       case "oldest":
         list.reverse();
@@ -260,13 +300,19 @@ const Collection = () => {
       case "name":
         list.sort((a, b) => (a.card_name || "").localeCompare(b.card_name || ""));
         break;
+      case "grade-high":
+        list.sort((a, b) => gradeRank(b.condition_grade) - gradeRank(a.condition_grade));
+        break;
+      case "grade-low":
+        list.sort((a, b) => gradeRank(a.condition_grade) - gradeRank(b.condition_grade));
+        break;
     }
 
     return list;
-  }, [cards, search, activeCategory, activeRarity, sortBy, activeFolder, cardFolderMap]);
+  }, [cards, search, activeCategory, activeRarity, activeGrade, sortBy, activeFolder, cardFolderMap]);
 
   // Reset visible count when filters change
-  useEffect(() => { setVisibleCount(PAGE_SIZE); }, [search, activeCategory, activeRarity, sortBy, activeFolder]);
+  useEffect(() => { setVisibleCount(PAGE_SIZE); }, [search, activeCategory, activeRarity, activeGrade, sortBy, activeFolder]);
 
   const paginatedCards = filtered.slice(0, visibleCount);
   const hasMore = visibleCount < filtered.length;
@@ -290,11 +336,12 @@ const Collection = () => {
     setSearch("");
     setActiveCategory(null);
     setActiveRarity(null);
+    setActiveGrade(null);
     setSortBy("newest");
     setActiveFolder(null);
   };
 
-  const hasActiveFilters = search || activeCategory || activeRarity || sortBy !== "newest" || activeFolder;
+  const hasActiveFilters = search || activeCategory || activeRarity || activeGrade || sortBy !== "newest" || activeFolder;
 
   const toggleCardFolder = async (cardId: string, folderId: string) => {
     const isInFolder = (cardFolderMap[cardId] || []).includes(folderId);
@@ -444,6 +491,8 @@ const Collection = () => {
                   <option value="value-high">Value: High → Low</option>
                   <option value="value-low">Value: Low → High</option>
                   <option value="name">Name A–Z</option>
+                  <option value="grade-high">Grade: High → Low</option>
+                  <option value="grade-low">Grade: Low → High</option>
                 </select>
                 <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
               </div>
@@ -488,6 +537,27 @@ const Collection = () => {
                           }`}
                         >
                           {r}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {grades.length > 0 && (
+                  <div>
+                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1.5 font-medium">Grade</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {grades.map((g) => (
+                        <button
+                          key={g}
+                          onClick={() => setActiveGrade(activeGrade === g ? null : g)}
+                          className={`text-xs px-3 py-1 rounded-full border transition-all ${
+                            activeGrade === g
+                              ? "bg-amber-500/15 text-amber-600 border-amber-500/30 ring-1 ring-ring"
+                              : "bg-card text-muted-foreground border-border hover:border-primary/40"
+                          }`}
+                        >
+                          {g}
                         </button>
                       ))}
                     </div>
