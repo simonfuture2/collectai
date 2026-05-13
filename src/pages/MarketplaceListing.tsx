@@ -97,32 +97,10 @@ export default function MarketplaceListing() {
   }
 
   const c = listing.cards ?? {};
-  const ai = (c.ai_analysis ?? {}) as Record<string, any>;
-  const aiBlurb = (ai.summary || ai.overview || ai.description || ai.notes || "").toString().trim();
   const titleParts = [c.card_name || "Trading card", c.card_year, c.card_set].filter(Boolean).join(" ");
   const seoTitle = `${titleParts} • ${Number(listing.price).toFixed(2)} ${listing.payment_token}`.slice(0, 60);
-  const seoDescParts = [
-    c.condition_grade && `Grade ${c.condition_grade}`,
-    c.rarity,
-    c.authentiseal_serial && "AuthentiSeal verified",
-    aiBlurb,
-  ].filter(Boolean);
-  const seoDesc = (seoDescParts.join(" — ") || `Buy ${c.card_name ?? "this card"} with on-chain escrow on ${listing.chain}.`).slice(0, 155);
-  const productJsonLd = {
-    "@context": "https://schema.org",
-    "@type": "Product",
-    name: c.card_name ?? "Trading card",
-    description: seoDesc,
-    image: imgUrl ?? undefined,
-    category: c.category ?? "Collectible",
-    offers: {
-      "@type": "Offer",
-      price: Number(listing.price).toFixed(2),
-      priceCurrency: listing.payment_token,
-      availability: "https://schema.org/InStock",
-      url: `https://mycollectai.com/marketplace/${listing.id}`,
-    },
-  };
+  const productJsonLd = buildProductJsonLd(listing, c, imgUrl);
+  const seoDesc = productJsonLd.description;
 
   return (
     <div className="min-h-screen bg-background">
