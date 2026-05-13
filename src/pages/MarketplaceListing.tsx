@@ -33,7 +33,7 @@ export default function MarketplaceListing() {
       if (!l) { setLoading(false); return; }
       const { data: c } = await supabase
         .from("cards")
-        .select("card_name, card_set, card_year, image_url, rarity, condition_grade, authentiseal_serial, category")
+        .select("card_name, card_set, card_year, image_url, rarity, condition_grade, authentiseal_serial, category, ai_analysis, estimated_value_low, estimated_value_high")
         .eq("id", l.card_id)
         .maybeSingle();
       const merged: any = { ...l, cards: c };
