@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Check, Crown, Coins, Sparkles, Loader2, Settings } from "lucide-react";
@@ -9,9 +9,9 @@ import CreditBalance from "@/components/CreditBalance";
 import Footer from "@/components/Footer";
 import { useToast } from "@/hooks/use-toast";
 import ThemeToggle from "@/components/ThemeToggle";
+import SEO from "@/components/SEO";
 
 const Pricing = () => {
-  useEffect(() => { document.title = "CollectAI – Pricing & Plans"; }, []);
   const [loading, setLoading] = useState<string | null>(null);
   const { credits, isPro, loading: creditsLoading } = useCredits();
   const { toast } = useToast();
@@ -62,6 +62,11 @@ const Pricing = () => {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
+      <SEO
+        title="Pricing & Plans – CollectAI"
+        description="Free tier with 3 scans, Pro at $14.99/month for unlimited scans, plus credit packs. Choose the plan that fits your collection."
+        path="/pricing"
+      />
       <header className="border-b border-border">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">

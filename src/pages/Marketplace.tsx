@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowLeft, Search, Tag } from "lucide-react";
 import WalletConnectButton from "@/components/WalletConnectButton";
 import Footer from "@/components/Footer";
+import SEO from "@/components/SEO";
 
 interface Listing {
   id: string;
@@ -87,6 +88,11 @@ export default function Marketplace() {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEO
+        title="Card Marketplace – Buy & Sell with USDC/USDT | CollectAI"
+        description="Browse trading cards listed by collectors. Pay with USDC or USDT on Ethereum or Solana with on-chain escrow and verified shipping."
+        path="/marketplace"
+      />
       <header className="border-b bg-card">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">

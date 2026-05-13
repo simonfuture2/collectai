@@ -4,6 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import Footer from "@/components/Footer";
 import ThemeToggle from "@/components/ThemeToggle";
+import SEO from "@/components/SEO";
 
 const faqs = [
   {
@@ -55,6 +56,20 @@ const faqs = [
 const FAQ = () => {
   return (
     <div className="min-h-screen bg-background flex flex-col">
+      <SEO
+        title="FAQ – Trading Card AI Grading Questions | CollectAI"
+        description="Answers about supported card types, AI grading accuracy, credit packs, Pro subscription, and how CollectAI valuations work."
+        path="/faq"
+        jsonLd={{
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          mainEntity: faqs.map((f) => ({
+            "@type": "Question",
+            name: f.q,
+            acceptedAnswer: { "@type": "Answer", text: f.a },
+          })),
+        }}
+      />
       <header className="border-b border-border">
         <div className="container mx-auto px-4 py-4 flex items-center gap-4">
           <Link to="/">

@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import SEO from "@/components/SEO";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -24,9 +24,19 @@ const staggerContainer = {
 };
 
 const Landing = () => {
-  useEffect(() => { document.title = "CollectAI – AI Card Grading & Value Scanner"; }, []);
   return (
     <div className="min-h-screen bg-background">
+      <SEO
+        title="CollectAI – AI Card Grading & Value Scanner"
+        description="Snap a photo of any trading card and get instant AI identification, condition grading, and real-time market values."
+        path="/"
+        jsonLd={{
+          "@context": "https://schema.org",
+          "@type": "WebSite",
+          name: "CollectAI",
+          url: "https://mycollectai.com/",
+        }}
+      />
       {/* Header */}
       <header className="container mx-auto px-4 py-6 flex justify-between items-center relative z-10">
         <Link to="/" className="flex items-center gap-2">

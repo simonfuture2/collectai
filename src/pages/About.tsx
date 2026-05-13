@@ -1,12 +1,16 @@
-import { useEffect } from "react";
 import LegalPageLayout from "@/components/LegalPageLayout";
 import { Brain, Camera, Link2, Shield, BarChart3, Globe, AlertTriangle } from "lucide-react";
 import comboGraphic from "@/assets/mycollectai-authentiseal-combo.png";
+import SEO from "@/components/SEO";
 
 const About = () => {
-  useEffect(() => { document.title = "About CollectAI – AI Card Grading Platform"; }, []);
   return (
     <LegalPageLayout title="About CollectAI" lastUpdated="February 25, 2026">
+      <SEO
+        title="About CollectAI – AI Card Grading Platform"
+        description="Meet the team and mission behind CollectAI: AI-powered identification, condition grading, and pricing for trading cards."
+        path="/about"
+      />
       {/* Hero graphic */}
       <div className="flex justify-center mb-10">
         <img

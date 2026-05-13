@@ -1,0 +1,26 @@
+# CollectAI
+
+> AI-powered trading card identification, condition grading, and real-time market valuation for Pokémon, Magic, Yu-Gi-Oh!, sports cards, coins, and comics.
+
+CollectAI lets collectors snap a photo of any card and instantly receive identification, AI-graded condition, defect maps, and live market pricing aggregated from eBay and TCGPlayer. Collections can be organized into folders, shared publicly, and listed on a multi-chain (Ethereum + Solana) marketplace with USDC/USDT payments.
+
+## Pages
+
+- [Home](/): Product overview and AI scan demo.
+- [How It Works](/how-it-works): The end-to-end scanning, grading, and pricing pipeline.
+- [Pricing](/pricing): Free tier, Pro subscription, and credit packs.
+- [Scan](/scan): Upload a card photo for AI identification and grading.
+- [Dashboard](/dashboard): Personal portfolio analytics and recent scans.
+- [Collection](/collection): Organize and manage your card collection.
+- [Marketplace](/marketplace): Browse cards listed by collectors with on-chain escrow.
+- [FAQ](/faq): Common questions about accuracy, payments, and grading.
+- [About](/about): Mission and team behind CollectAI.
+- [Partners](/partners): Card shop and grading partner program.
+- [Free Guide](/free-guide): Beginner's guide to card grading and valuation.
+
+## Legal
+
+- [Terms of Service](/terms): Usage terms.
+- [Privacy Policy](/privacy): Data handling and user privacy.
+- [Refund Policy](/refund): Subscription and credit pack refunds.
+- [Delete Account](/delete-account): Permanent account deletion.
