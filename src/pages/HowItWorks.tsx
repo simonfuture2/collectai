@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import LegalPageLayout from "@/components/LegalPageLayout";
+import SEO from "@/components/SEO";
 import {
   UserPlus,
   Camera,
@@ -198,10 +199,13 @@ const tips = [
 ];
 
 const HowItWorks = () => {
-  useEffect(() => { document.title = "How CollectAI Works – AI Card Grading in 5 Steps"; }, []);
   return (
     <LegalPageLayout title="How It Works" lastUpdated="June 2025">
-      {/* Hero */}
+      <SEO
+        title="How CollectAI Works – AI Card Grading in 5 Steps"
+        description="From snap to seal in five steps: scan, AI grade, identify, value, and verify your trading cards with CollectAI."
+        path="/how-it-works"
+      />
       <div className="text-center mb-12 -mt-2">
         <h2 className="text-3xl md:text-4xl font-display font-bold text-foreground mb-3">
           How CollectAI Works

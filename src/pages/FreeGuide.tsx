@@ -10,6 +10,7 @@ import ThemeToggle from "@/components/ThemeToggle";
 import HeroBackground from "@/components/HeroBackground";
 import Footer from "@/components/Footer";
 import collectaiLogo from "@/assets/collectai-logo.png";
+import SEO from "@/components/SEO";
 
 const cheatSheetTopics = [
   "PSA & BGS grade scale (1–10) explained",
@@ -41,7 +42,6 @@ const FreeGuide = () => {
   const [sent, setSent] = useState(false);
 
   useEffect(() => {
-    document.title = "Free Card Grading Cheat Sheet – CollectAI";
     // Default to light theme if no preference stored
     if (!localStorage.getItem("theme")) {
       document.documentElement.classList.remove("dark");
@@ -70,7 +70,11 @@ const FreeGuide = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Minimal Header */}
+      <SEO
+        title="Free Card Grading Cheat Sheet – CollectAI"
+        description="Get our free PSA & BGS grading cheat sheet: 10 condition checkpoints, value tiers, and pro photo tips for self-grading."
+        path="/free-guide"
+      />
       <header className="container mx-auto px-4 py-6 flex justify-between items-center">
         <Link to="/" className="flex items-center gap-2">
           <img src={collectaiLogo} alt="CollectAI Logo" className="w-10 h-10 rounded-lg" />
