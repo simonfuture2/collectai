@@ -105,7 +105,7 @@ export default function MarketplaceListing() {
 
   return (
     <div className="min-h-screen bg-background">
-      <SEO title={seoTitle} description={seoDesc} path={`/marketplace/${listing.id}`} ogType="product" image={imgUrl ?? undefined} jsonLd={productJsonLd} />
+      <SEO title={seoTitle} description={seoDesc} path={`/marketplace/${listing.id}`} ogType="product" image={imgUrl ?? undefined} jsonLd={productJsonLd as unknown as Record<string, unknown>} />
       <header className="border-b bg-card">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <Button variant="ghost" size="sm" onClick={() => navigate("/marketplace")}>
