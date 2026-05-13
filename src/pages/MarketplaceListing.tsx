@@ -10,6 +10,7 @@ import WalletConnectButton from "@/components/WalletConnectButton";
 import { useWallet } from "@/hooks/use-wallet";
 import { toast } from "@/hooks/use-toast";
 import Footer from "@/components/Footer";
+import SEO from "@/components/SEO";
 
 export default function MarketplaceListing() {
   const { id } = useParams<{ id: string }>();
