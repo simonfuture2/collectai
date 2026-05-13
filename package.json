@@ -7,8 +7,8 @@
     "predev": "tsx scripts/generate-sitemap.ts",
     "dev": "vite",
     "prebuild": "tsx scripts/generate-sitemap.ts",
-    "build": "vite build",
-    "build:dev": "vite build --mode development",
+    "build": "vite build && tsx scripts/check-precache-size.ts",
+    "build:dev": "vite build --mode development && tsx scripts/check-precache-size.ts",
     "lint": "eslint .",
     "preview": "vite preview"
   },
