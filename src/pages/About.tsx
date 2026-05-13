@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 import LegalPageLayout from "@/components/LegalPageLayout";
 import { Brain, Camera, Link2, Shield, BarChart3, Globe, AlertTriangle } from "lucide-react";
 import comboGraphic from "@/assets/mycollectai-authentiseal-combo.png";
