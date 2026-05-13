@@ -10,6 +10,7 @@ import WalletConnectButton from "@/components/WalletConnectButton";
 import { useWallet } from "@/hooks/use-wallet";
 import { toast } from "@/hooks/use-toast";
 import Footer from "@/components/Footer";
+import SEO from "@/components/SEO";
 
 export default function MarketplaceListing() {
   const { id } = useParams<{ id: string }>();
@@ -32,7 +33,7 @@ export default function MarketplaceListing() {
       if (!l) { setLoading(false); return; }
       const { data: c } = await supabase
         .from("cards")
-        .select("card_name, card_set, card_year, image_url, rarity, condition_grade, authentiseal_serial, category")
+        .select("card_name, card_set, card_year, image_url, rarity, condition_grade, authentiseal_serial, category, ai_analysis, estimated_value_low, estimated_value_high")
         .eq("id", l.card_id)
         .maybeSingle();
       const merged: any = { ...l, cards: c };
@@ -95,8 +96,37 @@ export default function MarketplaceListing() {
     );
   }
 
+  const c = listing.cards ?? {};
+  const ai = (c.ai_analysis ?? {}) as Record<string, any>;
+  const aiBlurb = (ai.summary || ai.overview || ai.description || ai.notes || "").toString().trim();
+  const titleParts = [c.card_name || "Trading card", c.card_year, c.card_set].filter(Boolean).join(" ");
+  const seoTitle = `${titleParts} • ${Number(listing.price).toFixed(2)} ${listing.payment_token}`.slice(0, 60);
+  const seoDescParts = [
+    c.condition_grade && `Grade ${c.condition_grade}`,
+    c.rarity,
+    c.authentiseal_serial && "AuthentiSeal verified",
+    aiBlurb,
+  ].filter(Boolean);
+  const seoDesc = (seoDescParts.join(" — ") || `Buy ${c.card_name ?? "this card"} with on-chain escrow on ${listing.chain}.`).slice(0, 155);
+  const productJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: c.card_name ?? "Trading card",
+    description: seoDesc,
+    image: imgUrl ?? undefined,
+    category: c.category ?? "Collectible",
+    offers: {
+      "@type": "Offer",
+      price: Number(listing.price).toFixed(2),
+      priceCurrency: listing.payment_token,
+      availability: "https://schema.org/InStock",
+      url: `https://mycollectai.com/marketplace/${listing.id}`,
+    },
+  };
+
   return (
     <div className="min-h-screen bg-background">
+      <SEO title={seoTitle} description={seoDesc} path={`/marketplace/${listing.id}`} ogType="product" image={imgUrl ?? undefined} jsonLd={productJsonLd} />
       <header className="border-b bg-card">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <Button variant="ghost" size="sm" onClick={() => navigate("/marketplace")}>
