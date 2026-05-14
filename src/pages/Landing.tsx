@@ -93,7 +93,7 @@ const Landing = () => {
                 <span className="text-gradient-primary">Value.</span>
               </h1>
               <p className="text-lg text-muted-foreground mb-8 max-w-md">
-                Snap a photo of any trading card — get AI identification, condition grade, and market value in seconds.
+                AI-powered Pokémon card scanning and grading — plus Magic, Yu-Gi-Oh! and sports cards. Snap a photo, get identification, condition grade, and market value in seconds.
               </p>
 
               <Link to="/auth">
