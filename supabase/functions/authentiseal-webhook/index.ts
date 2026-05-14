@@ -88,6 +88,15 @@ serve(async (req) => {
       );
     }
 
+    // Cross-check: the card_id in the verified JWT must match the request body's card_id.
+    // Prevents a valid token from being replayed against an unrelated card.
+    if (!payload.card_id || payload.card_id !== card_id) {
+      return new Response(
+        JSON.stringify({ error: "card_id does not match token" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // Use service role to update the card
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -100,8 +109,9 @@ serve(async (req) => {
       .eq("id", card_id);
 
     if (error) {
+      console.error("[authentiseal-webhook] update failed:", error);
       return new Response(
-        JSON.stringify({ error: "Failed to update card", details: error.message }),
+        JSON.stringify({ error: "Failed to update card" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -111,8 +121,9 @@ serve(async (req) => {
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {
+    console.error("[authentiseal-webhook] error:", err);
     return new Response(
-      JSON.stringify({ error: err.message }),
+      JSON.stringify({ error: "Internal server error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
