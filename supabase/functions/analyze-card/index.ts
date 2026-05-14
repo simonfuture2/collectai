@@ -332,6 +332,68 @@ Return ONLY valid JSON:
   }
 }
 
+// Gemini 2.5 Pro verification of pricing (cross-reference for Claude)
+async function verifyWithGemini(
+  cardId: CardIdentification,
+  analysis: any,
+  marketSummary: string,
+  LOVABLE_API_KEY: string
+): Promise<{ verifiedLow: number; verifiedHigh: number; verificationNote: string } | null> {
+  try {
+    console.log("Running Gemini 2.5 Pro price cross-verification...");
+    const prompt = `You are a trading card price verification expert. Verify this estimate against the real market data.
+
+Card: ${cardId.card_name} ${cardId.card_number || ""} ${cardId.variant || ""} (${cardId.card_set || ""} ${cardId.card_year || ""})
+Condition: ${analysis.conditionGrade || "Unknown"}
+
+AI estimated value: $${safeFixed(analysis.estimatedValueLow)} - $${safeFixed(analysis.estimatedValueHigh)}
+
+${marketSummary}
+
+TASK: Based ONLY on the real market data above, determine the correct value range for this card.
+- If the AI estimate is wildly wrong, CORRECT IT.
+- verified_low ≈ blended value × 0.85, verified_high ≈ blended value × 1.15.
+- Adjust based on condition relative to listings.
+
+Return ONLY valid JSON: {"verified_low": number, "verified_high": number, "verification_note": "brief explanation"}`;
+
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-pro",
+        messages: [{ role: "user", content: prompt }],
+        response_format: { type: "json_object" },
+      }),
+    });
+
+    if (!response.ok) {
+      console.error("Gemini verification failed:", response.status, await response.text().catch(() => ""));
+      return null;
+    }
+
+    const data = await response.json();
+    const text = data.choices?.[0]?.message?.content;
+    if (!text) return null;
+
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return null;
+    const result = JSON.parse(jsonMatch[0]);
+    if (typeof result.verified_low !== "number" || typeof result.verified_high !== "number") return null;
+    return {
+      verifiedLow: result.verified_low,
+      verifiedHigh: result.verified_high,
+      verificationNote: result.verification_note || "",
+    };
+  } catch (err) {
+    console.error("Gemini verification error:", err);
+    return null;
+  }
+}
+
 // Detailed card identification via Claude
 async function identifyCard(
   images: { label: string; url: string }[],
