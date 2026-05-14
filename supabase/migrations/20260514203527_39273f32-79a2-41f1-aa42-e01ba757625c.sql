@@ -1,0 +1,1 @@
+DROP POLICY IF EXISTS "Anyone can view pack rips by share token" ON public.pack_rips;
