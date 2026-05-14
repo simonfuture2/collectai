@@ -317,9 +317,18 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // Auth guard: only allow service-role calls (e.g. cron) via internal key header
+    const internalKey = req.headers.get("x-internal-key");
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (!serviceRoleKey || internalKey !== serviceRoleKey) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabase = createClient(supabaseUrl, serviceRoleKey);
 
     const apiKey = Deno.env.get("SENDGRID_API_KEY")?.trim();
     const fromEmail = Deno.env.get("SENDGRID_FROM_EMAIL")?.trim();
