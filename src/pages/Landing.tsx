@@ -40,7 +40,7 @@ const Landing = () => {
       {/* Header */}
       <header className="container mx-auto px-4 py-6 flex justify-between items-center relative z-10">
         <Link to="/" className="flex items-center gap-2">
-          <img src={collectaiLogo} alt="CollectAI Logo" className="w-10 h-10 rounded-lg" />
+          <img src={collectaiLogo} alt="CollectAI Logo" width={40} height={40} className="w-10 h-10 rounded-lg" />
           <span className="text-2xl font-display font-bold text-gradient-primary">CollectAI</span>
         </Link>
         <div className="flex items-center gap-2 sm:gap-4">
