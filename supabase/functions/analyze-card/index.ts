@@ -332,6 +332,68 @@ Return ONLY valid JSON:
   }
 }
 
+// Gemini 2.5 Pro verification of pricing (cross-reference for Claude)
+async function verifyWithGemini(
+  cardId: CardIdentification,
+  analysis: any,
+  marketSummary: string,
+  LOVABLE_API_KEY: string
+): Promise<{ verifiedLow: number; verifiedHigh: number; verificationNote: string } | null> {
+  try {
+    console.log("Running Gemini 2.5 Pro price cross-verification...");
+    const prompt = `You are a trading card price verification expert. Verify this estimate against the real market data.
+
+Card: ${cardId.card_name} ${cardId.card_number || ""} ${cardId.variant || ""} (${cardId.card_set || ""} ${cardId.card_year || ""})
+Condition: ${analysis.conditionGrade || "Unknown"}
+
+AI estimated value: $${safeFixed(analysis.estimatedValueLow)} - $${safeFixed(analysis.estimatedValueHigh)}
+
+${marketSummary}
+
+TASK: Based ONLY on the real market data above, determine the correct value range for this card.
+- If the AI estimate is wildly wrong, CORRECT IT.
+- verified_low ≈ blended value × 0.85, verified_high ≈ blended value × 1.15.
+- Adjust based on condition relative to listings.
+
+Return ONLY valid JSON: {"verified_low": number, "verified_high": number, "verification_note": "brief explanation"}`;
+
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-pro",
+        messages: [{ role: "user", content: prompt }],
+        response_format: { type: "json_object" },
+      }),
+    });
+
+    if (!response.ok) {
+      console.error("Gemini verification failed:", response.status, await response.text().catch(() => ""));
+      return null;
+    }
+
+    const data = await response.json();
+    const text = data.choices?.[0]?.message?.content;
+    if (!text) return null;
+
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return null;
+    const result = JSON.parse(jsonMatch[0]);
+    if (typeof result.verified_low !== "number" || typeof result.verified_high !== "number") return null;
+    return {
+      verifiedLow: result.verified_low,
+      verifiedHigh: result.verified_high,
+      verificationNote: result.verification_note || "",
+    };
+  } catch (err) {
+    console.error("Gemini verification error:", err);
+    return null;
+  }
+}
+
 // Detailed card identification via Claude
 async function identifyCard(
   images: { label: string; url: string }[],
@@ -771,22 +833,52 @@ Respond with ONLY valid JSON (no markdown code fences) with this structure:
       }
     }
 
-    // ===== STEP 4: Claude Price Verification =====
+    // ===== STEP 4: Dual price verification (Claude + Gemini in parallel) =====
     if (marketData.hasData && analysis.estimatedValueLow != null && cardId) {
-      const verification = await verifyWithClaude(cardId, analysis, marketData.summary, ANTHROPIC_API_KEY);
+      const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 
-      if (verification) {
-        const origLow = analysis.estimatedValueLow;
-        const origHigh = analysis.estimatedValueHigh;
-        analysis.estimatedValueLow = verification.verifiedLow;
-        analysis.estimatedValueHigh = verification.verifiedHigh;
-        analysis.verificationNote = verification.verificationNote;
-        if (origLow !== verification.verifiedLow || origHigh !== verification.verifiedHigh) {
-          analysis.dataSource = `Real eBay + TCGPlayer data + AI analysis (Claude-verified & corrected from $${safeFixed(origLow)}-$${safeFixed(origHigh)})`;
-          console.log(`Price corrected: $${origLow}-$${origHigh} → $${verification.verifiedLow}-$${verification.verifiedHigh}`);
-        } else {
-          analysis.dataSource = "Real eBay + TCGPlayer data + AI analysis (Claude-verified ✓)";
-        }
+      const [claudeVerification, geminiVerification] = await Promise.all([
+        verifyWithClaude(cardId, analysis, marketData.summary, ANTHROPIC_API_KEY),
+        LOVABLE_API_KEY
+          ? verifyWithGemini(cardId, analysis, marketData.summary, LOVABLE_API_KEY)
+          : Promise.resolve(null),
+      ]);
+
+      const origLow = analysis.estimatedValueLow;
+      const origHigh = analysis.estimatedValueHigh;
+
+      if (claudeVerification && geminiVerification) {
+        // Reconcile: average both verifiers
+        const reconciledLow = (claudeVerification.verifiedLow + geminiVerification.verifiedLow) / 2;
+        const reconciledHigh = (claudeVerification.verifiedHigh + geminiVerification.verifiedHigh) / 2;
+
+        // Check agreement (within 25% of each other on the midpoint)
+        const claudeMid = (claudeVerification.verifiedLow + claudeVerification.verifiedHigh) / 2;
+        const geminiMid = (geminiVerification.verifiedLow + geminiVerification.verifiedHigh) / 2;
+        const disagreementPct = Math.abs(claudeMid - geminiMid) / Math.max(claudeMid, geminiMid, 1);
+        const agree = disagreementPct < 0.25;
+
+        analysis.estimatedValueLow = Math.round(reconciledLow * 100) / 100;
+        analysis.estimatedValueHigh = Math.round(reconciledHigh * 100) / 100;
+        analysis.verificationNote = `Claude: $${safeFixed(claudeVerification.verifiedLow)}-$${safeFixed(claudeVerification.verifiedHigh)}. Gemini: $${safeFixed(geminiVerification.verifiedLow)}-$${safeFixed(geminiVerification.verifiedHigh)}. ${agree ? "Models agree — high confidence." : "Models disagree — using blended midpoint."} ${claudeVerification.verificationNote}`;
+        analysis.crossVerified = true;
+        analysis.modelsAgree = agree;
+        if (agree && analysis.confidence !== "high") analysis.confidence = "high";
+        analysis.dataSource = `Real eBay + TCGPlayer data + Claude × Gemini cross-verified ${agree ? "✓✓" : "(disagreement flagged)"}`;
+        console.log(`Cross-verified: Claude $${claudeVerification.verifiedLow}-$${claudeVerification.verifiedHigh}, Gemini $${geminiVerification.verifiedLow}-$${geminiVerification.verifiedHigh}, agree=${agree}`);
+      } else if (claudeVerification) {
+        analysis.estimatedValueLow = claudeVerification.verifiedLow;
+        analysis.estimatedValueHigh = claudeVerification.verifiedHigh;
+        analysis.verificationNote = claudeVerification.verificationNote;
+        analysis.dataSource = (origLow !== claudeVerification.verifiedLow || origHigh !== claudeVerification.verifiedHigh)
+          ? `Real eBay + TCGPlayer data + Claude-verified (corrected from $${safeFixed(origLow)}-$${safeFixed(origHigh)})`
+          : "Real eBay + TCGPlayer data + Claude-verified ✓";
+        console.log(`Claude-only verified: $${origLow}-$${origHigh} → $${claudeVerification.verifiedLow}-$${claudeVerification.verifiedHigh}`);
+      } else if (geminiVerification) {
+        analysis.estimatedValueLow = geminiVerification.verifiedLow;
+        analysis.estimatedValueHigh = geminiVerification.verifiedHigh;
+        analysis.verificationNote = geminiVerification.verificationNote;
+        analysis.dataSource = "Real eBay + TCGPlayer data + Gemini-verified ✓";
       }
     }
 
