@@ -833,22 +833,52 @@ Respond with ONLY valid JSON (no markdown code fences) with this structure:
       }
     }
 
-    // ===== STEP 4: Claude Price Verification =====
+    // ===== STEP 4: Dual price verification (Claude + Gemini in parallel) =====
     if (marketData.hasData && analysis.estimatedValueLow != null && cardId) {
-      const verification = await verifyWithClaude(cardId, analysis, marketData.summary, ANTHROPIC_API_KEY);
+      const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 
-      if (verification) {
-        const origLow = analysis.estimatedValueLow;
-        const origHigh = analysis.estimatedValueHigh;
-        analysis.estimatedValueLow = verification.verifiedLow;
-        analysis.estimatedValueHigh = verification.verifiedHigh;
-        analysis.verificationNote = verification.verificationNote;
-        if (origLow !== verification.verifiedLow || origHigh !== verification.verifiedHigh) {
-          analysis.dataSource = `Real eBay + TCGPlayer data + AI analysis (Claude-verified & corrected from $${safeFixed(origLow)}-$${safeFixed(origHigh)})`;
-          console.log(`Price corrected: $${origLow}-$${origHigh} → $${verification.verifiedLow}-$${verification.verifiedHigh}`);
-        } else {
-          analysis.dataSource = "Real eBay + TCGPlayer data + AI analysis (Claude-verified ✓)";
-        }
+      const [claudeVerification, geminiVerification] = await Promise.all([
+        verifyWithClaude(cardId, analysis, marketData.summary, ANTHROPIC_API_KEY),
+        LOVABLE_API_KEY
+          ? verifyWithGemini(cardId, analysis, marketData.summary, LOVABLE_API_KEY)
+          : Promise.resolve(null),
+      ]);
+
+      const origLow = analysis.estimatedValueLow;
+      const origHigh = analysis.estimatedValueHigh;
+
+      if (claudeVerification && geminiVerification) {
+        // Reconcile: average both verifiers
+        const reconciledLow = (claudeVerification.verifiedLow + geminiVerification.verifiedLow) / 2;
+        const reconciledHigh = (claudeVerification.verifiedHigh + geminiVerification.verifiedHigh) / 2;
+
+        // Check agreement (within 25% of each other on the midpoint)
+        const claudeMid = (claudeVerification.verifiedLow + claudeVerification.verifiedHigh) / 2;
+        const geminiMid = (geminiVerification.verifiedLow + geminiVerification.verifiedHigh) / 2;
+        const disagreementPct = Math.abs(claudeMid - geminiMid) / Math.max(claudeMid, geminiMid, 1);
+        const agree = disagreementPct < 0.25;
+
+        analysis.estimatedValueLow = Math.round(reconciledLow * 100) / 100;
+        analysis.estimatedValueHigh = Math.round(reconciledHigh * 100) / 100;
+        analysis.verificationNote = `Claude: $${safeFixed(claudeVerification.verifiedLow)}-$${safeFixed(claudeVerification.verifiedHigh)}. Gemini: $${safeFixed(geminiVerification.verifiedLow)}-$${safeFixed(geminiVerification.verifiedHigh)}. ${agree ? "Models agree — high confidence." : "Models disagree — using blended midpoint."} ${claudeVerification.verificationNote}`;
+        analysis.crossVerified = true;
+        analysis.modelsAgree = agree;
+        if (agree && analysis.confidence !== "high") analysis.confidence = "high";
+        analysis.dataSource = `Real eBay + TCGPlayer data + Claude × Gemini cross-verified ${agree ? "✓✓" : "(disagreement flagged)"}`;
+        console.log(`Cross-verified: Claude $${claudeVerification.verifiedLow}-$${claudeVerification.verifiedHigh}, Gemini $${geminiVerification.verifiedLow}-$${geminiVerification.verifiedHigh}, agree=${agree}`);
+      } else if (claudeVerification) {
+        analysis.estimatedValueLow = claudeVerification.verifiedLow;
+        analysis.estimatedValueHigh = claudeVerification.verifiedHigh;
+        analysis.verificationNote = claudeVerification.verificationNote;
+        analysis.dataSource = (origLow !== claudeVerification.verifiedLow || origHigh !== claudeVerification.verifiedHigh)
+          ? `Real eBay + TCGPlayer data + Claude-verified (corrected from $${safeFixed(origLow)}-$${safeFixed(origHigh)})`
+          : "Real eBay + TCGPlayer data + Claude-verified ✓";
+        console.log(`Claude-only verified: $${origLow}-$${origHigh} → $${claudeVerification.verifiedLow}-$${claudeVerification.verifiedHigh}`);
+      } else if (geminiVerification) {
+        analysis.estimatedValueLow = geminiVerification.verifiedLow;
+        analysis.estimatedValueHigh = geminiVerification.verifiedHigh;
+        analysis.verificationNote = geminiVerification.verificationNote;
+        analysis.dataSource = "Real eBay + TCGPlayer data + Gemini-verified ✓";
       }
     }
 
