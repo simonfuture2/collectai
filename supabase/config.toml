@@ -53,5 +53,9 @@ verify_jwt = false
 
 [functions.customer-portal]
 verify_jwt = false
+
+[functions.get-shared-pack-rip]
+verify_jwt = false
+
 [functions.process-email-queue]
 verify_jwt = true
