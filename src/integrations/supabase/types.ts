@@ -191,6 +191,24 @@ export type Database = {
         }
         Relationships: []
       }
+      demo_scan_rate_limit: {
+        Row: {
+          ip_hash: string
+          scan_count: number
+          window_start: string
+        }
+        Insert: {
+          ip_hash: string
+          scan_count?: number
+          window_start?: string
+        }
+        Update: {
+          ip_hash?: string
+          scan_count?: number
+          window_start?: string
+        }
+        Relationships: []
+      }
       drip_campaign_queue: {
         Row: {
           body: string
@@ -1013,6 +1031,13 @@ export type Database = {
       }
     }
     Functions: {
+      consume_demo_scan: {
+        Args: { _ip_hash: string; _max_per_day?: number }
+        Returns: {
+          allowed: boolean
+          remaining: number
+        }[]
+      }
       deduct_credit: { Args: { _user_id: string }; Returns: number }
       delete_email: {
         Args: { message_id: number; queue_name: string }
