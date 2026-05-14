@@ -109,8 +109,9 @@ serve(async (req) => {
       .eq("id", card_id);
 
     if (error) {
+      console.error("[authentiseal-webhook] update failed:", error);
       return new Response(
-        JSON.stringify({ error: "Failed to update card", details: error.message }),
+        JSON.stringify({ error: "Failed to update card" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
