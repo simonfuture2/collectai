@@ -93,7 +93,21 @@ const Scan = () => {
   const analyzeCard = async () => {
     if (!hasImages) return;
 
-    if (!canScan) {
+    // If credits state is still loading, refresh and re-check before gating
+    let allowed = canScan;
+    if (creditsLoading) {
+      await refreshCredits();
+      // refreshCredits updates state async; re-derive from latest server call
+      const { data: { session: s } } = await supabase.auth.getSession();
+      if (s) {
+        try {
+          const { data } = await supabase.functions.invoke("check-subscription");
+          allowed = (data?.plan === "pro") || data?.subscribed || (data?.credits ?? 0) > 0;
+        } catch { /* fall back to existing flag */ }
+      }
+    }
+
+    if (!allowed) {
       setShowUpgrade(true);
       return;
     }
@@ -364,8 +378,9 @@ const Scan = () => {
             </div>
 
             {hasImages && !analyzing && (
-              <Button onClick={analyzeCard} disabled={analyzing} className="w-full gradient-primary py-6 text-lg">
-                <Sparkles className="mr-2 w-5 h-5" />Analyze ({filledSlots.length} image{filledSlots.length > 1 ? "s" : ""})
+              <Button onClick={analyzeCard} disabled={analyzing || creditsLoading} className="w-full gradient-primary py-6 text-lg">
+                {creditsLoading ? <Loader2 className="mr-2 w-5 h-5 animate-spin" /> : <Sparkles className="mr-2 w-5 h-5" />}
+                {creditsLoading ? "Checking access…" : `Analyze (${filledSlots.length} image${filledSlots.length > 1 ? "s" : ""})`}
               </Button>
             )}
 
