@@ -378,8 +378,9 @@ const Scan = () => {
             </div>
 
             {hasImages && !analyzing && (
-              <Button onClick={analyzeCard} disabled={analyzing} className="w-full gradient-primary py-6 text-lg">
-                <Sparkles className="mr-2 w-5 h-5" />Analyze ({filledSlots.length} image{filledSlots.length > 1 ? "s" : ""})
+              <Button onClick={analyzeCard} disabled={analyzing || creditsLoading} className="w-full gradient-primary py-6 text-lg">
+                {creditsLoading ? <Loader2 className="mr-2 w-5 h-5 animate-spin" /> : <Sparkles className="mr-2 w-5 h-5" />}
+                {creditsLoading ? "Checking access…" : `Analyze (${filledSlots.length} image${filledSlots.length > 1 ? "s" : ""})`}
               </Button>
             )}
 
