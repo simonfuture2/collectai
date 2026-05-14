@@ -36,6 +36,10 @@ const ScanDemo = () => {
         <img
           src={imageUrl}
           alt="Michael Jordan 1995-96 Fleer Metal"
+          width={600}
+          height={800}
+          fetchPriority="high"
+          decoding="async"
           className="absolute inset-0 w-full h-full object-cover"
         />
 
