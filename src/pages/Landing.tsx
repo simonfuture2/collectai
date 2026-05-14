@@ -103,17 +103,15 @@ const Landing = () => {
                 </Button>
               </Link>
 
-              {/* Social proof directly under CTA */}
-              <div className="flex flex-wrap gap-6 mt-8 justify-center md:justify-start">
-                {[
-                  { value: "50K+", label: "Cards Scanned" },
-                  { value: "10K+", label: "Collectors" },
-                  { value: "98%", label: "Accuracy" },
-                ].map((stat) => (
-                  <div key={stat.label} className="text-center">
-                    <p className="text-2xl font-display font-bold text-gradient-primary">{stat.value}</p>
-                    <p className="text-xs text-muted-foreground">{stat.label}</p>
-                  </div>
+              {/* Supported categories */}
+              <div className="flex flex-wrap gap-3 mt-8 justify-center md:justify-start">
+                {["Pokémon", "Magic, Yu-Gi-Oh!", "Sports Cards"].map((label) => (
+                  <span
+                    key={label}
+                    className="rounded-full border border-border bg-card/60 px-4 py-2 text-sm font-display font-semibold text-gradient-primary"
+                  >
+                    {label}
+                  </span>
                 ))}
               </div>
             </motion.div>
