@@ -1,20 +1,11 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import charizardCard from "@/assets/scan-demo-charizard.jpeg";
 
 const stages = ["idle", "scanning", "graded"] as const;
 type Stage = typeof stages[number];
 
-const CARD_PATH = "4ed2a0f8-5913-4257-9433-d4338eb821bb/1766709209222-fleermetal_95-96_jordan.jpeg";
-
 const ScanDemo = () => {
   const [stage, setStage] = useState<Stage>("idle");
-  const [imageUrl, setImageUrl] = useState<string>("");
-
-  useEffect(() => {
-    supabase.storage.from("card-images").createSignedUrl(CARD_PATH, 3600).then(({ data }) => {
-      if (data?.signedUrl) setImageUrl(data.signedUrl);
-    });
-  }, []);
 
   useEffect(() => {
     const cycle = () => {
@@ -34,8 +25,8 @@ const ScanDemo = () => {
       <div className="absolute inset-0 rounded-2xl border-2 border-border bg-card overflow-hidden shadow-xl">
         {/* Real card image */}
         <img
-          src={imageUrl}
-          alt="Michael Jordan 1995-96 Fleer Metal"
+          src={charizardCard}
+          alt="Charizard Base Set Holo 4/102 Pokémon card"
           width={600}
           height={800}
           fetchPriority="high"
@@ -63,8 +54,8 @@ const ScanDemo = () => {
         >
           <div className="w-14 h-14 rounded-full gradient-primary flex items-center justify-center shadow-lg glow-purple">
             <div className="text-center">
-              <p className="text-xs font-bold text-primary-foreground leading-none">EMT</p>
-              <p className="text-lg font-display font-bold text-primary-foreground leading-none">6</p>
+              <p className="text-xs font-bold text-primary-foreground leading-none">NM</p>
+              <p className="text-lg font-display font-bold text-primary-foreground leading-none">7</p>
             </div>
           </div>
         </div>
@@ -79,8 +70,8 @@ const ScanDemo = () => {
         >
           <div className="rounded-xl bg-card/90 backdrop-blur border border-border p-3 shadow-lg">
             <p className="text-xs text-muted-foreground">Estimated Value</p>
-            <p className="text-xl font-display font-bold text-gradient-primary">$80 – $200</p>
-            <p className="text-xs text-muted-foreground mt-0.5">Michael Jordan · Fleer Metal · 1995-96</p>
+            <p className="text-xl font-display font-bold text-gradient-primary">$250 – $600</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Charizard · Base Set Holo · 4/102</p>
           </div>
         </div>
       </div>
