@@ -86,7 +86,9 @@ serve(async (req) => {
       if (subscriptions.data.length > 0) {
         const subscription = subscriptions.data[0];
         subscribed = true;
-        subscriptionEnd = new Date(subscription.current_period_end * 1000).toISOString();
+        const periodEnd = (subscription as any).current_period_end
+          ?? subscription.items?.data?.[0]?.current_period_end;
+        subscriptionEnd = periodEnd ? new Date(periodEnd * 1000).toISOString() : null;
         plan = "pro";
         logStep("Active subscription found", { subscriptionId: subscription.id });
 
