@@ -86,9 +86,23 @@ serve(async (req) => {
       if (subscriptions.data.length > 0) {
         const subscription = subscriptions.data[0];
         subscribed = true;
-        const periodEnd = (subscription as any).current_period_end
-          ?? subscription.items?.data?.[0]?.current_period_end;
-        subscriptionEnd = periodEnd ? new Date(periodEnd * 1000).toISOString() : null;
+        const toIsoSafe = (sec: unknown): string | null => {
+          const n = typeof sec === "number" ? sec : Number(sec);
+          if (!Number.isFinite(n) || n <= 0) return null;
+          const d = new Date(n * 1000);
+          return Number.isNaN(d.getTime()) ? null : d.toISOString();
+        };
+        const sub: any = subscription;
+        const periodEndRaw =
+          sub.current_period_end ??
+          sub.items?.data?.[0]?.current_period_end ??
+          sub.trial_end ??
+          sub.cancel_at ??
+          null;
+        subscriptionEnd = toIsoSafe(periodEndRaw);
+        if (!subscriptionEnd) {
+          logStep("Subscription has no valid period end", { subscriptionId: sub.id });
+        }
         plan = "pro";
         logStep("Active subscription found", { subscriptionId: subscription.id });
 
