@@ -93,7 +93,21 @@ const Scan = () => {
   const analyzeCard = async () => {
     if (!hasImages) return;
 
-    if (!canScan) {
+    // If credits state is still loading, refresh and re-check before gating
+    let allowed = canScan;
+    if (creditsLoading) {
+      await refreshCredits();
+      // refreshCredits updates state async; re-derive from latest server call
+      const { data: { session: s } } = await supabase.auth.getSession();
+      if (s) {
+        try {
+          const { data } = await supabase.functions.invoke("check-subscription");
+          allowed = (data?.plan === "pro") || data?.subscribed || (data?.credits ?? 0) > 0;
+        } catch { /* fall back to existing flag */ }
+      }
+    }
+
+    if (!allowed) {
       setShowUpgrade(true);
       return;
     }
