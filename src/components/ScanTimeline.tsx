@@ -19,9 +19,9 @@ interface StepDef {
 }
 
 const STEPS: StepDef[] = [
-  { id: "identify", label: "Identify", desc: "Reading card name, set & number", icon: Search, expectedMs: 8000 },
-  { id: "search", label: "Search", desc: "Pulling live market comps", icon: TrendingUp, expectedMs: 14000 },
-  { id: "verify", label: "Verify", desc: "Cross-checking value & grading", icon: ShieldCheck, expectedMs: 8000 },
+  { id: "identify", label: "Identify", desc: "Reading card name, set & number", icon: Search, expectedMs: 10000 },
+  { id: "search", label: "Search", desc: "Pulling live market comps", icon: TrendingUp, expectedMs: 18000 },
+  { id: "verify", label: "Verify", desc: "Cross-checking value & grading", icon: ShieldCheck, expectedMs: 14000 },
 ];
 
 const formatDuration = (ms: number) => {
