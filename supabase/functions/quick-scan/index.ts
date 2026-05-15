@@ -248,7 +248,8 @@ serve(async (req) => {
       req.headers.get("cf-connecting-ip") ||
       "unknown";
 
-    if (isRateLimited(clientIp)) {
+    const rl = await checkRateLimit(clientIp);
+    if (!rl.allowed) {
       return new Response(
         JSON.stringify({ error: "Rate limit reached. You can scan up to 3 cards per hour. Sign up for unlimited scans!" }),
         { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
