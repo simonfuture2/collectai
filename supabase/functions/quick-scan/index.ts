@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -6,19 +7,30 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-// Simple in-memory rate limiter: 3 scans per IP per hour
-const ipMap = new Map<string, { count: number; resetAt: number }>();
+async function sha256Hex(input: string): Promise<string> {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(input));
+  return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
 
-function isRateLimited(ip: string): boolean {
-  const now = Date.now();
-  const entry = ipMap.get(ip);
-  if (!entry || now > entry.resetAt) {
-    ipMap.set(ip, { count: 1, resetAt: now + 3600_000 });
-    return false;
+// DB-backed rate limiter: 3 scans per IP per hour
+async function checkRateLimit(ip: string): Promise<{ allowed: boolean; remaining: number }> {
+  const supabase = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+  );
+  const ipHash = await sha256Hex(`${ip}:collectai-quick-scan`);
+  const { data, error } = await supabase.rpc("consume_ip_rate_limit", {
+    _bucket_key: "quick_scan",
+    _ip_hash: ipHash,
+    _max_requests: 3,
+    _window_seconds: 3600,
+  });
+  if (error) {
+    console.error("rate limit RPC error:", error);
+    return { allowed: false, remaining: 0 };
   }
-  if (entry.count >= 3) return true;
-  entry.count++;
-  return false;
+  const row = Array.isArray(data) ? data[0] : data;
+  return { allowed: !!row?.allowed, remaining: row?.remaining ?? 0 };
 }
 
 // Retry helper with exponential backoff for 429/529 errors
