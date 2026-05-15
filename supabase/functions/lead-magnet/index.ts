@@ -153,10 +153,6 @@ Deno.serve(async (req) => {
     }
 
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
     // Insert lead
     const { data: leadData, error: insertError } = await supabase.from("leads").insert({
       name: email.split("@")[0],
