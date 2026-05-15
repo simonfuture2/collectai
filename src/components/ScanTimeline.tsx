@@ -217,7 +217,11 @@ const ScanTimeline = ({ running, done }: ScanTimelineProps) => {
                     </span>
                   )}
                 </div>
-                <p className="text-xs text-muted-foreground">{step.desc}</p>
+                <p className="text-xs text-muted-foreground">
+                  {status === "active" && duration !== null && duration > step.expectedMs
+                    ? "Taking a little longer than usual — hang tight…"
+                    : step.desc}
+                </p>
               </div>
             </li>
           );
