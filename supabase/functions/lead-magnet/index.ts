@@ -99,6 +99,13 @@ const cheatSheetHTML = `
 </html>
 `;
 
+async function sha256Hex(input: string): Promise<string> {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(input));
+  return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -107,7 +114,7 @@ Deno.serve(async (req) => {
   try {
     const { email } = await req.json();
 
-    if (!email || typeof email !== "string" || !email.includes("@") || email.length > 255) {
+    if (!email || typeof email !== "string" || !EMAIL_RE.test(email) || email.length > 255) {
       return new Response(JSON.stringify({ error: "Please provide a valid email address." }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -117,6 +124,34 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // Per-IP rate limit: 2 lead-magnet requests per IP per 24h
+    const clientIp =
+      req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+      req.headers.get("cf-connecting-ip") ||
+      "unknown";
+    const ipHash = await sha256Hex(`${clientIp}:collectai-lead-magnet`);
+    const { data: rl, error: rlErr } = await supabase.rpc("consume_ip_rate_limit", {
+      _bucket_key: "lead_magnet",
+      _ip_hash: ipHash,
+      _max_requests: 2,
+      _window_seconds: 86400,
+    });
+    if (rlErr) {
+      console.error("rate limit RPC error:", rlErr);
+      return new Response(JSON.stringify({ error: "Service temporarily unavailable. Please try again." }), {
+        status: 503,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const rlRow = Array.isArray(rl) ? rl[0] : rl;
+    if (!rlRow?.allowed) {
+      return new Response(JSON.stringify({ error: "Too many requests. Please try again later." }), {
+        status: 429,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
 
     // Insert lead
     const { data: leadData, error: insertError } = await supabase.from("leads").insert({
@@ -207,7 +242,7 @@ Deno.serve(async (req) => {
     });
   } catch (err) {
     console.error("lead-magnet error:", err);
-    return new Response(JSON.stringify({ error: err.message || "Something went wrong" }), {
+    return new Response(JSON.stringify({ error: "Something went wrong. Please try again." }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

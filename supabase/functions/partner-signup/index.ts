@@ -5,6 +5,11 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+async function sha256Hex(input: string): Promise<string> {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(input));
+  return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -20,7 +25,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Basic email validation
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return new Response(JSON.stringify({ error: "Invalid email address" }), {
         status: 400,
@@ -33,12 +37,39 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
+    // Per-IP rate limit: 5 partner signups per IP per 24h
+    const clientIp =
+      req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+      req.headers.get("cf-connecting-ip") ||
+      "unknown";
+    const ipHash = await sha256Hex(`${clientIp}:collectai-partner-signup`);
+    const { data: rl, error: rlErr } = await supabase.rpc("consume_ip_rate_limit", {
+      _bucket_key: "partner_signup",
+      _ip_hash: ipHash,
+      _max_requests: 5,
+      _window_seconds: 86400,
+    });
+    if (rlErr) {
+      console.error("rate limit RPC error:", rlErr);
+      return new Response(JSON.stringify({ error: "Service temporarily unavailable. Please try again." }), {
+        status: 503,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const rlRow = Array.isArray(rl) ? rl[0] : rl;
+    if (!rlRow?.allowed) {
+      return new Response(JSON.stringify({ error: "Too many requests. Please try again later." }), {
+        status: 429,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const { data, error } = await supabase.from("leads").insert({
-      name: name.trim().slice(0, 100),
-      email: email.trim().toLowerCase().slice(0, 255),
-      phone: phone?.trim().slice(0, 20) || null,
-      company: company?.trim().slice(0, 100) || null,
-      notes: message?.trim().slice(0, 1000) || null,
+      name: String(name).trim().slice(0, 100),
+      email: String(email).trim().toLowerCase().slice(0, 255),
+      phone: phone ? String(phone).trim().slice(0, 20) : null,
+      company: company ? String(company).trim().slice(0, 100) : null,
+      notes: message ? String(message).trim().slice(0, 1000) : null,
       source: "form",
       status: "new",
     }).select().single();

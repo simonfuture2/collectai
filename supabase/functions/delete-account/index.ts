@@ -89,7 +89,7 @@ serve(async (req) => {
     });
   } catch (err: any) {
     console.error("Delete account error:", err.message);
-    return new Response(JSON.stringify({ error: err.message }), {
+    return new Response(JSON.stringify({ error: "Account deletion failed. Please contact support." }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

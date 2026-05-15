@@ -370,6 +370,27 @@ export type Database = {
         }
         Relationships: []
       }
+      ip_rate_limits: {
+        Row: {
+          bucket_key: string
+          ip_hash: string
+          request_count: number
+          window_start: string
+        }
+        Insert: {
+          bucket_key: string
+          ip_hash: string
+          request_count?: number
+          window_start?: string
+        }
+        Update: {
+          bucket_key?: string
+          ip_hash?: string
+          request_count?: number
+          window_start?: string
+        }
+        Relationships: []
+      }
       lead_activities: {
         Row: {
           content: string | null
@@ -1033,6 +1054,18 @@ export type Database = {
     Functions: {
       consume_demo_scan: {
         Args: { _ip_hash: string; _max_per_day?: number }
+        Returns: {
+          allowed: boolean
+          remaining: number
+        }[]
+      }
+      consume_ip_rate_limit: {
+        Args: {
+          _bucket_key: string
+          _ip_hash: string
+          _max_requests: number
+          _window_seconds: number
+        }
         Returns: {
           allowed: boolean
           remaining: number
