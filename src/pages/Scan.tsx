@@ -331,7 +331,7 @@ const Scan = () => {
                       className="hidden"
                     />
                     {slot.preview ? (
-                      <img src={slot.preview} alt={slot.label} className="w-full h-full object-cover" />
+                      <img src={slot.preview} alt={`Card ${slot.label} view`} className="w-full h-full object-cover" />
                     ) : (
                       <div className="flex flex-col items-center justify-center h-full gap-2">
                         <Upload className="w-8 h-8 text-muted-foreground" />
