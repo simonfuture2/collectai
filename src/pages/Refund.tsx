@@ -1,8 +1,14 @@
 import LegalPageLayout from "@/components/LegalPageLayout";
+import SEO from "@/components/SEO";
 
 const Refund = () => {
   return (
     <LegalPageLayout title="Refund Policy" lastUpdated="February 25, 2026">
+      <SEO
+        title="Refund Policy – CollectAI"
+        description="CollectAI's refund policy for Pro subscriptions, credit packs, and AuthentiSeal certificates — what's eligible and how to request a refund."
+        path="/refund"
+      />
       <section>
         <h2 className="text-xl font-display font-bold">Pro Subscription</h2>
         <p className="text-muted-foreground">
