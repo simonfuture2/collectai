@@ -394,7 +394,7 @@ const Scan = () => {
                 <div key={slot.id} className="flex-shrink-0 relative">
                   <img
                     src={slot.preview!}
-                    alt={slot.label}
+                    alt={`Card ${slot.label} view`}
                     className="h-40 rounded-lg border border-border object-cover"
                   />
                   <span className="absolute bottom-1 left-1 text-[10px] font-semibold bg-primary/90 text-primary-foreground px-2 py-0.5 rounded-full">
