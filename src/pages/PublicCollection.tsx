@@ -7,7 +7,6 @@ import collectaiLogo from "@/assets/collectai-logo.png";
 import Footer from "@/components/Footer";
 import AIDisclaimer from "@/components/AIDisclaimer";
 import SEO from "@/components/SEO";
-import { useParams as _useParams } from "react-router-dom";
 
 interface PublicCard {
   id: string;
