@@ -500,7 +500,7 @@ export default function CardDetail() {
             <div className="bg-card border border-border rounded-2xl p-4 overflow-hidden">
               <DefectMapOverlay
                 imageUrl={cardImageUrl || card.image_url}
-                alt={card.card_name || "Card"}
+                alt={card.card_name ? `${card.card_name} trading card` : "Trading card"}
                 defects={Array.isArray((analysis as any)?.defects) ? (analysis as any).defects : []}
               />
             </div>
