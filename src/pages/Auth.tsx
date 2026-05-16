@@ -11,6 +11,7 @@ import collectaiLogo from "@/assets/collectai-logo.png";
 import comboGraphic from "@/assets/mycollectai-authentiseal-combo.png";
 import Footer from "@/components/Footer";
 import ThemeToggle from "@/components/ThemeToggle";
+import SEO from "@/components/SEO";
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
