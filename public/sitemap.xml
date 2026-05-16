@@ -16,11 +16,6 @@
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://mycollectai.com/scan</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
     <loc>https://mycollectai.com/marketplace</loc>
     <changefreq>daily</changefreq>
     <priority>0.9</priority>
@@ -51,26 +46,6 @@
     <priority>0.5</priority>
   </url>
   <url>
-    <loc>https://mycollectai.com/dashboard</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.5</priority>
-  </url>
-  <url>
-    <loc>https://mycollectai.com/collection</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.5</priority>
-  </url>
-  <url>
-    <loc>https://mycollectai.com/pack-rip</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.5</priority>
-  </url>
-  <url>
-    <loc>https://mycollectai.com/achievements</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.4</priority>
-  </url>
-  <url>
     <loc>https://mycollectai.com/auth</loc>
     <changefreq>yearly</changefreq>
     <priority>0.4</priority>
@@ -89,5 +64,10 @@
     <loc>https://mycollectai.com/refund</loc>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
+  </url>
+  <url>
+    <loc>https://mycollectai.com/u/simon-uho6</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.5</priority>
   </url>
 </urlset>
