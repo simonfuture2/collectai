@@ -6,6 +6,7 @@ import { Camera, Shield, Star } from "lucide-react";
 import collectaiLogo from "@/assets/collectai-logo.png";
 import Footer from "@/components/Footer";
 import AIDisclaimer from "@/components/AIDisclaimer";
+import SEO from "@/components/SEO";
 
 interface SharedCardData {
   id: string;
