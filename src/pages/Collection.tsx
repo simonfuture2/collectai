@@ -706,12 +706,12 @@ const Collection = () => {
                     <TableCell className="text-right font-medium">${cardValue(card).toFixed(0)}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-0.5">
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => rescanCard(card, e)} disabled={rescanningId === card.id} title="Re-Scan">
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => rescanCard(card, e)} disabled={rescanningId === card.id} title="Re-Scan" aria-label="Re-scan card">
                           <RefreshCw className={`w-3.5 h-3.5 text-primary ${rescanningId === card.id ? "animate-spin" : ""}`} />
                         </Button>
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => e.stopPropagation()}>
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => e.stopPropagation()} aria-label="Delete card">
                               <Trash2 className="w-3.5 h-3.5 text-destructive" />
                             </Button>
                           </AlertDialogTrigger>
