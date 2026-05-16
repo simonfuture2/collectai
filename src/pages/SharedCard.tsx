@@ -95,9 +95,36 @@ export default function SharedCard() {
   }
 
   const avgValue = ((card.estimated_value_low || 0) + (card.estimated_value_high || 0)) / 2;
+  const cardLabel = card.card_name || "Trading Card";
+  const gradeLabel = card.condition_grade ? `Grade ${card.condition_grade}` : "AI Graded";
+  const seoTitle = `${cardLabel} – ${gradeLabel} | CollectAI`.slice(0, 60);
+  const seoDesc = `${cardLabel}${card.card_set ? ` (${card.card_set}${card.card_year ? ` ${card.card_year}` : ""})` : ""} — ${gradeLabel}. Estimated value $${avgValue.toFixed(2)}. AI-graded certificate from CollectAI.`.slice(0, 160);
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: cardLabel,
+    description: seoDesc,
+    image: imageUrl || undefined,
+    category: card.category || "Trading Card",
+    offers: {
+      "@type": "Offer",
+      price: avgValue.toFixed(2),
+      priceCurrency: "USD",
+      availability: "https://schema.org/InStock",
+      url: `https://mycollectai.com/card/share/${card.id}`,
+    },
+  } as Record<string, unknown>;
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
+      <SEO
+        title={seoTitle}
+        description={seoDesc}
+        path={`/card/share/${card.id}`}
+        ogType="product"
+        image={imageUrl || undefined}
+        jsonLd={jsonLd}
+      />
       {/* Header */}
       <header className="border-b border-border">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
