@@ -155,7 +155,7 @@ export default function SharedCard() {
           <div className="aspect-[3/4] rounded-xl overflow-hidden bg-muted">
             <img
               src={imageUrl}
-              alt={card.card_name || "Card"}
+              alt={card.card_name ? `${card.card_name} trading card` : "Trading card certificate"}
               className="w-full h-full object-contain"
               loading="lazy"
             />
