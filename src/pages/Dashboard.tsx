@@ -20,6 +20,7 @@ import ConnectedAccounts from "@/components/ConnectedAccounts";
 import TransactionHistory from "@/components/TransactionHistory";
 import { usePushNotifications } from "@/hooks/use-push-notifications";
 import AchievementsRow from "@/components/AchievementsRow";
+import SEO from "@/components/SEO";
 
 interface Card {
   id: string;
