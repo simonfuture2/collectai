@@ -88,6 +88,11 @@ const Auth = () => {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
+      <SEO
+        title="Sign In or Create an Account – CollectAI"
+        description="Sign in to CollectAI or create a free account to scan, grade, and value your trading card collection with AI."
+        path="/auth"
+      />
       <div className="absolute top-4 right-4 z-10">
         <ThemeToggle />
       </div>
