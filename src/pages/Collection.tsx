@@ -755,7 +755,7 @@ const Collection = () => {
                     <div className="aspect-[3/4] bg-muted relative">
                       <img
                         src={card.image_url}
-                        alt={card.card_name || "Item"}
+                        alt={card.card_name ? `${card.card_name} trading card` : "Collectible item"}
                         className="w-full h-full object-contain"
                         loading="lazy"
                         onError={(e) => { e.currentTarget.src = '/placeholder.svg'; }}
