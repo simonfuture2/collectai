@@ -12,6 +12,7 @@ import { useCredits } from "@/hooks/use-credits";
 import CreditBalance from "@/components/CreditBalance";
 import UpgradeModal from "@/components/UpgradeModal";
 import ThemeToggle from "@/components/ThemeToggle";
+import SEO from "@/components/SEO";
 
 interface ImageSlot {
   id: string;
@@ -299,6 +300,12 @@ const Scan = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEO
+        title="Scan a Card – AI Grading & Value | CollectAI"
+        description="Upload card photos to get instant AI identification, condition grading, and live market value estimates."
+        path="/scan"
+        noIndex
+      />
       <header className="border-b border-border">
         <div className="container mx-auto px-4 py-4 flex items-center gap-4">
           <div className="flex items-center gap-4">

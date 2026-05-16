@@ -6,6 +6,8 @@ import { Camera, User } from "lucide-react";
 import collectaiLogo from "@/assets/collectai-logo.png";
 import Footer from "@/components/Footer";
 import AIDisclaimer from "@/components/AIDisclaimer";
+import SEO from "@/components/SEO";
+import { useParams as _useParams } from "react-router-dom";
 
 interface PublicCard {
   id: string;
@@ -109,6 +111,12 @@ export default function PublicCollection() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
+      <SEO
+        title={`${profile?.display_name ?? "Collector"}'s Public Collection | CollectAI`}
+        description={`Browse ${profile?.display_name ?? "this collector"}'s public card collection on CollectAI — grades, sets, and estimated values.`}
+        path={`/u/${slug ?? ""}`}
+        ogType="website"
+      />
       <header className="border-b border-border">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2">

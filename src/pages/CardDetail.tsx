@@ -28,6 +28,7 @@ import {
   RefreshCw,
   Share2,
 } from "lucide-react";
+import SEO from "@/components/SEO";
 import { toast } from "sonner";
 import {
   LineChart,

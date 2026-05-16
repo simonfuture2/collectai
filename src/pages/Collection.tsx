@@ -24,6 +24,7 @@ import FolderManager, { type FolderData } from "@/components/FolderManager";
 import AddToFolderMenu from "@/components/AddToFolderMenu";
 import type { User } from "@supabase/supabase-js";
 import ThemeToggle from "@/components/ThemeToggle";
+import SEO from "@/components/SEO";
 
 interface Card {
   id: string;
@@ -397,6 +398,12 @@ const Collection = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEO
+        title="My Collection – Cards, Grades & Values | CollectAI"
+        description="Browse your scanned cards, organize folders, and track total estimated value across your collection."
+        path="/collection"
+        noIndex
+      />
       <header className="border-b border-border sticky top-0 z-20 bg-background/95 backdrop-blur-sm">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">

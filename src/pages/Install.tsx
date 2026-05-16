@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Download, Smartphone, CheckCircle2, ArrowLeft } from "lucide-react";
 import { Link } from "react-router-dom";
+import SEO from "@/components/SEO";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
@@ -43,6 +44,11 @@ const Install = () => {
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      <SEO
+        title="Install CollectAI on Your Phone"
+        description="Install the CollectAI app for one-tap scanning, offline access, and push notifications on iOS and Android."
+        path="/install"
+      />
       <Card className="max-w-md w-full border-border/50">
         <CardHeader className="text-center">
           <div className="mx-auto mb-4 h-20 w-20 rounded-2xl bg-primary/10 flex items-center justify-center">
