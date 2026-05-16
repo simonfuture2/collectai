@@ -472,7 +472,7 @@ export default function CardDetail() {
       {/* Header */}
       <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-lg border-b border-border">
         <div className="container mx-auto px-4 py-4 flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/collection")}>
+          <Button variant="ghost" size="icon" onClick={() => navigate("/collection")} aria-label="Go back">
             <ArrowLeft className="w-5 h-5" />
           </Button>
           <h1 className="font-display font-bold text-xl truncate flex-1">{card.card_name || "Card Details"}</h1>
