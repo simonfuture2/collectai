@@ -10,6 +10,19 @@ const About = () => {
         title="About CollectAI – AI Card Grading Platform"
         description="Meet the team and mission behind CollectAI: AI-powered identification, condition grading, and pricing for trading cards."
         path="/about"
+        jsonLd={{
+          "@context": "https://schema.org",
+          "@type": "AboutPage",
+          name: "About CollectAI",
+          description: "AI-powered card grading, identification, and real-time market pricing.",
+          url: "https://mycollectai.com/about",
+          publisher: {
+            "@type": "Organization",
+            name: "CollectAI",
+            url: "https://mycollectai.com",
+            logo: "https://mycollectai.com/favicon.png",
+          },
+        }}
       />
       {/* Hero graphic */}
       <div className="flex justify-center mb-10">

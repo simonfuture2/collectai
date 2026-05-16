@@ -96,7 +96,7 @@ export default function Marketplace() {
       <header className="border-b bg-card">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="sm" onClick={() => navigate("/dashboard")}>
+            <Button variant="ghost" size="sm" onClick={() => navigate("/dashboard")} aria-label="Go back">
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <h1 className="text-xl font-bold">Marketplace</h1>
@@ -153,7 +153,7 @@ export default function Marketplace() {
                 <Card className="overflow-hidden hover:shadow-lg transition group">
                   <div className="aspect-[3/4] bg-muted overflow-hidden">
                     {imageUrls[l.id] ? (
-                      <img src={imageUrls[l.id]} alt={l.cards?.card_name ?? "Card"} className="w-full h-full object-cover group-hover:scale-105 transition" />
+                      <img src={imageUrls[l.id]} alt={l.cards?.card_name ? `${l.cards.card_name} trading card` : "Trading card listing"} className="w-full h-full object-cover group-hover:scale-105 transition" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs">No image</div>
                     )}

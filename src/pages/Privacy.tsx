@@ -1,8 +1,14 @@
 import LegalPageLayout from "@/components/LegalPageLayout";
+import SEO from "@/components/SEO";
 
 const Privacy = () => {
   return (
     <LegalPageLayout title="Privacy Policy" lastUpdated="February 25, 2026">
+      <SEO
+        title="Privacy Policy – CollectAI"
+        description="How CollectAI collects, uses, and protects your data — camera images, account info, payment details, and blockchain interactions."
+        path="/privacy"
+      />
       <section>
         <h2 className="text-xl font-display font-bold">1. Information We Collect</h2>
         <p className="text-muted-foreground">We collect the following types of information:</p>

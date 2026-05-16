@@ -303,7 +303,7 @@ const Scan = () => {
         <div className="container mx-auto px-4 py-4 flex items-center gap-4">
           <div className="flex items-center gap-4">
             <Link to="/dashboard">
-              <Button variant="ghost" size="icon"><ArrowLeft className="w-5 h-5" /></Button>
+              <Button variant="ghost" size="icon" aria-label="Go back"><ArrowLeft className="w-5 h-5" /></Button>
             </Link>
             <h1 className="text-xl font-display font-bold">Scan Item</h1>
           </div>
@@ -331,7 +331,7 @@ const Scan = () => {
                       className="hidden"
                     />
                     {slot.preview ? (
-                      <img src={slot.preview} alt={slot.label} className="w-full h-full object-cover" />
+                      <img src={slot.preview} alt={`Card ${slot.label} view`} className="w-full h-full object-cover" />
                     ) : (
                       <div className="flex flex-col items-center justify-center h-full gap-2">
                         <Upload className="w-8 h-8 text-muted-foreground" />
@@ -394,7 +394,7 @@ const Scan = () => {
                 <div key={slot.id} className="flex-shrink-0 relative">
                   <img
                     src={slot.preview!}
-                    alt={slot.label}
+                    alt={`Card ${slot.label} view`}
                     className="h-40 rounded-lg border border-border object-cover"
                   />
                   <span className="absolute bottom-1 left-1 text-[10px] font-semibold bg-primary/90 text-primary-foreground px-2 py-0.5 rounded-full">

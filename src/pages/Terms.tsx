@@ -1,8 +1,14 @@
 import LegalPageLayout from "@/components/LegalPageLayout";
+import SEO from "@/components/SEO";
 
 const Terms = () => {
   return (
     <LegalPageLayout title="Terms of Service" lastUpdated="February 25, 2026">
+      <SEO
+        title="Terms of Service – CollectAI"
+        description="The terms governing your use of CollectAI's AI card grading service, account responsibilities, AI disclaimers, and payments."
+        path="/terms"
+      />
       <section>
         <h2 className="text-xl font-display font-bold">1. Acceptance of Terms</h2>
         <p className="text-muted-foreground">

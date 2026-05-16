@@ -56,7 +56,7 @@ const Landing = () => {
           {/* Mobile menu */}
           <Sheet>
             <SheetTrigger asChild className="sm:hidden">
-              <Button variant="ghost" size="icon"><Menu className="w-5 h-5" /></Button>
+              <Button variant="ghost" size="icon" aria-label="Open menu"><Menu className="w-5 h-5" /></Button>
             </SheetTrigger>
             <SheetContent side="right" className="w-64">
               <SheetTitle className="text-lg font-display font-bold text-gradient-primary">Menu</SheetTitle>

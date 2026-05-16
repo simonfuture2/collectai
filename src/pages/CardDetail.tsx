@@ -472,7 +472,7 @@ export default function CardDetail() {
       {/* Header */}
       <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-lg border-b border-border">
         <div className="container mx-auto px-4 py-4 flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/collection")}>
+          <Button variant="ghost" size="icon" onClick={() => navigate("/collection")} aria-label="Go back">
             <ArrowLeft className="w-5 h-5" />
           </Button>
           <h1 className="font-display font-bold text-xl truncate flex-1">{card.card_name || "Card Details"}</h1>
@@ -500,7 +500,7 @@ export default function CardDetail() {
             <div className="bg-card border border-border rounded-2xl p-4 overflow-hidden">
               <DefectMapOverlay
                 imageUrl={cardImageUrl || card.image_url}
-                alt={card.card_name || "Card"}
+                alt={card.card_name ? `${card.card_name} trading card` : "Trading card"}
                 defects={Array.isArray((analysis as any)?.defects) ? (analysis as any).defects : []}
               />
             </div>

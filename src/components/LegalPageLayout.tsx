@@ -16,7 +16,7 @@ const LegalPageLayout = ({ title, lastUpdated, children }: LegalPageLayoutProps)
       <header className="border-b border-border">
         <div className="container mx-auto px-4 py-4 flex items-center gap-4">
           <Link to="/">
-            <Button variant="ghost" size="icon"><ArrowLeft className="w-5 h-5" /></Button>
+            <Button variant="ghost" size="icon" aria-label="Go back"><ArrowLeft className="w-5 h-5" /></Button>
           </Link>
           <h1 className="text-xl font-display font-bold flex-1">{title}</h1>
           <ThemeToggle />

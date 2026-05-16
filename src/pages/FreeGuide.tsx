@@ -74,6 +74,19 @@ const FreeGuide = () => {
         title="Free Card Grading Cheat Sheet – CollectAI"
         description="Get our free PSA & BGS grading cheat sheet: 10 condition checkpoints, value tiers, and pro photo tips for self-grading."
         path="/free-guide"
+        jsonLd={{
+          "@context": "https://schema.org",
+          "@type": "Article",
+          headline: "Free Card Grading Cheat Sheet",
+          description: "A practical guide to self-grading trading cards: 10 condition checkpoints, value tiers, and pro photo tips before mail-in grading.",
+          author: { "@type": "Organization", name: "CollectAI" },
+          publisher: {
+            "@type": "Organization",
+            name: "CollectAI",
+            logo: { "@type": "ImageObject", url: "https://mycollectai.com/favicon.png" },
+          },
+          mainEntityOfPage: "https://mycollectai.com/free-guide",
+        }}
       />
       <header className="container mx-auto px-4 py-6 flex justify-between items-center">
         <Link to="/" className="flex items-center gap-2">

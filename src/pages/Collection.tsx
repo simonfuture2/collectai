@@ -401,7 +401,7 @@ const Collection = () => {
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Link to="/dashboard">
-              <Button variant="ghost" size="icon"><ArrowLeft className="w-5 h-5" /></Button>
+              <Button variant="ghost" size="icon" aria-label="Go back"><ArrowLeft className="w-5 h-5" /></Button>
             </Link>
             <h1 className="text-xl font-display font-bold">My Collection</h1>
           </div>
@@ -706,12 +706,12 @@ const Collection = () => {
                     <TableCell className="text-right font-medium">${cardValue(card).toFixed(0)}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-0.5">
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => rescanCard(card, e)} disabled={rescanningId === card.id} title="Re-Scan">
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => rescanCard(card, e)} disabled={rescanningId === card.id} title="Re-Scan" aria-label="Re-scan card">
                           <RefreshCw className={`w-3.5 h-3.5 text-primary ${rescanningId === card.id ? "animate-spin" : ""}`} />
                         </Button>
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => e.stopPropagation()}>
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => e.stopPropagation()} aria-label="Delete card">
                               <Trash2 className="w-3.5 h-3.5 text-destructive" />
                             </Button>
                           </AlertDialogTrigger>
@@ -755,7 +755,7 @@ const Collection = () => {
                     <div className="aspect-[3/4] bg-muted relative">
                       <img
                         src={card.image_url}
-                        alt={card.card_name || "Item"}
+                        alt={card.card_name ? `${card.card_name} trading card` : "Collectible item"}
                         className="w-full h-full object-contain"
                         loading="lazy"
                         onError={(e) => { e.currentTarget.src = '/placeholder.svg'; }}

@@ -20,6 +20,7 @@ import ConnectedAccounts from "@/components/ConnectedAccounts";
 import TransactionHistory from "@/components/TransactionHistory";
 import { usePushNotifications } from "@/hooks/use-push-notifications";
 import AchievementsRow from "@/components/AchievementsRow";
+import SEO from "@/components/SEO";
 
 interface Card {
   id: string;
@@ -80,6 +81,11 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEO
+        title="Your Collection Dashboard – CollectAI"
+        description="Manage your graded card collection, track total value, view recent scans, and access AuthentiSeal certificates."
+        path="/dashboard"
+      />
       <header className="border-b border-border">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <Link to="/" className="flex items-center gap-2">
@@ -97,14 +103,14 @@ const Dashboard = () => {
             )}
             <span className="text-sm text-muted-foreground hidden sm:block">{user?.email}</span>
             <ThemeToggle />
-            <Button variant="ghost" size="icon" onClick={handleLogout}><LogOut className="w-5 h-5" /></Button>
+            <Button variant="ghost" size="icon" onClick={handleLogout} aria-label="Log out"><LogOut className="w-5 h-5" /></Button>
           </div>
         </div>
       </header>
 
       <main className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-8">
-          <h2 className="text-3xl font-display font-bold">Your Collection</h2>
+          <h1 className="text-3xl font-display font-bold">Your Collection</h1>
           {cards.length > 0 && (
             <Button 
               variant={showAnalytics ? "default" : "outline"} 
