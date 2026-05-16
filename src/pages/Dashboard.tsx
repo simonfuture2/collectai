@@ -81,6 +81,11 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEO
+        title="Your Collection Dashboard – CollectAI"
+        description="Manage your graded card collection, track total value, view recent scans, and access AuthentiSeal certificates."
+        path="/dashboard"
+      />
       <header className="border-b border-border">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <Link to="/" className="flex items-center gap-2">
