@@ -104,7 +104,7 @@ const Auth = () => {
           <div className="text-center mb-8">
             <Link to="/" className="inline-flex items-center gap-2 mb-4">
               <img src={collectaiLogo} alt="CollectAI Logo" className="w-10 h-10 rounded-lg" />
-              <h1 className="text-3xl font-display font-bold text-gradient-primary">CollectAI</h1>
+              <h1 className="text-3xl font-display font-bold text-gradient-primary">CollectAI – Sign In to Your Account</h1>
             </Link>
             <p className="text-muted-foreground">
               {resetMode ? "Reset your password" : isLogin ? "Welcome back, collector!" : "Start your collection journey"}
