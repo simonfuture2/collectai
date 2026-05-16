@@ -22,6 +22,7 @@ import {
   Award,
   CheckCircle2,
 } from "lucide-react";
+import SEO from "@/components/SEO";
 
 const HOW_TO_UNLOCK: Record<string, { tip: string; cta?: { label: string; to: string } }> = {
   first_scan: {
@@ -207,6 +208,12 @@ const Achievements = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEO
+        title="Achievements & Badges | CollectAI"
+        description="Unlock badges as you scan, grade, and grow your collection. Track streaks and milestones."
+        path="/achievements"
+        noIndex
+      />
       <header className="border-b border-border">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <Link to="/" className="flex items-center gap-2">

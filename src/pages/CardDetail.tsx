@@ -28,6 +28,7 @@ import {
   RefreshCw,
   Share2,
 } from "lucide-react";
+import SEO from "@/components/SEO";
 import { toast } from "sonner";
 import {
   LineChart,
@@ -469,6 +470,13 @@ export default function CardDetail() {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEO
+        title={`${card.card_name ?? "Card"} – Grade & Value | CollectAI`}
+        description={`${card.card_name ?? "This card"}${card.condition_grade ? ` graded ${card.condition_grade}` : ""}. View AI analysis, estimated market value, and grading breakdown on CollectAI.`}
+        path={`/card/${card.id}`}
+        ogType="product"
+        noIndex
+      />
       {/* Header */}
       <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-lg border-b border-border">
         <div className="container mx-auto px-4 py-4 flex items-center gap-4">

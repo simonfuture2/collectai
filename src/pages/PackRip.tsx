@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import Footer from "@/components/Footer";
 import ThemeToggle from "@/components/ThemeToggle";
+import SEO from "@/components/SEO";
 import CreditBalance from "@/components/CreditBalance";
 import UpgradeModal from "@/components/UpgradeModal";
 import { useCredits } from "@/hooks/use-credits";
@@ -182,6 +183,12 @@ const PackRip = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEO
+        title="Pack Rip – Log Your Pulls Instantly | CollectAI"
+        description="Capture every pack you open. AI identifies each pull, totals the value, and tracks your hit rate."
+        path="/pack-rip"
+        noIndex
+      />
       <header className="border-b border-border">
         <div className="container mx-auto px-4 py-4 flex items-center gap-4">
           <Link to="/dashboard">

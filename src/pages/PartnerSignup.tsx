@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { CheckCircle, Handshake } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
 import Footer from "@/components/Footer";
+import SEO from "@/components/SEO";
 
 const PartnerSignup = () => {
   const [form, setForm] = useState({ name: "", email: "", phone: "", company: "", message: "" });
@@ -35,6 +36,11 @@ const PartnerSignup = () => {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
+      <SEO
+        title="Partner with CollectAI – Card Shops & Creators"
+        description="Join the CollectAI partner program for card shops, breakers, and creators. Co-marketing, revenue share, and integration support."
+        path="/partners"
+      />
       <header className="border-b border-border">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <Link to="/" className="flex items-center gap-2">
