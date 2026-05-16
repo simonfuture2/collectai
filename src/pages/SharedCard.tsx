@@ -28,9 +28,7 @@ export default function SharedCard() {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
-  useEffect(() => {
-    document.title = "CollectAI – Graded Card Certificate";
-  }, []);
+  // Page <title> is handled by the SEO component below.
 
   useEffect(() => {
     const fetchCard = async () => {
