@@ -97,7 +97,7 @@ const Dashboard = () => {
             )}
             <span className="text-sm text-muted-foreground hidden sm:block">{user?.email}</span>
             <ThemeToggle />
-            <Button variant="ghost" size="icon" onClick={handleLogout}><LogOut className="w-5 h-5" /></Button>
+            <Button variant="ghost" size="icon" onClick={handleLogout} aria-label="Log out"><LogOut className="w-5 h-5" /></Button>
           </div>
         </div>
       </header>
