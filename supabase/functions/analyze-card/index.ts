@@ -139,9 +139,9 @@ async function searchMarketPrices(
       isSportsCard ? Promise.resolve([]) : doSearch(`"${specific}" price site:tcgplayer.com`, 6, "tcgplayer.com"),
     ]);
 
-    // Fallback to broader search if specific returned few results
+    // Fallback to broader search if specific returned few results (skipped in Fast Scan)
     const totalSpecific = soldResults.length + activeResults.length + tcgResults.length;
-    if (totalSpecific < 3 && broad !== specific) {
+    if (!fastScan && totalSpecific < 3 && broad !== specific) {
       console.log("Specific search yielded few results, trying broader search...");
       const [soldBroad, activeBroad, tcgBroad] = await Promise.all([
         searchSold(`${broad} sold site:ebay.com`, 10),
@@ -155,9 +155,9 @@ async function searchMarketPrices(
       }
     }
 
-    // Third-tier fallback: just the card name
+    // Third-tier fallback: just the card name (skipped in Fast Scan)
     const totalAfterBroad = soldResults.length + activeResults.length + tcgResults.length;
-    if (totalAfterBroad < 3 && fallback !== broad) {
+    if (!fastScan && totalAfterBroad < 3 && fallback !== broad) {
       console.log("Broad search yielded few results, trying fallback search...");
       const [soldFallback, activeFallback] = await Promise.all([
         searchSold(`${fallback} sold site:ebay.com`, 10),
