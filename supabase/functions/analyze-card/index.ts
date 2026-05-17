@@ -91,7 +91,8 @@ function buildSearchTerms(cardId: CardIdentification, category?: string): { spec
 // Helper: search market listings via Firecrawl and return structured price data
 async function searchMarketPrices(
   cardId: CardIdentification,
-  category?: string
+  category?: string,
+  fastScan: boolean = false
 ): Promise<{ summary: string; hasData: boolean; extractedMarketData: ExtractedMarketData }> {
   const FIRECRAWL_API_KEY = Deno.env.get("FIRECRAWL_API_KEY");
   const emptyMarket: ExtractedMarketData = { sources: [], blended: null };
