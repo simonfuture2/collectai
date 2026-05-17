@@ -144,11 +144,15 @@ async function searchMarketPrices(cardId: CardIdentification, category: string |
 
   async function doSearch(query: string, limit: number, urlFilter?: string, tbs: string = "qdr:m") {
     try {
-      const response = await fetch("https://api.firecrawl.dev/v1/search", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${FIRECRAWL_API_KEY}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ query, limit, tbs, scrapeOptions: { formats: ["markdown"] } }),
-      });
+      const response = await withTimeout(
+        fetch("https://api.firecrawl.dev/v1/search", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${FIRECRAWL_API_KEY}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ query, limit, tbs }),
+        }),
+        15_000,
+        "firecrawl-search",
+      );
       if (!response.ok) return [];
       const data = await response.json();
       const results = data.data || [];
@@ -161,31 +165,38 @@ async function searchMarketPrices(cardId: CardIdentification, category: string |
     return doSearch(query, limit, "ebay.com", "qdr:m");
   }
 
+  async function scrapeListing(url: string): Promise<string> {
+    try {
+      const response = await withTimeout(
+        fetch("https://api.firecrawl.dev/v1/scrape", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${FIRECRAWL_API_KEY}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ url, formats: ["markdown"] }),
+        }),
+        15_000,
+        "firecrawl-scrape",
+      );
+      if (!response.ok) return "";
+      const data = await response.json();
+      return (data.data?.markdown || "").substring(0, 2000);
+    } catch { return ""; }
+  }
+
   try {
     let [soldResults, activeResults, tcgResults] = await Promise.all([
-      searchSold(`"${specific}" sold site:ebay.com`, 10),
-      doSearch(`"${specific}" site:ebay.com`, 8, "ebay.com"),
-      isSportsCard ? Promise.resolve([]) : doSearch(`"${specific}" price site:tcgplayer.com`, 6, "tcgplayer.com"),
+      searchSold(`"${specific}" sold site:ebay.com`, 6),
+      doSearch(`"${specific}" site:ebay.com`, 4, "ebay.com"),
+      isSportsCard ? Promise.resolve([]) : doSearch(`"${specific}" price site:tcgplayer.com`, 3, "tcgplayer.com"),
     ]);
     const totalSpecific = soldResults.length + activeResults.length + tcgResults.length;
-    if (!fastScan && totalSpecific < 3 && broad !== specific) {
+    if (!fastScan && totalSpecific < 3 && specific !== broad) {
       const [soldBroad, activeBroad, tcgBroad] = await Promise.all([
-        searchSold(`${broad} sold site:ebay.com`, 10),
-        doSearch(`${broad} site:ebay.com`, 8, "ebay.com"),
-        isSportsCard ? Promise.resolve([]) : doSearch(`${broad} price site:tcgplayer.com`, 6, "tcgplayer.com"),
+        searchSold(`${broad} sold site:ebay.com`, 6),
+        doSearch(`${broad} site:ebay.com`, 4, "ebay.com"),
+        isSportsCard ? Promise.resolve([]) : doSearch(`${broad} price site:tcgplayer.com`, 3, "tcgplayer.com"),
       ]);
       if (soldBroad.length + activeBroad.length + tcgBroad.length > totalSpecific) {
         soldResults = soldBroad; activeResults = activeBroad; tcgResults = tcgBroad;
-      }
-    }
-    const totalAfterBroad = soldResults.length + activeResults.length + tcgResults.length;
-    if (!fastScan && totalAfterBroad < 3 && fallback !== broad) {
-      const [soldFallback, activeFallback] = await Promise.all([
-        searchSold(`${fallback} sold site:ebay.com`, 10),
-        doSearch(`${fallback} site:ebay.com`, 8, "ebay.com"),
-      ]);
-      if (soldFallback.length + activeFallback.length > totalAfterBroad) {
-        soldResults = soldFallback; activeResults = activeFallback;
       }
     }
 
@@ -215,6 +226,23 @@ async function searchMarketPrices(cardId: CardIdentification, category: string |
       return `- ${r.title || "Listing"} | Prices: ${prices.length > 0 ? prices.map((p) => `$${p.toFixed(2)}`).join(", ") : "none detected"}`;
     });
     tcgPrices = filterOutliers(tcgPrices);
+
+    // Safety net: if titles/descriptions yielded too few prices, do a small scrape pass.
+    const totalPrices = soldPrices.length + activePrices.length + tcgPrices.length;
+    if (totalPrices < 3) {
+      const topUrls: string[] = [
+        ...soldResults.slice(0, 2).map((r: any) => r.url).filter(Boolean),
+        ...activeResults.slice(0, 1).map((r: any) => r.url).filter(Boolean),
+      ].slice(0, 3);
+      if (topUrls.length > 0) {
+        const scraped = await Promise.all(topUrls.map((u) => scrapeListing(u)));
+        for (const md of scraped) {
+          const extra = extractPrices(md);
+          soldPrices.push(...extra);
+        }
+        soldPrices = filterOutliers(soldPrices);
+      }
+    }
 
     if (soldPrices.length === 0 && activePrices.length === 0 && tcgPrices.length === 0) return empty;
 
