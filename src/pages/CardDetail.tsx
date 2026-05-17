@@ -534,21 +534,56 @@ export default function CardDetail() {
       <main className="container mx-auto px-4 py-8">
         {(() => {
           const status = (card as any).analysis_status;
-          if (!["analyzing", "pending", "identifying", "pricing"].includes(status)) return null;
-          const stageCopy: Record<string, { title: string; desc: string }> = {
-            pending: { title: "Queued for AI analysis…", desc: "Starting up shortly. This page updates automatically." },
-            identifying: { title: "Identifying your card…", desc: "Reading the card name, set, number and year." },
-            pricing: { title: "Pulling live market prices…", desc: "Checking eBay sold listings and TCGPlayer for current value." },
-            analyzing: { title: "AI analysis in progress…", desc: "Pulling live market prices and grading details." },
+          if (!["pending", "identifying", "pricing", "analyzing", "verifying"].includes(status)) return null;
+          const steps = [
+            { key: "identifying", label: "Identifying" },
+            { key: "pricing", label: "Pulling prices" },
+            { key: "analyzing", label: "Analyzing" },
+            { key: "verifying", label: "Verifying" },
+          ];
+          const statusToIdx: Record<string, number> = {
+            pending: 0, identifying: 0, pricing: 1, analyzing: 2, verifying: 3,
           };
-          const c = stageCopy[status] || stageCopy.analyzing;
+          const activeIdx = statusToIdx[status] ?? 0;
           return (
-            <div className="mb-6 rounded-xl border border-primary/30 bg-primary/5 p-4 flex items-center gap-3">
-              <RefreshCw className="w-5 h-5 text-primary animate-spin shrink-0" />
-              <div className="flex-1">
-                <p className="font-display font-semibold text-sm">{c.title}</p>
-                <p className="text-xs text-muted-foreground">{c.desc} Feel free to keep using the app — it'll be ready when you come back.</p>
-              </div>
+            <div className="mb-6 rounded-xl border border-primary/30 bg-primary/5 p-4">
+              <ol className="flex items-center justify-between gap-2">
+                {steps.map((step, i) => {
+                  const isDone = i < activeIdx;
+                  const isActive = i === activeIdx;
+                  return (
+                    <li key={step.key} className="flex-1 flex flex-col items-center text-center">
+                      <div className="flex items-center w-full">
+                        <span className={`flex-1 h-px ${i === 0 ? "invisible" : isDone || isActive ? "bg-primary" : "bg-border"}`} />
+                        <span
+                          className={`flex items-center justify-center w-7 h-7 rounded-full mx-1 transition-colors ${
+                            isDone
+                              ? "bg-primary text-primary-foreground"
+                              : isActive
+                                ? "border-2 border-primary text-primary bg-background"
+                                : "border border-border text-muted-foreground bg-background"
+                          }`}
+                        >
+                          {isDone ? (
+                            <Check className="w-4 h-4" />
+                          ) : isActive ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <Circle className="w-3 h-3" />
+                          )}
+                        </span>
+                        <span className={`flex-1 h-px ${i === steps.length - 1 ? "invisible" : isDone ? "bg-primary" : "bg-border"}`} />
+                      </div>
+                      <p className={`mt-2 text-xs font-medium ${isActive ? "text-primary" : isDone ? "text-foreground" : "text-muted-foreground"}`}>
+                        {step.label}
+                      </p>
+                    </li>
+                  );
+                })}
+              </ol>
+              <p className="mt-3 text-xs text-muted-foreground text-center">
+                This usually takes 30–45 seconds. Feel free to navigate away — it'll be ready when you come back.
+              </p>
             </div>
           );
         })()}
