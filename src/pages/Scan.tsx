@@ -164,6 +164,7 @@ const Scan = () => {
           images: imageEntries.map((e) => ({ label: e.label, url: e.url })),
           // Keep backward compat
           imageUrl: imageEntries[0].url,
+          fastScan,
         },
         headers: { Authorization: `Bearer ${accessTokenFresh}` },
       });
