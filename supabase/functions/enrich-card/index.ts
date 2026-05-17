@@ -69,7 +69,7 @@ Respond with ONLY valid JSON:
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "claude-sonnet-4-5",
+          model: "claude-haiku-4-5",
           max_tokens: 1024,
           system: systemPrompt,
           messages: [{
@@ -84,7 +84,7 @@ Respond with ONLY valid JSON:
           }],
         }),
       }),
-      45_000,
+      20_000,
       "identify",
     );
     if (!response.ok) {
