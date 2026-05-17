@@ -91,7 +91,8 @@ function buildSearchTerms(cardId: CardIdentification, category?: string): { spec
 // Helper: search market listings via Firecrawl and return structured price data
 async function searchMarketPrices(
   cardId: CardIdentification,
-  category?: string
+  category?: string,
+  fastScan: boolean = false
 ): Promise<{ summary: string; hasData: boolean; extractedMarketData: ExtractedMarketData }> {
   const FIRECRAWL_API_KEY = Deno.env.get("FIRECRAWL_API_KEY");
   const emptyMarket: ExtractedMarketData = { sources: [], blended: null };
@@ -138,9 +139,9 @@ async function searchMarketPrices(
       isSportsCard ? Promise.resolve([]) : doSearch(`"${specific}" price site:tcgplayer.com`, 6, "tcgplayer.com"),
     ]);
 
-    // Fallback to broader search if specific returned few results
+    // Fallback to broader search if specific returned few results (skipped in Fast Scan)
     const totalSpecific = soldResults.length + activeResults.length + tcgResults.length;
-    if (totalSpecific < 3 && broad !== specific) {
+    if (!fastScan && totalSpecific < 3 && broad !== specific) {
       console.log("Specific search yielded few results, trying broader search...");
       const [soldBroad, activeBroad, tcgBroad] = await Promise.all([
         searchSold(`${broad} sold site:ebay.com`, 10),
@@ -154,9 +155,9 @@ async function searchMarketPrices(
       }
     }
 
-    // Third-tier fallback: just the card name
+    // Third-tier fallback: just the card name (skipped in Fast Scan)
     const totalAfterBroad = soldResults.length + activeResults.length + tcgResults.length;
-    if (totalAfterBroad < 3 && fallback !== broad) {
+    if (!fastScan && totalAfterBroad < 3 && fallback !== broad) {
       console.log("Broad search yielded few results, trying fallback search...");
       const [soldFallback, activeFallback] = await Promise.all([
         searchSold(`${fallback} sold site:ebay.com`, 10),
@@ -600,7 +601,7 @@ serve(async (req) => {
     let marketData: { summary: string; hasData: boolean; extractedMarketData: ExtractedMarketData } = { summary: "", hasData: false, extractedMarketData: { sources: [], blended: null } };
     if (cardId?.card_name) {
       console.log("Step 2: Searching eBay + TCGPlayer with specific query...");
-      marketData = await searchMarketPrices(cardId, body.category);
+      marketData = await searchMarketPrices(cardId, body.category, body.fastScan === true);
       console.log("Market data found:", marketData.hasData ? "Yes" : "No");
     }
 
@@ -833,8 +834,8 @@ Respond with ONLY valid JSON (no markdown code fences) with this structure:
       }
     }
 
-    // ===== STEP 4: Dual price verification (Claude + Gemini in parallel) =====
-    if (marketData.hasData && analysis.estimatedValueLow != null && cardId) {
+    // ===== STEP 4: Dual price verification (Claude + Gemini in parallel) — skipped in Fast Scan =====
+    if (!body.fastScan && marketData.hasData && analysis.estimatedValueLow != null && cardId) {
       const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 
       const [claudeVerification, geminiVerification] = await Promise.all([
