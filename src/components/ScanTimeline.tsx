@@ -141,9 +141,9 @@ const ScanTimeline = ({ running, done }: ScanTimelineProps) => {
     <div className="bg-card border border-border rounded-2xl p-6 space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="font-display font-bold text-lg">Analyzing your card</h3>
+          <h3 className="font-display font-bold text-lg">Uploading your card</h3>
           <p className="text-xs text-muted-foreground mt-0.5">
-            {done ? "Complete" : "This usually takes 25–40 seconds"}
+            {done ? "Opening card details…" : "This takes just a few seconds"}
           </p>
         </div>
         <div className="text-right">
