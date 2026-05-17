@@ -299,7 +299,7 @@ export default function CardDetail() {
   useEffect(() => {
     if (!id || !card) return;
     const status = (card as any).analysis_status;
-    if (status !== "analyzing" && status !== "pending" && status !== "identifying" && status !== "pricing") return;
+    if (!["pending", "identifying", "pricing", "analyzing", "verifying"].includes(status)) return;
 
     let cancelled = false;
 
@@ -323,14 +323,14 @@ export default function CardDetail() {
       })
       .subscribe();
 
-    const pollId = window.setInterval(refetch, 5000);
+    const pollId = window.setInterval(refetch, 8000);
 
     return () => {
       cancelled = true;
       window.clearInterval(pollId);
       supabase.removeChannel(channel);
     };
-  }, [id, card, loadPriceHistory]);
+  }, [id, (card as any)?.analysis_status, loadPriceHistory]);
 
 
   const saveNotes = async () => {
