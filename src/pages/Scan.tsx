@@ -353,6 +353,19 @@ const Scan = () => {
 
             {hasImages && !analyzing && (
               <div className="space-y-3">
+                {/* Front-only reassurance */}
+                {filledSlots.length === 1 && filledSlots[0].id === "front" && (
+                  <div className="flex items-start gap-3 rounded-xl border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950/30">
+                    <Sparkles className="w-5 h-5 text-blue-600 mt-0.5 shrink-0" />
+                    <div>
+                      <p className="text-sm font-semibold text-blue-900 dark:text-blue-200">Front-only image detected</p>
+                      <p className="text-xs text-blue-700 dark:text-blue-300 mt-0.5">
+                        Our AI can identify and price your card from the front alone. For the most accurate grading and condition analysis, add a back photo too.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
                 <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card p-4">
                   <div className="flex items-start gap-3">
                     <Zap className={`w-5 h-5 mt-0.5 ${fastScan ? "text-primary" : "text-muted-foreground"}`} />
