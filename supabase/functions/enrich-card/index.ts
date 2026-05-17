@@ -390,11 +390,9 @@ Respond with ONLY valid JSON (no markdown):
   "psaPopulation": { "description": "string", "estimatedPopulation": "string", "gradedPremium": "string", "recentGradedSales": ["array"] },
   "gradedValueEstimates": {
     "currentGradeEstimate": "string", "worthGrading": boolean, "worthGradingReason": "string",
-    "recommendedGrader": "PSA", "recommendedGraderReason": "string",
-    "psa": { "estimatedGrade": number, "valueAtGrade": number, "valueAtPSA10": number, "valueAtPSA9": number, "valueAtPSA8": number, "gradingCost": number, "turnaroundTime": "string" },
-    "bgs": { "estimatedGrade": number, "valueAtGrade": number, "valueAtBGS10": number, "valueAtBGS9_5": number, "valueAtBGS9": number, "gradingCost": number, "turnaroundTime": "string", "blackLabelPotential": "string" },
-    "cgc": { "estimatedGrade": number, "valueAtGrade": number, "valueAtCGC10": number, "valueAtCGC9_5": number, "valueAtCGC9": number, "gradingCost": number, "turnaroundTime": "string" },
-    "sgc": { "estimatedGrade": number, "valueAtGrade": number, "valueAtSGC10": number, "valueAtSGC9_5": number, "valueAtSGC9": number, "gradingCost": number, "turnaroundTime": "string" }
+    "recommendedGrader": "PSA" | "BGS" | "CGC" | "SGC", "recommendedGraderReason": "string",
+    "psa": { "estimatedGrade": number, "valueAtGrade": number, "valueAtPSA10": number, "valueAtPSA9": number, "gradingCost": number, "turnaroundTime": "string" },
+    "otherGraders": { "bgsEstimatedGrade": number, "cgcEstimatedGrade": number, "sgcEstimatedGrade": number }
   },
   "priceFactors": ["array"], "valueTrend": "rising" | "stable" | "falling" | "unknown", "trendReason": "string",
   "confidence": "high" | "medium" | "low", "confidenceReason": "string",
@@ -412,7 +410,7 @@ Respond with ONLY valid JSON (no markdown):
       headers: { "x-api-key": ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "Content-Type": "application/json" },
       body: JSON.stringify({
         model: "claude-sonnet-4-5",
-        max_tokens: 8192,
+        max_tokens: 4096,
         system: systemPrompt,
         messages: [{
           role: "user",
