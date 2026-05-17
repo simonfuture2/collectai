@@ -157,73 +157,36 @@ const Scan = () => {
       }
 
       setUploadedFilePaths(imageEntries.map((e) => e.filePath));
-      
 
-      const { data, error } = await supabase.functions.invoke("analyze-card", {
+      // Phase 1: identify + save (~5-15s). Full AI analysis runs in background.
+      const { data, error } = await supabase.functions.invoke("identify-card", {
         body: {
           images: imageEntries.map((e) => ({ label: e.label, url: e.url })),
-          // Keep backward compat
           imageUrl: imageEntries[0].url,
           fastScan,
         },
         headers: { Authorization: `Bearer ${accessTokenFresh}` },
       });
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
 
       setScanDone(true);
-      const analysisResult = { ...data, filePaths: imageEntries.map((e) => e.filePath) };
-      setResult(analysisResult);
-      toast({ title: "Analysis complete!", description: `Identified: ${data.cardName}` });
       refreshCredits();
 
-      
-
-      // Server already saved the card — navigate directly if cardId is present
-      if (data.cardId) {
-        toast({ title: "Card saved to collection!" });
+      if (data?.cardId) {
+        toast({
+          title: data.duplicate ? "Card already in collection" : `Identified: ${data.cardName || "Card"}`,
+          description: data.duplicate ? undefined : "Opening card — full AI analysis is running in the background.",
+        });
         navigate(`/card/${data.cardId}`);
         return;
       }
 
-      // Fallback: server save failed, try client-side save
-      if (data.saveError || !data.cardId) {
-        console.warn("Server-side save failed, attempting client-side save...");
-        try {
-          const primaryPath = analysisResult.filePaths?.[0] || imageEntries[0]?.filePath;
-          const { data: insertedCard, error: saveError } = await supabase.from("cards").insert({
-            user_id: user.id,
-            image_url: primaryPath,
-            category: analysisResult.category || "Trading Card",
-            card_name: analysisResult.cardName,
-            card_set: analysisResult.cardSet,
-            card_year: analysisResult.cardYear,
-            edition: analysisResult.edition,
-            rarity: analysisResult.rarity,
-            condition_grade: analysisResult.conditionGrade,
-            special_features: analysisResult.specialFeatures || [],
-            estimated_value_low: analysisResult.estimatedValueLow,
-            estimated_value_high: analysisResult.estimatedValueHigh,
-            ebay_recent_sales: analysisResult.ebayRecentSales,
-            tcgplayer_price: analysisResult.tcgplayerPrice,
-            psa_population_data: analysisResult.psaPopulation,
-            ai_analysis: analysisResult,
-          }).select("id").single();
-
-          if (saveError) throw saveError;
-
-          toast({ title: "Card saved to collection!" });
-          navigate(`/card/${insertedCard.id}`);
-          return;
-        } catch (saveErr: any) {
-          console.error("Client-side save also failed:", saveErr);
-          toast({ title: "Card analyzed but save failed", description: "You can still save manually.", variant: "destructive" });
-        }
-      }
+      throw new Error("Identification failed — no card id returned");
     } catch (error: any) {
-      toast({ title: "Analysis failed", description: error.message, variant: "destructive" });
+      toast({ title: "Scan failed", description: error.message, variant: "destructive" });
     } finally {
       setAnalyzing(false);
-      
     }
   };
 
