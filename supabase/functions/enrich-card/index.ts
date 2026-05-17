@@ -378,22 +378,26 @@ Respond with ONLY valid JSON (no markdown):
     : "Please analyze this trading card image.";
   const fullUserMessage = userMessage + marketData.summary;
 
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: { "x-api-key": ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: "claude-sonnet-4-5",
-      max_tokens: 8192,
-      system: systemPrompt,
-      messages: [{
-        role: "user",
-        content: [
-          { type: "text", text: fullUserMessage },
-          ...images.map((img) => ({ type: "image" as const, source: { type: "url" as const, url: img.url } })),
-        ],
-      }],
+  const response = await withTimeout(
+    fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "x-api-key": ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-5",
+        max_tokens: 8192,
+        system: systemPrompt,
+        messages: [{
+          role: "user",
+          content: [
+            { type: "text", text: fullUserMessage },
+            ...images.map((img) => ({ type: "image" as const, source: { type: "url" as const, url: img.url } })),
+          ],
+        }],
+      }),
     }),
-  });
+    90_000,
+    "claude-analysis",
+  );
 
   if (!response.ok) {
     throw new Error(`Claude API error: ${response.status}`);
