@@ -240,22 +240,41 @@ export default function CardDetail() {
   const [hasRealPriceData, setHasRealPriceData] = useState(false);
   const [rescanning, setRescanning] = useState(false);
 
+  const loadPriceHistory = useCallback(async (cardId: string, low: number | null, high: number | null) => {
+    const { data: priceData } = await supabase
+      .from("price_history")
+      .select("*")
+      .eq("card_id", cardId)
+      .order("recorded_at", { ascending: true });
+
+    if (priceData && priceData.length > 0) {
+      setHasRealPriceData(true);
+      const points: PriceHistoryPoint[] = priceData
+        .filter((p: any) => p.source === "blended" || p.source === "ebay_sold")
+        .map((p: any) => {
+          const d = new Date(p.recorded_at);
+          return {
+            month: d.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+            price: Number(p.median_price) || 0,
+            source: p.source,
+          };
+        });
+      if (points.length > 0) {
+        setPriceHistory(points);
+        return;
+      }
+    }
+    setPriceHistory(generatePriceHistory(low || 10, high || 50));
+  }, []);
+
   useEffect(() => {
     const fetchCard = async () => {
       if (!id) return;
-      
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        navigate("/auth");
-        return;
-      }
+      if (!user) { navigate("/auth"); return; }
 
       const { data, error } = await supabase
-        .from("cards")
-        .select("*")
-        .eq("id", id)
-        .eq("user_id", user.id)
-        .maybeSingle();
+        .from("cards").select("*").eq("id", id).eq("user_id", user.id).maybeSingle();
 
       if (error || !data) {
         toast.error("Card not found");
@@ -264,44 +283,52 @@ export default function CardDetail() {
       }
 
       setCard(data);
-      // Fetch real price history
-      const { data: priceData } = await supabase
-        .from("price_history")
-        .select("*")
-        .eq("card_id", data.id)
-        .order("recorded_at", { ascending: true });
-
-      if (priceData && priceData.length > 0) {
-        setHasRealPriceData(true);
-        // Group by recorded_at date and show blended or first available
-        const points: PriceHistoryPoint[] = priceData
-          .filter((p: any) => p.source === "blended" || p.source === "ebay_sold")
-          .map((p: any) => {
-            const d = new Date(p.recorded_at);
-            return {
-              month: d.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
-              price: Number(p.median_price) || 0,
-              source: p.source,
-            };
-          });
-        // If only one data point, also add source breakdown
-        if (points.length > 0) {
-          setPriceHistory(points);
-        } else {
-          setPriceHistory(generatePriceHistory(data.estimated_value_low || 10, data.estimated_value_high || 50));
-        }
-      } else {
-        setPriceHistory(generatePriceHistory(data.estimated_value_low || 10, data.estimated_value_high || 50));
-      }
-
+      await loadPriceHistory(data.id, data.estimated_value_low, data.estimated_value_high);
       const signed = await getSignedImageUrl(data.image_url);
       setCardImageUrl(signed);
-
       setLoading(false);
     };
 
     fetchCard();
-  }, [id, navigate]);
+  }, [id, navigate, loadPriceHistory]);
+
+  // Subscribe to realtime updates while analysis is in progress; fall back to polling.
+  useEffect(() => {
+    if (!id || !card) return;
+    const status = (card as any).analysis_status;
+    if (status !== "analyzing" && status !== "pending") return;
+
+    let cancelled = false;
+
+    const refetch = async () => {
+      if (cancelled) return;
+      const { data } = await supabase.from("cards").select("*").eq("id", id).maybeSingle();
+      if (!data || cancelled) return;
+      setCard(data);
+      if ((data as any).analysis_status === "complete") {
+        await loadPriceHistory(data.id, data.estimated_value_low, data.estimated_value_high);
+        toast.success("AI analysis complete!");
+      } else if ((data as any).analysis_status === "failed") {
+        toast.error("AI analysis failed — you can retry from the re-scan button.");
+      }
+    };
+
+    const channel = supabase
+      .channel(`card-${id}`)
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "cards", filter: `id=eq.${id}` }, () => {
+        refetch();
+      })
+      .subscribe();
+
+    const pollId = window.setInterval(refetch, 5000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(pollId);
+      supabase.removeChannel(channel);
+    };
+  }, [id, card, loadPriceHistory]);
+
 
   const saveNotes = async () => {
     if (!card) return;
@@ -502,6 +529,27 @@ export default function CardDetail() {
       </header>
 
       <main className="container mx-auto px-4 py-8">
+        {((card as any).analysis_status === "analyzing" || (card as any).analysis_status === "pending") && (
+          <div className="mb-6 rounded-xl border border-primary/30 bg-primary/5 p-4 flex items-center gap-3">
+            <RefreshCw className="w-5 h-5 text-primary animate-spin shrink-0" />
+            <div className="flex-1">
+              <p className="font-display font-semibold text-sm">AI analysis in progress…</p>
+              <p className="text-xs text-muted-foreground">Pulling live market prices and grading details. This page updates automatically — feel free to keep using the app.</p>
+            </div>
+          </div>
+        )}
+        {(card as any).analysis_status === "failed" && (
+          <div className="mb-6 rounded-xl border border-destructive/30 bg-destructive/5 p-4 flex items-center gap-3">
+            <XCircle className="w-5 h-5 text-destructive shrink-0" />
+            <div className="flex-1">
+              <p className="font-display font-semibold text-sm">AI analysis failed</p>
+              <p className="text-xs text-muted-foreground">{(card as any).analysis_error || "Something went wrong while pulling market data."}</p>
+            </div>
+            <Button size="sm" variant="outline" onClick={rescanPrices} disabled={rescanning}>
+              {rescanning ? "Retrying…" : "Retry"}
+            </Button>
+          </div>
+        )}
         <div className="grid lg:grid-cols-2 gap-8">
           {/* Left: Card Image + Grading Value Sections (on desktop) */}
           <div className="space-y-6">

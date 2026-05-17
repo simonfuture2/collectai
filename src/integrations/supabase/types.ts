@@ -86,6 +86,10 @@ export type Database = {
       cards: {
         Row: {
           ai_analysis: Json | null
+          analysis_completed_at: string | null
+          analysis_error: string | null
+          analysis_started_at: string | null
+          analysis_status: string
           authentiseal_serial: string | null
           card_name: string | null
           card_set: string | null
@@ -112,6 +116,10 @@ export type Database = {
         }
         Insert: {
           ai_analysis?: Json | null
+          analysis_completed_at?: string | null
+          analysis_error?: string | null
+          analysis_started_at?: string | null
+          analysis_status?: string
           authentiseal_serial?: string | null
           card_name?: string | null
           card_set?: string | null
@@ -138,6 +146,10 @@ export type Database = {
         }
         Update: {
           ai_analysis?: Json | null
+          analysis_completed_at?: string | null
+          analysis_error?: string | null
+          analysis_started_at?: string | null
+          analysis_status?: string
           authentiseal_serial?: string | null
           card_name?: string | null
           card_set?: string | null
