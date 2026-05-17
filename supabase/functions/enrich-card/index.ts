@@ -537,12 +537,18 @@ serve(async (req) => {
 
   let body: any;
   try { body = await req.json(); } catch {
-    return new Response(JSON.stringify({ error: "Invalid JSON" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ error: "Invalid JSON" }), {
+      status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 
-  const { cardId, images, identification, category, fastScan } = body || {};
-  if (!cardId || !Array.isArray(images) || images.length === 0 || !identification?.card_name) {
-    return new Response(JSON.stringify({ error: "cardId, images and identification required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+  const { cardId, images, category, fastScan } = body || {};
+  let identification: CardIdentification | undefined = body?.identification;
+
+  if (!cardId || !Array.isArray(images) || images.length === 0) {
+    return new Response(JSON.stringify({ error: "cardId and images required" }), {
+      status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 
   // Validate card ownership (must exist)
@@ -552,21 +558,58 @@ serve(async (req) => {
     .eq("id", cardId)
     .single();
   if (cardErr || !card) {
-    return new Response(JSON.stringify({ error: "Card not found" }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ error: "Card not found" }), {
+      status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
-
-  // Mark analyzing
-  await supabaseAdmin.from("cards").update({
-    analysis_status: "analyzing",
-    analysis_started_at: new Date().toISOString(),
-    analysis_error: null,
-  }).eq("id", cardId);
 
   const work = (async () => {
     try {
+      const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
+      if (!ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY not configured");
+
+      // Stage 1: identify (if not supplied)
+      let resolvedCategory = category;
+      if (!identification?.card_name) {
+        await supabaseAdmin.from("cards").update({
+          analysis_status: "identifying",
+          analysis_started_at: new Date().toISOString(),
+          analysis_error: null,
+        }).eq("id", cardId);
+
+        const idResult = await identifyCardFromImages(images, ANTHROPIC_API_KEY);
+        if (!idResult?.card_name) {
+          throw new Error("Could not identify the card. Please try a clearer image.");
+        }
+        identification = idResult;
+        if (idResult.category) resolvedCategory = idResult.category;
+
+        // Persist identification immediately so detail page can show name.
+        await supabaseAdmin.from("cards").update({
+          card_name: idResult.card_name,
+          card_set: idResult.card_set || null,
+          card_year: idResult.card_year || null,
+          rarity: idResult.rarity || null,
+          category: resolvedCategory || "Trading Card",
+          analysis_status: "pricing",
+        }).eq("id", cardId);
+      } else {
+        await supabaseAdmin.from("cards").update({
+          analysis_status: "pricing",
+          analysis_started_at: new Date().toISOString(),
+          analysis_error: null,
+        }).eq("id", cardId);
+      }
+
+      // Stage 2: pricing + full analysis
       await runEnrichment({
-        cardId, userId: card.user_id as string, images, identification,
-        category, fastScan: fastScan === true, supabaseAdmin,
+        cardId,
+        userId: card.user_id as string,
+        images,
+        identification: identification!,
+        category: resolvedCategory,
+        fastScan: fastScan === true,
+        supabaseAdmin,
       });
     } catch (err: any) {
       console.error("[enrich-card] failed:", err);
@@ -583,12 +626,12 @@ serve(async (req) => {
     // @ts-ignore
     EdgeRuntime.waitUntil(work);
   } else {
-    // Fallback: don't await, but don't lose it either
     work.catch(() => {});
   }
 
-  return new Response(JSON.stringify({ status: "analyzing", cardId }), {
+  return new Response(JSON.stringify({ status: "started", cardId }), {
     status: 202,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 });
+
