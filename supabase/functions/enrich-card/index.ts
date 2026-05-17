@@ -347,6 +347,8 @@ async function runEnrichment(params: {
   const marketData = await searchMarketPrices(identification, category, fastScan);
   console.log(`[enrich-card] market data hasData=${marketData.hasData}`);
 
+  await supabaseAdmin.from("cards").update({ analysis_status: "analyzing" }).eq("id", cardId);
+
   const today = new Date().toISOString().split("T")[0];
   const systemPrompt = `You are an expert trading card analyst, appraiser, and professional grader. Today's date is ${today}.
 
@@ -472,12 +474,15 @@ Respond with ONLY valid JSON (no markdown):
     }
   }
 
-  // Cross-verification (skipped on fast scan)
-  if (!fastScan && marketData.hasData && analysis.estimatedValueLow != null) {
+  // Cross-verification (skipped on fast scan, low value, or no market data)
+  if (!fastScan && marketData.hasData && analysis.estimatedValueLow != null && (Number(analysis.estimatedValueHigh) || 0) >= 50) {
+    await supabaseAdmin.from("cards").update({ analysis_status: "verifying" }).eq("id", cardId);
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     const [claudeVerification, geminiVerification] = await Promise.all([
-      verifyWithClaude(identification, analysis, marketData.summary, ANTHROPIC_API_KEY),
-      LOVABLE_API_KEY ? verifyWithGemini(identification, analysis, marketData.summary, LOVABLE_API_KEY) : Promise.resolve(null),
+      withTimeout(verifyWithClaude(identification, analysis, marketData.summary, ANTHROPIC_API_KEY), 20_000, "verify-claude").catch(() => null),
+      LOVABLE_API_KEY
+        ? withTimeout(verifyWithGemini(identification, analysis, marketData.summary, LOVABLE_API_KEY), 20_000, "verify-gemini").catch(() => null)
+        : Promise.resolve(null),
     ]);
     const origLow = analysis.estimatedValueLow, origHigh = analysis.estimatedValueHigh;
     if (claudeVerification && geminiVerification) {
