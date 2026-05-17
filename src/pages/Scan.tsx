@@ -38,6 +38,7 @@ const Scan = () => {
   const [saving, setSaving] = useState(false);
   const [uploadedFilePaths, setUploadedFilePaths] = useState<string[]>([]);
   const [showUpgrade, setShowUpgrade] = useState(false);
+  const [fastScan, setFastScan] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
   const { credits, isPro, canScan, loading: creditsLoading, refresh: refreshCredits } = useCredits();
