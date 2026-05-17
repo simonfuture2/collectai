@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -6,79 +7,90 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Landing from "./pages/Landing";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
-import Scan from "./pages/Scan";
-import Collection from "./pages/Collection";
-import PackRip from "./pages/PackRip";
-import CardDetail from "./pages/CardDetail";
-import Pricing from "./pages/Pricing";
-import Achievements from "./pages/Achievements";
-import CheckoutSuccess from "./pages/CheckoutSuccess";
-import CheckoutCancel from "./pages/CheckoutCancel";
-import Terms from "./pages/Terms";
-import Privacy from "./pages/Privacy";
-import Refund from "./pages/Refund";
-import FAQ from "./pages/FAQ";
-import About from "./pages/About";
-import HowItWorks from "./pages/HowItWorks";
-import Admin from "./pages/Admin";
-import SharedCard from "./pages/SharedCard";
-import PublicCollection from "./pages/PublicCollection";
-import PartnerSignup from "./pages/PartnerSignup";
-import FreeGuide from "./pages/FreeGuide";
-import Install from "./pages/Install";
-import DeleteAccount from "./pages/DeleteAccount";
-import ResetPassword from "./pages/ResetPassword";
-import NotFound from "./pages/NotFound";
-import Marketplace from "./pages/Marketplace";
-import MarketplaceListing from "./pages/MarketplaceListing";
-import CreateListing from "./pages/CreateListing";
 import { Web3Provider } from "./components/Web3Provider";
-import WalletSettings from "./pages/WalletSettings";
+
+const Scan = lazy(() => import("./pages/Scan"));
+const Collection = lazy(() => import("./pages/Collection"));
+const PackRip = lazy(() => import("./pages/PackRip"));
+const CardDetail = lazy(() => import("./pages/CardDetail"));
+const Pricing = lazy(() => import("./pages/Pricing"));
+const Achievements = lazy(() => import("./pages/Achievements"));
+const CheckoutSuccess = lazy(() => import("./pages/CheckoutSuccess"));
+const CheckoutCancel = lazy(() => import("./pages/CheckoutCancel"));
+const Terms = lazy(() => import("./pages/Terms"));
+const Privacy = lazy(() => import("./pages/Privacy"));
+const Refund = lazy(() => import("./pages/Refund"));
+const FAQ = lazy(() => import("./pages/FAQ"));
+const About = lazy(() => import("./pages/About"));
+const HowItWorks = lazy(() => import("./pages/HowItWorks"));
+const Admin = lazy(() => import("./pages/Admin"));
+const SharedCard = lazy(() => import("./pages/SharedCard"));
+const PublicCollection = lazy(() => import("./pages/PublicCollection"));
+const PartnerSignup = lazy(() => import("./pages/PartnerSignup"));
+const FreeGuide = lazy(() => import("./pages/FreeGuide"));
+const Install = lazy(() => import("./pages/Install"));
+const DeleteAccount = lazy(() => import("./pages/DeleteAccount"));
+const ResetPassword = lazy(() => import("./pages/ResetPassword"));
+const NotFound = lazy(() => import("./pages/NotFound"));
+const Marketplace = lazy(() => import("./pages/Marketplace"));
+const MarketplaceListing = lazy(() => import("./pages/MarketplaceListing"));
+const CreateListing = lazy(() => import("./pages/CreateListing"));
+const WalletSettings = lazy(() => import("./pages/WalletSettings"));
 
 const queryClient = new QueryClient();
 
+const RouteFallback = () => (
+  <div className="min-h-screen bg-background" aria-hidden="true" />
+);
+
+// Wrap only wallet-dependent routes with the Web3 stack so it isn't loaded
+// on the dashboard / landing / auth pages.
+const Wallet = ({ children }: { children: React.ReactNode }) => (
+  <Web3Provider>{children}</Web3Provider>
+);
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <Web3Provider>
     <TooltipProvider>
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Landing />} />
-          <Route path="/auth" element={<Auth />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/scan" element={<Scan />} />
-          <Route path="/collection" element={<Collection />} />
-          <Route path="/pack-rip" element={<PackRip />} />
-          <Route path="/card/:id" element={<CardDetail />} />
-          <Route path="/achievements" element={<Achievements />} />
-          <Route path="/marketplace" element={<Marketplace />} />
-          <Route path="/marketplace/:id" element={<MarketplaceListing />} />
-          <Route path="/marketplace/list/:cardId" element={<CreateListing />} />
-          <Route path="/wallets" element={<WalletSettings />} />
-          <Route path="/pricing" element={<Pricing />} />
-          <Route path="/checkout/success" element={<CheckoutSuccess />} />
-          <Route path="/checkout/cancel" element={<CheckoutCancel />} />
-          <Route path="/terms" element={<Terms />} />
-          <Route path="/privacy" element={<Privacy />} />
-          <Route path="/refund" element={<Refund />} />
-          <Route path="/faq" element={<FAQ />} />
-          <Route path="/about" element={<About />} />
-          <Route path="/how-it-works" element={<HowItWorks />} />
-          <Route path="/admin" element={<Admin />} />
-          <Route path="/partners" element={<PartnerSignup />} />
-          <Route path="/free-guide" element={<FreeGuide />} />
-          <Route path="/card/share/:id" element={<SharedCard />} />
-          <Route path="/u/:slug" element={<PublicCollection />} />
-          <Route path="/install" element={<Install />} />
-          <Route path="/delete-account" element={<DeleteAccount />} />
-          <Route path="/reset-password" element={<ResetPassword />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <Suspense fallback={<RouteFallback />}>
+          <Routes>
+            <Route path="/" element={<Landing />} />
+            <Route path="/auth" element={<Auth />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/scan" element={<Scan />} />
+            <Route path="/collection" element={<Collection />} />
+            <Route path="/pack-rip" element={<PackRip />} />
+            <Route path="/card/:id" element={<CardDetail />} />
+            <Route path="/achievements" element={<Achievements />} />
+            <Route path="/marketplace" element={<Wallet><Marketplace /></Wallet>} />
+            <Route path="/marketplace/:id" element={<Wallet><MarketplaceListing /></Wallet>} />
+            <Route path="/marketplace/list/:cardId" element={<Wallet><CreateListing /></Wallet>} />
+            <Route path="/wallets" element={<Wallet><WalletSettings /></Wallet>} />
+            <Route path="/pricing" element={<Pricing />} />
+            <Route path="/checkout/success" element={<CheckoutSuccess />} />
+            <Route path="/checkout/cancel" element={<CheckoutCancel />} />
+            <Route path="/terms" element={<Terms />} />
+            <Route path="/privacy" element={<Privacy />} />
+            <Route path="/refund" element={<Refund />} />
+            <Route path="/faq" element={<FAQ />} />
+            <Route path="/about" element={<About />} />
+            <Route path="/how-it-works" element={<HowItWorks />} />
+            <Route path="/admin" element={<Admin />} />
+            <Route path="/partners" element={<PartnerSignup />} />
+            <Route path="/free-guide" element={<FreeGuide />} />
+            <Route path="/card/share/:id" element={<SharedCard />} />
+            <Route path="/u/:slug" element={<PublicCollection />} />
+            <Route path="/install" element={<Install />} />
+            <Route path="/delete-account" element={<DeleteAccount />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </Suspense>
       </BrowserRouter>
     </TooltipProvider>
-    </Web3Provider>
   </QueryClientProvider>
 );
 
