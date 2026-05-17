@@ -529,6 +529,27 @@ export default function CardDetail() {
       </header>
 
       <main className="container mx-auto px-4 py-8">
+        {((card as any).analysis_status === "analyzing" || (card as any).analysis_status === "pending") && (
+          <div className="mb-6 rounded-xl border border-primary/30 bg-primary/5 p-4 flex items-center gap-3">
+            <RefreshCw className="w-5 h-5 text-primary animate-spin shrink-0" />
+            <div className="flex-1">
+              <p className="font-display font-semibold text-sm">AI analysis in progress…</p>
+              <p className="text-xs text-muted-foreground">Pulling live market prices and grading details. This page updates automatically — feel free to keep using the app.</p>
+            </div>
+          </div>
+        )}
+        {(card as any).analysis_status === "failed" && (
+          <div className="mb-6 rounded-xl border border-destructive/30 bg-destructive/5 p-4 flex items-center gap-3">
+            <XCircle className="w-5 h-5 text-destructive shrink-0" />
+            <div className="flex-1">
+              <p className="font-display font-semibold text-sm">AI analysis failed</p>
+              <p className="text-xs text-muted-foreground">{(card as any).analysis_error || "Something went wrong while pulling market data."}</p>
+            </div>
+            <Button size="sm" variant="outline" onClick={rescanPrices} disabled={rescanning}>
+              {rescanning ? "Retrying…" : "Retry"}
+            </Button>
+          </div>
+        )}
         <div className="grid lg:grid-cols-2 gap-8">
           {/* Left: Card Image + Grading Value Sections (on desktop) */}
           <div className="space-y-6">
