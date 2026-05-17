@@ -834,8 +834,8 @@ Respond with ONLY valid JSON (no markdown code fences) with this structure:
       }
     }
 
-    // ===== STEP 4: Dual price verification (Claude + Gemini in parallel) =====
-    if (marketData.hasData && analysis.estimatedValueLow != null && cardId) {
+    // ===== STEP 4: Dual price verification (Claude + Gemini in parallel) — skipped in Fast Scan =====
+    if (!body.fastScan && marketData.hasData && analysis.estimatedValueLow != null && cardId) {
       const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 
       const [claudeVerification, geminiVerification] = await Promise.all([
