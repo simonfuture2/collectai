@@ -175,14 +175,14 @@ const Scan = () => {
 
       if (data?.cardId) {
         toast({
-          title: data.duplicate ? "Card already in collection" : `Identified: ${data.cardName || "Card"}`,
-          description: data.duplicate ? undefined : "Opening card — full AI analysis is running in the background.",
+          title: data.duplicate ? "Card already in collection" : "Card uploaded!",
+          description: data.duplicate ? undefined : "Opening card — AI is identifying and pricing in the background.",
         });
         navigate(`/card/${data.cardId}`);
         return;
       }
 
-      throw new Error("Identification failed — no card id returned");
+      throw new Error("Scan failed — no card id returned");
     } catch (error: any) {
       toast({ title: "Scan failed", description: error.message, variant: "destructive" });
     } finally {

@@ -1,104 +1,75 @@
+## Diagnosis
+
+The current split did not make the scanner feel faster because the Scan page still blocks on a Claude vision identification call before saving/opening the card. That call can still be slow, and the background enrichment path can also be unreliable because it depends on a long function continuing after the response.
+
+Also, the Scan UI still shows the old timeline language: Identify → Search → Verify, which makes it look like the user is waiting on the full old pipeline even after the attempted split.
+
 ## Goal
 
-Split the scan flow into two phases so the user never sits on the Scan page waiting on the long pricing/verify pipeline. They snap a photo, the card is identified and saved to their collection in ~5–15s, then they're taken to the card detail page where the full AI analysis (market search, valuation, verification) streams in afterward.
-
-## Current flow (the problem)
+Make scan feel successful within seconds:
 
 ```text
-Upload → analyze-card edge function does ALL of this in one request:
-  1. Claude identify (~5–15s)
-  2. Firecrawl market search (15–80s)
-  3. Claude price analysis (~10–20s)
-  4. Cross-verify Claude + Gemini (~10–25s, fast scan skips)
-  5. Save card row
-  6. Save price_history, deduct credit
-  → returns cardId
-User waits 60–250+s on the Scan page with a spinner.
+Upload photo → create card row immediately → open card detail
+             → identify + price run in background
+             → card detail updates as each stage finishes
 ```
 
-## New flow (two phases)
+## Plan
 
-```text
-PHASE 1 — Quick identify (Scan page, blocking ~5–15s)
-  Upload images
-   └─ identify-card edge function
-        ├─ Claude vision identify only
-        ├─ Insert cards row with analysis_status = 'analyzing'
-        ├─ Deduct credit
-        ├─ Fire-and-forget invoke of enrich-card (no await)
-        └─ Return { cardId } immediately
-  Client navigates to /card/:cardId
+### 1. Make the Scan page stop waiting for AI
+- After images upload, call a new lightweight start function that only:
+  - authenticates the user
+  - validates credits
+  - saves the card image path
+  - creates the card row immediately with `analysis_status = 'pending'`
+  - deducts credit
+  - starts the AI job in the background
+  - returns `cardId` right away
+- Navigate to `/card/:cardId` as soon as the row is created.
+- Replace the current Scan timeline with a short “Uploading / Saving / Opening” flow, not “Search / Verify”.
 
-PHASE 2 — Enrichment (runs in background, CardDetail page)
-  enrich-card edge function
-    ├─ Firecrawl market search (respects fastScan flag)
-    ├─ Claude price analysis
-    ├─ Cross-verify (skipped if fastScan)
-    ├─ UPDATE cards row with full analysis + analysis_status = 'complete'
-    └─ INSERT price_history rows
-  CardDetail page subscribes via Supabase realtime (or polls every 3s)
-    ├─ Shows card photo + identification immediately
-    ├─ Shows skeleton/"Analyzing market…" placeholders for pricing
-    └─ Animates values in when status flips to 'complete'
-```
+### 2. Move identification into the background job
+- Refactor the background function so it can handle cards that do not have identification yet.
+- The job will run in stages:
+  1. `identifying` — read card name, set, number, year
+  2. `pricing` — market lookup and value estimate
+  3. `complete` — save full analysis
+  4. `failed` — store an actionable error
+- Update the card row after identification completes so the detail page can show the card name before pricing finishes.
 
-## Changes
+### 3. Make background execution reliable
+- Avoid depending only on nested fire-and-forget behavior.
+- Have the start function invoke the background processor and immediately return after dispatching.
+- Add explicit status/error writes so users never get stuck on an endless spinner.
+- Add practical timeouts around market search / AI calls so one slow provider cannot stall the job forever.
 
-### Database (one migration)
-Add to `public.cards`:
-- `analysis_status TEXT NOT NULL DEFAULT 'complete'` — values: `pending`, `analyzing`, `complete`, `failed`
-- `analysis_error TEXT NULL`
-- `analysis_started_at TIMESTAMPTZ NULL`
-- `analysis_completed_at TIMESTAMPTZ NULL`
+### 4. Update Card Detail for progressive results
+- Show the uploaded image immediately, even before identification finishes.
+- Display stage-specific banners/placeholders:
+  - “Identifying card…”
+  - “Pricing from market data…”
+  - “Analysis complete”
+  - “Analysis failed — retry”
+- Keep realtime subscription plus polling, but ensure it reloads the image/title/pricing when each stage updates.
 
-Enable realtime on `public.cards` (ALTER PUBLICATION supabase_realtime ADD TABLE).
+### 5. Keep pricing accurate without blocking UX
+- Fast Scan should use a limited pricing pass first, then optionally enrich deeper afterward.
+- Front-only scans should still identify and price; grading confidence should be clearly lower until a back image is added.
+- Cross-verification should not block the first useful valuation.
 
-### Edge functions
-
-**New: `supabase/functions/identify-card/index.ts`**
-- Auth + credit check (same as analyze-card today).
-- Call Claude vision identify only.
-- Insert `cards` row with the identification fields + `analysis_status='analyzing'`.
-- Deduct credit, write `credit_transactions`.
-- Trigger background enrichment: call `supabase.functions.invoke('enrich-card', { body: { cardId, images, fastScan } })` **without awaiting** (or wrap in `EdgeRuntime.waitUntil`). Don't block on the response.
-- Return `{ cardId }` in one round trip.
-
-**New: `supabase/functions/enrich-card/index.ts`**
-- Service-role client (no user JWT needed — invoked server-to-server, but still validate the cardId belongs to a real user_id).
-- Run the existing market search + price analysis + (optional) cross-verify pipeline lifted from `analyze-card/index.ts`. Respects `fastScan`.
-- On success: `UPDATE cards SET ai_analysis=…, estimated_value_low=…, … , analysis_status='complete', analysis_completed_at=now() WHERE id=cardId`.
-- Insert `price_history` rows.
-- On failure: `UPDATE cards SET analysis_status='failed', analysis_error=<message>`.
-
-**Keep `analyze-card` temporarily** as a thin wrapper that calls identify + waits for enrich (for the "Re-Scan & Update Prices" button on CardDetail), OR refactor that button to call enrich-card directly. Recommended: refactor CardDetail's `rescanPrices` to call `enrich-card` with the existing cardId, then delete the legacy analyze-card path in a follow-up.
-
-### Frontend
-
-**`src/pages/Scan.tsx`**
-- Replace the single `supabase.functions.invoke('analyze-card', …)` with `invoke('identify-card', …)`.
-- Remove the client-side fallback save block (no longer needed — identify-card always saves).
-- As soon as `{ cardId }` returns, `navigate('/card/' + cardId)`.
-- Update `ScanTimeline` to reflect the shorter pipeline (just "Uploading → Identifying → Saving").
-- Keep the Fast Scan toggle; pass `fastScan` so enrich-card knows.
-
-**`src/pages/CardDetail.tsx`**
-- On mount, read the card. If `analysis_status === 'analyzing'`:
-  - Show skeleton shimmer for valuation / market sections.
-  - Show a top banner: "AI analysis in progress — refreshing automatically".
-  - Subscribe to `postgres_changes` for `cards` filtered by `id=eq.<cardId>`. On UPDATE with status `complete`, replace state and remove skeleton. On `failed`, surface an error with a "Retry analysis" button that calls `enrich-card`.
-  - Fallback: also poll every 4s in case realtime drops.
-- Existing identification fields (name, set, year, image, category) render immediately.
+### 6. Clean up old/confusing paths
+- Remove or bypass old blocking scanner logic from the main Scan route.
+- Keep legacy functions only where still needed, but do not let the main scanner call the old all-in-one pipeline.
+- Update any scan-related UI copy that still implies a 25–40 second wait on the Scan page.
 
 ## Technical details
 
-- **Don't block identify-card on enrich-card.** Use `EdgeRuntime.waitUntil(supabase.functions.invoke('enrich-card', …))` or a fetch to the function URL without awaiting. This is the key to the fast return.
-- **Credit handling:** charge the credit in identify-card (the user got the card identified and saved). If enrichment fails, the "Retry analysis" button on CardDetail re-runs enrich-card without a new charge.
-- **RLS:** enrich-card uses service role to update; no policy change needed beyond existing card ownership checks (we validate cardId→user_id inside the function).
-- **Realtime:** the `cards` table needs `REPLICA IDENTITY FULL` and to be added to the `supabase_realtime` publication so UPDATE payloads carry the full row.
-- **Backward compat:** existing cards default to `analysis_status='complete'` so the new skeleton logic never triggers for them.
+- Add/expand `analysis_status` values: `pending`, `identifying`, `pricing`, `complete`, `failed`.
+- Reuse the existing `cards` table and storage bucket.
+- Do not manually edit generated backend type files.
+- Use Lovable Cloud functions for the scan orchestration.
+- Add logging around each stage so future slowdowns can be diagnosed by function/stage instead of guessing.
 
-## Out of scope
+## Expected result
 
-- Visual redesign of CardDetail skeletons (use existing skeleton components).
-- Push notifications when analysis completes (could be a follow-up if the user closes the tab).
-- Reworking quick-scan / demo-scan flows.
+The user should leave the Scan page almost immediately after upload. The detail page becomes the “analysis in progress” screen, so the app feels responsive even when AI pricing takes longer.

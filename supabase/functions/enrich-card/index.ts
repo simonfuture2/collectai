@@ -34,6 +34,75 @@ function safeFixed(val: unknown, digits = 2): string {
   return isNaN(num) ? "0" : num.toFixed(digits);
 }
 
+// Hard timeout wrapper to prevent any single API call from hanging the job.
+async function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
+  return await Promise.race([
+    p,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms)
+    ),
+  ]);
+}
+
+async function identifyCardFromImages(
+  images: { label: string; url: string }[],
+  ANTHROPIC_API_KEY: string,
+): Promise<CardIdentification & { category?: string } | null> {
+  try {
+    const systemPrompt = `You are a trading card identification expert. Look at this card image very carefully. Read ALL text on the card.
+Respond with ONLY valid JSON:
+{
+  "card_name": "Full character/player name on the card",
+  "card_number": "Card number as printed (e.g. '105/086'). Empty string if not visible.",
+  "card_set": "Full set/series name",
+  "card_year": "Year of release",
+  "variant": "Variant type",
+  "rarity": "Rarity level",
+  "category": "Trading Card | Sports Card | Coin | Comic"
+}`;
+    const response = await withTimeout(
+      fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "x-api-key": ANTHROPIC_API_KEY,
+          "anthropic-version": "2023-06-01",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-5",
+          max_tokens: 1024,
+          system: systemPrompt,
+          messages: [{
+            role: "user",
+            content: [
+              { type: "text", text: "Identify this collectible with maximum specificity." },
+              ...images.slice(0, 2).map((img) => ({
+                type: "image" as const,
+                source: { type: "url" as const, url: img.url },
+              })),
+            ],
+          }],
+        }),
+      }),
+      45_000,
+      "identify",
+    );
+    if (!response.ok) {
+      console.error("[enrich-card] identify failed:", response.status);
+      return null;
+    }
+    const data = await response.json();
+    const text = data.content?.[0]?.text;
+    if (!text) return null;
+    const jsonMatch = text.match(/```json\n?([\s\S]*?)\n?```/) || text.match(/\{[\s\S]*\}/);
+    const jsonStr = jsonMatch ? (jsonMatch[1] || jsonMatch[0]) : text;
+    return JSON.parse(jsonStr);
+  } catch (err) {
+    console.error("[enrich-card] identify error:", err);
+    return null;
+  }
+}
+
 interface CardIdentification {
   card_name: string;
   card_number: string;
@@ -309,22 +378,26 @@ Respond with ONLY valid JSON (no markdown):
     : "Please analyze this trading card image.";
   const fullUserMessage = userMessage + marketData.summary;
 
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: { "x-api-key": ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: "claude-sonnet-4-5",
-      max_tokens: 8192,
-      system: systemPrompt,
-      messages: [{
-        role: "user",
-        content: [
-          { type: "text", text: fullUserMessage },
-          ...images.map((img) => ({ type: "image" as const, source: { type: "url" as const, url: img.url } })),
-        ],
-      }],
+  const response = await withTimeout(
+    fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "x-api-key": ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-5",
+        max_tokens: 8192,
+        system: systemPrompt,
+        messages: [{
+          role: "user",
+          content: [
+            { type: "text", text: fullUserMessage },
+            ...images.map((img) => ({ type: "image" as const, source: { type: "url" as const, url: img.url } })),
+          ],
+        }],
+      }),
     }),
-  });
+    90_000,
+    "claude-analysis",
+  );
 
   if (!response.ok) {
     throw new Error(`Claude API error: ${response.status}`);
@@ -468,12 +541,18 @@ serve(async (req) => {
 
   let body: any;
   try { body = await req.json(); } catch {
-    return new Response(JSON.stringify({ error: "Invalid JSON" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ error: "Invalid JSON" }), {
+      status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 
-  const { cardId, images, identification, category, fastScan } = body || {};
-  if (!cardId || !Array.isArray(images) || images.length === 0 || !identification?.card_name) {
-    return new Response(JSON.stringify({ error: "cardId, images and identification required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+  const { cardId, images, category, fastScan } = body || {};
+  let identification: CardIdentification | undefined = body?.identification;
+
+  if (!cardId || !Array.isArray(images) || images.length === 0) {
+    return new Response(JSON.stringify({ error: "cardId and images required" }), {
+      status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 
   // Validate card ownership (must exist)
@@ -483,21 +562,58 @@ serve(async (req) => {
     .eq("id", cardId)
     .single();
   if (cardErr || !card) {
-    return new Response(JSON.stringify({ error: "Card not found" }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ error: "Card not found" }), {
+      status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
-
-  // Mark analyzing
-  await supabaseAdmin.from("cards").update({
-    analysis_status: "analyzing",
-    analysis_started_at: new Date().toISOString(),
-    analysis_error: null,
-  }).eq("id", cardId);
 
   const work = (async () => {
     try {
+      const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
+      if (!ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY not configured");
+
+      // Stage 1: identify (if not supplied)
+      let resolvedCategory = category;
+      if (!identification?.card_name) {
+        await supabaseAdmin.from("cards").update({
+          analysis_status: "identifying",
+          analysis_started_at: new Date().toISOString(),
+          analysis_error: null,
+        }).eq("id", cardId);
+
+        const idResult = await identifyCardFromImages(images, ANTHROPIC_API_KEY);
+        if (!idResult?.card_name) {
+          throw new Error("Could not identify the card. Please try a clearer image.");
+        }
+        identification = idResult;
+        if (idResult.category) resolvedCategory = idResult.category;
+
+        // Persist identification immediately so detail page can show name.
+        await supabaseAdmin.from("cards").update({
+          card_name: idResult.card_name,
+          card_set: idResult.card_set || null,
+          card_year: idResult.card_year || null,
+          rarity: idResult.rarity || null,
+          category: resolvedCategory || "Trading Card",
+          analysis_status: "pricing",
+        }).eq("id", cardId);
+      } else {
+        await supabaseAdmin.from("cards").update({
+          analysis_status: "pricing",
+          analysis_started_at: new Date().toISOString(),
+          analysis_error: null,
+        }).eq("id", cardId);
+      }
+
+      // Stage 2: pricing + full analysis
       await runEnrichment({
-        cardId, userId: card.user_id as string, images, identification,
-        category, fastScan: fastScan === true, supabaseAdmin,
+        cardId,
+        userId: card.user_id as string,
+        images,
+        identification: identification!,
+        category: resolvedCategory,
+        fastScan: fastScan === true,
+        supabaseAdmin,
       });
     } catch (err: any) {
       console.error("[enrich-card] failed:", err);
@@ -514,12 +630,12 @@ serve(async (req) => {
     // @ts-ignore
     EdgeRuntime.waitUntil(work);
   } else {
-    // Fallback: don't await, but don't lose it either
     work.catch(() => {});
   }
 
-  return new Response(JSON.stringify({ status: "analyzing", cardId }), {
+  return new Response(JSON.stringify({ status: "started", cardId }), {
     status: 202,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 });
+

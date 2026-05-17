@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Check, Loader2, Search, TrendingUp, ShieldCheck, type LucideIcon } from "lucide-react";
+import { Check, Loader2, Upload, Save, ArrowRight, type LucideIcon } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 
 interface ScanTimelineProps {
@@ -19,9 +19,9 @@ interface StepDef {
 }
 
 const STEPS: StepDef[] = [
-  { id: "identify", label: "Identify", desc: "Reading card name, set & number", icon: Search, expectedMs: 10000 },
-  { id: "search", label: "Search", desc: "Pulling live market comps", icon: TrendingUp, expectedMs: 18000 },
-  { id: "verify", label: "Verify", desc: "Cross-checking value & grading", icon: ShieldCheck, expectedMs: 14000 },
+  { id: "upload", label: "Uploading", desc: "Sending your card image", icon: Upload, expectedMs: 2500 },
+  { id: "save", label: "Saving", desc: "Adding to your collection", icon: Save, expectedMs: 1500 },
+  { id: "open", label: "Opening", desc: "AI analysis continues in background", icon: ArrowRight, expectedMs: 1000 },
 ];
 
 const formatDuration = (ms: number) => {
@@ -141,9 +141,9 @@ const ScanTimeline = ({ running, done }: ScanTimelineProps) => {
     <div className="bg-card border border-border rounded-2xl p-6 space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="font-display font-bold text-lg">Analyzing your card</h3>
+          <h3 className="font-display font-bold text-lg">Uploading your card</h3>
           <p className="text-xs text-muted-foreground mt-0.5">
-            {done ? "Complete" : "This usually takes 25–40 seconds"}
+            {done ? "Opening card details…" : "This takes just a few seconds"}
           </p>
         </div>
         <div className="text-right">

@@ -296,7 +296,7 @@ export default function CardDetail() {
   useEffect(() => {
     if (!id || !card) return;
     const status = (card as any).analysis_status;
-    if (status !== "analyzing" && status !== "pending") return;
+    if (status !== "analyzing" && status !== "pending" && status !== "identifying" && status !== "pricing") return;
 
     let cancelled = false;
 
@@ -529,15 +529,26 @@ export default function CardDetail() {
       </header>
 
       <main className="container mx-auto px-4 py-8">
-        {((card as any).analysis_status === "analyzing" || (card as any).analysis_status === "pending") && (
-          <div className="mb-6 rounded-xl border border-primary/30 bg-primary/5 p-4 flex items-center gap-3">
-            <RefreshCw className="w-5 h-5 text-primary animate-spin shrink-0" />
-            <div className="flex-1">
-              <p className="font-display font-semibold text-sm">AI analysis in progress…</p>
-              <p className="text-xs text-muted-foreground">Pulling live market prices and grading details. This page updates automatically — feel free to keep using the app.</p>
+        {(() => {
+          const status = (card as any).analysis_status;
+          if (!["analyzing", "pending", "identifying", "pricing"].includes(status)) return null;
+          const stageCopy: Record<string, { title: string; desc: string }> = {
+            pending: { title: "Queued for AI analysis…", desc: "Starting up shortly. This page updates automatically." },
+            identifying: { title: "Identifying your card…", desc: "Reading the card name, set, number and year." },
+            pricing: { title: "Pulling live market prices…", desc: "Checking eBay sold listings and TCGPlayer for current value." },
+            analyzing: { title: "AI analysis in progress…", desc: "Pulling live market prices and grading details." },
+          };
+          const c = stageCopy[status] || stageCopy.analyzing;
+          return (
+            <div className="mb-6 rounded-xl border border-primary/30 bg-primary/5 p-4 flex items-center gap-3">
+              <RefreshCw className="w-5 h-5 text-primary animate-spin shrink-0" />
+              <div className="flex-1">
+                <p className="font-display font-semibold text-sm">{c.title}</p>
+                <p className="text-xs text-muted-foreground">{c.desc} Feel free to keep using the app — it'll be ready when you come back.</p>
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
         {(card as any).analysis_status === "failed" && (
           <div className="mb-6 rounded-xl border border-destructive/30 bg-destructive/5 p-4 flex items-center gap-3">
             <XCircle className="w-5 h-5 text-destructive shrink-0" />
