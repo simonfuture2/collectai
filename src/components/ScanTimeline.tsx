@@ -21,7 +21,7 @@ interface StepDef {
 const STEPS: StepDef[] = [
   { id: "upload", label: "Uploading", desc: "Sending your card image", icon: Upload, expectedMs: 2500 },
   { id: "save", label: "Saving", desc: "Adding to your collection", icon: Save, expectedMs: 1500 },
-  { id: "open", label: "Opening", desc: "AI analysis continues in background", icon: ArrowRight, expectedMs: 1000 },
+  { id: "open", label: "Opening card", desc: "AI analysis continuing — see live progress on next page", icon: ArrowRight, expectedMs: 1000 },
 ];
 
 const formatDuration = (ms: number) => {

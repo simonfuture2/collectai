@@ -27,6 +27,9 @@ import {
   Calculator,
   RefreshCw,
   Share2,
+  Check,
+  Loader2,
+  Circle,
 } from "lucide-react";
 import SEO from "@/components/SEO";
 import { toast } from "sonner";
