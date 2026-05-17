@@ -176,7 +176,9 @@ const Dashboard = () => {
             {/* Portfolio Analytics Section */}
             {showAnalytics && cards.length > 0 && (
               <div className="mb-10">
-                <PortfolioAnalytics cards={cards} />
+                <Suspense fallback={<Skeleton className="h-64 w-full" />}>
+                  <PortfolioAnalytics cards={cards} />
+                </Suspense>
               </div>
             )}
 
