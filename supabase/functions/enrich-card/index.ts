@@ -69,7 +69,7 @@ Respond with ONLY valid JSON:
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "claude-sonnet-4-5",
+          model: "claude-haiku-4-5",
           max_tokens: 1024,
           system: systemPrompt,
           messages: [{
@@ -84,7 +84,7 @@ Respond with ONLY valid JSON:
           }],
         }),
       }),
-      45_000,
+      20_000,
       "identify",
     );
     if (!response.ok) {
@@ -144,11 +144,15 @@ async function searchMarketPrices(cardId: CardIdentification, category: string |
 
   async function doSearch(query: string, limit: number, urlFilter?: string, tbs: string = "qdr:m") {
     try {
-      const response = await fetch("https://api.firecrawl.dev/v1/search", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${FIRECRAWL_API_KEY}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ query, limit, tbs, scrapeOptions: { formats: ["markdown"] } }),
-      });
+      const response = await withTimeout(
+        fetch("https://api.firecrawl.dev/v1/search", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${FIRECRAWL_API_KEY}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ query, limit, tbs }),
+        }),
+        15_000,
+        "firecrawl-search",
+      );
       if (!response.ok) return [];
       const data = await response.json();
       const results = data.data || [];
@@ -161,31 +165,38 @@ async function searchMarketPrices(cardId: CardIdentification, category: string |
     return doSearch(query, limit, "ebay.com", "qdr:m");
   }
 
+  async function scrapeListing(url: string): Promise<string> {
+    try {
+      const response = await withTimeout(
+        fetch("https://api.firecrawl.dev/v1/scrape", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${FIRECRAWL_API_KEY}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ url, formats: ["markdown"] }),
+        }),
+        15_000,
+        "firecrawl-scrape",
+      );
+      if (!response.ok) return "";
+      const data = await response.json();
+      return (data.data?.markdown || "").substring(0, 2000);
+    } catch { return ""; }
+  }
+
   try {
     let [soldResults, activeResults, tcgResults] = await Promise.all([
-      searchSold(`"${specific}" sold site:ebay.com`, 10),
-      doSearch(`"${specific}" site:ebay.com`, 8, "ebay.com"),
-      isSportsCard ? Promise.resolve([]) : doSearch(`"${specific}" price site:tcgplayer.com`, 6, "tcgplayer.com"),
+      searchSold(`"${specific}" sold site:ebay.com`, 6),
+      doSearch(`"${specific}" site:ebay.com`, 4, "ebay.com"),
+      isSportsCard ? Promise.resolve([]) : doSearch(`"${specific}" price site:tcgplayer.com`, 3, "tcgplayer.com"),
     ]);
     const totalSpecific = soldResults.length + activeResults.length + tcgResults.length;
-    if (!fastScan && totalSpecific < 3 && broad !== specific) {
+    if (!fastScan && totalSpecific < 3 && specific !== broad) {
       const [soldBroad, activeBroad, tcgBroad] = await Promise.all([
-        searchSold(`${broad} sold site:ebay.com`, 10),
-        doSearch(`${broad} site:ebay.com`, 8, "ebay.com"),
-        isSportsCard ? Promise.resolve([]) : doSearch(`${broad} price site:tcgplayer.com`, 6, "tcgplayer.com"),
+        searchSold(`${broad} sold site:ebay.com`, 6),
+        doSearch(`${broad} site:ebay.com`, 4, "ebay.com"),
+        isSportsCard ? Promise.resolve([]) : doSearch(`${broad} price site:tcgplayer.com`, 3, "tcgplayer.com"),
       ]);
       if (soldBroad.length + activeBroad.length + tcgBroad.length > totalSpecific) {
         soldResults = soldBroad; activeResults = activeBroad; tcgResults = tcgBroad;
-      }
-    }
-    const totalAfterBroad = soldResults.length + activeResults.length + tcgResults.length;
-    if (!fastScan && totalAfterBroad < 3 && fallback !== broad) {
-      const [soldFallback, activeFallback] = await Promise.all([
-        searchSold(`${fallback} sold site:ebay.com`, 10),
-        doSearch(`${fallback} site:ebay.com`, 8, "ebay.com"),
-      ]);
-      if (soldFallback.length + activeFallback.length > totalAfterBroad) {
-        soldResults = soldFallback; activeResults = activeFallback;
       }
     }
 
@@ -215,6 +226,23 @@ async function searchMarketPrices(cardId: CardIdentification, category: string |
       return `- ${r.title || "Listing"} | Prices: ${prices.length > 0 ? prices.map((p) => `$${p.toFixed(2)}`).join(", ") : "none detected"}`;
     });
     tcgPrices = filterOutliers(tcgPrices);
+
+    // Safety net: if titles/descriptions yielded too few prices, do a small scrape pass.
+    const totalPrices = soldPrices.length + activePrices.length + tcgPrices.length;
+    if (totalPrices < 3) {
+      const topUrls: string[] = [
+        ...soldResults.slice(0, 2).map((r: any) => r.url).filter(Boolean),
+        ...activeResults.slice(0, 1).map((r: any) => r.url).filter(Boolean),
+      ].slice(0, 3);
+      if (topUrls.length > 0) {
+        const scraped = await Promise.all(topUrls.map((u) => scrapeListing(u)));
+        for (const md of scraped) {
+          const extra = extractPrices(md);
+          soldPrices.push(...extra);
+        }
+        soldPrices = filterOutliers(soldPrices);
+      }
+    }
 
     if (soldPrices.length === 0 && activePrices.length === 0 && tcgPrices.length === 0) return empty;
 
@@ -267,7 +295,7 @@ async function verifyWithClaude(cardId: CardIdentification, analysis: any, marke
     const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: { "x-api-key": ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-      body: JSON.stringify({ model: "claude-sonnet-4-5", max_tokens: 2048, thinking: { type: "enabled", budget_tokens: 1024 }, messages: [{ role: "user", content: prompt }] }),
+      body: JSON.stringify({ model: "claude-haiku-4-5", max_tokens: 512, messages: [{ role: "user", content: prompt }] }),
     });
     if (!response.ok) return null;
     const data = await response.json();
@@ -319,6 +347,8 @@ async function runEnrichment(params: {
   const marketData = await searchMarketPrices(identification, category, fastScan);
   console.log(`[enrich-card] market data hasData=${marketData.hasData}`);
 
+  await supabaseAdmin.from("cards").update({ analysis_status: "analyzing" }).eq("id", cardId);
+
   const today = new Date().toISOString().split("T")[0];
   const systemPrompt = `You are an expert trading card analyst, appraiser, and professional grader. Today's date is ${today}.
 
@@ -362,11 +392,9 @@ Respond with ONLY valid JSON (no markdown):
   "psaPopulation": { "description": "string", "estimatedPopulation": "string", "gradedPremium": "string", "recentGradedSales": ["array"] },
   "gradedValueEstimates": {
     "currentGradeEstimate": "string", "worthGrading": boolean, "worthGradingReason": "string",
-    "recommendedGrader": "PSA", "recommendedGraderReason": "string",
-    "psa": { "estimatedGrade": number, "valueAtGrade": number, "valueAtPSA10": number, "valueAtPSA9": number, "valueAtPSA8": number, "gradingCost": number, "turnaroundTime": "string" },
-    "bgs": { "estimatedGrade": number, "valueAtGrade": number, "valueAtBGS10": number, "valueAtBGS9_5": number, "valueAtBGS9": number, "gradingCost": number, "turnaroundTime": "string", "blackLabelPotential": "string" },
-    "cgc": { "estimatedGrade": number, "valueAtGrade": number, "valueAtCGC10": number, "valueAtCGC9_5": number, "valueAtCGC9": number, "gradingCost": number, "turnaroundTime": "string" },
-    "sgc": { "estimatedGrade": number, "valueAtGrade": number, "valueAtSGC10": number, "valueAtSGC9_5": number, "valueAtSGC9": number, "gradingCost": number, "turnaroundTime": "string" }
+    "recommendedGrader": "PSA" | "BGS" | "CGC" | "SGC", "recommendedGraderReason": "string",
+    "psa": { "estimatedGrade": number, "valueAtGrade": number, "valueAtPSA10": number, "valueAtPSA9": number, "gradingCost": number, "turnaroundTime": "string" },
+    "otherGraders": { "bgsEstimatedGrade": number, "cgcEstimatedGrade": number, "sgcEstimatedGrade": number }
   },
   "priceFactors": ["array"], "valueTrend": "rising" | "stable" | "falling" | "unknown", "trendReason": "string",
   "confidence": "high" | "medium" | "low", "confidenceReason": "string",
@@ -384,7 +412,7 @@ Respond with ONLY valid JSON (no markdown):
       headers: { "x-api-key": ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "Content-Type": "application/json" },
       body: JSON.stringify({
         model: "claude-sonnet-4-5",
-        max_tokens: 8192,
+        max_tokens: 4096,
         system: systemPrompt,
         messages: [{
           role: "user",
@@ -446,12 +474,15 @@ Respond with ONLY valid JSON (no markdown):
     }
   }
 
-  // Cross-verification (skipped on fast scan)
-  if (!fastScan && marketData.hasData && analysis.estimatedValueLow != null) {
+  // Cross-verification (skipped on fast scan, low value, or no market data)
+  if (!fastScan && marketData.hasData && analysis.estimatedValueLow != null && (Number(analysis.estimatedValueHigh) || 0) >= 50) {
+    await supabaseAdmin.from("cards").update({ analysis_status: "verifying" }).eq("id", cardId);
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     const [claudeVerification, geminiVerification] = await Promise.all([
-      verifyWithClaude(identification, analysis, marketData.summary, ANTHROPIC_API_KEY),
-      LOVABLE_API_KEY ? verifyWithGemini(identification, analysis, marketData.summary, LOVABLE_API_KEY) : Promise.resolve(null),
+      withTimeout(verifyWithClaude(identification, analysis, marketData.summary, ANTHROPIC_API_KEY), 20_000, "verify-claude").catch(() => null),
+      LOVABLE_API_KEY
+        ? withTimeout(verifyWithGemini(identification, analysis, marketData.summary, LOVABLE_API_KEY), 20_000, "verify-gemini").catch(() => null)
+        : Promise.resolve(null),
     ]);
     const origLow = analysis.estimatedValueLow, origHigh = analysis.estimatedValueHigh;
     if (claudeVerification && geminiVerification) {
