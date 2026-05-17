@@ -296,7 +296,7 @@ export default function CardDetail() {
   useEffect(() => {
     if (!id || !card) return;
     const status = (card as any).analysis_status;
-    if (status !== "analyzing" && status !== "pending") return;
+    if (status !== "analyzing" && status !== "pending" && status !== "identifying" && status !== "pricing") return;
 
     let cancelled = false;
 
