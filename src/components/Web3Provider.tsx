@@ -29,7 +29,13 @@ export function Web3Provider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  if (!stack) return <>{children}</>;
+  if (!stack) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center text-muted-foreground">
+        Loading wallet…
+      </div>
+    );
+  }
   const { WagmiProvider, config } = stack;
   return <WagmiProvider config={config}>{children}</WagmiProvider>;
 }
