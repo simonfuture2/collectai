@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, lazy, Suspense } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import collectaiLogo from "@/assets/collectai-logo.png";
 import { supabase } from "@/integrations/supabase/client";
@@ -6,21 +6,21 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Camera, LogOut, Wallet, TrendingUp, Layers, BarChart3, Crown, Shield, Trash2, Package } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
-import PortfolioAnalytics from "@/components/PortfolioAnalytics";
-import PoweredByW3AI from "@/components/PoweredByW3AI";
 import CreditBalance from "@/components/CreditBalance";
 import UpgradeModal from "@/components/UpgradeModal";
 import { useCredits } from "@/hooks/use-credits";
 import { useAdmin } from "@/hooks/use-admin";
 import Footer from "@/components/Footer";
 import ThemeToggle from "@/components/ThemeToggle";
-import ReferralCard from "@/components/ReferralCard";
 import PublicCollectionToggle from "@/components/PublicCollectionToggle";
-import ConnectedAccounts from "@/components/ConnectedAccounts";
-import TransactionHistory from "@/components/TransactionHistory";
 import { usePushNotifications } from "@/hooks/use-push-notifications";
 import AchievementsRow from "@/components/AchievementsRow";
 import SEO from "@/components/SEO";
+
+const PortfolioAnalytics = lazy(() => import("@/components/PortfolioAnalytics"));
+const ReferralCard = lazy(() => import("@/components/ReferralCard"));
+const ConnectedAccounts = lazy(() => import("@/components/ConnectedAccounts"));
+const TransactionHistory = lazy(() => import("@/components/TransactionHistory"));
 
 interface Card {
   id: string;
