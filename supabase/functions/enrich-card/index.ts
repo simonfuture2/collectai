@@ -34,6 +34,74 @@ function safeFixed(val: unknown, digits = 2): string {
   return isNaN(num) ? "0" : num.toFixed(digits);
 }
 
+// Hard timeout wrapper to prevent any single API call from hanging the job.
+async function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
+  return await Promise.race([
+    p,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms)
+    ),
+  ]);
+}
+
+async function identifyCardFromImages(
+  images: { label: string; url: string }[],
+  ANTHROPIC_API_KEY: string,
+): Promise<CardIdentification & { category?: string } | null> {
+  try {
+    const systemPrompt = `You are a trading card identification expert. Look at this card image very carefully. Read ALL text on the card.
+Respond with ONLY valid JSON:
+{
+  "card_name": "Full character/player name on the card",
+  "card_number": "Card number as printed (e.g. '105/086'). Empty string if not visible.",
+  "card_set": "Full set/series name",
+  "card_year": "Year of release",
+  "variant": "Variant type",
+  "rarity": "Rarity level",
+  "category": "Trading Card | Sports Card | Coin | Comic"
+}`;
+    const response = await withTimeout(
+      fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "x-api-key": ANTHROPIC_API_KEY,
+          "anthropic-version": "2023-06-01",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-5",
+          max_tokens: 1024,
+          system: systemPrompt,
+          messages: [{
+            role: "user",
+            content: [
+              { type: "text", text: "Identify this collectible with maximum specificity." },
+              ...images.slice(0, 2).map((img) => ({
+                type: "image" as const,
+                source: { type: "url" as const, url: img.url },
+              })),
+            ],
+          }),
+      }),
+      45_000,
+      "identify",
+    );
+    if (!response.ok) {
+      console.error("[enrich-card] identify failed:", response.status);
+      return null;
+    }
+    const data = await response.json();
+    const text = data.content?.[0]?.text;
+    if (!text) return null;
+    const jsonMatch = text.match(/```json\n?([\s\S]*?)\n?```/) || text.match(/\{[\s\S]*\}/);
+    const jsonStr = jsonMatch ? (jsonMatch[1] || jsonMatch[0]) : text;
+    return JSON.parse(jsonStr);
+  } catch (err) {
+    console.error("[enrich-card] identify error:", err);
+    return null;
+  }
+}
+
 interface CardIdentification {
   card_name: string;
   card_number: string;
