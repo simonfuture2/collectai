@@ -209,16 +209,18 @@ const Dashboard = () => {
             {/* Growth Features */}
             {user && (
               <>
-                <div className="grid sm:grid-cols-2 gap-6 mt-10">
-                  <ReferralCard userId={user.id} />
-                  <PublicCollectionToggle userId={user.id} />
-                </div>
-                <div className="mt-6">
-                  <ConnectedAccounts />
-                </div>
-                <div className="mt-6">
-                  <TransactionHistory />
-                </div>
+                <Suspense fallback={null}>
+                  <div className="grid sm:grid-cols-2 gap-6 mt-10">
+                    <ReferralCard userId={user.id} />
+                    <PublicCollectionToggle userId={user.id} />
+                  </div>
+                  <div className="mt-6">
+                    <ConnectedAccounts />
+                  </div>
+                  <div className="mt-6">
+                    <TransactionHistory />
+                  </div>
+                </Suspense>
                 <div className="mt-6 border-t border-border pt-6">
                   <Link to="/delete-account">
                     <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive hover:bg-destructive/10 gap-2">
