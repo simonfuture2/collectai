@@ -295,7 +295,7 @@ async function verifyWithClaude(cardId: CardIdentification, analysis: any, marke
     const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: { "x-api-key": ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-      body: JSON.stringify({ model: "claude-sonnet-4-5", max_tokens: 2048, thinking: { type: "enabled", budget_tokens: 1024 }, messages: [{ role: "user", content: prompt }] }),
+      body: JSON.stringify({ model: "claude-haiku-4-5", max_tokens: 512, messages: [{ role: "user", content: prompt }] }),
     });
     if (!response.ok) return null;
     const data = await response.json();
