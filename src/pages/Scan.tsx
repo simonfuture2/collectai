@@ -389,10 +389,27 @@ const Scan = () => {
             </div>
 
             {hasImages && !analyzing && (
-              <Button onClick={analyzeCard} disabled={analyzing || creditsLoading} className="w-full gradient-primary py-6 text-lg">
-                {creditsLoading ? <Loader2 className="mr-2 w-5 h-5 animate-spin" /> : <Sparkles className="mr-2 w-5 h-5" />}
-                {creditsLoading ? "Checking access…" : `Analyze (${filledSlots.length} image${filledSlots.length > 1 ? "s" : ""})`}
-              </Button>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card p-4">
+                  <div className="flex items-start gap-3">
+                    <Zap className={`w-5 h-5 mt-0.5 ${fastScan ? "text-primary" : "text-muted-foreground"}`} />
+                    <div>
+                      <Label htmlFor="fast-scan" className="text-sm font-semibold cursor-pointer">
+                        Fast Scan
+                      </Label>
+                      <p className="text-xs text-muted-foreground">
+                        Skip cross-verification and extra market search rounds. Faster, slightly less precise pricing.
+                      </p>
+                    </div>
+                  </div>
+                  <Switch id="fast-scan" checked={fastScan} onCheckedChange={setFastScan} />
+                </div>
+
+                <Button onClick={analyzeCard} disabled={analyzing || creditsLoading} className="w-full gradient-primary py-6 text-lg">
+                  {creditsLoading ? <Loader2 className="mr-2 w-5 h-5 animate-spin" /> : <Sparkles className="mr-2 w-5 h-5" />}
+                  {creditsLoading ? "Checking access…" : `Analyze (${filledSlots.length} image${filledSlots.length > 1 ? "s" : ""})`}
+                </Button>
+              </div>
             )}
 
             {analyzing && <ScanTimeline running={analyzing} done={scanDone} />}
