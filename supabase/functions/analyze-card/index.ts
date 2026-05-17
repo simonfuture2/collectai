@@ -601,7 +601,7 @@ serve(async (req) => {
     let marketData: { summary: string; hasData: boolean; extractedMarketData: ExtractedMarketData } = { summary: "", hasData: false, extractedMarketData: { sources: [], blended: null } };
     if (cardId?.card_name) {
       console.log("Step 2: Searching eBay + TCGPlayer with specific query...");
-      marketData = await searchMarketPrices(cardId, body.category);
+      marketData = await searchMarketPrices(cardId, body.category, body.fastScan === true);
       console.log("Market data found:", marketData.hasData ? "Yes" : "No");
     }
 
