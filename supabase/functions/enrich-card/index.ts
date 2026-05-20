@@ -685,7 +685,7 @@ serve(async (req) => {
   }
 
   const { cardId, images, category, fastScan } = body || {};
-  let identification: CardIdentification | undefined = body?.identification;
+  let identification: IdentifyResult | undefined = body?.identification;
 
   if (!cardId || !Array.isArray(images) || images.length === 0) {
     return new Response(JSON.stringify({ error: "cardId and images required" }), {
