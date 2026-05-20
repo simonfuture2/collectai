@@ -44,12 +44,62 @@ async function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise
   ]);
 }
 
+async function callGeminiVision(
+  model: string,
+  systemPrompt: string,
+  userText: string,
+  images: { label: string; url: string }[],
+  LOVABLE_API_KEY: string,
+  timeoutMs: number,
+  maxTokens: number,
+): Promise<string | null> {
+  try {
+    const response = await withTimeout(
+      fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model,
+          max_tokens: maxTokens,
+          messages: [
+            { role: "system", content: systemPrompt },
+            {
+              role: "user",
+              content: [
+                { type: "text", text: userText },
+                ...images.map((img) => ({
+                  type: "image_url" as const,
+                  image_url: { url: img.url },
+                })),
+              ],
+            },
+          ],
+        }),
+      }),
+      timeoutMs,
+      `gemini-${model}`,
+    );
+    if (!response.ok) {
+      const errText = await response.text().catch(() => "");
+      console.error(`[enrich-card] gemini ${model} failed:`, response.status, errText.slice(0, 200));
+      return null;
+    }
+    const data = await response.json();
+    return data.choices?.[0]?.message?.content || null;
+  } catch (err) {
+    console.error(`[enrich-card] gemini ${model} error:`, err);
+    return null;
+  }
+}
+
 async function identifyCardFromImages(
   images: { label: string; url: string }[],
-  ANTHROPIC_API_KEY: string,
+  LOVABLE_API_KEY: string,
 ): Promise<CardIdentification & { category?: string } | null> {
-  try {
-    const systemPrompt = `You are a trading card identification expert. Look at this card image very carefully. Read ALL text on the card.
+  const systemPrompt = `You are a trading card identification expert. Look at this card image very carefully. Read ALL text on the card.
 Respond with ONLY valid JSON:
 {
   "card_name": "Full character/player name on the card",
@@ -60,45 +110,22 @@ Respond with ONLY valid JSON:
   "rarity": "Rarity level",
   "category": "Trading Card | Sports Card | Coin | Comic"
 }`;
-    const response = await withTimeout(
-      fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: {
-          "x-api-key": ANTHROPIC_API_KEY,
-          "anthropic-version": "2023-06-01",
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "claude-haiku-4-5",
-          max_tokens: 1024,
-          system: systemPrompt,
-          messages: [{
-            role: "user",
-            content: [
-              { type: "text", text: "Identify this collectible with maximum specificity." },
-              ...images.slice(0, 2).map((img) => ({
-                type: "image" as const,
-                source: { type: "url" as const, url: img.url },
-              })),
-            ],
-          }],
-        }),
-      }),
-      20_000,
-      "identify",
-    );
-    if (!response.ok) {
-      console.error("[enrich-card] identify failed:", response.status);
-      return null;
-    }
-    const data = await response.json();
-    const text = data.content?.[0]?.text;
-    if (!text) return null;
+  const userText = "Identify this collectible with maximum specificity.";
+  const imgs = images.slice(0, 2);
+
+  // Primary: Gemini 3.5 Flash (vision). Fallback: Gemini 2.5 Flash Lite ("nano").
+  let text = await callGeminiVision("google/gemini-3.5-flash", systemPrompt, userText, imgs, LOVABLE_API_KEY, 20_000, 1024);
+  if (!text) {
+    console.log("[enrich-card] identify falling back to gemini-2.5-flash-lite (nano)");
+    text = await callGeminiVision("google/gemini-2.5-flash-lite", systemPrompt, userText, imgs, LOVABLE_API_KEY, 15_000, 1024);
+  }
+  if (!text) return null;
+  try {
     const jsonMatch = text.match(/```json\n?([\s\S]*?)\n?```/) || text.match(/\{[\s\S]*\}/);
     const jsonStr = jsonMatch ? (jsonMatch[1] || jsonMatch[0]) : text;
     return JSON.parse(jsonStr);
   } catch (err) {
-    console.error("[enrich-card] identify error:", err);
+    console.error("[enrich-card] identify parse error:", err);
     return null;
   }
 }
