@@ -44,12 +44,62 @@ async function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise
   ]);
 }
 
+async function callGeminiVision(
+  model: string,
+  systemPrompt: string,
+  userText: string,
+  images: { label: string; url: string }[],
+  LOVABLE_API_KEY: string,
+  timeoutMs: number,
+  maxTokens: number,
+): Promise<string | null> {
+  try {
+    const response = await withTimeout(
+      fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model,
+          max_tokens: maxTokens,
+          messages: [
+            { role: "system", content: systemPrompt },
+            {
+              role: "user",
+              content: [
+                { type: "text", text: userText },
+                ...images.map((img) => ({
+                  type: "image_url" as const,
+                  image_url: { url: img.url },
+                })),
+              ],
+            },
+          ],
+        }),
+      }),
+      timeoutMs,
+      `gemini-${model}`,
+    );
+    if (!response.ok) {
+      const errText = await response.text().catch(() => "");
+      console.error(`[enrich-card] gemini ${model} failed:`, response.status, errText.slice(0, 200));
+      return null;
+    }
+    const data = await response.json();
+    return data.choices?.[0]?.message?.content || null;
+  } catch (err) {
+    console.error(`[enrich-card] gemini ${model} error:`, err);
+    return null;
+  }
+}
+
 async function identifyCardFromImages(
   images: { label: string; url: string }[],
-  ANTHROPIC_API_KEY: string,
+  LOVABLE_API_KEY: string,
 ): Promise<CardIdentification & { category?: string } | null> {
-  try {
-    const systemPrompt = `You are a trading card identification expert. Look at this card image very carefully. Read ALL text on the card.
+  const systemPrompt = `You are a trading card identification expert. Look at this card image very carefully. Read ALL text on the card.
 Respond with ONLY valid JSON:
 {
   "card_name": "Full character/player name on the card",
@@ -60,45 +110,22 @@ Respond with ONLY valid JSON:
   "rarity": "Rarity level",
   "category": "Trading Card | Sports Card | Coin | Comic"
 }`;
-    const response = await withTimeout(
-      fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: {
-          "x-api-key": ANTHROPIC_API_KEY,
-          "anthropic-version": "2023-06-01",
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "claude-haiku-4-5",
-          max_tokens: 1024,
-          system: systemPrompt,
-          messages: [{
-            role: "user",
-            content: [
-              { type: "text", text: "Identify this collectible with maximum specificity." },
-              ...images.slice(0, 2).map((img) => ({
-                type: "image" as const,
-                source: { type: "url" as const, url: img.url },
-              })),
-            ],
-          }],
-        }),
-      }),
-      20_000,
-      "identify",
-    );
-    if (!response.ok) {
-      console.error("[enrich-card] identify failed:", response.status);
-      return null;
-    }
-    const data = await response.json();
-    const text = data.content?.[0]?.text;
-    if (!text) return null;
+  const userText = "Identify this collectible with maximum specificity.";
+  const imgs = images.slice(0, 2);
+
+  // Primary: Gemini 3.5 Flash (vision). Fallback: Gemini 2.5 Flash Lite ("nano").
+  let text = await callGeminiVision("google/gemini-3.5-flash", systemPrompt, userText, imgs, LOVABLE_API_KEY, 20_000, 1024);
+  if (!text) {
+    console.log("[enrich-card] identify falling back to gemini-2.5-flash-lite (nano)");
+    text = await callGeminiVision("google/gemini-2.5-flash-lite", systemPrompt, userText, imgs, LOVABLE_API_KEY, 15_000, 1024);
+  }
+  if (!text) return null;
+  try {
     const jsonMatch = text.match(/```json\n?([\s\S]*?)\n?```/) || text.match(/\{[\s\S]*\}/);
     const jsonStr = jsonMatch ? (jsonMatch[1] || jsonMatch[0]) : text;
     return JSON.parse(jsonStr);
   } catch (err) {
-    console.error("[enrich-card] identify error:", err);
+    console.error("[enrich-card] identify parse error:", err);
     return null;
   }
 }
@@ -339,8 +366,7 @@ async function runEnrichment(params: {
   supabaseAdmin: ReturnType<typeof createClient>;
 }) {
   const { cardId, userId, images, identification, category, fastScan, supabaseAdmin } = params;
-  const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
-  if (!ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY not configured");
+  const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY"); // optional, used only for Claude validation
 
   console.log(`[enrich-card] start card=${cardId} fastScan=${fastScan}`);
 
@@ -406,34 +432,33 @@ Respond with ONLY valid JSON (no markdown):
     : "Please analyze this trading card image.";
   const fullUserMessage = userMessage + marketData.summary;
 
-  const response = await withTimeout(
-    fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: { "x-api-key": ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-5",
-        max_tokens: 4096,
-        system: systemPrompt,
-        messages: [{
-          role: "user",
-          content: [
-            { type: "text", text: fullUserMessage },
-            ...images.map((img) => ({ type: "image" as const, source: { type: "url" as const, url: img.url } })),
-          ],
-        }],
-      }),
-    }),
-    90_000,
-    "claude-analysis",
+  const LOVABLE_API_KEY_MAIN = Deno.env.get("LOVABLE_API_KEY");
+  if (!LOVABLE_API_KEY_MAIN) throw new Error("LOVABLE_API_KEY not configured");
+
+  // Primary analysis: Gemini 3.5 Flash via Lovable AI Gateway.
+  let content = await callGeminiVision(
+    "google/gemini-3.5-flash",
+    systemPrompt,
+    fullUserMessage,
+    images,
+    LOVABLE_API_KEY_MAIN,
+    60_000,
+    8192,
   );
-
-  if (!response.ok) {
-    throw new Error(`Claude API error: ${response.status}`);
+  // Fallback to Gemini 2.5 Pro if Flash failed.
+  if (!content) {
+    console.log("[enrich-card] main analysis falling back to gemini-2.5-pro");
+    content = await callGeminiVision(
+      "google/gemini-2.5-pro",
+      systemPrompt,
+      fullUserMessage,
+      images,
+      LOVABLE_API_KEY_MAIN,
+      75_000,
+      8192,
+    );
   }
-
-  const data = await response.json();
-  const content = data.content?.[0]?.text;
-  if (!content) throw new Error("No response from AI");
+  if (!content) throw new Error("AI analysis failed");
 
   let analysis: any;
   try {
@@ -474,39 +499,26 @@ Respond with ONLY valid JSON (no markdown):
     }
   }
 
-  // Cross-verification (skipped on fast scan, low value, or no market data)
-  if (!fastScan && marketData.hasData && analysis.estimatedValueLow != null && (Number(analysis.estimatedValueHigh) || 0) >= 50) {
+  // Cross-verification with Claude Haiku (skipped on fast scan, low value, or no market data)
+  if (!fastScan && marketData.hasData && analysis.estimatedValueLow != null && (Number(analysis.estimatedValueHigh) || 0) >= 50 && ANTHROPIC_API_KEY) {
     await supabaseAdmin.from("cards").update({ analysis_status: "verifying" }).eq("id", cardId);
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    const [claudeVerification, geminiVerification] = await Promise.all([
-      withTimeout(verifyWithClaude(identification, analysis, marketData.summary, ANTHROPIC_API_KEY), 20_000, "verify-claude").catch(() => null),
-      LOVABLE_API_KEY
-        ? withTimeout(verifyWithGemini(identification, analysis, marketData.summary, LOVABLE_API_KEY), 20_000, "verify-gemini").catch(() => null)
-        : Promise.resolve(null),
-    ]);
-    const origLow = analysis.estimatedValueLow, origHigh = analysis.estimatedValueHigh;
-    if (claudeVerification && geminiVerification) {
-      const reconciledLow = (claudeVerification.verifiedLow + geminiVerification.verifiedLow) / 2;
-      const reconciledHigh = (claudeVerification.verifiedHigh + geminiVerification.verifiedHigh) / 2;
+    const claudeVerification = await withTimeout(
+      verifyWithClaude(identification, analysis, marketData.summary, ANTHROPIC_API_KEY),
+      20_000,
+      "verify-claude",
+    ).catch(() => null);
+    if (claudeVerification) {
+      const geminiMid = ((Number(analysis.estimatedValueLow) || 0) + (Number(analysis.estimatedValueHigh) || 0)) / 2;
       const claudeMid = (claudeVerification.verifiedLow + claudeVerification.verifiedHigh) / 2;
-      const geminiMid = (geminiVerification.verifiedLow + geminiVerification.verifiedHigh) / 2;
       const agree = Math.abs(claudeMid - geminiMid) / Math.max(claudeMid, geminiMid, 1) < 0.25;
-      analysis.estimatedValueLow = Math.round(reconciledLow * 100) / 100;
-      analysis.estimatedValueHigh = Math.round(reconciledHigh * 100) / 100;
-      analysis.verificationNote = `Claude: $${safeFixed(claudeVerification.verifiedLow)}-$${safeFixed(claudeVerification.verifiedHigh)}. Gemini: $${safeFixed(geminiVerification.verifiedLow)}-$${safeFixed(geminiVerification.verifiedHigh)}. ${agree ? "Models agree." : "Models disagree."}`;
-      analysis.crossVerified = true; analysis.modelsAgree = agree;
+      // Blend: 60% Gemini (with real market data), 40% Claude validation.
+      analysis.estimatedValueLow = Math.round((Number(analysis.estimatedValueLow) * 0.6 + claudeVerification.verifiedLow * 0.4) * 100) / 100;
+      analysis.estimatedValueHigh = Math.round((Number(analysis.estimatedValueHigh) * 0.6 + claudeVerification.verifiedHigh * 0.4) * 100) / 100;
+      analysis.verificationNote = `Claude validation: $${safeFixed(claudeVerification.verifiedLow)}-$${safeFixed(claudeVerification.verifiedHigh)}. ${agree ? "Models agree." : "Claude disagrees with Gemini estimate."} ${claudeVerification.verificationNote || ""}`;
+      analysis.crossVerified = true;
+      analysis.modelsAgree = agree;
       if (agree && analysis.confidence !== "high") analysis.confidence = "high";
-      analysis.dataSource = `Real market data + Claude × Gemini cross-verified ${agree ? "✓✓" : "(disagreement)"}`;
-    } else if (claudeVerification) {
-      analysis.estimatedValueLow = claudeVerification.verifiedLow;
-      analysis.estimatedValueHigh = claudeVerification.verifiedHigh;
-      analysis.verificationNote = claudeVerification.verificationNote;
-      analysis.dataSource = "Real market data + Claude-verified ✓";
-    } else if (geminiVerification) {
-      analysis.estimatedValueLow = geminiVerification.verifiedLow;
-      analysis.estimatedValueHigh = geminiVerification.verifiedHigh;
-      analysis.verificationNote = geminiVerification.verificationNote;
-      analysis.dataSource = "Real market data + Gemini-verified ✓";
+      analysis.dataSource = `Real market data + Gemini analysis + Claude-validated ${agree ? "✓✓" : "(disagreement)"}`;
     }
   }
 
@@ -600,8 +612,8 @@ serve(async (req) => {
 
   const work = (async () => {
     try {
-      const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
-      if (!ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY not configured");
+      const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+      if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
       // Stage 1: identify (if not supplied)
       let resolvedCategory = category;
@@ -612,7 +624,7 @@ serve(async (req) => {
           analysis_error: null,
         }).eq("id", cardId);
 
-        const idResult = await identifyCardFromImages(images, ANTHROPIC_API_KEY);
+        const idResult = await identifyCardFromImages(images, LOVABLE_API_KEY);
         if (!idResult?.card_name) {
           throw new Error("Could not identify the card. Please try a clearer image.");
         }
