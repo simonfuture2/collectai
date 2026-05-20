@@ -366,8 +366,7 @@ async function runEnrichment(params: {
   supabaseAdmin: ReturnType<typeof createClient>;
 }) {
   const { cardId, userId, images, identification, category, fastScan, supabaseAdmin } = params;
-  const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
-  if (!ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY not configured");
+  const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY"); // optional, used only for Claude validation
 
   console.log(`[enrich-card] start card=${cardId} fastScan=${fastScan}`);
 
