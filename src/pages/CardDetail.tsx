@@ -291,6 +291,23 @@ export default function CardDetail() {
       const signed = await getSignedImageUrl(data.image_url);
       setCardImageUrl(signed);
       setLoading(false);
+
+      // Notify if user landed on an already-complete card
+      if ((data as any).analysis_status === "complete" && !notifiedCompleteRef.current) {
+        notifiedCompleteRef.current = true;
+        const analysis = data.ai_analysis as AIAnalysis | null;
+        const cardName = analysis?.cardName || data.card_name || "Card";
+        const avgVal = ((data.estimated_value_low || 0) + (data.estimated_value_high || 0)) / 2;
+        toast.success(
+          `Analysis complete — ${cardName}`,
+          {
+            description: avgVal > 0
+              ? `Estimated value: $${avgVal.toFixed(2)}`
+              : "Open the Value tab to see details.",
+            duration: 6000,
+          }
+        );
+      }
     };
 
     fetchCard();
