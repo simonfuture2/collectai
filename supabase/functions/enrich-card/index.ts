@@ -512,117 +512,59 @@ async function runEnrichment(params: {
   cardId: string;
   userId: string;
   images: { label: string; url: string }[];
-  identification: CardIdentification;
+  identification: IdentifyResult;
   category?: string;
   fastScan: boolean;
   supabaseAdmin: ReturnType<typeof createClient>;
 }) {
   const { cardId, userId, images, identification, category, fastScan, supabaseAdmin } = params;
-  const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY"); // optional, used only for Claude validation
-
-  console.log(`[enrich-card] start card=${cardId} fastScan=${fastScan}`);
-
-  const marketData = await searchMarketPrices(identification, category, fastScan);
-  console.log(`[enrich-card] market data hasData=${marketData.hasData}`);
-
-  await supabaseAdmin.from("cards").update({ analysis_status: "analyzing" }).eq("id", cardId);
-
-  const today = new Date().toISOString().split("T")[0];
-  const systemPrompt = `You are an expert trading card analyst, appraiser, and professional grader. Today's date is ${today}.
-
-CRITICAL PRICING INSTRUCTIONS:
-${marketData.hasData ? `You are provided with REAL recent market price data from eBay (sold + active listings) AND TCGPlayer.
-
-VALUATION FORMULA:
-1. Look at the eBay SOLD prices — primary anchor (50% weight).
-2. TCGPlayer prices — secondary anchor (30% weight).
-3. eBay ACTIVE listing prices — supplement (20% weight).
-4. Weighted average; adjust ±15% based on condition.
-5. estimatedValueLow = adjusted × 0.85, estimatedValueHigh = adjusted × 1.15.
-6. Do NOT override real market data with training knowledge.` : `You do NOT have access to real-time market data.
-
-NO-MARKET-DATA RULES:
-1. Assume common/base version if uncertain.
-2. Sports cards without market data: conservative $1-$20 unless rookies/autos/numbered.
-3. NEVER estimate above $100 without market data unless clearly rare insert/auto/numbered.
-4. confidence = "low"; use WIDE range (±50%).`}
-
-Respond with ONLY valid JSON (no markdown):
-{
-  "category": "string", "cardName": "string", "cardSet": "string", "cardYear": "string",
-  "edition": "string", "rarity": "string", "cardNumber": "string or null", "parallelVariant": "string or null",
-  "conditionGrade": "string", "conditionNotes": "string",
-  "preGradingAnalysis": {
-    "centering": { "score": number, "frontLeftRight": "string", "frontTopBottom": "string", "backLeftRight": "string", "backTopBottom": "string", "notes": "string", "psa10Eligible": boolean },
-    "corners": { "score": number, "topLeft": "string", "topRight": "string", "bottomLeft": "string", "bottomRight": "string", "notes": "string" },
-    "edges": { "score": number, "top": "string", "bottom": "string", "left": "string", "right": "string", "notes": "string" },
-    "surface": { "score": number, "front": "string", "back": "string", "holoCondition": "string or null", "notes": "string" },
-    "overallScore": number,
-    "predictedGrades": { "psa": number, "bgs": number, "cgc": number, "sgc": number },
-    "bgsSubgrades": { "centering": number, "corners": number, "edges": number, "surface": number },
-    "gradingRecommendation": "string"
-  },
-  "defects": [{ "type": "string", "side": "front" | "back", "x": number, "y": number, "severity": "minor" | "moderate" | "severe", "note": "string" }],
-  "specialFeatures": ["array"],
-  "estimatedValueLow": number, "estimatedValueHigh": number, "valueCurrency": "USD",
-  "ebayRecentSales": { "description": "string", "averagePrice": number, "lowPrice": number, "highPrice": number, "recentSalesCount": "string", "notableSales": ["array"] },
-  "tcgplayerPrice": { "marketPrice": number, "lowPrice": number, "midPrice": number, "highPrice": number, "description": "string" },
-  "psaPopulation": { "description": "string", "estimatedPopulation": "string", "gradedPremium": "string", "recentGradedSales": ["array"] },
-  "gradedValueEstimates": {
-    "currentGradeEstimate": "string", "worthGrading": boolean, "worthGradingReason": "string",
-    "recommendedGrader": "PSA" | "BGS" | "CGC" | "SGC", "recommendedGraderReason": "string",
-    "psa": { "estimatedGrade": number, "valueAtGrade": number, "valueAtPSA10": number, "valueAtPSA9": number, "gradingCost": number, "turnaroundTime": "string" },
-    "otherGraders": { "bgsEstimatedGrade": number, "cgcEstimatedGrade": number, "sgcEstimatedGrade": number }
-  },
-  "priceFactors": ["array"], "valueTrend": "rising" | "stable" | "falling" | "unknown", "trendReason": "string",
-  "confidence": "high" | "medium" | "low", "confidenceReason": "string",
-  "investmentOutlook": "string", "additionalNotes": "string", "dataSource": "string"
-}`;
-
-  const userMessage = images.length > 1
-    ? `I'm providing ${images.length} images (${images.map(i => i.label).join(", ")}). Analyze all views.`
-    : "Please analyze this trading card image.";
-  const fullUserMessage = userMessage + marketData.summary;
-
+  const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
+  if (!ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY not configured");
   const LOVABLE_API_KEY_MAIN = Deno.env.get("LOVABLE_API_KEY");
   if (!LOVABLE_API_KEY_MAIN) throw new Error("LOVABLE_API_KEY not configured");
 
-  // Primary analysis: Gemini 3.5 Flash via Lovable AI Gateway.
-  let content = await callGeminiVision(
-    "google/gemini-3.5-flash",
-    systemPrompt,
-    fullUserMessage,
-    images,
-    LOVABLE_API_KEY_MAIN,
-    60_000,
-    8192,
-  );
-  // Fallback to Gemini 2.5 Pro if Flash failed.
-  if (!content) {
-    console.log("[enrich-card] main analysis falling back to gemini-2.5-pro");
-    content = await callGeminiVision(
-      "google/gemini-2.5-pro",
-      systemPrompt,
-      fullUserMessage,
-      images,
-      LOVABLE_API_KEY_MAIN,
-      75_000,
-      8192,
-    );
-  }
-  if (!content) throw new Error("AI analysis failed");
+  console.log(`[enrich-card] start card=${cardId} fastScan=${fastScan}`);
 
-  let analysis: any;
-  try {
-    const jsonMatch = content.match(/```json\n?([\s\S]*?)\n?```/) || content.match(/\{[\s\S]*\}/);
-    const jsonStr = jsonMatch ? (jsonMatch[1] || jsonMatch[0]) : content;
-    analysis = JSON.parse(jsonStr);
-  } catch {
-    throw new Error("Failed to parse AI analysis");
-  }
+  // Stage: pricing (market data fetch)
+  await supabaseAdmin.from("cards").update({ analysis_status: "pricing" }).eq("id", cardId);
+  const marketData = await searchMarketPrices(identification, category, fastScan);
+  console.log(`[enrich-card] market data hasData=${marketData.hasData}`);
+
+  // Stage: analyzing (text-only Claude pricing call — NO images)
+  await supabaseAdmin.from("cards").update({ analysis_status: "analyzing" }).eq("id", cardId);
+  const pricing = await analyzePricingWithClaude(
+    identification,
+    marketData.summary,
+    marketData.hasData,
+    ANTHROPIC_API_KEY,
+  );
+  if (!pricing) throw new Error("Pricing analysis failed");
+
+  // Merge: identification + condition (Gemini) + pricing (Claude)
+  const analysis: any = {
+    // Identification (Gemini)
+    category: identification.category || category || "Trading Card",
+    cardName: identification.card_name || null,
+    cardSet: identification.card_set || null,
+    cardYear: identification.card_year || null,
+    cardNumber: identification.card_number || null,
+    rarity: identification.rarity || null,
+    parallelVariant: identification.variant || null,
+    edition: identification.variant || null,
+    specialFeatures: identification.specialFeatures || [],
+    // Condition (Gemini)
+    conditionGrade: identification.conditionGrade || null,
+    conditionNotes: identification.conditionNotes || null,
+    preGradingAnalysis: identification.preGradingAnalysis || null,
+    defects: identification.defects || [],
+    // Pricing (Claude)
+    ...pricing,
+  };
 
   if (!analysis.dataSource) {
-    analysis.dataSource = marketData.hasData ? "Real eBay + TCGPlayer data + AI analysis" : "AI estimate only - no live market data";
+    analysis.dataSource = marketData.hasData
+      ? "Real eBay + TCGPlayer data + Claude pricing + Gemini vision"
+      : "Claude pricing estimate (no live market data) + Gemini vision";
   }
 
   // No-market-data guardrails
@@ -651,26 +593,27 @@ Respond with ONLY valid JSON (no markdown):
     }
   }
 
-  // Cross-verification with Claude Haiku (skipped on fast scan, low value, or no market data)
-  if (!fastScan && marketData.hasData && analysis.estimatedValueLow != null && (Number(analysis.estimatedValueHigh) || 0) >= 50 && ANTHROPIC_API_KEY) {
+  // Stage: verifying (skipped on fast scan, no market data, or low value <$50)
+  const highForVerify = Number(analysis.estimatedValueHigh) || 0;
+  if (!fastScan && marketData.hasData && highForVerify >= 50) {
     await supabaseAdmin.from("cards").update({ analysis_status: "verifying" }).eq("id", cardId);
-    const claudeVerification = await withTimeout(
-      verifyWithClaude(identification, analysis, marketData.summary, ANTHROPIC_API_KEY),
+    const geminiVerification = await withTimeout(
+      verifyWithGemini(identification, analysis, marketData.summary, LOVABLE_API_KEY_MAIN),
       20_000,
-      "verify-claude",
+      "verify-gemini",
     ).catch(() => null);
-    if (claudeVerification) {
-      const geminiMid = ((Number(analysis.estimatedValueLow) || 0) + (Number(analysis.estimatedValueHigh) || 0)) / 2;
-      const claudeMid = (claudeVerification.verifiedLow + claudeVerification.verifiedHigh) / 2;
-      const agree = Math.abs(claudeMid - geminiMid) / Math.max(claudeMid, geminiMid, 1) < 0.25;
-      // Blend: 60% Gemini (with real market data), 40% Claude validation.
-      analysis.estimatedValueLow = Math.round((Number(analysis.estimatedValueLow) * 0.6 + claudeVerification.verifiedLow * 0.4) * 100) / 100;
-      analysis.estimatedValueHigh = Math.round((Number(analysis.estimatedValueHigh) * 0.6 + claudeVerification.verifiedHigh * 0.4) * 100) / 100;
-      analysis.verificationNote = `Claude validation: $${safeFixed(claudeVerification.verifiedLow)}-$${safeFixed(claudeVerification.verifiedHigh)}. ${agree ? "Models agree." : "Claude disagrees with Gemini estimate."} ${claudeVerification.verificationNote || ""}`;
+    if (geminiVerification) {
+      const claudeMid = ((Number(analysis.estimatedValueLow) || 0) + (Number(analysis.estimatedValueHigh) || 0)) / 2;
+      const geminiMid = (geminiVerification.verifiedLow + geminiVerification.verifiedHigh) / 2;
+      const agree = Math.abs(geminiMid - claudeMid) / Math.max(geminiMid, claudeMid, 1) < 0.25;
+      // Blend: 60% Claude pricing, 40% Gemini verification.
+      analysis.estimatedValueLow = Math.round((Number(analysis.estimatedValueLow) * 0.6 + geminiVerification.verifiedLow * 0.4) * 100) / 100;
+      analysis.estimatedValueHigh = Math.round((Number(analysis.estimatedValueHigh) * 0.6 + geminiVerification.verifiedHigh * 0.4) * 100) / 100;
+      analysis.verificationNote = `Gemini validation: $${safeFixed(geminiVerification.verifiedLow)}-$${safeFixed(geminiVerification.verifiedHigh)}. ${agree ? "Models agree." : "Models disagree."} ${geminiVerification.verificationNote || ""}`;
       analysis.crossVerified = true;
       analysis.modelsAgree = agree;
       if (agree && analysis.confidence !== "high") analysis.confidence = "high";
-      analysis.dataSource = `Real market data + Gemini analysis + Claude-validated ${agree ? "✓✓" : "(disagreement)"}`;
+      analysis.dataSource = `Real market data + Claude pricing + Gemini-validated ${agree ? "✓✓" : "(disagreement)"}`;
     }
   }
 
@@ -679,13 +622,13 @@ Respond with ONLY valid JSON (no markdown):
     .from("cards")
     .update({
       category: analysis.category || "Trading Card",
-      card_name: analysis.cardName || null,
-      card_set: analysis.cardSet || null,
-      card_year: analysis.cardYear || null,
-      edition: analysis.edition || null,
-      rarity: analysis.rarity || null,
-      condition_grade: analysis.conditionGrade || null,
-      special_features: analysis.specialFeatures || [],
+      card_name: identification.card_name || null,
+      card_set: identification.card_set || null,
+      card_year: identification.card_year || null,
+      edition: identification.variant || null,
+      rarity: identification.rarity || null,
+      condition_grade: identification.conditionGrade || null,
+      special_features: identification.specialFeatures || [],
       estimated_value_low: analysis.estimatedValueLow ?? null,
       estimated_value_high: analysis.estimatedValueHigh ?? null,
       ebay_recent_sales: analysis.ebayRecentSales || null,
