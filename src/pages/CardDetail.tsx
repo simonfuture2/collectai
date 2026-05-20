@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 
 const safeFixed = (val: unknown, digits = 2): string => {
   const num = typeof val === 'number' ? val : Number(val);
@@ -242,6 +242,7 @@ export default function CardDetail() {
   const [priceHistory, setPriceHistory] = useState<PriceHistoryPoint[]>([]);
   const [hasRealPriceData, setHasRealPriceData] = useState(false);
   const [rescanning, setRescanning] = useState(false);
+  const notifiedCompleteRef = useRef(false);
 
   const loadPriceHistory = useCallback(async (cardId: string, low: number | null, high: number | null) => {
     const { data: priceData } = await supabase
@@ -290,6 +291,23 @@ export default function CardDetail() {
       const signed = await getSignedImageUrl(data.image_url);
       setCardImageUrl(signed);
       setLoading(false);
+
+      // Notify if user landed on an already-complete card
+      if ((data as any).analysis_status === "complete" && !notifiedCompleteRef.current) {
+        notifiedCompleteRef.current = true;
+        const analysis = data.ai_analysis as AIAnalysis | null;
+        const cardName = analysis?.cardName || data.card_name || "Card";
+        const avgVal = ((data.estimated_value_low || 0) + (data.estimated_value_high || 0)) / 2;
+        toast.success(
+          `Analysis complete — ${cardName}`,
+          {
+            description: avgVal > 0
+              ? `Estimated value: $${avgVal.toFixed(2)}`
+              : "Open the Value tab to see details.",
+            duration: 6000,
+          }
+        );
+      }
     };
 
     fetchCard();
@@ -310,7 +328,21 @@ export default function CardDetail() {
       setCard(data);
       if ((data as any).analysis_status === "complete") {
         await loadPriceHistory(data.id, data.estimated_value_low, data.estimated_value_high);
-        toast.success("AI analysis complete!");
+        if (!notifiedCompleteRef.current) {
+          notifiedCompleteRef.current = true;
+          const analysis = data.ai_analysis as AIAnalysis | null;
+          const cardName = analysis?.cardName || data.card_name || "Card";
+          const avgVal = ((data.estimated_value_low || 0) + (data.estimated_value_high || 0)) / 2;
+          toast.success(
+            `Analysis complete — ${cardName}`,
+            {
+              description: avgVal > 0
+                ? `Estimated value: $${avgVal.toFixed(2)}`
+                : "Your card has been fully analyzed.",
+              duration: 8000,
+            }
+          );
+        }
       } else if ((data as any).analysis_status === "failed") {
         toast.error("AI analysis failed — you can retry from the re-scan button.");
       }
