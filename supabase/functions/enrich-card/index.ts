@@ -433,34 +433,33 @@ Respond with ONLY valid JSON (no markdown):
     : "Please analyze this trading card image.";
   const fullUserMessage = userMessage + marketData.summary;
 
-  const response = await withTimeout(
-    fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: { "x-api-key": ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-5",
-        max_tokens: 4096,
-        system: systemPrompt,
-        messages: [{
-          role: "user",
-          content: [
-            { type: "text", text: fullUserMessage },
-            ...images.map((img) => ({ type: "image" as const, source: { type: "url" as const, url: img.url } })),
-          ],
-        }],
-      }),
-    }),
-    90_000,
-    "claude-analysis",
+  const LOVABLE_API_KEY_MAIN = Deno.env.get("LOVABLE_API_KEY");
+  if (!LOVABLE_API_KEY_MAIN) throw new Error("LOVABLE_API_KEY not configured");
+
+  // Primary analysis: Gemini 3.5 Flash via Lovable AI Gateway.
+  let content = await callGeminiVision(
+    "google/gemini-3.5-flash",
+    systemPrompt,
+    fullUserMessage,
+    images,
+    LOVABLE_API_KEY_MAIN,
+    60_000,
+    8192,
   );
-
-  if (!response.ok) {
-    throw new Error(`Claude API error: ${response.status}`);
+  // Fallback to Gemini 2.5 Pro if Flash failed.
+  if (!content) {
+    console.log("[enrich-card] main analysis falling back to gemini-2.5-pro");
+    content = await callGeminiVision(
+      "google/gemini-2.5-pro",
+      systemPrompt,
+      fullUserMessage,
+      images,
+      LOVABLE_API_KEY_MAIN,
+      75_000,
+      8192,
+    );
   }
-
-  const data = await response.json();
-  const content = data.content?.[0]?.text;
-  if (!content) throw new Error("No response from AI");
+  if (!content) throw new Error("AI analysis failed");
 
   let analysis: any;
   try {
