@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 
 const safeFixed = (val: unknown, digits = 2): string => {
   const num = typeof val === 'number' ? val : Number(val);
