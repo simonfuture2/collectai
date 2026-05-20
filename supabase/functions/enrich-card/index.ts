@@ -500,39 +500,26 @@ Respond with ONLY valid JSON (no markdown):
     }
   }
 
-  // Cross-verification (skipped on fast scan, low value, or no market data)
-  if (!fastScan && marketData.hasData && analysis.estimatedValueLow != null && (Number(analysis.estimatedValueHigh) || 0) >= 50) {
+  // Cross-verification with Claude Haiku (skipped on fast scan, low value, or no market data)
+  if (!fastScan && marketData.hasData && analysis.estimatedValueLow != null && (Number(analysis.estimatedValueHigh) || 0) >= 50 && ANTHROPIC_API_KEY) {
     await supabaseAdmin.from("cards").update({ analysis_status: "verifying" }).eq("id", cardId);
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    const [claudeVerification, geminiVerification] = await Promise.all([
-      withTimeout(verifyWithClaude(identification, analysis, marketData.summary, ANTHROPIC_API_KEY), 20_000, "verify-claude").catch(() => null),
-      LOVABLE_API_KEY
-        ? withTimeout(verifyWithGemini(identification, analysis, marketData.summary, LOVABLE_API_KEY), 20_000, "verify-gemini").catch(() => null)
-        : Promise.resolve(null),
-    ]);
-    const origLow = analysis.estimatedValueLow, origHigh = analysis.estimatedValueHigh;
-    if (claudeVerification && geminiVerification) {
-      const reconciledLow = (claudeVerification.verifiedLow + geminiVerification.verifiedLow) / 2;
-      const reconciledHigh = (claudeVerification.verifiedHigh + geminiVerification.verifiedHigh) / 2;
+    const claudeVerification = await withTimeout(
+      verifyWithClaude(identification, analysis, marketData.summary, ANTHROPIC_API_KEY),
+      20_000,
+      "verify-claude",
+    ).catch(() => null);
+    if (claudeVerification) {
+      const geminiMid = ((Number(analysis.estimatedValueLow) || 0) + (Number(analysis.estimatedValueHigh) || 0)) / 2;
       const claudeMid = (claudeVerification.verifiedLow + claudeVerification.verifiedHigh) / 2;
-      const geminiMid = (geminiVerification.verifiedLow + geminiVerification.verifiedHigh) / 2;
       const agree = Math.abs(claudeMid - geminiMid) / Math.max(claudeMid, geminiMid, 1) < 0.25;
-      analysis.estimatedValueLow = Math.round(reconciledLow * 100) / 100;
-      analysis.estimatedValueHigh = Math.round(reconciledHigh * 100) / 100;
-      analysis.verificationNote = `Claude: $${safeFixed(claudeVerification.verifiedLow)}-$${safeFixed(claudeVerification.verifiedHigh)}. Gemini: $${safeFixed(geminiVerification.verifiedLow)}-$${safeFixed(geminiVerification.verifiedHigh)}. ${agree ? "Models agree." : "Models disagree."}`;
-      analysis.crossVerified = true; analysis.modelsAgree = agree;
+      // Blend: 60% Gemini (with real market data), 40% Claude validation.
+      analysis.estimatedValueLow = Math.round((Number(analysis.estimatedValueLow) * 0.6 + claudeVerification.verifiedLow * 0.4) * 100) / 100;
+      analysis.estimatedValueHigh = Math.round((Number(analysis.estimatedValueHigh) * 0.6 + claudeVerification.verifiedHigh * 0.4) * 100) / 100;
+      analysis.verificationNote = `Claude validation: $${safeFixed(claudeVerification.verifiedLow)}-$${safeFixed(claudeVerification.verifiedHigh)}. ${agree ? "Models agree." : "Claude disagrees with Gemini estimate."} ${claudeVerification.verificationNote || ""}`;
+      analysis.crossVerified = true;
+      analysis.modelsAgree = agree;
       if (agree && analysis.confidence !== "high") analysis.confidence = "high";
-      analysis.dataSource = `Real market data + Claude × Gemini cross-verified ${agree ? "✓✓" : "(disagreement)"}`;
-    } else if (claudeVerification) {
-      analysis.estimatedValueLow = claudeVerification.verifiedLow;
-      analysis.estimatedValueHigh = claudeVerification.verifiedHigh;
-      analysis.verificationNote = claudeVerification.verificationNote;
-      analysis.dataSource = "Real market data + Claude-verified ✓";
-    } else if (geminiVerification) {
-      analysis.estimatedValueLow = geminiVerification.verifiedLow;
-      analysis.estimatedValueHigh = geminiVerification.verifiedHigh;
-      analysis.verificationNote = geminiVerification.verificationNote;
-      analysis.dataSource = "Real market data + Gemini-verified ✓";
+      analysis.dataSource = `Real market data + Gemini analysis + Claude-validated ${agree ? "✓✓" : "(disagreement)"}`;
     }
   }
 
