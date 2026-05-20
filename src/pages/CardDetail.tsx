@@ -328,7 +328,21 @@ export default function CardDetail() {
       setCard(data);
       if ((data as any).analysis_status === "complete") {
         await loadPriceHistory(data.id, data.estimated_value_low, data.estimated_value_high);
-        toast.success("AI analysis complete!");
+        if (!notifiedCompleteRef.current) {
+          notifiedCompleteRef.current = true;
+          const analysis = data.ai_analysis as AIAnalysis | null;
+          const cardName = analysis?.cardName || data.card_name || "Card";
+          const avgVal = ((data.estimated_value_low || 0) + (data.estimated_value_high || 0)) / 2;
+          toast.success(
+            `Analysis complete — ${cardName}`,
+            {
+              description: avgVal > 0
+                ? `Estimated value: $${avgVal.toFixed(2)}`
+                : "Your card has been fully analyzed.",
+              duration: 8000,
+            }
+          );
+        }
       } else if ((data as any).analysis_status === "failed") {
         toast.error("AI analysis failed — you can retry from the re-scan button.");
       }
