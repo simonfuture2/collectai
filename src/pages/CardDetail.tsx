@@ -242,7 +242,7 @@ export default function CardDetail() {
   const [priceHistory, setPriceHistory] = useState<PriceHistoryPoint[]>([]);
   const [hasRealPriceData, setHasRealPriceData] = useState(false);
   const [rescanning, setRescanning] = useState(false);
-  const notifiedCompleteRef = React.useRef(false);
+  const notifiedCompleteRef = useRef(false);
 
   const loadPriceHistory = useCallback(async (cardId: string, low: number | null, high: number | null) => {
     const { data: priceData } = await supabase
