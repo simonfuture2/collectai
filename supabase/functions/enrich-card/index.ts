@@ -612,8 +612,8 @@ serve(async (req) => {
 
   const work = (async () => {
     try {
-      const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
-      if (!ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY not configured");
+      const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+      if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
       // Stage 1: identify (if not supplied)
       let resolvedCategory = category;
@@ -624,7 +624,7 @@ serve(async (req) => {
           analysis_error: null,
         }).eq("id", cardId);
 
-        const idResult = await identifyCardFromImages(images, ANTHROPIC_API_KEY);
+        const idResult = await identifyCardFromImages(images, LOVABLE_API_KEY);
         if (!idResult?.card_name) {
           throw new Error("Could not identify the card. Please try a clearer image.");
         }
