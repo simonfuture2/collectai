@@ -95,37 +95,189 @@ async function callGeminiVision(
   }
 }
 
+type IdentifyResult = CardIdentification & {
+  category?: string;
+  preGradingAnalysis?: any;
+  defects?: any[];
+  conditionGrade?: string;
+  conditionNotes?: string;
+  specialFeatures?: string[];
+};
+
 async function identifyCardFromImages(
   images: { label: string; url: string }[],
   LOVABLE_API_KEY: string,
-): Promise<CardIdentification & { category?: string } | null> {
-  const systemPrompt = `You are a trading card identification expert. Look at this card image very carefully. Read ALL text on the card.
-Respond with ONLY valid JSON:
+): Promise<IdentifyResult | null> {
+  const systemPrompt = `You are an expert trading card identifier AND professional grader. Look at the card image(s) carefully.
+
+TASK 1 - IDENTIFICATION: Read ALL text on the card. Capture name, number, set, year, variant, rarity, and category.
+
+TASK 2 - CONDITION GRADING: Assess physical condition from the image(s). Score centering, corners, edges, and surface on a 1-10 scale. Predict graded outcomes (PSA, BGS, CGC, SGC). Mark visible defects with normalized [0..1] coordinates (x=left, y=top) and severity (minor/moderate/severe).
+
+Respond with ONLY a single valid JSON object (no markdown, no commentary):
 {
-  "card_name": "Full character/player name on the card",
-  "card_number": "Card number as printed (e.g. '105/086'). Empty string if not visible.",
-  "card_set": "Full set/series name",
-  "card_year": "Year of release",
-  "variant": "Variant type",
-  "rarity": "Rarity level",
-  "category": "Trading Card | Sports Card | Coin | Comic"
+  "card_name": "string",
+  "card_number": "string (e.g. '105/086'), empty if not visible",
+  "card_set": "string",
+  "card_year": "string",
+  "variant": "string",
+  "rarity": "string",
+  "category": "Trading Card | Sports Card | Coin | Comic",
+  "preGradingAnalysis": {
+    "centering": { "score": number, "frontLeftRight": "string", "frontTopBottom": "string", "backLeftRight": "string", "backTopBottom": "string", "notes": "string", "psa10Eligible": boolean },
+    "corners": { "score": number, "topLeft": "string", "topRight": "string", "bottomLeft": "string", "bottomRight": "string", "notes": "string" },
+    "edges": { "score": number, "top": "string", "bottom": "string", "left": "string", "right": "string", "notes": "string" },
+    "surface": { "score": number, "front": "string", "back": "string", "holoCondition": "string or null", "notes": "string" },
+    "overallScore": number,
+    "predictedGrades": { "psa": number, "bgs": number, "cgc": number, "sgc": number },
+    "bgsSubgrades": { "centering": number, "corners": number, "edges": number, "surface": number }
+  },
+  "defects": [{ "type": "string", "side": "front" | "back", "x": number, "y": number, "severity": "minor" | "moderate" | "severe", "note": "string" }],
+  "conditionGrade": "string (e.g. 'Near Mint', 'Mint', 'Excellent')",
+  "conditionNotes": "string",
+  "specialFeatures": ["string"]
 }`;
-  const userText = "Identify this collectible with maximum specificity.";
+  const userText = "Identify this collectible AND grade its condition. Be precise and return the full JSON object.";
   const imgs = images.slice(0, 2);
 
-  // Primary: Gemini 3.5 Flash (vision). Fallback: Gemini 2.5 Flash Lite ("nano").
-  let text = await callGeminiVision("google/gemini-3.5-flash", systemPrompt, userText, imgs, LOVABLE_API_KEY, 20_000, 1024);
+  // Primary: Gemini 3.5 Flash (vision). Fallback: Gemini 3 Flash.
+  let text = await callGeminiVision("google/gemini-3.5-flash", systemPrompt, userText, imgs, LOVABLE_API_KEY, 25_000, 2048);
   if (!text) {
-    console.log("[enrich-card] identify falling back to gemini-2.5-flash-lite (nano)");
-    text = await callGeminiVision("google/gemini-2.5-flash-lite", systemPrompt, userText, imgs, LOVABLE_API_KEY, 15_000, 1024);
+    console.log("[enrich-card] identify falling back to gemini-3-flash");
+    text = await callGeminiVision("google/gemini-3-flash", systemPrompt, userText, imgs, LOVABLE_API_KEY, 20_000, 2048);
   }
   if (!text) return null;
   try {
-    const jsonMatch = text.match(/```json\n?([\s\S]*?)\n?```/) || text.match(/\{[\s\S]*\}/);
-    const jsonStr = jsonMatch ? (jsonMatch[1] || jsonMatch[0]) : text;
-    return JSON.parse(jsonStr);
+    let jsonStr = text.trim();
+    const fenced = jsonStr.match(/```json\n?([\s\S]*?)\n?```/) || jsonStr.match(/```\n?([\s\S]*?)\n?```/);
+    if (fenced) jsonStr = fenced[1];
+    const first = jsonStr.indexOf("{");
+    const last = jsonStr.lastIndexOf("}");
+    if (first !== -1 && last !== -1) jsonStr = jsonStr.slice(first, last + 1);
+    const parsed = JSON.parse(jsonStr) as IdentifyResult;
+    if (!parsed?.card_name) return null;
+    return parsed;
   } catch (err) {
     console.error("[enrich-card] identify parse error:", err);
+    return null;
+  }
+}
+
+// Text-only Claude pricing call. Takes Gemini identification + condition + market summary;
+// returns pricing/market/recommendation fields only.
+async function analyzePricingWithClaude(
+  identification: IdentifyResult,
+  marketSummary: string,
+  hasMarketData: boolean,
+  ANTHROPIC_API_KEY: string,
+): Promise<any | null> {
+  const today = new Date().toISOString().split("T")[0];
+  const condition = identification.preGradingAnalysis || {};
+  const conditionSummary = {
+    conditionGrade: identification.conditionGrade || null,
+    overallScore: condition.overallScore ?? null,
+    predictedGrades: condition.predictedGrades ?? null,
+  };
+
+  const systemPrompt = `You are an expert trading card pricing analyst and market appraiser. Today is ${today}.
+
+You will receive: (1) a trading card identification produced by a vision model, (2) a physical condition assessment, and (3) real recent market data when available. Your job is pricing/market reasoning ONLY. DO NOT re-identify the card and DO NOT re-grade condition.
+
+${hasMarketData ? `VALUATION FORMULA:
+1. eBay SOLD prices are the primary anchor (50% weight).
+2. TCGPlayer prices are secondary (30% weight).
+3. eBay ACTIVE listings supplement (20% weight).
+4. Weighted blend, then adjust ±15% based on condition.
+5. estimatedValueLow = adjusted × 0.85, estimatedValueHigh = adjusted × 1.15.
+6. NEVER override real market data with training knowledge.` : `NO-MARKET-DATA RULES:
+1. Assume common/base version if uncertain.
+2. Sports cards without market data: conservative $1-$20 unless rookies/autos/numbered.
+3. NEVER estimate above $100 without market data unless clearly rare insert/auto/numbered.
+4. confidence = "low"; use WIDE range (±50%).`}
+
+Respond with ONLY a single valid JSON object (no markdown):
+{
+  "estimatedValueLow": number,
+  "estimatedValueHigh": number,
+  "valueCurrency": "USD",
+  "ebayRecentSales": { "description": "string", "averagePrice": number, "lowPrice": number, "highPrice": number, "recentSalesCount": "string", "notableSales": ["string"] },
+  "tcgplayerPrice": { "marketPrice": number, "lowPrice": number, "midPrice": number, "highPrice": number, "description": "string" },
+  "psaPopulation": { "description": "string", "estimatedPopulation": "string", "gradedPremium": "string", "recentGradedSales": ["string"] },
+  "gradedValueEstimates": {
+    "currentGradeEstimate": "string",
+    "worthGrading": boolean,
+    "worthGradingReason": "string",
+    "recommendedGrader": "PSA" | "BGS" | "CGC" | "SGC",
+    "recommendedGraderReason": "string",
+    "psa": { "estimatedGrade": number, "valueAtGrade": number, "valueAtPSA10": number, "valueAtPSA9": number, "gradingCost": number, "turnaroundTime": "string" },
+    "otherGraders": { "bgsEstimatedGrade": number, "cgcEstimatedGrade": number, "sgcEstimatedGrade": number }
+  },
+  "priceFactors": ["string"],
+  "valueTrend": "rising" | "stable" | "falling" | "unknown",
+  "trendReason": "string",
+  "confidence": "high" | "medium" | "low",
+  "confidenceReason": "string",
+  "investmentOutlook": "string",
+  "additionalNotes": "string",
+  "dataSource": "string"
+}`;
+
+  const userText = `IDENTIFICATION (from vision model):
+${JSON.stringify({
+  card_name: identification.card_name,
+  card_number: identification.card_number,
+  card_set: identification.card_set,
+  card_year: identification.card_year,
+  variant: identification.variant,
+  rarity: identification.rarity,
+  category: identification.category,
+  specialFeatures: identification.specialFeatures || [],
+}, null, 2)}
+
+CONDITION ASSESSMENT (from vision model):
+${JSON.stringify(conditionSummary, null, 2)}
+
+${marketSummary || "No market data available."}
+
+Produce the pricing JSON now.`;
+
+  try {
+    const response = await withTimeout(
+      fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "x-api-key": ANTHROPIC_API_KEY,
+          "anthropic-version": "2023-06-01",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-5",
+          max_tokens: 4096,
+          system: systemPrompt,
+          messages: [{ role: "user", content: [{ type: "text", text: userText }] }],
+        }),
+      }),
+      45_000,
+      "claude-pricing",
+    );
+    if (!response.ok) {
+      const errText = await response.text().catch(() => "");
+      console.error("[enrich-card] claude pricing failed:", response.status, errText.slice(0, 200));
+      return null;
+    }
+    const data = await response.json();
+    const textBlock = (data.content || []).find((b: any) => b?.type === "text");
+    const raw = textBlock?.text || data.content?.[0]?.text || "";
+    if (!raw) return null;
+    let jsonStr = raw.trim();
+    const fenced = jsonStr.match(/```json\n?([\s\S]*?)\n?```/) || jsonStr.match(/```\n?([\s\S]*?)\n?```/);
+    if (fenced) jsonStr = fenced[1];
+    const first = jsonStr.indexOf("{");
+    const last = jsonStr.lastIndexOf("}");
+    if (first !== -1 && last !== -1) jsonStr = jsonStr.slice(first, last + 1);
+    return JSON.parse(jsonStr);
+  } catch (err) {
+    console.error("[enrich-card] claude pricing error:", err);
     return null;
   }
 }
