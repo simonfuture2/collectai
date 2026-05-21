@@ -32,18 +32,18 @@ const Auth = () => {
   }, [searchParams]);
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (session?.user) {
         // Redeem referral on signup
         if (event === "SIGNED_IN") {
           const ref = localStorage.getItem("collectai_ref");
           if (ref) {
             localStorage.removeItem("collectai_ref");
-            try {
-              await supabase.functions.invoke("redeem-referral", {
+            setTimeout(() => {
+              supabase.functions.invoke("redeem-referral", {
                 body: { referral_code: ref },
-              });
-            } catch {}
+              }).catch(() => {});
+            }, 0);
           }
         }
         navigate("/dashboard");
