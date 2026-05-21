@@ -163,13 +163,13 @@ Respond with ONLY a single valid JSON object (no markdown, no commentary):
   }
 }
 
-// Text-only Claude pricing call. Takes Gemini identification + condition + market summary;
+// Text-only Gemini pricing call. Takes Gemini identification + condition + market summary;
 // returns pricing/market/recommendation fields only.
-async function analyzePricingWithClaude(
+async function analyzePricingWithGemini(
   identification: IdentifyResult,
   marketSummary: string,
   hasMarketData: boolean,
-  ANTHROPIC_API_KEY: string,
+  LOVABLE_API_KEY: string,
 ): Promise<any | null> {
   const today = new Date().toISOString().split("T")[0];
   const condition = identification.preGradingAnalysis || {};
@@ -243,31 +243,32 @@ Produce the pricing JSON now.`;
 
   try {
     const response = await withTimeout(
-      fetch("https://api.anthropic.com/v1/messages", {
+      fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
         headers: {
-          "x-api-key": ANTHROPIC_API_KEY,
-          "anthropic-version": "2023-06-01",
-          "content-type": "application/json",
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "claude-sonnet-4-5",
+          model: "google/gemini-3-pro-preview",
           max_tokens: 4096,
-          system: systemPrompt,
-          messages: [{ role: "user", content: [{ type: "text", text: userText }] }],
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userText },
+          ],
+          response_format: { type: "json_object" },
         }),
       }),
-      45_000,
-      "claude-pricing",
+      25_000,
+      "gemini-pricing",
     );
     if (!response.ok) {
       const errText = await response.text().catch(() => "");
-      console.error("[enrich-card] claude pricing failed:", response.status, errText.slice(0, 200));
+      console.error("[enrich-card] gemini pricing failed:", response.status, errText.slice(0, 200));
       return null;
     }
     const data = await response.json();
-    const textBlock = (data.content || []).find((b: any) => b?.type === "text");
-    const raw = textBlock?.text || data.content?.[0]?.text || "";
+    const raw = data.choices?.[0]?.message?.content || "";
     if (!raw) return null;
     let jsonStr = raw.trim();
     const fenced = jsonStr.match(/```json\n?([\s\S]*?)\n?```/) || jsonStr.match(/```\n?([\s\S]*?)\n?```/);
@@ -277,7 +278,7 @@ Produce the pricing JSON now.`;
     if (first !== -1 && last !== -1) jsonStr = jsonStr.slice(first, last + 1);
     return JSON.parse(jsonStr);
   } catch (err) {
-    console.error("[enrich-card] claude pricing error:", err);
+    console.error("[enrich-card] gemini pricing error:", err);
     return null;
   }
 }
