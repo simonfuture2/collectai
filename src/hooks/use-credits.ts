@@ -42,7 +42,11 @@ export function useCredits() {
 
   useEffect(() => {
     refresh();
-    const { data: sub } = supabase.auth.onAuthStateChange(() => refresh());
+    const { data: sub } = supabase.auth.onAuthStateChange(() => {
+      setTimeout(() => {
+        refresh();
+      }, 0);
+    });
     const interval = setInterval(refresh, 60000);
     return () => {
       clearInterval(interval);
