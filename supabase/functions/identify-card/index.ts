@@ -174,8 +174,8 @@ serve(async (req) => {
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
   } catch (error: any) {
-    console.error("Error in identify-card:", error);
-    return new Response(JSON.stringify({ error: error?.message || "Scan start failed" }), {
+    console.error("[identify-card] error:", error);
+    return new Response(JSON.stringify({ error: "Scan start failed. Please try again." }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
