@@ -63,7 +63,15 @@ const Dashboard = () => {
 
     let cancelled = false;
     const controller = new AbortController();
-    const timeout = window.setTimeout(() => controller.abort(), 12_000);
+    let timedOut = false;
+    const timeout = window.setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+      if (!cancelled) {
+        setLoadError("Your collection is taking longer than expected to load.");
+        setLoading(false);
+      }
+    }, 12_000);
 
     const loadCards = async () => {
       setLoading(true);
@@ -84,6 +92,7 @@ const Dashboard = () => {
         setStats({ totalCards: safeCards.length, totalValue: total });
       } catch (err) {
         if (cancelled) return;
+        if (timedOut) return;
         console.error("Failed to load dashboard cards:", err);
         setLoadError("Your collection could not be loaded right now.");
         setCards([]);
