@@ -140,11 +140,11 @@ Respond with ONLY a single valid JSON object (no markdown, no commentary):
   const userText = "Identify this collectible AND grade its condition. Be precise and return the full JSON object.";
   const imgs = images.slice(0, 2);
 
-  // Primary: Gemini 3.5 Flash (vision). Fallback: Gemini 3 Flash.
-  let text = await callGeminiVision("google/gemini-3.5-flash", systemPrompt, userText, imgs, LOVABLE_API_KEY, 25_000, 2048);
+  // Primary: Gemini 3.5 Flash (vision). Fast fallback: Gemini 3 Flash.
+  let text = await callGeminiVision("google/gemini-3.5-flash", systemPrompt, userText, imgs, LOVABLE_API_KEY, 20_000, 2048);
   if (!text) {
     console.log("[enrich-card] identify falling back to gemini-3-flash");
-    text = await callGeminiVision("google/gemini-3-flash", systemPrompt, userText, imgs, LOVABLE_API_KEY, 20_000, 2048);
+    text = await callGeminiVision("google/gemini-3-flash", systemPrompt, userText, imgs, LOVABLE_API_KEY, 10_000, 2048);
   }
   if (!text) return null;
   try {
