@@ -37,6 +37,7 @@ const Dashboard = () => {
   const [user, setUser] = useState<User | null>(null);
   const [cards, setCards] = useState<Card[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [stats, setStats] = useState({ totalCards: 0, totalValue: 0 });
   const [showAnalytics, setShowAnalytics] = useState(false);
   const [showUpgrade, setShowUpgrade] = useState(false);
@@ -58,20 +59,47 @@ const Dashboard = () => {
   }, [navigate]);
 
   useEffect(() => {
-    if (user) {
-      supabase.from("cards")
-        .select("id, card_name, card_set, rarity, estimated_value_low, estimated_value_high, created_at, special_features")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false })
-        .then(({ data }) => {
-          if (data) {
-            setCards(data);
-            const total = data.reduce((sum, c) => sum + ((c.estimated_value_low || 0) + (c.estimated_value_high || 0)) / 2, 0);
-            setStats({ totalCards: data.length, totalValue: total });
-          }
-          setLoading(false);
-        });
-    }
+    if (!user) return;
+
+    let cancelled = false;
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 12_000);
+
+    const loadCards = async () => {
+      setLoading(true);
+      setLoadError(null);
+      try {
+        const { data, error } = await supabase.from("cards")
+          .select("id, card_name, card_set, rarity, estimated_value_low, estimated_value_high, created_at, special_features")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false })
+          .abortSignal(controller.signal);
+
+        if (error) throw error;
+        if (cancelled) return;
+
+        const safeCards = data ?? [];
+        setCards(safeCards);
+        const total = safeCards.reduce((sum, c) => sum + ((c.estimated_value_low || 0) + (c.estimated_value_high || 0)) / 2, 0);
+        setStats({ totalCards: safeCards.length, totalValue: total });
+      } catch (err) {
+        if (cancelled) return;
+        console.error("Failed to load dashboard cards:", err);
+        setLoadError("Your collection could not be loaded right now.");
+        setCards([]);
+        setStats({ totalCards: 0, totalValue: 0 });
+      } finally {
+        window.clearTimeout(timeout);
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    loadCards();
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeout);
+      controller.abort();
+    };
   }, [user]);
 
   const handleLogout = async () => {
