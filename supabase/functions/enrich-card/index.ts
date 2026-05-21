@@ -469,33 +469,13 @@ async function searchMarketPrices(cardId: CardIdentification, category: string |
   }
 }
 
-async function verifyWithClaude(cardId: CardIdentification, analysis: any, marketSummary: string, ANTHROPIC_API_KEY: string) {
-  try {
-    const prompt = `You are a trading card price verification expert. Verify this estimate against the real market data.\n\nCard: ${cardId.card_name} ${cardId.card_number || ""} ${cardId.variant || ""} (${cardId.card_set || ""} ${cardId.card_year || ""})\nCondition: ${analysis.conditionGrade || "Unknown"}\n\nAI estimated value: $${safeFixed(analysis.estimatedValueLow)} - $${safeFixed(analysis.estimatedValueHigh)}\n\n${marketSummary}\n\nReturn ONLY valid JSON: {"verified_low": number, "verified_high": number, "verification_note": "brief explanation"}`;
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: { "x-api-key": ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-      body: JSON.stringify({ model: "claude-haiku-4-5", max_tokens: 512, messages: [{ role: "user", content: prompt }] }),
-    });
-    if (!response.ok) return null;
-    const data = await response.json();
-    const textBlock = (data.content || []).find((b: any) => b?.type === "text");
-    const text = textBlock?.text || data.content?.[0]?.text;
-    if (!text) return null;
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) return null;
-    const result = JSON.parse(jsonMatch[0]);
-    return { verifiedLow: result.verified_low, verifiedHigh: result.verified_high, verificationNote: result.verification_note };
-  } catch { return null; }
-}
-
 async function verifyWithGemini(cardId: CardIdentification, analysis: any, marketSummary: string, LOVABLE_API_KEY: string) {
   try {
     const prompt = `You are a trading card price verification expert.\n\nCard: ${cardId.card_name} ${cardId.card_number || ""} ${cardId.variant || ""}\nCondition: ${analysis.conditionGrade || "Unknown"}\nAI estimated: $${safeFixed(analysis.estimatedValueLow)} - $${safeFixed(analysis.estimatedValueHigh)}\n\n${marketSummary}\n\nReturn ONLY JSON: {"verified_low": number, "verified_high": number, "verification_note": "brief"}`;
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ model: "google/gemini-2.5-pro", messages: [{ role: "user", content: prompt }], response_format: { type: "json_object" } }),
+      body: JSON.stringify({ model: "google/gemini-2.5-flash-lite", messages: [{ role: "user", content: prompt }], response_format: { type: "json_object" } }),
     });
     if (!response.ok) return null;
     const data = await response.json();
