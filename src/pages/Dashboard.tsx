@@ -183,6 +183,12 @@ const Dashboard = () => {
           </>
         ) : (
           <>
+            {loadError && (
+              <div className="mb-6 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                {loadError}
+              </div>
+            )}
+
             <div className="grid sm:grid-cols-3 gap-6 mb-10">
               {[
                 { icon: Layers, label: "Total Cards", value: stats.totalCards, color: "text-primary" },
