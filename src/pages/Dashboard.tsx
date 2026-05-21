@@ -37,6 +37,7 @@ const Dashboard = () => {
   const [user, setUser] = useState<User | null>(null);
   const [cards, setCards] = useState<Card[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [stats, setStats] = useState({ totalCards: 0, totalValue: 0 });
   const [showAnalytics, setShowAnalytics] = useState(false);
   const [showUpgrade, setShowUpgrade] = useState(false);
@@ -58,20 +59,56 @@ const Dashboard = () => {
   }, [navigate]);
 
   useEffect(() => {
-    if (user) {
-      supabase.from("cards")
-        .select("id, card_name, card_set, rarity, estimated_value_low, estimated_value_high, created_at, special_features")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false })
-        .then(({ data }) => {
-          if (data) {
-            setCards(data);
-            const total = data.reduce((sum, c) => sum + ((c.estimated_value_low || 0) + (c.estimated_value_high || 0)) / 2, 0);
-            setStats({ totalCards: data.length, totalValue: total });
-          }
-          setLoading(false);
-        });
-    }
+    if (!user) return;
+
+    let cancelled = false;
+    const controller = new AbortController();
+    let timedOut = false;
+    const timeout = window.setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+      if (!cancelled) {
+        setLoadError("Your collection is taking longer than expected to load.");
+        setLoading(false);
+      }
+    }, 12_000);
+
+    const loadCards = async () => {
+      setLoading(true);
+      setLoadError(null);
+      try {
+        const { data, error } = await supabase.from("cards")
+          .select("id, card_name, card_set, rarity, estimated_value_low, estimated_value_high, created_at, special_features")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false })
+          .abortSignal(controller.signal);
+
+        if (error) throw error;
+        if (cancelled) return;
+
+        const safeCards = data ?? [];
+        setCards(safeCards);
+        const total = safeCards.reduce((sum, c) => sum + ((c.estimated_value_low || 0) + (c.estimated_value_high || 0)) / 2, 0);
+        setStats({ totalCards: safeCards.length, totalValue: total });
+      } catch (err) {
+        if (cancelled) return;
+        if (timedOut) return;
+        console.error("Failed to load dashboard cards:", err);
+        setLoadError("Your collection could not be loaded right now.");
+        setCards([]);
+        setStats({ totalCards: 0, totalValue: 0 });
+      } finally {
+        window.clearTimeout(timeout);
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    loadCards();
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeout);
+      controller.abort();
+    };
   }, [user]);
 
   const handleLogout = async () => {
@@ -155,6 +192,12 @@ const Dashboard = () => {
           </>
         ) : (
           <>
+            {loadError && (
+              <div className="mb-6 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                {loadError}
+              </div>
+            )}
+
             <div className="grid sm:grid-cols-3 gap-6 mb-10">
               {[
                 { icon: Layers, label: "Total Cards", value: stats.totalCards, color: "text-primary" },
