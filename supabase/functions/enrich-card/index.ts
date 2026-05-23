@@ -52,8 +52,27 @@ async function callGeminiVision(
   LOVABLE_API_KEY: string,
   timeoutMs: number,
   maxTokens: number,
+  jsonMode = false,
 ): Promise<string | null> {
   try {
+    const body: any = {
+      model,
+      max_tokens: maxTokens,
+      messages: [
+        { role: "system", content: systemPrompt },
+        {
+          role: "user",
+          content: [
+            { type: "text", text: userText },
+            ...images.map((img) => ({
+              type: "image_url" as const,
+              image_url: { url: img.url },
+            })),
+          ],
+        },
+      ],
+    };
+    if (jsonMode) body.response_format = { type: "json_object" };
     const response = await withTimeout(
       fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
@@ -61,23 +80,7 @@ async function callGeminiVision(
           Authorization: `Bearer ${LOVABLE_API_KEY}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          model,
-          max_tokens: maxTokens,
-          messages: [
-            { role: "system", content: systemPrompt },
-            {
-              role: "user",
-              content: [
-                { type: "text", text: userText },
-                ...images.map((img) => ({
-                  type: "image_url" as const,
-                  image_url: { url: img.url },
-                })),
-              ],
-            },
-          ],
-        }),
+        body: JSON.stringify(body),
       }),
       timeoutMs,
       `gemini-${model}`,
@@ -93,6 +96,21 @@ async function callGeminiVision(
     console.error(`[enrich-card] gemini ${model} error:`, err);
     return null;
   }
+}
+
+// Resilient JSON extractor: strips markdown fences, control chars,
+// trims to outermost {...}, removes trailing commas.
+function extractJsonObject(text: string): any {
+  let jsonStr = text.trim()
+    .replace(/^```(?:json|JSON)?\s*/i, "")
+    .replace(/\s*```\s*$/i, "")
+    .replace(/[\u0000-\u001F\u007F]/g, " ")
+    .trim();
+  const first = jsonStr.indexOf("{");
+  const last = jsonStr.lastIndexOf("}");
+  if (first !== -1 && last !== -1 && last > first) jsonStr = jsonStr.slice(first, last + 1);
+  jsonStr = jsonStr.replace(/,\s*([}\]])/g, "$1");
+  return JSON.parse(jsonStr);
 }
 
 type IdentifyResult = CardIdentification & {
