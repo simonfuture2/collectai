@@ -384,10 +384,9 @@ Respond in JSON format:
       );
     }
 
-    // Claude verification if available
-    if (ANTHROPIC_API_KEY && marketData && pricing.estimatedValueLow != null) {
+    // Gemini sanity-check verification (replaces previous Claude verification)
+    if (marketData && pricing.estimatedValueLow != null) {
       try {
-        console.log("Running Claude price verification for API...");
         const verifyPrompt = `Verify this trading card price estimate against real market data.
 
 Card: ${cardName} (${cardSet || ""} ${cardYear || ""})
@@ -398,36 +397,34 @@ ${marketData}
 If the estimate is wrong based on the data, correct it. Return ONLY JSON:
 {"verified_low": number, "verified_high": number, "verification_note": "brief explanation"}`;
 
-        const claudeResp = await fetch("https://api.anthropic.com/v1/messages", {
+        const verifyResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
           method: "POST",
-          headers: {
-            "x-api-key": ANTHROPIC_API_KEY,
-            "anthropic-version": "2023-06-01",
-            "content-type": "application/json",
-          },
+          headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
           body: JSON.stringify({
-            model: "claude-sonnet-4-20250514",
-            max_tokens: 512,
+            model: "google/gemini-2.5-flash-lite",
             messages: [{ role: "user", content: verifyPrompt }],
+            response_format: { type: "json_object" },
           }),
         });
 
-        if (claudeResp.ok) {
-          const claudeData = await claudeResp.json();
-          const claudeText = claudeData.content?.[0]?.text;
-          if (claudeText) {
-            const match = claudeText.match(/\{[\s\S]*\}/);
-            if (match) {
-              const verified = JSON.parse(match[0]);
-              pricing.estimatedValueLow = verified.verified_low;
-              pricing.estimatedValueHigh = verified.verified_high;
-              pricing.verificationNote = verified.verification_note;
-              console.log("Claude verified:", verified.verification_note);
+        if (verifyResp.ok) {
+          const vData = await verifyResp.json();
+          const vText = vData.choices?.[0]?.message?.content;
+          if (vText) {
+            try {
+              const verified = extractJsonObject(vText);
+              if (typeof verified.verified_low === "number" && typeof verified.verified_high === "number") {
+                pricing.estimatedValueLow = verified.verified_low;
+                pricing.estimatedValueHigh = verified.verified_high;
+                pricing.verificationNote = verified.verification_note;
+              }
+            } catch (e) {
+              console.error("Gemini verify parse failed:", e);
             }
           }
         }
       } catch (err) {
-        console.error("Claude verification failed:", err);
+        console.error("Gemini verification failed:", err);
       }
     }
 
