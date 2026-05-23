@@ -149,16 +149,21 @@ Respond with ONLY a single valid JSON object (no markdown, no commentary):
   if (!text) return null;
   try {
     let jsonStr = text.trim();
-    const fenced = jsonStr.match(/```json\n?([\s\S]*?)\n?```/) || jsonStr.match(/```\n?([\s\S]*?)\n?```/);
-    if (fenced) jsonStr = fenced[1];
+    // Strip any markdown code fences aggressively (```json, ```JSON, ```, etc.)
+    jsonStr = jsonStr.replace(/^```(?:json|JSON)?\s*/i, "").replace(/```\s*$/i, "").trim();
     const first = jsonStr.indexOf("{");
     const last = jsonStr.lastIndexOf("}");
-    if (first !== -1 && last !== -1) jsonStr = jsonStr.slice(first, last + 1);
+    if (first !== -1 && last !== -1 && last > first) {
+      jsonStr = jsonStr.slice(first, last + 1);
+    }
     const parsed = JSON.parse(jsonStr) as IdentifyResult;
-    if (!parsed?.card_name) return null;
+    if (!parsed?.card_name) {
+      console.error("[enrich-card] identify missing card_name. Raw:", text.slice(0, 500));
+      return null;
+    }
     return parsed;
   } catch (err) {
-    console.error("[enrich-card] identify parse error:", err);
+    console.error("[enrich-card] identify parse error:", err, "Raw:", text.slice(0, 500));
     return null;
   }
 }
