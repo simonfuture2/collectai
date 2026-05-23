@@ -232,7 +232,14 @@ serve(async (req) => {
 
     const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
 
-    const { cardName, cardSet, cardYear, edition, rarity, condition, imageUrl } = await req.json();
+    const body = await req.json();
+    const cardName = String(body.cardName || body.card_name || "").trim();
+    const cardSet = String(body.cardSet || body.card_set || "").trim();
+    const cardYear = String(body.cardYear || body.card_year || "").trim();
+    const edition = String(body.edition || "").trim();
+    const rarity = String(body.rarity || "").trim();
+    const condition = String(body.condition || body.condition_grade || "").trim();
+    const imageUrl = String(body.imageUrl || body.image_url || "").trim();
 
     if (!cardName && !imageUrl) {
       return new Response(
