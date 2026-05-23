@@ -291,13 +291,12 @@ Produce the pricing JSON now.`;
     const data = await response.json();
     const raw = data.choices?.[0]?.message?.content || "";
     if (!raw) return null;
-    let jsonStr = raw.trim();
-    const fenced = jsonStr.match(/```json\n?([\s\S]*?)\n?```/) || jsonStr.match(/```\n?([\s\S]*?)\n?```/);
-    if (fenced) jsonStr = fenced[1];
-    const first = jsonStr.indexOf("{");
-    const last = jsonStr.lastIndexOf("}");
-    if (first !== -1 && last !== -1) jsonStr = jsonStr.slice(first, last + 1);
-    return JSON.parse(jsonStr);
+    try {
+      return extractJsonObject(raw);
+    } catch (err) {
+      console.error("[enrich-card] pricing parse error:", err, "Raw:", raw.slice(0, 500));
+      return null;
+    }
   } catch (err) {
     console.error("[enrich-card] gemini pricing error:", err);
     return null;
