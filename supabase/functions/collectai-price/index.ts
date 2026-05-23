@@ -32,6 +32,19 @@ function median(nums: number[]): number {
   return sorted.length % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
 }
 
+function extractJsonObject(text: string): any {
+  let jsonStr = text.trim()
+    .replace(/^```(?:json|JSON)?\s*/i, "")
+    .replace(/\s*```\s*$/i, "")
+    .replace(/[\u0000-\u001F\u007F]/g, " ")
+    .trim();
+  const first = jsonStr.indexOf("{");
+  const last = jsonStr.lastIndexOf("}");
+  if (first !== -1 && last !== -1 && last > first) jsonStr = jsonStr.slice(first, last + 1);
+  jsonStr = jsonStr.replace(/,\s*([}\]])/g, "$1");
+  return JSON.parse(jsonStr);
+}
+
 interface MarketSourceData {
   source: string;
   median: number;
@@ -334,10 +347,9 @@ Respond in JSON format:
 
     let pricing;
     try {
-      const jsonMatch = content.match(/```json\n?([\s\S]*?)\n?```/) || content.match(/\{[\s\S]*\}/);
-      const jsonStr = jsonMatch ? (jsonMatch[1] || jsonMatch[0]) : content;
-      pricing = JSON.parse(jsonStr);
-    } catch {
+      pricing = extractJsonObject(content);
+    } catch (err) {
+      console.error("Failed to parse pricing data:", err, content.slice(0, 500));
       return new Response(
         JSON.stringify({ error: "Failed to parse pricing data" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
