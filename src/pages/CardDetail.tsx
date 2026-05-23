@@ -405,6 +405,7 @@ export default function CardDetail() {
       const signedImageUrl = cardImageUrl || await getSignedImageUrl(card.image_url);
       const { data, error } = await supabase.functions.invoke("collectai-price", {
         body: {
+          cardId: id,
           cardName,
           cardSet: card.card_set || analysis?.cardSet || "",
           cardYear: card.card_year || analysis?.cardYear || "",
