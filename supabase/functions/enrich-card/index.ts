@@ -128,14 +128,20 @@ async function identifyCardFromImages(
 ): Promise<IdentifyResult | null> {
   const systemPrompt = `You are an expert trading card identifier AND professional grader. Look at the card image(s) carefully.
 
-TASK 1 - IDENTIFICATION: Read ALL text on the card. Capture name, number, set, year, variant, rarity, and category.
+TASK 1 - IDENTIFICATION: Read text on the card. Capture name, number, set, year, variant, rarity, and category.
 
-TASK 2 - CONDITION GRADING: Assess physical condition from the image(s). Score centering, corners, edges, and surface on a 1-10 scale. Predict graded outcomes (PSA, BGS, CGC, SGC). Mark visible defects with normalized [0..1] coordinates (x=left, y=top) and severity (minor/moderate/severe).
+TASK 2 - CONDITION GRADING: Assess physical condition. Score centering, corners, edges, surface on 1-10. Predict graded outcomes (PSA, BGS, CGC, SGC). Mark visible defects with normalized [0..1] coordinates and severity.
 
-Respond with ONLY a single valid JSON object (no markdown, no commentary):
+CRITICAL OUTPUT RULES:
+- Respond with ONE valid JSON object only. No markdown, no commentary.
+- Keep every "notes" field UNDER 80 characters. Be terse.
+- Keep "conditionNotes" under 150 characters.
+- Do not invent fields. Use empty string "" or null when unknown.
+
+Schema:
 {
   "card_name": "string",
-  "card_number": "string (e.g. '105/086'), empty if not visible",
+  "card_number": "string",
   "card_set": "string",
   "card_year": "string",
   "variant": "string",
@@ -151,37 +157,29 @@ Respond with ONLY a single valid JSON object (no markdown, no commentary):
     "bgsSubgrades": { "centering": number, "corners": number, "edges": number, "surface": number }
   },
   "defects": [{ "type": "string", "side": "front" | "back", "x": number, "y": number, "severity": "minor" | "moderate" | "severe", "note": "string" }],
-  "conditionGrade": "string (e.g. 'Near Mint', 'Mint', 'Excellent')",
+  "conditionGrade": "string",
   "conditionNotes": "string",
   "specialFeatures": ["string"]
 }`;
-  const userText = "Identify this collectible AND grade its condition. Be precise and return the full JSON object.";
+  const userText = "Identify this collectible AND grade its condition. Return the full JSON object — keep notes very short.";
   const imgs = images.slice(0, 2);
 
-  // Primary: Gemini 3.5 Flash (vision). Fast fallback: Gemini 3 Flash.
-  let text = await callGeminiVision("google/gemini-3.5-flash", systemPrompt, userText, imgs, LOVABLE_API_KEY, 20_000, 2048);
+  // Primary: Gemini 3.5 Flash with JSON mode + ample tokens. Fallback: Gemini 3 Flash.
+  let text = await callGeminiVision("google/gemini-3.5-flash", systemPrompt, userText, imgs, LOVABLE_API_KEY, 25_000, 4096, true);
   if (!text) {
     console.log("[enrich-card] identify falling back to gemini-3-flash");
-    text = await callGeminiVision("google/gemini-3-flash", systemPrompt, userText, imgs, LOVABLE_API_KEY, 10_000, 2048);
+    text = await callGeminiVision("google/gemini-3-flash", systemPrompt, userText, imgs, LOVABLE_API_KEY, 15_000, 4096, true);
   }
   if (!text) return null;
   try {
-    let jsonStr = text.trim();
-    // Strip any markdown code fences aggressively (```json, ```JSON, ```, etc.)
-    jsonStr = jsonStr.replace(/^```(?:json|JSON)?\s*/i, "").replace(/```\s*$/i, "").trim();
-    const first = jsonStr.indexOf("{");
-    const last = jsonStr.lastIndexOf("}");
-    if (first !== -1 && last !== -1 && last > first) {
-      jsonStr = jsonStr.slice(first, last + 1);
-    }
-    const parsed = JSON.parse(jsonStr) as IdentifyResult;
+    const parsed = extractJsonObject(text) as IdentifyResult;
     if (!parsed?.card_name) {
       console.error("[enrich-card] identify missing card_name. Raw:", text.slice(0, 500));
       return null;
     }
     return parsed;
   } catch (err) {
-    console.error("[enrich-card] identify parse error:", err, "Raw:", text.slice(0, 500));
+    console.error("[enrich-card] identify parse error:", err, "Raw:", text.slice(0, 800));
     return null;
   }
 }
