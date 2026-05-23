@@ -243,16 +243,44 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
-    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
-
     const body = await req.json();
-    const cardName = String(body.cardName || body.card_name || "").trim();
-    const cardSet = String(body.cardSet || body.card_set || "").trim();
-    const cardYear = String(body.cardYear || body.card_year || "").trim();
+    let cardName = String(body.cardName || body.card_name || "").trim();
+    let cardSet = String(body.cardSet || body.card_set || "").trim();
+    let cardYear = String(body.cardYear || body.card_year || "").trim();
     const edition = String(body.edition || "").trim();
     const rarity = String(body.rarity || "").trim();
     const condition = String(body.condition || body.condition_grade || "").trim();
-    const imageUrl = String(body.imageUrl || body.image_url || "").trim();
+    let imageUrl = String(body.imageUrl || body.image_url || "").trim();
+    const cardId = String(body.cardId || body.card_id || "").trim();
+
+    // Fallback: hydrate from DB when caller provided cardId but missing fields.
+    if (cardId && (!cardName || !imageUrl) && authenticatedUserId) {
+      try {
+        const { createClient } = await import("npm:@supabase/supabase-js@2");
+        const supabaseUrl2 = Deno.env.get("SUPABASE_URL")!;
+        const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+        const admin = createClient(supabaseUrl2, serviceKey);
+        const { data: card } = await admin
+          .from("cards")
+          .select("card_name, card_set, card_year, image_url, ai_analysis, user_id")
+          .eq("id", cardId)
+          .maybeSingle();
+        if (card && card.user_id === authenticatedUserId) {
+          const ai = (card.ai_analysis as any) || {};
+          if (!cardName) cardName = String(card.card_name || ai.cardName || "").trim();
+          if (!cardSet) cardSet = String(card.card_set || ai.cardSet || "").trim();
+          if (!cardYear) cardYear = String(card.card_year || ai.cardYear || "").trim();
+          if (!imageUrl && card.image_url && !String(card.image_url).startsWith("http")) {
+            const { data: signed } = await admin.storage
+              .from("card-images")
+              .createSignedUrl(card.image_url, 3600);
+            if (signed?.signedUrl) imageUrl = signed.signedUrl;
+          }
+        }
+      } catch (err) {
+        console.error("[collectai-price] DB hydrate failed:", err);
+      }
+    }
 
     if (!cardName && !imageUrl) {
       return new Response(
