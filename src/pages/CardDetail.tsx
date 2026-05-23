@@ -400,11 +400,15 @@ export default function CardDetail() {
         toast.error("Please sign in to re-scan prices");
         return;
       }
+      const analysis = (card.ai_analysis as AIAnalysis | null) || null;
+      const cardName = (card.card_name || analysis?.cardName || "").trim();
+      const signedImageUrl = cardImageUrl || await getSignedImageUrl(card.image_url);
       const { data, error } = await supabase.functions.invoke("collectai-price", {
         body: {
-          cardName: card.card_name || "",
-          cardSet: card.card_set || "",
-          cardYear: card.card_year || "",
+          cardName,
+          cardSet: card.card_set || analysis?.cardSet || "",
+          cardYear: card.card_year || analysis?.cardYear || "",
+          imageUrl: cardName ? undefined : signedImageUrl,
         },
         headers: { Authorization: `Bearer ${session.access_token}` },
       });
