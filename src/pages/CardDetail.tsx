@@ -1610,6 +1610,7 @@ function GradingROICalculator({
       { key: 'bgs', name: 'BGS', color: 'blue' },
       { key: 'cgc', name: 'CGC', color: 'yellow' },
       { key: 'sgc', name: 'SGC', color: 'green' },
+      { key: 'tag', name: 'TAG', color: 'purple' },
     ] as const;
 
     graders.forEach(({ key, name, color }) => {
