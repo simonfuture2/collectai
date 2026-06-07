@@ -872,8 +872,8 @@ export default function CardDetail() {
                 </div>
               )}
 
-              {/* Grading ROI Calculator - Desktop */}
-              {analysis?.gradedValueEstimates && (
+              {/* Grading ROI Calculator - Desktop (hidden when raw anchor is unreliable) */}
+              {analysis?.gradedValueEstimates && analysis?.rawConfidence !== "low" && (
                 <GradingROICalculator 
                   rawValue={avgValue}
                   gradedEstimates={analysis.gradedValueEstimates}
