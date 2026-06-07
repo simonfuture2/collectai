@@ -183,6 +183,22 @@ interface PreGradingData {
   gradingRecommendation?: string;
 }
 
+interface GradedTierComps {
+  median: number;
+  low: number;
+  high: number;
+  count: number;
+  prices: number[];
+}
+type GraderKey = "psa" | "bgs" | "cgc" | "sgc" | "tag";
+type GradedComps = Partial<Record<GraderKey, Record<string, GradedTierComps | null>>>;
+
+interface ExtractedMarketData {
+  gradedComps?: GradedComps;
+  rawConfidence?: "high" | "medium" | "low";
+  rawConfidenceReason?: string;
+}
+
 interface AIAnalysis {
   cardName?: string;
   cardSet?: string;
@@ -213,6 +229,7 @@ interface AIAnalysis {
   additionalNotes?: string;
   dataSource?: string;
   verificationNote?: string;
+  extractedMarketData?: ExtractedMarketData;
 }
 
 // Generate mock price history as fallback
@@ -852,6 +869,12 @@ export default function CardDetail() {
                       </p>
                     )}
 
+                    {/* Per-grade sold comps summary */}
+                    <GradedCompsSummary
+                      comps={analysis.extractedMarketData?.gradedComps}
+                      cardSearchQuery={[card?.card_year, card?.card_name, card?.card_set].filter(Boolean).join(" ")}
+                    />
+
                     {/* Grader Cards Grid */}
                     <div className="grid grid-cols-2 gap-4">
                       {getGraderConfigs(card?.category, analysis.gradedValueEstimates).map((cfg) => {
@@ -862,7 +885,10 @@ export default function CardDetail() {
                             name={cfg.name}
                             color={cfg.color}
                             grader={g}
+                            graderKey={cfg.key}
                             grades={cfg.grades(g)}
+                            comps={analysis.extractedMarketData?.gradedComps?.[cfg.key]}
+                            cardSearchQuery={[card?.card_year, card?.card_name, card?.card_set].filter(Boolean).join(" ")}
                             extra={cfg.extra?.(g)}
                           />
                         );
@@ -1300,6 +1326,12 @@ export default function CardDetail() {
                       </p>
                     )}
 
+                    {/* Per-grade sold comps summary */}
+                    <GradedCompsSummary
+                      comps={analysis.extractedMarketData?.gradedComps}
+                      cardSearchQuery={[card?.card_year, card?.card_name, card?.card_set].filter(Boolean).join(" ")}
+                    />
+
                     {/* Grader Cards Grid */}
                     <div className="grid grid-cols-2 gap-4">
                       {getGraderConfigs(card?.category, analysis.gradedValueEstimates).map((cfg) => {
@@ -1310,7 +1342,10 @@ export default function CardDetail() {
                             name={cfg.name}
                             color={cfg.color}
                             grader={g}
+                            graderKey={cfg.key}
                             grades={cfg.grades(g)}
+                            comps={analysis.extractedMarketData?.gradedComps?.[cfg.key]}
+                            cardSearchQuery={[card?.card_year, card?.card_name, card?.card_set].filter(Boolean).join(" ")}
                             extra={cfg.extra?.(g)}
                           />
                         );
@@ -1461,16 +1496,19 @@ interface GraderCardProps {
   name: string;
   color: GraderColor;
   grader: GraderValues;
-  grades: { label: string; value?: number }[];
+  grades: { label: string; gradeKey: string; value?: number }[];
+  comps?: Record<string, GradedTierComps | null>;
+  graderKey: GraderKey;
+  cardSearchQuery?: string;
   extra?: string;
 }
 
 
 interface GraderConfig {
-  key: "psa" | "bgs" | "cgc" | "sgc" | "tag";
+  key: GraderKey;
   name: "PSA" | "BGS" | "CGC" | "SGC" | "TAG";
   color: GraderColor;
-  grades: (g: GraderValues) => { label: string; value?: number }[];
+  grades: (g: GraderValues) => { label: string; gradeKey: string; value?: number }[];
   extra?: (g: GraderValues) => string | undefined;
 }
 
@@ -1478,42 +1516,42 @@ const GRADER_DEFS: Record<GraderConfig["key"], GraderConfig> = {
   psa: {
     key: "psa", name: "PSA", color: "red",
     grades: (g) => [
-      { label: "PSA 10", value: g.valueAtPSA10 },
-      { label: "PSA 9", value: g.valueAtPSA9 },
-      { label: "PSA 8", value: g.valueAtPSA8 },
+      { label: "PSA 10", gradeKey: "10", value: g.valueAtPSA10 },
+      { label: "PSA 9", gradeKey: "9", value: g.valueAtPSA9 },
+      { label: "PSA 8", gradeKey: "8", value: g.valueAtPSA8 },
     ],
   },
   bgs: {
     key: "bgs", name: "BGS", color: "blue",
     grades: (g) => [
-      { label: "BGS 10", value: g.valueAtBGS10 },
-      { label: "BGS 9.5", value: g.valueAtBGS9_5 },
-      { label: "BGS 9", value: g.valueAtBGS9 },
+      { label: "BGS 10", gradeKey: "10", value: g.valueAtBGS10 },
+      { label: "BGS 9.5", gradeKey: "9.5", value: g.valueAtBGS9_5 },
+      { label: "BGS 9", gradeKey: "9", value: g.valueAtBGS9 },
     ],
     extra: (g) => g.blackLabelPotential,
   },
   cgc: {
     key: "cgc", name: "CGC", color: "yellow",
     grades: (g) => [
-      { label: "CGC 10", value: g.valueAtCGC10 },
-      { label: "CGC 9.5", value: g.valueAtCGC9_5 },
-      { label: "CGC 9", value: g.valueAtCGC9 },
+      { label: "CGC 10", gradeKey: "10", value: g.valueAtCGC10 },
+      { label: "CGC 9.5", gradeKey: "9.5", value: g.valueAtCGC9_5 },
+      { label: "CGC 9", gradeKey: "9", value: g.valueAtCGC9 },
     ],
   },
   sgc: {
     key: "sgc", name: "SGC", color: "green",
     grades: (g) => [
-      { label: "SGC 10", value: g.valueAtSGC10 },
-      { label: "SGC 9.5", value: g.valueAtSGC9_5 },
-      { label: "SGC 9", value: g.valueAtSGC9 },
+      { label: "SGC 10", gradeKey: "10", value: g.valueAtSGC10 },
+      { label: "SGC 9.5", gradeKey: "9.5", value: g.valueAtSGC9_5 },
+      { label: "SGC 9", gradeKey: "9", value: g.valueAtSGC9 },
     ],
   },
   tag: {
     key: "tag", name: "TAG", color: "purple",
     grades: (g) => [
-      { label: "TAG 10", value: g.valueAtTAG10 },
-      { label: "TAG 9.5", value: g.valueAtTAG9_5 },
-      { label: "TAG 9", value: g.valueAtTAG9 },
+      { label: "TAG 10", gradeKey: "10", value: g.valueAtTAG10 },
+      { label: "TAG 9.5", gradeKey: "9.5", value: g.valueAtTAG9_5 },
+      { label: "TAG 9", gradeKey: "9", value: g.valueAtTAG9 },
     ],
   },
 };
@@ -1528,7 +1566,6 @@ function getGraderConfigs(category: string | null | undefined, estimates: Graded
   } else {
     keys = ["psa", "cgc", "bgs"];
   }
-  // Include any extra graders that came back with data, even if not in the default list.
   (["psa", "bgs", "cgc", "sgc", "tag"] as const).forEach((k) => {
     if (!keys.includes(k) && estimates[k]) keys.push(k);
   });
@@ -1537,12 +1574,78 @@ function getGraderConfigs(category: string | null | undefined, estimates: Graded
     .filter((cfg) => {
       const g = estimates[cfg.key];
       if (!g) return false;
-      // Show grader if any value field or estimated grade present
       return cfg.grades(g).some((x) => x.value != null) || g.estimatedGrade != null || g.valueAtGrade != null;
     });
 }
 
-function GraderCard({ name, color, grader, grades, extra }: GraderCardProps) {
+function buildEbaySoldUrl(query: string, gradeLabel?: string): string {
+  const q = gradeLabel ? `${query} ${gradeLabel}` : query;
+  const params = new URLSearchParams({ _nkw: q, LH_Sold: "1", LH_Complete: "1" });
+  return `https://www.ebay.com/sch/i.html?${params.toString()}`;
+}
+
+function GradedCompsSummary({ comps, cardSearchQuery }: { comps?: GradedComps; cardSearchQuery?: string }) {
+  if (!comps) return null;
+  const items: { grader: string; grade: string; count: number; label: string }[] = [];
+  (Object.keys(comps) as GraderKey[]).forEach((grader) => {
+    const tiers = comps[grader] || {};
+    Object.entries(tiers).forEach(([grade, c]) => {
+      if (c && c.count > 0) {
+        items.push({
+          grader,
+          grade,
+          count: c.count,
+          label: `${grader.toUpperCase()} ${grade}`,
+        });
+      }
+    });
+  });
+  if (items.length === 0) {
+    return (
+      <div className="text-xs text-muted-foreground italic px-1 mb-3">
+        No graded sold comps found in recent listings.
+      </div>
+    );
+  }
+  return (
+    <div className="mb-4 p-3 rounded-xl bg-green-500/5 border border-green-500/20">
+      <div className="flex items-center gap-2 mb-2">
+        <CheckCircle className="w-3.5 h-3.5 text-green-600 dark:text-green-400" />
+        <span className="text-xs font-semibold text-green-700 dark:text-green-400 uppercase tracking-wider">
+          Real Sold Comps Retrieved
+        </span>
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        {items.map((it) => {
+          const url = cardSearchQuery ? buildEbaySoldUrl(cardSearchQuery, it.label) : null;
+          const inner = (
+            <span className="inline-flex items-center gap-1 text-[11px] font-medium">
+              <span className="text-foreground">{it.label}</span>
+              <span className="text-muted-foreground">· {it.count}</span>
+            </span>
+          );
+          return url ? (
+            <a
+              key={it.label}
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-2 py-1 rounded-md bg-background/80 border border-border hover:border-primary/50 transition-colors"
+            >
+              {inner}
+            </a>
+          ) : (
+            <span key={it.label} className="px-2 py-1 rounded-md bg-background/80 border border-border">
+              {inner}
+            </span>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function GraderCard({ name, color, grader, grades, comps, graderKey, cardSearchQuery, extra }: GraderCardProps) {
   const colorClasses: Record<GraderColor, string> = {
     red: "bg-red-500/10 border-red-500/20 text-red-500",
     blue: "bg-blue-500/10 border-blue-500/20 text-blue-500",
@@ -1550,6 +1653,7 @@ function GraderCard({ name, color, grader, grades, extra }: GraderCardProps) {
     green: "bg-green-500/10 border-green-500/20 text-green-500",
     purple: "bg-purple-500/10 border-purple-500/20 text-purple-500",
   };
+  const [expanded, setExpanded] = useState<string | null>(null);
 
   return (
     <div className={`p-4 rounded-xl border ${colorClasses[color].split(" ").slice(0, 2).join(" ")}`}>
@@ -1559,16 +1663,62 @@ function GraderCard({ name, color, grader, grades, extra }: GraderCardProps) {
           <span className="text-xs text-muted-foreground">Est. Grade: {grader.estimatedGrade}</span>
         )}
       </div>
-      
+
       <div className="space-y-2">
-        {grades.map((grade) => (
-          <div key={grade.label} className="flex justify-between items-center">
-            <span className="text-xs text-muted-foreground">{grade.label}</span>
-            <span className={`font-medium ${grade.value != null ? "text-foreground" : "text-muted-foreground italic"}`}>
-              {grade.value != null ? `$${grade.value.toLocaleString()}` : "No sold comps"}
-            </span>
-          </div>
-        ))}
+        {grades.map((grade) => {
+          const comp = comps?.[grade.gradeKey];
+          const hasComps = !!comp && comp.count > 0;
+          const isOpen = expanded === grade.gradeKey;
+          const ebayUrl = cardSearchQuery ? buildEbaySoldUrl(cardSearchQuery, grade.label) : null;
+          return (
+            <div key={grade.label} className="text-xs">
+              <div className="flex justify-between items-center">
+                <button
+                  type="button"
+                  onClick={() => hasComps && setExpanded(isOpen ? null : grade.gradeKey)}
+                  disabled={!hasComps}
+                  className={`text-left text-xs ${hasComps ? "text-foreground hover:underline cursor-pointer" : "text-muted-foreground cursor-default"}`}
+                >
+                  {grade.label}
+                  {hasComps && (
+                    <span className="ml-1.5 text-[10px] text-muted-foreground">
+                      · {comp!.count} sold {isOpen ? "▾" : "▸"}
+                    </span>
+                  )}
+                </button>
+                <span className={`font-medium ${grade.value != null ? "text-foreground" : "text-muted-foreground italic"}`}>
+                  {grade.value != null ? `$${grade.value.toLocaleString()}` : "No sold comps"}
+                </span>
+              </div>
+              {isOpen && hasComps && (
+                <div className="mt-2 mb-1 p-2 rounded-md bg-background/60 border border-border space-y-1.5">
+                  <div className="flex justify-between text-[10px] text-muted-foreground">
+                    <span>Low ${comp!.low.toLocaleString()}</span>
+                    <span>Median ${comp!.median.toLocaleString()}</span>
+                    <span>High ${comp!.high.toLocaleString()}</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {[...comp!.prices].sort((a, b) => b - a).slice(0, 8).map((p, i) => (
+                      <span key={i} className="px-1.5 py-0.5 rounded bg-muted text-[10px] text-foreground">
+                        ${p.toLocaleString()}
+                      </span>
+                    ))}
+                  </div>
+                  {ebayUrl && (
+                    <a
+                      href={ebayUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-block text-[10px] text-primary hover:underline mt-0.5"
+                    >
+                      View {grade.label} sold on eBay →
+                    </a>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
 
       {grader.valueAtGrade != null ? (
