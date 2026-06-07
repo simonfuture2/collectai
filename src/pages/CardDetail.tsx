@@ -688,12 +688,21 @@ export default function CardDetail() {
             <div className="grid grid-cols-2 gap-4">
               <div className="gradient-primary rounded-xl p-4">
                 <p className="text-sm text-white/80">Estimated Value</p>
-                <p className="text-2xl font-display font-bold text-white">
-                  ${safeFixed(avgValue)}
-                </p>
-                <p className="text-xs text-white/70">
-                  ${safeFixed(card.estimated_value_low)} - ${safeFixed(card.estimated_value_high)}
-                </p>
+                {card.estimated_value_low == null && card.estimated_value_high == null ? (
+                  <>
+                    <p className="text-lg font-display font-semibold text-white">Unavailable</p>
+                    <p className="text-xs text-white/70">No market data on file</p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-2xl font-display font-bold text-white">
+                      ${safeFixed(avgValue)}
+                    </p>
+                    <p className="text-xs text-white/70">
+                      ${safeFixed(card.estimated_value_low)} - ${safeFixed(card.estimated_value_high)}
+                    </p>
+                  </>
+                )}
               </div>
               <div className="bg-card border border-border rounded-xl p-4">
                 <p className="text-sm text-muted-foreground">Condition</p>
@@ -710,6 +719,29 @@ export default function CardDetail() {
               </div>
             </div>
 
+            {/* Missing-analysis recovery banner */}
+            {(card as any).analysis_status === "complete" &&
+              card.estimated_value_low == null &&
+              card.estimated_value_high == null && (
+                <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 space-y-2">
+                  <p className="text-sm font-semibold text-amber-700 dark:text-amber-400">
+                    Market value unavailable
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    The last scan completed but no market data could be saved for this card. Re-run the full analysis to rebuild identification, condition, and pricing.
+                  </p>
+                  <Button
+                    size="sm"
+                    onClick={reanalyzeFull}
+                    disabled={reanalyzing}
+                    className="gradient-primary text-white"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${reanalyzing ? "animate-spin" : ""}`} />
+                    {reanalyzing ? "Starting…" : "Re-run full analysis"}
+                  </Button>
+                </div>
+              )}
+
             {/* Re-Scan Button */}
             <Button
               onClick={rescanPrices}
@@ -720,6 +752,17 @@ export default function CardDetail() {
               {rescanning ? 'Re-Scanning...' : isFreeRescanAvailable() ? '🆓 Free Daily Re-Scan' : 'Re-Scan & Update Prices'}
             </Button>
 
+            {/* Re-run Full Analysis */}
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={reanalyzeFull}
+              disabled={reanalyzing}
+            >
+              <RefreshCw className={`w-4 h-4 ${reanalyzing ? "animate-spin" : ""}`} />
+              {reanalyzing ? "Starting full re-analysis…" : "Re-run full analysis"}
+            </Button>
+
             {/* List on Marketplace */}
             <Button
               variant="outline"
@@ -728,6 +771,7 @@ export default function CardDetail() {
             >
               List on Marketplace
             </Button>
+
 
             {/* No Market Data Warning */}
             {analysis && (analysis as any).noMarketData && (
