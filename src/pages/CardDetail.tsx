@@ -113,6 +113,9 @@ interface GraderValues {
   valueAtSGC10?: number;
   valueAtSGC9_5?: number;
   valueAtSGC9?: number;
+  valueAtTAG10?: number;
+  valueAtTAG9_5?: number;
+  valueAtTAG9?: number;
   gradingCost?: number;
   turnaroundTime?: string;
   blackLabelPotential?: string;
@@ -122,12 +125,13 @@ interface GradedValueEstimates {
   currentGradeEstimate?: string;
   worthGrading?: boolean;
   worthGradingReason?: string;
-  recommendedGrader?: "PSA" | "BGS" | "CGC" | "SGC";
+  recommendedGrader?: "PSA" | "BGS" | "CGC" | "SGC" | "TAG";
   recommendedGraderReason?: string;
   psa?: GraderValues;
   bgs?: GraderValues;
   cgc?: GraderValues;
   sgc?: GraderValues;
+  tag?: GraderValues;
 }
 
 interface PreGradingData {
@@ -833,62 +837,19 @@ export default function CardDetail() {
 
                     {/* Grader Cards Grid */}
                     <div className="grid grid-cols-2 gap-4">
-                      {/* PSA */}
-                      {analysis.gradedValueEstimates.psa && (
-                        <GraderCard
-                          name="PSA"
-                          color="red"
-                          grader={analysis.gradedValueEstimates.psa}
-                          grades={[
-                            { label: "PSA 10", value: analysis.gradedValueEstimates.psa.valueAtPSA10 },
-                            { label: "PSA 9", value: analysis.gradedValueEstimates.psa.valueAtPSA9 },
-                            { label: "PSA 8", value: analysis.gradedValueEstimates.psa.valueAtPSA8 },
-                          ]}
-                        />
-                      )}
-
-                      {/* BGS */}
-                      {analysis.gradedValueEstimates.bgs && (
-                        <GraderCard
-                          name="BGS"
-                          color="blue"
-                          grader={analysis.gradedValueEstimates.bgs}
-                          grades={[
-                            { label: "BGS 10", value: analysis.gradedValueEstimates.bgs.valueAtBGS10 },
-                            { label: "BGS 9.5", value: analysis.gradedValueEstimates.bgs.valueAtBGS9_5 },
-                            { label: "BGS 9", value: analysis.gradedValueEstimates.bgs.valueAtBGS9 },
-                          ]}
-                          extra={analysis.gradedValueEstimates.bgs.blackLabelPotential}
-                        />
-                      )}
-
-                      {/* CGC */}
-                      {analysis.gradedValueEstimates.cgc && (
-                        <GraderCard
-                          name="CGC"
-                          color="yellow"
-                          grader={analysis.gradedValueEstimates.cgc}
-                          grades={[
-                            { label: "CGC 10", value: analysis.gradedValueEstimates.cgc.valueAtCGC10 },
-                            { label: "CGC 9.5", value: analysis.gradedValueEstimates.cgc.valueAtCGC9_5 },
-                            { label: "CGC 9", value: analysis.gradedValueEstimates.cgc.valueAtCGC9 },
-                          ]}
-                        />
-                      )}
-
-                      {/* SGC */}
-                      {analysis.gradedValueEstimates.sgc && (
-                        <GraderCard
-                          name="SGC"
-                          color="green"
-                          grader={analysis.gradedValueEstimates.sgc}
-                          grades={[
-                            { label: "SGC 10", value: analysis.gradedValueEstimates.sgc.valueAtSGC10 },
-                            { label: "SGC 9.5", value: analysis.gradedValueEstimates.sgc.valueAtSGC9_5 },
-                            { label: "SGC 9", value: analysis.gradedValueEstimates.sgc.valueAtSGC9 },
-                          ]}
-                        />
-                      )}
+                      {getGraderConfigs(card?.category, analysis.gradedValueEstimates).map((cfg) => {
+                        const g = analysis.gradedValueEstimates![cfg.key]!;
+                        return (
+                          <GraderCard
+                            key={cfg.key}
+                            name={cfg.name}
+                            color={cfg.color}
+                            grader={g}
+                            grades={cfg.grades(g)}
+                            extra={cfg.extra?.(g)}
+                          />
+                        );
+                      })}
                     </div>
                   </div>
                 </div>
@@ -1324,62 +1285,19 @@ export default function CardDetail() {
 
                     {/* Grader Cards Grid */}
                     <div className="grid grid-cols-2 gap-4">
-                      {/* PSA */}
-                      {analysis.gradedValueEstimates.psa && (
-                        <GraderCard
-                          name="PSA"
-                          color="red"
-                          grader={analysis.gradedValueEstimates.psa}
-                          grades={[
-                            { label: "PSA 10", value: analysis.gradedValueEstimates.psa.valueAtPSA10 },
-                            { label: "PSA 9", value: analysis.gradedValueEstimates.psa.valueAtPSA9 },
-                            { label: "PSA 8", value: analysis.gradedValueEstimates.psa.valueAtPSA8 },
-                          ]}
-                        />
-                      )}
-
-                      {/* BGS */}
-                      {analysis.gradedValueEstimates.bgs && (
-                        <GraderCard
-                          name="BGS"
-                          color="blue"
-                          grader={analysis.gradedValueEstimates.bgs}
-                          grades={[
-                            { label: "BGS 10", value: analysis.gradedValueEstimates.bgs.valueAtBGS10 },
-                            { label: "BGS 9.5", value: analysis.gradedValueEstimates.bgs.valueAtBGS9_5 },
-                            { label: "BGS 9", value: analysis.gradedValueEstimates.bgs.valueAtBGS9 },
-                          ]}
-                          extra={analysis.gradedValueEstimates.bgs.blackLabelPotential}
-                        />
-                      )}
-
-                      {/* CGC */}
-                      {analysis.gradedValueEstimates.cgc && (
-                        <GraderCard
-                          name="CGC"
-                          color="yellow"
-                          grader={analysis.gradedValueEstimates.cgc}
-                          grades={[
-                            { label: "CGC 10", value: analysis.gradedValueEstimates.cgc.valueAtCGC10 },
-                            { label: "CGC 9.5", value: analysis.gradedValueEstimates.cgc.valueAtCGC9_5 },
-                            { label: "CGC 9", value: analysis.gradedValueEstimates.cgc.valueAtCGC9 },
-                          ]}
-                        />
-                      )}
-
-                      {/* SGC */}
-                      {analysis.gradedValueEstimates.sgc && (
-                        <GraderCard
-                          name="SGC"
-                          color="green"
-                          grader={analysis.gradedValueEstimates.sgc}
-                          grades={[
-                            { label: "SGC 10", value: analysis.gradedValueEstimates.sgc.valueAtSGC10 },
-                            { label: "SGC 9.5", value: analysis.gradedValueEstimates.sgc.valueAtSGC9_5 },
-                            { label: "SGC 9", value: analysis.gradedValueEstimates.sgc.valueAtSGC9 },
-                          ]}
-                        />
-                      )}
+                      {getGraderConfigs(card?.category, analysis.gradedValueEstimates).map((cfg) => {
+                        const g = analysis.gradedValueEstimates![cfg.key]!;
+                        return (
+                          <GraderCard
+                            key={cfg.key}
+                            name={cfg.name}
+                            color={cfg.color}
+                            grader={g}
+                            grades={cfg.grades(g)}
+                            extra={cfg.extra?.(g)}
+                          />
+                        );
+                      })}
                     </div>
                   </div>
                 </div>
@@ -1520,20 +1438,100 @@ function InfoItem({ icon, label, value }: { icon: React.ReactNode; label: string
   );
 }
 
+type GraderColor = "red" | "blue" | "yellow" | "green" | "purple";
+
 interface GraderCardProps {
   name: string;
-  color: "red" | "blue" | "yellow" | "green";
+  color: GraderColor;
   grader: GraderValues;
   grades: { label: string; value?: number }[];
   extra?: string;
 }
 
+
+interface GraderConfig {
+  key: "psa" | "bgs" | "cgc" | "sgc" | "tag";
+  name: "PSA" | "BGS" | "CGC" | "SGC" | "TAG";
+  color: GraderColor;
+  grades: (g: GraderValues) => { label: string; value?: number }[];
+  extra?: (g: GraderValues) => string | undefined;
+}
+
+const GRADER_DEFS: Record<GraderConfig["key"], GraderConfig> = {
+  psa: {
+    key: "psa", name: "PSA", color: "red",
+    grades: (g) => [
+      { label: "PSA 10", value: g.valueAtPSA10 },
+      { label: "PSA 9", value: g.valueAtPSA9 },
+      { label: "PSA 8", value: g.valueAtPSA8 },
+    ],
+  },
+  bgs: {
+    key: "bgs", name: "BGS", color: "blue",
+    grades: (g) => [
+      { label: "BGS 10", value: g.valueAtBGS10 },
+      { label: "BGS 9.5", value: g.valueAtBGS9_5 },
+      { label: "BGS 9", value: g.valueAtBGS9 },
+    ],
+    extra: (g) => g.blackLabelPotential,
+  },
+  cgc: {
+    key: "cgc", name: "CGC", color: "yellow",
+    grades: (g) => [
+      { label: "CGC 10", value: g.valueAtCGC10 },
+      { label: "CGC 9.5", value: g.valueAtCGC9_5 },
+      { label: "CGC 9", value: g.valueAtCGC9 },
+    ],
+  },
+  sgc: {
+    key: "sgc", name: "SGC", color: "green",
+    grades: (g) => [
+      { label: "SGC 10", value: g.valueAtSGC10 },
+      { label: "SGC 9.5", value: g.valueAtSGC9_5 },
+      { label: "SGC 9", value: g.valueAtSGC9 },
+    ],
+  },
+  tag: {
+    key: "tag", name: "TAG", color: "purple",
+    grades: (g) => [
+      { label: "TAG 10", value: g.valueAtTAG10 },
+      { label: "TAG 9.5", value: g.valueAtTAG9_5 },
+      { label: "TAG 9", value: g.valueAtTAG9 },
+    ],
+  },
+};
+
+function getGraderConfigs(category: string | null | undefined, estimates: GradedValueEstimates): GraderConfig[] {
+  const cat = (category || "").toLowerCase();
+  let keys: GraderConfig["key"][];
+  if (cat.includes("sport")) {
+    keys = ["psa", "cgc", "bgs", "sgc"];
+  } else if (cat.includes("tcg") || cat.includes("trading") || cat.includes("pokemon") || cat.includes("magic") || cat.includes("yu-gi-oh") || cat.includes("yugioh")) {
+    keys = ["psa", "cgc", "bgs", "tag"];
+  } else {
+    keys = ["psa", "cgc", "bgs"];
+  }
+  // Include any extra graders that came back with data, even if not in the default list.
+  (["psa", "bgs", "cgc", "sgc", "tag"] as const).forEach((k) => {
+    if (!keys.includes(k) && estimates[k]) keys.push(k);
+  });
+  return keys
+    .map((k) => GRADER_DEFS[k])
+    .filter((cfg) => {
+      const g = estimates[cfg.key];
+      if (!g) return false;
+      // Show grader if any value field or estimated grade present
+      return cfg.grades(g).some((x) => x.value != null) || g.estimatedGrade != null || g.valueAtGrade != null;
+    });
+}
+
 function GraderCard({ name, color, grader, grades, extra }: GraderCardProps) {
-  const colorClasses = {
+  const colorClasses: Record<GraderColor, string> = {
     red: "bg-red-500/10 border-red-500/20 text-red-500",
     blue: "bg-blue-500/10 border-blue-500/20 text-blue-500",
     yellow: "bg-yellow-500/10 border-yellow-500/20 text-yellow-500",
     green: "bg-green-500/10 border-green-500/20 text-green-500",
+    purple: "bg-purple-500/10 border-purple-500/20 text-purple-500",
   };
 
   return (
@@ -1612,6 +1610,7 @@ function GradingROICalculator({
       { key: 'bgs', name: 'BGS', color: 'blue' },
       { key: 'cgc', name: 'CGC', color: 'yellow' },
       { key: 'sgc', name: 'SGC', color: 'green' },
+      { key: 'tag', name: 'TAG', color: 'purple' },
     ] as const;
 
     graders.forEach(({ key, name, color }) => {
@@ -1647,6 +1646,7 @@ function GradingROICalculator({
       blue: { bg: 'bg-blue-500/10', border: 'border-blue-500/20', text: 'text-blue-500' },
       yellow: { bg: 'bg-yellow-500/10', border: 'border-yellow-500/20', text: 'text-yellow-500' },
       green: { bg: 'bg-green-500/10', border: 'border-green-500/20', text: 'text-green-500' },
+      purple: { bg: 'bg-purple-500/10', border: 'border-purple-500/20', text: 'text-purple-500' },
     };
     return colors[color] || colors.green;
   };

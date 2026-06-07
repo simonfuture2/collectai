@@ -1,44 +1,39 @@
-## What's actually happening on this card
+## Why only PSA shows today
 
-I pulled the row for `d00c5d76…` from the database. The picture is clearer than it looks in the UI:
+I checked the card on screen (`4e084d20…`, a Dragon Ball TCG). The AI only returned a full `psa` pricing block plus an `otherGraders` object with bare estimated grades for BGS/CGC/SGC — no `valueAtBGS10`, `valueAtCGC10`, etc. The UI in `CardDetail.tsx` only renders a grader card when its `valueAtX10` fields exist, so BGS/CGC/SGC silently drop and the user sees PSA alone.
 
-- `analysis_status = complete`, identification ran fine (`Michael Jordan / SkyBox Premium`, condition assessed).
-- `estimated_value_low` and `estimated_value_high` are both **NULL**, so the "Estimated Value" tile shows `$0 - $0`.
-- `ebay_recent_sales` exists but every price field is null and `recentSalesCount: 0` — i.e. the live market search returned nothing useful for this card.
-- `ai_analysis` contains only 5 keys: `dataSource`, `estimatedValueLow/High` (null), `lastRescanData`, `noMarketData`. All identification, condition, grading-value, factors, outlook fields are gone.
+Root cause is the pricing schema in `supabase/functions/enrich-card/index.ts` (lines ~227–235): it explicitly asks for full data only for PSA and a stub for the rest.
 
-That last point is the real bug. The original `enrich-card` run writes a full analysis object (identification + condition + pricing). The **"Re-Scan Prices"** button in `CardDetail.tsx` then rewrites `ai_analysis` and, on a no-data response, effectively flattens it to just the pricing wrapper. So every time the user hits rescan on a card that has no fresh market data, the rich AI analysis disappears from the UI.
+## What to change
 
-## Fix plan
+### 1. Enrich-card prompt + schema (`supabase/functions/enrich-card/index.ts`)
+Replace the `otherGraders` stub with full per-grader blocks, and make the set category-aware:
 
-### 1. Stop `rescanPrices` from destroying existing analysis
-`src/pages/CardDetail.tsx` (`rescanPrices`):
-- Only enter the "update card" branch when there's *real* new data (`blended` is non-null OR at least one source has prices).
-- Never overwrite top-level identification/condition fields. Write only a `pricingUpdate` sub-key + refreshed `estimatedValueLow/High`, merged on top of the existing `ai_analysis`.
-- If the rescan returns no data, show a toast ("No fresh market data found — keeping previous values") and leave the row untouched.
+- TCG (Pokémon, Magic, Yu-Gi-Oh, Dragon Ball, One Piece, etc.): `psa`, `cgc`, `bgs`, `tag`
+- Sports: `psa`, `cgc`, `bgs`, `sgc`
+- Other categories: `psa`, `cgc`, `bgs` as a sensible default
 
-### 2. Make `collectai-price` safe-by-default
-`supabase/functions/collectai-price/index.ts`:
-- When the function has no usable prices, return `{ ok: true, noData: true }` instead of an empty `extractedMarketData` shell, so the client can branch cleanly.
-- Never instruct the client to clear fields.
+Each block returns: `estimatedGrade`, `valueAtGrade`, `valueAt<X>10`, `valueAt<X>9_5` (where applicable), `valueAt<X>9`, `gradingCost`, `turnaroundTime`. Also expand `recommendedGrader` enum to include `"TAG"`. Add a one-line instruction: "Populate every grader listed for this category, even if values are estimates; only set a grader to null if it does not grade this category."
 
-### 3. Add a real "Re-analyze" action (full pipeline)
-Right now the only recovery for a card with missing analysis is "Retry" — and it's only shown when `analysis_status === 'failed'`. This card is `complete`, so the user has no way out.
-- Add a secondary button next to "Re-Scan Prices" called **"Re-run full analysis"** that:
-  - Sets `analysis_status = 'pending'` on the row.
-  - Invokes `enrich-card` with the existing `cardId` + stored image, re-running identification, condition, market search, and pricing.
-- Surface it whenever `estimated_value_low` is null OR `ai_analysis` is missing core keys (`cardName`/`conditionGrade`).
+Mirror the same schema update in `supabase/functions/analyze-card/index.ts` (the alternate analysis pipeline already lists psa/bgs/cgc/sgc — add `tag` conditionally and the same category rule).
 
-### 4. One-time repair for this specific card
-After the fix ships, trigger `enrich-card` once for `d00c5d76-0afb-41ea-80a4-eef1822f3dc4` so the user immediately sees a populated analysis again (no manual click needed for the broken card they're staring at).
+### 2. UI rendering (`src/pages/CardDetail.tsx`)
+- Add a `tag` interface block (mirrors `cgc` shape: `valueAtTAG10`, `valueAtTAG9_5`, `valueAtTAG9`).
+- Replace the four hard-coded grader cards (lines ~836–893 and the duplicate at ~1327–1384) with a single loop that:
+  - Builds a grader list from `card.category` (TCG → PSA/CGC/BGS/TAG, Sports → PSA/CGC/BGS/SGC, else PSA/CGC/BGS).
+  - Skips a grader only when none of its `valueAt…` fields are present.
+  - Renders in the existing card style; CGC gets a distinct color for sports so it reads as "the sports option".
+- Update the `recommendedGrader` type to include `"TAG"` and the legend at line ~1611 to be category-driven.
 
-### 5. Defensive UI rendering
-In `CardDetail.tsx`, when `estimated_value_low/high` are null but `analysis_status === 'complete'`, show "Market value unavailable — try Re-run full analysis" instead of `$0 - $0`. This prevents the "blank screen" feeling even if a future rescan fails.
+### 3. Backfill prompt for older cards
+No migration needed. Cards already saved will keep showing only PSA until a re-run; the existing "Re-run full analysis" button on `CardDetail` already covers recovery. Optionally trigger it automatically (one-shot) when a card's `gradedValueEstimates` contains the legacy `otherGraders` shape — small effect, low risk.
 
 ## Files touched
-- `src/pages/CardDetail.tsx` — guard rescan, add "Re-run full analysis" button, friendlier empty state.
-- `supabase/functions/collectai-price/index.ts` — explicit `noData` response, never clear fields.
-- (No schema changes.)
+- `supabase/functions/enrich-card/index.ts` — expanded grader schema, category-aware list, TAG support.
+- `supabase/functions/analyze-card/index.ts` — same schema expansion.
+- `src/pages/CardDetail.tsx` — TAG type, category-driven grader rendering loop, optional auto-re-run for legacy shape.
 
 ## Out of scope
-- Reworking the Gemini pricing prompt or Firecrawl market search — those are a separate effort. This plan stops the data loss and gives the user a working recovery path.
+- Pulling live pop reports from CGC/BGS/TAG APIs.
+- Per-grader real market sales (still AI-estimated based on PSA anchor).
+- Changing the condition / pre-grading scorecards.
