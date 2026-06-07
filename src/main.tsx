@@ -2,6 +2,7 @@ import { createRoot } from "react-dom/client";
 import { HelmetProvider } from "react-helmet-async";
 import App from "./App";
 import "./index.css";
+import { registerServiceWorker } from "./lib/registerServiceWorker";
 
 // Recover from stale-cache chunk load failures (common after a new deploy
 // when the service worker is still serving an old index that references
@@ -80,3 +81,5 @@ createRoot(document.getElementById("root")!).render(
     <App />
   </HelmetProvider>
 );
+
+registerServiceWorker();

@@ -1,4 +1,4 @@
-import { lazy, Suspense } from "react";
+import { Component, lazy, Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -43,6 +43,53 @@ const RouteFallback = () => (
   <div className="min-h-screen bg-background" aria-hidden="true" />
 );
 
+function isChunkLoadError(error: unknown) {
+  const msg = String((error as Error)?.message ?? error ?? "");
+  return (
+    msg.includes("Importing a module script failed") ||
+    msg.includes("Failed to fetch dynamically imported module") ||
+    msg.includes("error loading dynamically imported module") ||
+    msg.includes("ChunkLoadError") ||
+    msg.includes("Loading chunk") ||
+    msg.includes("Loading CSS chunk")
+  );
+}
+
+class ChunkErrorBoundary extends Component<{ children: React.ReactNode }, { failed: boolean }> {
+  state = { failed: false };
+
+  static getDerivedStateFromError(error: unknown) {
+    return { failed: isChunkLoadError(error) };
+  }
+
+  async componentDidCatch(error: unknown) {
+    if (!isChunkLoadError(error)) return;
+
+    try {
+      if ("caches" in window) {
+        const keys = await caches.keys();
+        await Promise.all(keys.map((key) => caches.delete(key)));
+      }
+      if ("serviceWorker" in navigator) {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(registrations.map((registration) => registration.unregister()));
+      }
+    } catch {
+      // Continue to a fresh navigation even if cleanup is blocked.
+    }
+
+    const url = new URL(window.location.href);
+    url.searchParams.set("_r", String(Date.now()));
+    window.location.replace(url.toString());
+  }
+
+  render() {
+    if (!this.state.failed) return this.props.children;
+
+    return <RouteFallback />;
+  }
+}
+
 // Wrap only wallet-dependent routes with the Web3 stack so it isn't loaded
 // on the dashboard / landing / auth pages.
 const Wallet = ({ children }: { children: React.ReactNode }) => (
@@ -55,40 +102,42 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Suspense fallback={<RouteFallback />}>
-          <Routes>
-            <Route path="/" element={<Landing />} />
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/scan" element={<Scan />} />
-            <Route path="/collection" element={<Collection />} />
-            <Route path="/pack-rip" element={<PackRip />} />
-            <Route path="/card/:id" element={<CardDetail />} />
-            <Route path="/achievements" element={<Achievements />} />
-            <Route path="/marketplace" element={<Wallet><Marketplace /></Wallet>} />
-            <Route path="/marketplace/:id" element={<Wallet><MarketplaceListing /></Wallet>} />
-            <Route path="/marketplace/list/:cardId" element={<Wallet><CreateListing /></Wallet>} />
-            <Route path="/wallets" element={<Wallet><WalletSettings /></Wallet>} />
-            <Route path="/pricing" element={<Pricing />} />
-            <Route path="/checkout/success" element={<CheckoutSuccess />} />
-            <Route path="/checkout/cancel" element={<CheckoutCancel />} />
-            <Route path="/terms" element={<Terms />} />
-            <Route path="/privacy" element={<Privacy />} />
-            <Route path="/refund" element={<Refund />} />
-            <Route path="/faq" element={<FAQ />} />
-            <Route path="/about" element={<About />} />
-            <Route path="/how-it-works" element={<HowItWorks />} />
-            <Route path="/admin" element={<Admin />} />
-            <Route path="/partners" element={<PartnerSignup />} />
-            <Route path="/free-guide" element={<FreeGuide />} />
-            <Route path="/card/share/:id" element={<SharedCard />} />
-            <Route path="/u/:slug" element={<PublicCollection />} />
-            <Route path="/install" element={<Install />} />
-            <Route path="/delete-account" element={<DeleteAccount />} />
-            <Route path="/reset-password" element={<ResetPassword />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </Suspense>
+        <ChunkErrorBoundary>
+          <Suspense fallback={<RouteFallback />}>
+            <Routes>
+              <Route path="/" element={<Landing />} />
+              <Route path="/auth" element={<Auth />} />
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/scan" element={<Scan />} />
+              <Route path="/collection" element={<Collection />} />
+              <Route path="/pack-rip" element={<PackRip />} />
+              <Route path="/card/:id" element={<CardDetail />} />
+              <Route path="/achievements" element={<Achievements />} />
+              <Route path="/marketplace" element={<Wallet><Marketplace /></Wallet>} />
+              <Route path="/marketplace/:id" element={<Wallet><MarketplaceListing /></Wallet>} />
+              <Route path="/marketplace/list/:cardId" element={<Wallet><CreateListing /></Wallet>} />
+              <Route path="/wallets" element={<Wallet><WalletSettings /></Wallet>} />
+              <Route path="/pricing" element={<Pricing />} />
+              <Route path="/checkout/success" element={<CheckoutSuccess />} />
+              <Route path="/checkout/cancel" element={<CheckoutCancel />} />
+              <Route path="/terms" element={<Terms />} />
+              <Route path="/privacy" element={<Privacy />} />
+              <Route path="/refund" element={<Refund />} />
+              <Route path="/faq" element={<FAQ />} />
+              <Route path="/about" element={<About />} />
+              <Route path="/how-it-works" element={<HowItWorks />} />
+              <Route path="/admin" element={<Admin />} />
+              <Route path="/partners" element={<PartnerSignup />} />
+              <Route path="/free-guide" element={<FreeGuide />} />
+              <Route path="/card/share/:id" element={<SharedCard />} />
+              <Route path="/u/:slug" element={<PublicCollection />} />
+              <Route path="/install" element={<Install />} />
+              <Route path="/delete-account" element={<DeleteAccount />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </Suspense>
+        </ChunkErrorBoundary>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
