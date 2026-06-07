@@ -183,6 +183,22 @@ interface PreGradingData {
   gradingRecommendation?: string;
 }
 
+interface GradedTierComps {
+  median: number;
+  low: number;
+  high: number;
+  count: number;
+  prices: number[];
+}
+type GraderKey = "psa" | "bgs" | "cgc" | "sgc" | "tag";
+type GradedComps = Partial<Record<GraderKey, Record<string, GradedTierComps | null>>>;
+
+interface ExtractedMarketData {
+  gradedComps?: GradedComps;
+  rawConfidence?: "high" | "medium" | "low";
+  rawConfidenceReason?: string;
+}
+
 interface AIAnalysis {
   cardName?: string;
   cardSet?: string;
@@ -213,6 +229,7 @@ interface AIAnalysis {
   additionalNotes?: string;
   dataSource?: string;
   verificationNote?: string;
+  extractedMarketData?: ExtractedMarketData;
 }
 
 // Generate mock price history as fallback
