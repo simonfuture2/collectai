@@ -1532,12 +1532,91 @@ interface GraderCardProps {
   extra?: string;
 }
 
+type GraderColor = "red" | "blue" | "yellow" | "green" | "purple";
+
+interface GraderConfig {
+  key: "psa" | "bgs" | "cgc" | "sgc" | "tag";
+  name: "PSA" | "BGS" | "CGC" | "SGC" | "TAG";
+  color: GraderColor;
+  grades: (g: GraderValues) => { label: string; value?: number }[];
+  extra?: (g: GraderValues) => string | undefined;
+}
+
+const GRADER_DEFS: Record<GraderConfig["key"], GraderConfig> = {
+  psa: {
+    key: "psa", name: "PSA", color: "red",
+    grades: (g) => [
+      { label: "PSA 10", value: g.valueAtPSA10 },
+      { label: "PSA 9", value: g.valueAtPSA9 },
+      { label: "PSA 8", value: g.valueAtPSA8 },
+    ],
+  },
+  bgs: {
+    key: "bgs", name: "BGS", color: "blue",
+    grades: (g) => [
+      { label: "BGS 10", value: g.valueAtBGS10 },
+      { label: "BGS 9.5", value: g.valueAtBGS9_5 },
+      { label: "BGS 9", value: g.valueAtBGS9 },
+    ],
+    extra: (g) => g.blackLabelPotential,
+  },
+  cgc: {
+    key: "cgc", name: "CGC", color: "yellow",
+    grades: (g) => [
+      { label: "CGC 10", value: g.valueAtCGC10 },
+      { label: "CGC 9.5", value: g.valueAtCGC9_5 },
+      { label: "CGC 9", value: g.valueAtCGC9 },
+    ],
+  },
+  sgc: {
+    key: "sgc", name: "SGC", color: "green",
+    grades: (g) => [
+      { label: "SGC 10", value: g.valueAtSGC10 },
+      { label: "SGC 9.5", value: g.valueAtSGC9_5 },
+      { label: "SGC 9", value: g.valueAtSGC9 },
+    ],
+  },
+  tag: {
+    key: "tag", name: "TAG", color: "purple",
+    grades: (g) => [
+      { label: "TAG 10", value: g.valueAtTAG10 },
+      { label: "TAG 9.5", value: g.valueAtTAG9_5 },
+      { label: "TAG 9", value: g.valueAtTAG9 },
+    ],
+  },
+};
+
+function getGraderConfigs(category: string | null | undefined, estimates: GradedValueEstimates): GraderConfig[] {
+  const cat = (category || "").toLowerCase();
+  let keys: GraderConfig["key"][];
+  if (cat.includes("sport")) {
+    keys = ["psa", "cgc", "bgs", "sgc"];
+  } else if (cat.includes("tcg") || cat.includes("trading") || cat.includes("pokemon") || cat.includes("magic") || cat.includes("yu-gi-oh") || cat.includes("yugioh")) {
+    keys = ["psa", "cgc", "bgs", "tag"];
+  } else {
+    keys = ["psa", "cgc", "bgs"];
+  }
+  // Include any extra graders that came back with data, even if not in the default list.
+  (["psa", "bgs", "cgc", "sgc", "tag"] as const).forEach((k) => {
+    if (!keys.includes(k) && estimates[k]) keys.push(k);
+  });
+  return keys
+    .map((k) => GRADER_DEFS[k])
+    .filter((cfg) => {
+      const g = estimates[cfg.key];
+      if (!g) return false;
+      // Show grader if any value field or estimated grade present
+      return cfg.grades(g).some((x) => x.value != null) || g.estimatedGrade != null || g.valueAtGrade != null;
+    });
+}
+
 function GraderCard({ name, color, grader, grades, extra }: GraderCardProps) {
-  const colorClasses = {
+  const colorClasses: Record<GraderColor, string> = {
     red: "bg-red-500/10 border-red-500/20 text-red-500",
     blue: "bg-blue-500/10 border-blue-500/20 text-blue-500",
     yellow: "bg-yellow-500/10 border-yellow-500/20 text-yellow-500",
     green: "bg-green-500/10 border-green-500/20 text-green-500",
+    purple: "bg-purple-500/10 border-purple-500/20 text-purple-500",
   };
 
   return (
