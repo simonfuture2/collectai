@@ -1,33 +1,23 @@
-const PREVIEW_HOST_PATTERNS = [
-  /^id-preview--/,
-  /^preview--/,
-  /(^|\.)lovableproject\.com$/,
-  /(^|\.)lovableproject-dev\.com$/,
-  /(^|\.)beta\.lovable\.dev$/,
-];
-
-function isPreviewHost(hostname: string) {
-  return PREVIEW_HOST_PATTERNS.some((pattern) => pattern.test(hostname));
-}
-
-function shouldBlockAppServiceWorker() {
-  if (!("serviceWorker" in navigator)) return true;
-  if (!import.meta.env.PROD) return true;
-  if (window.self !== window.top) return true;
-  if (new URLSearchParams(window.location.search).get("sw") === "off") return true;
-  return isPreviewHost(window.location.hostname);
-}
-
+// App-shell service workers caused stale-chunk / blank-screen errors on the
+// Lovable preview. We now ship a kill-switch SW at /sw.js (see public/sw.js)
+// and never register a new app SW from the client. This module's only job is
+// to make sure any lingering app SW is unregistered on boot.
 async function unregisterAppServiceWorkers() {
   if (!("serviceWorker" in navigator)) return;
-
   try {
     const registrations = await navigator.serviceWorker.getRegistrations();
     await Promise.all(
       registrations
         .filter((registration) => {
           const workers = [registration.active, registration.waiting, registration.installing];
-          return workers.some((worker) => worker?.scriptURL.endsWith("/sw.js"));
+          return workers.some((worker) => {
+            const url = worker?.scriptURL ?? "";
+            // Leave messaging workers (Firebase / OneSignal) alone.
+            if (url.includes("firebase-messaging-sw") || url.includes("OneSignalSDKWorker")) {
+              return false;
+            }
+            return url.endsWith("/sw.js") || url.endsWith("/service-worker.js");
+          });
         })
         .map((registration) => registration.unregister()),
     );
@@ -37,17 +27,9 @@ async function unregisterAppServiceWorkers() {
 }
 
 export async function registerServiceWorker() {
-  if (shouldBlockAppServiceWorker()) {
-    await unregisterAppServiceWorkers();
-    return;
-  }
-
-  window.addEventListener("load", async () => {
-    try {
-      const registration = await navigator.serviceWorker.register("/sw.js");
-      registration.update();
-    } catch {
-      // The app must remain usable even if PWA registration fails.
-    }
-  });
+  // Intentionally never register — only clean up.
+  // The kill-switch SW served at /sw.js will unregister itself if any older
+  // browser re-fetches it, but we also proactively unregister here for any
+  // session that already booted before the kill-switch worker took over.
+  await unregisterAppServiceWorkers();
 }
