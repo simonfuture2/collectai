@@ -321,7 +321,16 @@ interface CardIdentification {
   rarity: string;
 }
 interface MarketSourceData { source: string; median: number; low: number; high: number; count: number; prices: number[]; }
-interface ExtractedMarketData { sources: MarketSourceData[]; blended: { median: number; low: number; high: number } | null; }
+interface GradedTierComps { median: number; low: number; high: number; count: number; prices: number[] }
+type GraderKey = "psa" | "bgs" | "cgc" | "sgc" | "tag";
+type GradedComps = Partial<Record<GraderKey, Record<string, GradedTierComps | null>>>;
+interface ExtractedMarketData {
+  sources: MarketSourceData[];
+  blended: { median: number; low: number; high: number } | null;
+  gradedComps?: GradedComps;
+  rawConfidence?: "high" | "medium" | "low";
+  rawConfidenceReason?: string;
+}
 
 function buildSearchTerms(cardId: CardIdentification, category?: string) {
   const isSportsCard = /sport|baseball|basketball|football|hockey|soccer/i.test(category || "");
