@@ -445,6 +445,64 @@ async function searchMarketPrices(cardId: CardIdentification, category: string |
     });
     tcgPrices = filterOutliers(tcgPrices);
 
+    // ---- Per-grade graded-comp retrieval (parallel) ----
+    // Pulls real sold comps for each grader/grade tier relevant to the card category.
+    // A tier with insufficient comps stays null — NEVER filled by multiplier.
+    const tiersForCategory: { grader: GraderKey; grade: string; query: string }[] = [
+      { grader: "psa", grade: "10", query: `"${specific}" "PSA 10" sold site:ebay.com` },
+      { grader: "psa", grade: "9",  query: `"${specific}" "PSA 9" sold site:ebay.com` },
+      { grader: "psa", grade: "8",  query: `"${specific}" "PSA 8" sold site:ebay.com` },
+      { grader: "bgs", grade: "10", query: `"${specific}" "BGS 10" sold site:ebay.com` },
+      { grader: "bgs", grade: "9.5", query: `"${specific}" "BGS 9.5" sold site:ebay.com` },
+      { grader: "bgs", grade: "9",  query: `"${specific}" "BGS 9" sold site:ebay.com` },
+      { grader: "cgc", grade: "10", query: `"${specific}" "CGC 10" sold site:ebay.com` },
+      { grader: "cgc", grade: "9.5", query: `"${specific}" "CGC 9.5" sold site:ebay.com` },
+    ];
+    if (isSportsCard) {
+      tiersForCategory.push(
+        { grader: "sgc", grade: "10", query: `"${specific}" "SGC 10" sold site:ebay.com` },
+        { grader: "sgc", grade: "9.5", query: `"${specific}" "SGC 9.5" sold site:ebay.com` },
+      );
+    } else {
+      tiersForCategory.push(
+        { grader: "tag", grade: "10", query: `"${specific}" "TAG 10" sold site:ebay.com` },
+        { grader: "tag", grade: "9.5", query: `"${specific}" "TAG 9.5" sold site:ebay.com` },
+      );
+    }
+
+    // Skip per-grade retrieval entirely on fast scans (would blow the time budget).
+    const gradedComps: GradedComps = {};
+    if (!fastScan) {
+      const gradedResults = await Promise.all(
+        tiersForCategory.map(async (t) => {
+          const results = await doSearch(t.query, 4, "ebay.com", "qdr:m");
+          let prices: number[] = [];
+          for (const r of results.slice(0, 4)) {
+            const text = `${r.title || ""} ${r.description || ""} ${(r.markdown || "").substring(0, 600)}`;
+            // Only count prices from listings whose title also contains the grader+grade token.
+            const tokenRe = new RegExp(`${t.grader}\\s*${t.grade.replace(".", "\\.")}\\b`, "i");
+            if (!tokenRe.test(r.title || "") && !tokenRe.test(r.description || "")) continue;
+            prices.push(...extractPrices(text));
+          }
+          prices = filterOutliers(prices);
+          return { ...t, prices };
+        }),
+      );
+      for (const r of gradedResults) {
+        gradedComps[r.grader] = gradedComps[r.grader] || {};
+        gradedComps[r.grader]![r.grade] = r.prices.length >= 2
+          ? {
+              median: median(r.prices),
+              low: Math.min(...r.prices),
+              high: Math.max(...r.prices),
+              count: r.prices.length,
+              prices: r.prices,
+            }
+          : null;
+      }
+    }
+    // ---- end per-grade retrieval ----
+
     // Safety net: if titles/descriptions yielded too few prices, do a small scrape pass.
     const totalPrices = soldPrices.length + activePrices.length + tcgPrices.length;
     if (totalPrices < 3) {
