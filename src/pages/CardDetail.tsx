@@ -533,6 +533,32 @@ export default function CardDetail() {
     }
   };
 
+  const reanalyzeFull = async () => {
+    if (!card || !id) return;
+    if (reanalyzing) return;
+    setReanalyzing(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error("Please sign in to re-analyze");
+        return;
+      }
+      const { error } = await supabase.functions.invoke("reanalyze-card", {
+        body: { cardId: id },
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      if (error) throw error;
+      // Optimistically flip local status so the in-progress UI appears immediately.
+      setCard((prev) => prev ? { ...prev, analysis_status: "identifying", analysis_error: null } as Card : prev);
+      toast.success("Re-running full analysis — this takes ~30–45 seconds.");
+    } catch (err: any) {
+      console.error("reanalyze-card failed:", err);
+      toast.error(err?.message || "Failed to re-run analysis");
+    } finally {
+      setReanalyzing(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
