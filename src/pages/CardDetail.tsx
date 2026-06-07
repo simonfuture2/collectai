@@ -242,6 +242,7 @@ export default function CardDetail() {
   const [priceHistory, setPriceHistory] = useState<PriceHistoryPoint[]>([]);
   const [hasRealPriceData, setHasRealPriceData] = useState(false);
   const [rescanning, setRescanning] = useState(false);
+  const [reanalyzing, setReanalyzing] = useState(false);
   const notifiedCompleteRef = useRef(false);
 
   const loadPriceHistory = useCallback(async (cardId: string, low: number | null, high: number | null) => {
@@ -415,11 +416,18 @@ export default function CardDetail() {
       });
       if (error) throw error;
 
-      // Insert new price history rows
-      if (data?.extractedMarketData?.sources) {
+      // Determine if we actually got usable pricing data back.
+      const sources = data?.extractedMarketData?.sources;
+      const blended = data?.extractedMarketData?.blended;
+      const hasUsableData =
+        !data?.noData &&
+        ((Array.isArray(sources) && sources.length > 0) ||
+          (blended && (blended.low != null || blended.high != null || blended.median != null)));
+
+      if (hasUsableData) {
         const user = session.user;
         const priceRows: any[] = [];
-        for (const src of data.extractedMarketData.sources) {
+        for (const src of sources || []) {
           priceRows.push({
             card_id: id,
             user_id: user.id,
@@ -431,14 +439,14 @@ export default function CardDetail() {
             raw_prices: src.prices,
           });
         }
-        if (data.extractedMarketData.blended) {
+        if (blended) {
           priceRows.push({
             card_id: id,
             user_id: user.id,
             source: "blended",
-            median_price: data.extractedMarketData.blended.median,
-            low_price: data.extractedMarketData.blended.low,
-            high_price: data.extractedMarketData.blended.high,
+            median_price: blended.median,
+            low_price: blended.low,
+            high_price: blended.high,
             price_count: 0,
             raw_prices: [],
           });
@@ -447,19 +455,22 @@ export default function CardDetail() {
           await supabase.from("price_history").insert(priceRows);
         }
 
-        // === FIX: Update card values in DB ===
-        const blended = data.extractedMarketData.blended;
+        // Merge new pricing into the existing analysis WITHOUT clobbering
+        // identification/condition/grading fields written by enrich-card.
         const newLow = blended?.low ?? card.estimated_value_low;
         const newHigh = blended?.high ?? card.estimated_value_high;
+        const existingAnalysis = (card.ai_analysis as any) || {};
         const updatedAnalysis = {
-          ...(card.ai_analysis as any || {}),
+          ...existingAnalysis,
           estimatedValueLow: newLow,
           estimatedValueHigh: newHigh,
           noMarketData: false,
-          dataSource: "Real eBay + TCGPlayer data (re-scan update)",
+          dataSource: existingAnalysis.dataSource
+            ? `${existingAnalysis.dataSource} + re-scan update`
+            : "Real eBay + TCGPlayer data (re-scan update)",
           lastRescanData: {
             blended: blended || null,
-            sources: data.extractedMarketData.sources?.map((s: any) => ({ source: s.source, median: s.median, count: s.count })) || [],
+            sources: (sources || []).map((s: any) => ({ source: s.source, median: s.median, count: s.count })),
             rescanDate: new Date().toISOString(),
           },
         };
@@ -477,7 +488,6 @@ export default function CardDetail() {
         if (updateError) {
           console.error("Failed to update card values:", updateError);
         } else {
-          // Update local state immediately
           setCard((prev) => prev ? {
             ...prev,
             estimated_value_low: newLow,
@@ -487,7 +497,6 @@ export default function CardDetail() {
           } as Card : prev);
         }
 
-        // Refresh price history display
         const { data: priceData } = await supabase
           .from("price_history")
           .select("*")
@@ -510,15 +519,43 @@ export default function CardDetail() {
         }
         toast.success("Prices updated with fresh market data!");
       } else {
-        // Even with no new market data, update last_scanned_at
+        // No usable market data — only bump last_scanned_at, keep existing analysis intact.
         await supabase.from("cards").update({ last_scanned_at: new Date().toISOString() }).eq("id", id);
         setCard((prev) => prev ? { ...prev, last_scanned_at: new Date().toISOString() } as Card : prev);
-        toast.error("No market data found for this card");
+        toast.message("No fresh market data found", {
+          description: "Keeping previous values. Try Re-run full analysis for a complete rescan.",
+        });
       }
     } catch (err: any) {
       toast.error(err.message || "Failed to re-scan prices");
     } finally {
       setRescanning(false);
+    }
+  };
+
+  const reanalyzeFull = async () => {
+    if (!card || !id) return;
+    if (reanalyzing) return;
+    setReanalyzing(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error("Please sign in to re-analyze");
+        return;
+      }
+      const { error } = await supabase.functions.invoke("reanalyze-card", {
+        body: { cardId: id },
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      if (error) throw error;
+      // Optimistically flip local status so the in-progress UI appears immediately.
+      setCard((prev) => prev ? { ...prev, analysis_status: "identifying", analysis_error: null } as Card : prev);
+      toast.success("Re-running full analysis — this takes ~30–45 seconds.");
+    } catch (err: any) {
+      console.error("reanalyze-card failed:", err);
+      toast.error(err?.message || "Failed to re-run analysis");
+    } finally {
+      setReanalyzing(false);
     }
   };
 
@@ -651,12 +688,21 @@ export default function CardDetail() {
             <div className="grid grid-cols-2 gap-4">
               <div className="gradient-primary rounded-xl p-4">
                 <p className="text-sm text-white/80">Estimated Value</p>
-                <p className="text-2xl font-display font-bold text-white">
-                  ${safeFixed(avgValue)}
-                </p>
-                <p className="text-xs text-white/70">
-                  ${safeFixed(card.estimated_value_low)} - ${safeFixed(card.estimated_value_high)}
-                </p>
+                {card.estimated_value_low == null && card.estimated_value_high == null ? (
+                  <>
+                    <p className="text-lg font-display font-semibold text-white">Unavailable</p>
+                    <p className="text-xs text-white/70">No market data on file</p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-2xl font-display font-bold text-white">
+                      ${safeFixed(avgValue)}
+                    </p>
+                    <p className="text-xs text-white/70">
+                      ${safeFixed(card.estimated_value_low)} - ${safeFixed(card.estimated_value_high)}
+                    </p>
+                  </>
+                )}
               </div>
               <div className="bg-card border border-border rounded-xl p-4">
                 <p className="text-sm text-muted-foreground">Condition</p>
@@ -673,6 +719,29 @@ export default function CardDetail() {
               </div>
             </div>
 
+            {/* Missing-analysis recovery banner */}
+            {(card as any).analysis_status === "complete" &&
+              card.estimated_value_low == null &&
+              card.estimated_value_high == null && (
+                <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 space-y-2">
+                  <p className="text-sm font-semibold text-amber-700 dark:text-amber-400">
+                    Market value unavailable
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    The last scan completed but no market data could be saved for this card. Re-run the full analysis to rebuild identification, condition, and pricing.
+                  </p>
+                  <Button
+                    size="sm"
+                    onClick={reanalyzeFull}
+                    disabled={reanalyzing}
+                    className="gradient-primary text-white"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${reanalyzing ? "animate-spin" : ""}`} />
+                    {reanalyzing ? "Starting…" : "Re-run full analysis"}
+                  </Button>
+                </div>
+              )}
+
             {/* Re-Scan Button */}
             <Button
               onClick={rescanPrices}
@@ -683,6 +752,17 @@ export default function CardDetail() {
               {rescanning ? 'Re-Scanning...' : isFreeRescanAvailable() ? '🆓 Free Daily Re-Scan' : 'Re-Scan & Update Prices'}
             </Button>
 
+            {/* Re-run Full Analysis */}
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={reanalyzeFull}
+              disabled={reanalyzing}
+            >
+              <RefreshCw className={`w-4 h-4 ${reanalyzing ? "animate-spin" : ""}`} />
+              {reanalyzing ? "Starting full re-analysis…" : "Re-run full analysis"}
+            </Button>
+
             {/* List on Marketplace */}
             <Button
               variant="outline"
@@ -691,6 +771,7 @@ export default function CardDetail() {
             >
               List on Marketplace
             </Button>
+
 
             {/* No Market Data Warning */}
             {analysis && (analysis as any).noMarketData && (
