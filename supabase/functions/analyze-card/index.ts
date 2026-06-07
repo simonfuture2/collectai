@@ -708,7 +708,13 @@ Respond with ONLY valid JSON (no markdown code fences) with this structure:
   "investmentOutlook": "string",
   "additionalNotes": "string",
   "dataSource": "string"
-}`;
+}
+
+GRADER COVERAGE RULES (MANDATORY):
+- TCG cards (Pokémon, Magic, Yu-Gi-Oh, Dragon Ball, One Piece, etc.): populate psa, cgc, bgs, tag. Set sgc to null.
+- Sports cards: populate psa, cgc, bgs, sgc. Set tag to null.
+- Other categories: populate psa, cgc, bgs at minimum; others may be null.
+- Never return only psa. When you lack direct sales for a grader, estimate from the PSA anchor (BGS ~PSA, CGC ~0.85-0.9x PSA, SGC ~0.9x PSA for sports, TAG ~0.8x PSA for TCG) and lower confidence accordingly.`;
 
     const userMessage = images.length > 1
       ? `I'm providing ${images.length} images of this collectible item (${images.map(i => i.label).join(", ")}). Please analyze all views together for a comprehensive identification, condition assessment, and value estimate.`
