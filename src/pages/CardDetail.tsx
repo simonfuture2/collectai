@@ -207,6 +207,8 @@ interface AIAnalysis {
   trendReason?: string;
   confidence?: "high" | "medium" | "low";
   confidenceReason?: string;
+  rawConfidence?: "high" | "medium" | "low";
+  rawConfidenceReason?: string;
   investmentOutlook?: string;
   additionalNotes?: string;
   dataSource?: string;
