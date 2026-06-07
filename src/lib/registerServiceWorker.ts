@@ -25,7 +25,10 @@ async function unregisterAppServiceWorkers() {
     const registrations = await navigator.serviceWorker.getRegistrations();
     await Promise.all(
       registrations
-        .filter((registration) => registration.active?.scriptURL.endsWith("/sw.js") || registration.scope === `${window.location.origin}/`)
+        .filter((registration) => {
+          const workers = [registration.active, registration.waiting, registration.installing];
+          return workers.some((worker) => worker?.scriptURL.endsWith("/sw.js"));
+        })
         .map((registration) => registration.unregister()),
     );
   } catch {
