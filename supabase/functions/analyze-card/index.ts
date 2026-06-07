@@ -699,7 +699,6 @@ Respond with ONLY valid JSON (no markdown code fences) with this structure:
     "sgc": { "estimatedGrade": number, "valueAtGrade": number, "valueAtSGC10": number, "valueAtSGC9_5": number, "valueAtSGC9": number, "gradingCost": number, "turnaroundTime": "string" },
     "tag": { "estimatedGrade": number, "valueAtGrade": number, "valueAtTAG10": number, "valueAtTAG9_5": number, "valueAtTAG9": number, "gradingCost": number, "turnaroundTime": "string" }
   },
-  // GRADER COVERAGE: TCG → populate psa, cgc, bgs, tag (sgc=null). Sports → populate psa, cgc, bgs, sgc (tag=null). Other → psa, cgc, bgs. Never return only psa; estimate other graders from the PSA anchor when no direct sales exist.
   "priceFactors": ["array"],
   "valueTrend": "rising" | "stable" | "falling" | "unknown",
   "trendReason": "string",
