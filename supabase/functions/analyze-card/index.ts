@@ -691,13 +691,15 @@ Respond with ONLY valid JSON (no markdown code fences) with this structure:
     "currentGradeEstimate": "string",
     "worthGrading": boolean,
     "worthGradingReason": "string",
-    "recommendedGrader": "PSA",
+    "recommendedGrader": "PSA" | "BGS" | "CGC" | "SGC" | "TAG",
     "recommendedGraderReason": "string",
     "psa": { "estimatedGrade": number, "valueAtGrade": number, "valueAtPSA10": number, "valueAtPSA9": number, "valueAtPSA8": number, "gradingCost": number, "turnaroundTime": "string" },
     "bgs": { "estimatedGrade": number, "valueAtGrade": number, "valueAtBGS10": number, "valueAtBGS9_5": number, "valueAtBGS9": number, "gradingCost": number, "turnaroundTime": "string", "blackLabelPotential": "string" },
     "cgc": { "estimatedGrade": number, "valueAtGrade": number, "valueAtCGC10": number, "valueAtCGC9_5": number, "valueAtCGC9": number, "gradingCost": number, "turnaroundTime": "string" },
-    "sgc": { "estimatedGrade": number, "valueAtGrade": number, "valueAtSGC10": number, "valueAtSGC9_5": number, "valueAtSGC9": number, "gradingCost": number, "turnaroundTime": "string" }
+    "sgc": { "estimatedGrade": number, "valueAtGrade": number, "valueAtSGC10": number, "valueAtSGC9_5": number, "valueAtSGC9": number, "gradingCost": number, "turnaroundTime": "string" },
+    "tag": { "estimatedGrade": number, "valueAtGrade": number, "valueAtTAG10": number, "valueAtTAG9_5": number, "valueAtTAG9": number, "gradingCost": number, "turnaroundTime": "string" }
   },
+  // GRADER COVERAGE: TCG → populate psa, cgc, bgs, tag (sgc=null). Sports → populate psa, cgc, bgs, sgc (tag=null). Other → psa, cgc, bgs. Never return only psa; estimate other graders from the PSA anchor when no direct sales exist.
   "priceFactors": ["array"],
   "valueTrend": "rising" | "stable" | "falling" | "unknown",
   "trendReason": "string",
