@@ -1549,14 +1549,14 @@ function GraderCard({ name, color, grader, grades, extra }: GraderCardProps) {
         {grades.map((grade) => (
           <div key={grade.label} className="flex justify-between items-center">
             <span className="text-xs text-muted-foreground">{grade.label}</span>
-            <span className="font-medium text-foreground">
-              {grade.value ? `$${grade.value.toLocaleString()}` : "—"}
+            <span className={`font-medium ${grade.value != null ? "text-foreground" : "text-muted-foreground italic"}`}>
+              {grade.value != null ? `$${grade.value.toLocaleString()}` : "No sold comps"}
             </span>
           </div>
         ))}
       </div>
 
-      {grader.valueAtGrade && (
+      {grader.valueAtGrade != null ? (
         <div className="mt-3 pt-3 border-t border-border">
           <div className="flex justify-between items-center">
             <span className="text-xs text-muted-foreground">At Est. Grade</span>
@@ -1565,7 +1565,13 @@ function GraderCard({ name, color, grader, grades, extra }: GraderCardProps) {
             </span>
           </div>
         </div>
-      )}
+      ) : grader.estimatedGrade != null ? (
+        <div className="mt-3 pt-3 border-t border-border">
+          <p className="text-[11px] text-muted-foreground italic">
+            Insufficient sold comps at this grade — no estimate
+          </p>
+        </div>
+      ) : null}
 
       {grader.gradingCost && (
         <div className="mt-2 flex justify-between items-center text-xs">
