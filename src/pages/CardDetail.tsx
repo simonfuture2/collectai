@@ -1646,6 +1646,7 @@ function GradingROICalculator({
       blue: { bg: 'bg-blue-500/10', border: 'border-blue-500/20', text: 'text-blue-500' },
       yellow: { bg: 'bg-yellow-500/10', border: 'border-yellow-500/20', text: 'text-yellow-500' },
       green: { bg: 'bg-green-500/10', border: 'border-green-500/20', text: 'text-green-500' },
+      purple: { bg: 'bg-purple-500/10', border: 'border-purple-500/20', text: 'text-purple-500' },
     };
     return colors[color] || colors.green;
   };
