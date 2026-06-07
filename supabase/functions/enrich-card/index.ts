@@ -733,6 +733,75 @@ async function runEnrichment(params: {
     }
   }
 
+  // ---- Per-tier grounding gate: scrub fabricated graded values ----
+  // For any grader/tier the AI populated WITHOUT real comps backing it, null
+  // it out. Better to show "Insufficient comps" than a hallucinated number.
+  const gradedComps = marketData.extractedMarketData?.gradedComps;
+  if (gradedComps && analysis.gradedValueEstimates) {
+    const tierFieldMap: Record<GraderKey, Record<string, string>> = {
+      psa: { "10": "valueAtPSA10", "9": "valueAtPSA9", "8": "valueAtPSA8" },
+      bgs: { "10": "valueAtBGS10", "9.5": "valueAtBGS9_5", "9": "valueAtBGS9" },
+      cgc: { "10": "valueAtCGC10", "9.5": "valueAtCGC9_5", "9": "valueAtCGC9" },
+      sgc: { "10": "valueAtSGC10", "9.5": "valueAtSGC9_5", "9": "valueAtSGC9" },
+      tag: { "10": "valueAtTAG10", "9.5": "valueAtTAG9_5", "9": "valueAtTAG9" },
+    };
+    const missing: string[] = [];
+    for (const [grader, tiers] of Object.entries(gradedComps) as [GraderKey, Record<string, GradedTierComps | null>][]) {
+      const block = analysis.gradedValueEstimates[grader];
+      if (!block) continue;
+      for (const [grade, fieldName] of Object.entries(tierFieldMap[grader] || {})) {
+        const comp = tiers[grade];
+        if (!comp && block[fieldName] != null) {
+          missing.push(`${grader.toUpperCase()} ${grade}`);
+          block[fieldName] = null;
+        }
+      }
+      // If valueAtGrade has no underlying comps at the estimated grade tier, null it too.
+      const estGrade = block.estimatedGrade != null ? String(block.estimatedGrade) : null;
+      if (estGrade && !tiers[estGrade]) {
+        if (block.valueAtGrade != null) block.valueAtGrade = null;
+      }
+    }
+    if (missing.length > 0) {
+      analysis.confidence = "low";
+      analysis.confidenceReason =
+        `No sold comps for: ${missing.join(", ")}. ` + (analysis.confidenceReason || "");
+    }
+  }
+
+  // ---- Raw-anchor warning passthrough ----
+  if (marketData.extractedMarketData?.rawConfidence === "low") {
+    analysis.rawConfidence = "low";
+    analysis.rawConfidenceReason = marketData.extractedMarketData.rawConfidenceReason;
+    analysis.confidence = "low";
+    analysis.confidenceReason =
+      (marketData.extractedMarketData.rawConfidenceReason || "") + " " + (analysis.confidenceReason || "");
+  } else {
+    analysis.rawConfidence = marketData.extractedMarketData?.rawConfidence || "high";
+  }
+
+  // ---- Raw-vs-graded reconciliation ----
+  // It's logically broken to show graded < raw at the predicted grade.
+  // When this happens, the raw anchor is usually inflated by an anomalous sale.
+  const rawHigh = Number(analysis.estimatedValueHigh) || 0;
+  const psaBlock = analysis.gradedValueEstimates?.psa;
+  const psaAtGrade = psaBlock?.valueAtGrade;
+  if (rawHigh > 0 && typeof psaAtGrade === "number" && psaAtGrade < rawHigh) {
+    analysis.rawConfidence = "low";
+    analysis.rawConfidenceReason =
+      (analysis.rawConfidenceReason || "") +
+      ` Graded estimate ($${psaAtGrade}) is below raw high ($${rawHigh}) — raw anchor likely inflated by an anomalous listing.`;
+    analysis.confidence = "low";
+    analysis.confidenceReason =
+      `Raw value uncertain — graded < raw at predicted grade. ` + (analysis.confidenceReason || "");
+  }
+
+  // ---- Honest dataSource label ----
+  const realComps = (marketData.extractedMarketData?.sources || []).reduce((s, x) => s + x.count, 0);
+  if (realComps < 3 && analysis.dataSource?.includes("Real eBay")) {
+    analysis.dataSource = `Limited market data (${realComps} comp${realComps === 1 ? "" : "s"}) — values are best estimates`;
+  }
+
 
   // Update card row
   const { error: updateError } = await supabaseAdmin
