@@ -52,6 +52,7 @@ import AIDisclaimer from "@/components/AIDisclaimer";
 import Footer from "@/components/Footer";
 import ThemeToggle from "@/components/ThemeToggle";
 import DefectMapOverlay from "@/components/DefectMapOverlay";
+import AnalysisProgress from "@/components/AnalysisProgress";
 
 type Card = Tables<"cards">;
 
