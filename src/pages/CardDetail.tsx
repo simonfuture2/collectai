@@ -113,6 +113,9 @@ interface GraderValues {
   valueAtSGC10?: number;
   valueAtSGC9_5?: number;
   valueAtSGC9?: number;
+  valueAtTAG10?: number;
+  valueAtTAG9_5?: number;
+  valueAtTAG9?: number;
   gradingCost?: number;
   turnaroundTime?: string;
   blackLabelPotential?: string;
@@ -122,12 +125,13 @@ interface GradedValueEstimates {
   currentGradeEstimate?: string;
   worthGrading?: boolean;
   worthGradingReason?: string;
-  recommendedGrader?: "PSA" | "BGS" | "CGC" | "SGC";
+  recommendedGrader?: "PSA" | "BGS" | "CGC" | "SGC" | "TAG";
   recommendedGraderReason?: string;
   psa?: GraderValues;
   bgs?: GraderValues;
   cgc?: GraderValues;
   sgc?: GraderValues;
+  tag?: GraderValues;
 }
 
 interface PreGradingData {
