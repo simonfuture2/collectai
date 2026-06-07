@@ -1524,15 +1524,16 @@ function InfoItem({ icon, label, value }: { icon: React.ReactNode; label: string
   );
 }
 
+type GraderColor = "red" | "blue" | "yellow" | "green" | "purple";
+
 interface GraderCardProps {
   name: string;
-  color: "red" | "blue" | "yellow" | "green";
+  color: GraderColor;
   grader: GraderValues;
   grades: { label: string; value?: number }[];
   extra?: string;
 }
 
-type GraderColor = "red" | "blue" | "yellow" | "green" | "purple";
 
 interface GraderConfig {
   key: "psa" | "bgs" | "cgc" | "sgc" | "tag";
