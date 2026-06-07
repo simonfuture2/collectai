@@ -428,8 +428,19 @@ If the estimate is wrong based on the data, correct it. Return ONLY JSON:
       }
     }
 
+    const emd = marketResult.extractedMarketData;
+    const hasUsableMarket =
+      (Array.isArray(emd?.sources) && emd.sources.length > 0) ||
+      (emd?.blended && (emd.blended.low != null || emd.blended.high != null || emd.blended.median != null));
+
     return new Response(
-      JSON.stringify({ success: true, source: "CollectAI", data: pricing, extractedMarketData: marketResult.extractedMarketData }),
+      JSON.stringify({
+        success: true,
+        source: "CollectAI",
+        data: pricing,
+        extractedMarketData: emd,
+        noData: !hasUsableMarket,
+      }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
