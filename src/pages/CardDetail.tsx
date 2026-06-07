@@ -869,6 +869,12 @@ export default function CardDetail() {
                       </p>
                     )}
 
+                    {/* Per-grade sold comps summary */}
+                    <GradedCompsSummary
+                      comps={analysis.extractedMarketData?.gradedComps}
+                      cardSearchQuery={[card?.card_year, card?.card_name, card?.card_set].filter(Boolean).join(" ")}
+                    />
+
                     {/* Grader Cards Grid */}
                     <div className="grid grid-cols-2 gap-4">
                       {getGraderConfigs(card?.category, analysis.gradedValueEstimates).map((cfg) => {
@@ -879,7 +885,10 @@ export default function CardDetail() {
                             name={cfg.name}
                             color={cfg.color}
                             grader={g}
+                            graderKey={cfg.key}
                             grades={cfg.grades(g)}
+                            comps={analysis.extractedMarketData?.gradedComps?.[cfg.key]}
+                            cardSearchQuery={[card?.card_year, card?.card_name, card?.card_set].filter(Boolean).join(" ")}
                             extra={cfg.extra?.(g)}
                           />
                         );
