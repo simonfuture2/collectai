@@ -237,11 +237,14 @@ Respond with ONLY a single valid JSON object (no markdown):
     "tag": { "estimatedGrade": number, "valueAtGrade": number, "valueAtTAG10": number, "valueAtTAG9_5": number, "valueAtTAG9": number, "gradingCost": number, "turnaroundTime": "string" }
   },
 
-GRADER COVERAGE RULES (MANDATORY):
-- For TCG cards (Pokémon, Magic, Yu-Gi-Oh, Dragon Ball, One Piece, sports-TCG hybrids, etc.): populate psa, cgc, bgs, and tag. Omit sgc (set to null).
-- For Sports cards: populate psa, cgc, bgs, and sgc. Omit tag (set to null).
-- For other categories: populate psa, cgc, and bgs at minimum; set others to null.
-- NEVER return only psa. If you lack precise per-grader sales, estimate based on the PSA anchor and typical inter-grader premiums (BGS ~PSA, CGC ~0.85x PSA for sports / ~0.9x for TCG, SGC ~0.9x PSA for sports, TAG ~0.8x PSA for TCG). Mark confidence accordingly.
+GRADED-LADDER RULES (MANDATORY — read carefully, this is the most-checked output):
+- Per-tier grounding: for every grader/grade tier (PSA 10, PSA 9, PSA 8, BGS 10, BGS 9.5, BGS 9, CGC 10, CGC 9.5, SGC 10, SGC 9.5, TAG 10, TAG 9.5) you MUST use the median from the "REAL PER-GRADE SOLD COMPS" block when it lists comps for that tier. Round to the nearest dollar. Quote 1–2 of those comps in priceFactors.
+- NO-COMPS RULE: when the per-grade block says "NO SOLD COMPS FOUND" for a tier, you MUST set that value field to null. DO NOT extrapolate from the PSA anchor, from raw value, or from inter-grader premiums. Inventing a number here is the single worst failure mode of this system.
+- Set valueAtGrade for each grader to the median of comps at the grader's estimatedGrade tier. If there are no comps at that tier, set valueAtGrade to null and lower confidence to "low".
+- Sanity check: valueAtPSA10 ≥ valueAtPSA9 ≥ valueAtPSA8 (same ladder for BGS/CGC/SGC/TAG). If your numbers violate this, your tier values are wrong — re-check the comp data.
+- Category coverage: TCG → populate psa, cgc, bgs, tag (set sgc to null). Sports → populate psa, cgc, bgs, sgc (set tag to null). Other → psa, cgc, bgs (others null). A grader block with all null value fields is still acceptable — honest > invented.
+- Confidence: if any tier you returned has fewer than 2 real comps backing it, set top-level confidence to "low" and write a confidenceReason that names the missing tiers.
+
   "priceFactors": ["string"],
   "valueTrend": "rising" | "stable" | "falling" | "unknown",
   "trendReason": "string",
@@ -321,7 +324,16 @@ interface CardIdentification {
   rarity: string;
 }
 interface MarketSourceData { source: string; median: number; low: number; high: number; count: number; prices: number[]; }
-interface ExtractedMarketData { sources: MarketSourceData[]; blended: { median: number; low: number; high: number } | null; }
+interface GradedTierComps { median: number; low: number; high: number; count: number; prices: number[] }
+type GraderKey = "psa" | "bgs" | "cgc" | "sgc" | "tag";
+type GradedComps = Partial<Record<GraderKey, Record<string, GradedTierComps | null>>>;
+interface ExtractedMarketData {
+  sources: MarketSourceData[];
+  blended: { median: number; low: number; high: number } | null;
+  gradedComps?: GradedComps;
+  rawConfidence?: "high" | "medium" | "low";
+  rawConfidenceReason?: string;
+}
 
 function buildSearchTerms(cardId: CardIdentification, category?: string) {
   const isSportsCard = /sport|baseball|basketball|football|hockey|soccer/i.test(category || "");
@@ -436,6 +448,64 @@ async function searchMarketPrices(cardId: CardIdentification, category: string |
     });
     tcgPrices = filterOutliers(tcgPrices);
 
+    // ---- Per-grade graded-comp retrieval (parallel) ----
+    // Pulls real sold comps for each grader/grade tier relevant to the card category.
+    // A tier with insufficient comps stays null — NEVER filled by multiplier.
+    const tiersForCategory: { grader: GraderKey; grade: string; query: string }[] = [
+      { grader: "psa", grade: "10", query: `"${specific}" "PSA 10" sold site:ebay.com` },
+      { grader: "psa", grade: "9",  query: `"${specific}" "PSA 9" sold site:ebay.com` },
+      { grader: "psa", grade: "8",  query: `"${specific}" "PSA 8" sold site:ebay.com` },
+      { grader: "bgs", grade: "10", query: `"${specific}" "BGS 10" sold site:ebay.com` },
+      { grader: "bgs", grade: "9.5", query: `"${specific}" "BGS 9.5" sold site:ebay.com` },
+      { grader: "bgs", grade: "9",  query: `"${specific}" "BGS 9" sold site:ebay.com` },
+      { grader: "cgc", grade: "10", query: `"${specific}" "CGC 10" sold site:ebay.com` },
+      { grader: "cgc", grade: "9.5", query: `"${specific}" "CGC 9.5" sold site:ebay.com` },
+    ];
+    if (isSportsCard) {
+      tiersForCategory.push(
+        { grader: "sgc", grade: "10", query: `"${specific}" "SGC 10" sold site:ebay.com` },
+        { grader: "sgc", grade: "9.5", query: `"${specific}" "SGC 9.5" sold site:ebay.com` },
+      );
+    } else {
+      tiersForCategory.push(
+        { grader: "tag", grade: "10", query: `"${specific}" "TAG 10" sold site:ebay.com` },
+        { grader: "tag", grade: "9.5", query: `"${specific}" "TAG 9.5" sold site:ebay.com` },
+      );
+    }
+
+    // Skip per-grade retrieval entirely on fast scans (would blow the time budget).
+    const gradedComps: GradedComps = {};
+    if (!fastScan) {
+      const gradedResults = await Promise.all(
+        tiersForCategory.map(async (t) => {
+          const results = await doSearch(t.query, 4, "ebay.com", "qdr:m");
+          let prices: number[] = [];
+          for (const r of results.slice(0, 4)) {
+            const text = `${r.title || ""} ${r.description || ""} ${(r.markdown || "").substring(0, 600)}`;
+            // Only count prices from listings whose title also contains the grader+grade token.
+            const tokenRe = new RegExp(`${t.grader}\\s*${t.grade.replace(".", "\\.")}\\b`, "i");
+            if (!tokenRe.test(r.title || "") && !tokenRe.test(r.description || "")) continue;
+            prices.push(...extractPrices(text));
+          }
+          prices = filterOutliers(prices);
+          return { ...t, prices };
+        }),
+      );
+      for (const r of gradedResults) {
+        gradedComps[r.grader] = gradedComps[r.grader] || {};
+        gradedComps[r.grader]![r.grade] = r.prices.length >= 2
+          ? {
+              median: median(r.prices),
+              low: Math.min(...r.prices),
+              high: Math.max(...r.prices),
+              count: r.prices.length,
+              prices: r.prices,
+            }
+          : null;
+      }
+    }
+    // ---- end per-grade retrieval ----
+
     // Safety net: if titles/descriptions yielded too few prices, do a small scrape pass.
     const totalPrices = soldPrices.length + activePrices.length + tcgPrices.length;
     if (totalPrices < 3) {
@@ -491,7 +561,45 @@ async function searchMarketPrices(cardId: CardIdentification, category: string |
     if (blended) summary += `\n### SUGGESTED BLENDED VALUE: $${blended.median.toFixed(2)}\n`;
     summary += `\nCRITICAL: Your estimatedValueLow and estimatedValueHigh MUST be within the range of these real prices.\n`;
 
-    return { summary, hasData: true, extractedMarketData: { sources, blended } };
+    // ---- Build per-grade summary block for the LLM ----
+    summary += `\n## REAL PER-GRADE SOLD COMPS (use these verbatim — DO NOT invent or extrapolate)\n`;
+    const graderEntries = Object.entries(gradedComps) as [GraderKey, Record<string, GradedTierComps | null>][];
+    if (graderEntries.length === 0) {
+      summary += `(No per-grade comp retrieval was performed.)\n`;
+    } else {
+      for (const [grader, tiers] of graderEntries) {
+        for (const [grade, comp] of Object.entries(tiers)) {
+          if (comp) {
+            summary += `- ${grader.toUpperCase()} ${grade}: median $${comp.median.toFixed(2)} (range $${comp.low.toFixed(2)}-$${comp.high.toFixed(2)}, ${comp.count} sold comps)\n`;
+          } else {
+            summary += `- ${grader.toUpperCase()} ${grade}: NO SOLD COMPS FOUND — value must be null and confidence low.\n`;
+          }
+        }
+      }
+    }
+
+    // ---- Raw-anchor sanity flag (passed back as rawConfidence) ----
+    let rawConfidence: "high" | "medium" | "low" = "high";
+    let rawConfidenceReason: string | undefined;
+    if (soldPrices.length < 3) {
+      rawConfidence = "low";
+      rawConfidenceReason = `Only ${soldPrices.length} raw sold comp(s) — anchor is unreliable.`;
+    } else {
+      const sortedDesc = [...soldPrices].sort((a, b) => b - a);
+      if (sortedDesc[0] > 2 * (sortedDesc[1] ?? 0)) {
+        rawConfidence = "low";
+        rawConfidenceReason = `Top raw sale ($${sortedDesc[0].toFixed(0)}) is >2× the next ($${(sortedDesc[1] ?? 0).toFixed(0)}) — likely anomalous/mixed-set listing inflating the anchor.`;
+      }
+    }
+    if (rawConfidence === "low") {
+      summary += `\n⚠️ RAW-ANCHOR WARNING: ${rawConfidenceReason} Treat raw value as uncertain.\n`;
+    }
+
+    return {
+      summary,
+      hasData: true,
+      extractedMarketData: { sources, blended, gradedComps, rawConfidence, rawConfidenceReason },
+    };
   } catch (err) {
     console.error("Market price search failed:", err);
     return empty;
@@ -623,6 +731,75 @@ async function runEnrichment(params: {
       if (agree && analysis.confidence !== "high") analysis.confidence = "high";
       analysis.dataSource = `Real market data + Gemini Pro pricing + Flash-Lite verified ${agree ? "✓✓" : "(disagreement)"}`;
     }
+  }
+
+  // ---- Per-tier grounding gate: scrub fabricated graded values ----
+  // For any grader/tier the AI populated WITHOUT real comps backing it, null
+  // it out. Better to show "Insufficient comps" than a hallucinated number.
+  const gradedComps = marketData.extractedMarketData?.gradedComps;
+  if (gradedComps && analysis.gradedValueEstimates) {
+    const tierFieldMap: Record<GraderKey, Record<string, string>> = {
+      psa: { "10": "valueAtPSA10", "9": "valueAtPSA9", "8": "valueAtPSA8" },
+      bgs: { "10": "valueAtBGS10", "9.5": "valueAtBGS9_5", "9": "valueAtBGS9" },
+      cgc: { "10": "valueAtCGC10", "9.5": "valueAtCGC9_5", "9": "valueAtCGC9" },
+      sgc: { "10": "valueAtSGC10", "9.5": "valueAtSGC9_5", "9": "valueAtSGC9" },
+      tag: { "10": "valueAtTAG10", "9.5": "valueAtTAG9_5", "9": "valueAtTAG9" },
+    };
+    const missing: string[] = [];
+    for (const [grader, tiers] of Object.entries(gradedComps) as [GraderKey, Record<string, GradedTierComps | null>][]) {
+      const block = analysis.gradedValueEstimates[grader];
+      if (!block) continue;
+      for (const [grade, fieldName] of Object.entries(tierFieldMap[grader] || {})) {
+        const comp = tiers[grade];
+        if (!comp && block[fieldName] != null) {
+          missing.push(`${grader.toUpperCase()} ${grade}`);
+          block[fieldName] = null;
+        }
+      }
+      // If valueAtGrade has no underlying comps at the estimated grade tier, null it too.
+      const estGrade = block.estimatedGrade != null ? String(block.estimatedGrade) : null;
+      if (estGrade && !tiers[estGrade]) {
+        if (block.valueAtGrade != null) block.valueAtGrade = null;
+      }
+    }
+    if (missing.length > 0) {
+      analysis.confidence = "low";
+      analysis.confidenceReason =
+        `No sold comps for: ${missing.join(", ")}. ` + (analysis.confidenceReason || "");
+    }
+  }
+
+  // ---- Raw-anchor warning passthrough ----
+  if (marketData.extractedMarketData?.rawConfidence === "low") {
+    analysis.rawConfidence = "low";
+    analysis.rawConfidenceReason = marketData.extractedMarketData.rawConfidenceReason;
+    analysis.confidence = "low";
+    analysis.confidenceReason =
+      (marketData.extractedMarketData.rawConfidenceReason || "") + " " + (analysis.confidenceReason || "");
+  } else {
+    analysis.rawConfidence = marketData.extractedMarketData?.rawConfidence || "high";
+  }
+
+  // ---- Raw-vs-graded reconciliation ----
+  // It's logically broken to show graded < raw at the predicted grade.
+  // When this happens, the raw anchor is usually inflated by an anomalous sale.
+  const rawHigh = Number(analysis.estimatedValueHigh) || 0;
+  const psaBlock = analysis.gradedValueEstimates?.psa;
+  const psaAtGrade = psaBlock?.valueAtGrade;
+  if (rawHigh > 0 && typeof psaAtGrade === "number" && psaAtGrade < rawHigh) {
+    analysis.rawConfidence = "low";
+    analysis.rawConfidenceReason =
+      (analysis.rawConfidenceReason || "") +
+      ` Graded estimate ($${psaAtGrade}) is below raw high ($${rawHigh}) — raw anchor likely inflated by an anomalous listing.`;
+    analysis.confidence = "low";
+    analysis.confidenceReason =
+      `Raw value uncertain — graded < raw at predicted grade. ` + (analysis.confidenceReason || "");
+  }
+
+  // ---- Honest dataSource label ----
+  const realComps = (marketData.extractedMarketData?.sources || []).reduce((s, x) => s + x.count, 0);
+  if (realComps < 3 && analysis.dataSource?.includes("Real eBay")) {
+    analysis.dataSource = `Limited market data (${realComps} comp${realComps === 1 ? "" : "s"}) — values are best estimates`;
   }
 
 

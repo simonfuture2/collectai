@@ -207,6 +207,8 @@ interface AIAnalysis {
   trendReason?: string;
   confidence?: "high" | "medium" | "low";
   confidenceReason?: string;
+  rawConfidence?: "high" | "medium" | "low";
+  rawConfidenceReason?: string;
   investmentOutlook?: string;
   additionalNotes?: string;
   dataSource?: string;
@@ -735,6 +737,21 @@ export default function CardDetail() {
               </div>
             )}
 
+            {analysis?.rawConfidence === "low" && !(analysis as any).noMarketData && (
+              <div className="flex items-start gap-3 p-4 rounded-xl bg-amber-500/10 border border-amber-500/30">
+                <svg className="w-5 h-5 text-amber-500 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>
+                <div>
+                  <p className="text-sm font-semibold text-amber-600 dark:text-amber-400">Raw value uncertain — re-scan recommended</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {analysis.rawConfidenceReason || "Too few sold comps to anchor the raw value confidently."}
+                  </p>
+                </div>
+              </div>
+            )}
+
+
             {/* Data Source & Confidence Badge */}
             {analysis && (
               <div className="bg-card border border-border rounded-xl p-4 space-y-3">
@@ -855,8 +872,8 @@ export default function CardDetail() {
                 </div>
               )}
 
-              {/* Grading ROI Calculator - Desktop */}
-              {analysis?.gradedValueEstimates && (
+              {/* Grading ROI Calculator - Desktop (hidden when raw anchor is unreliable) */}
+              {analysis?.gradedValueEstimates && analysis?.rawConfidence !== "low" && (
                 <GradingROICalculator 
                   rawValue={avgValue}
                   gradedEstimates={analysis.gradedValueEstimates}
@@ -1303,8 +1320,8 @@ export default function CardDetail() {
                 </div>
               )}
 
-              {/* Grading ROI Calculator */}
-              {analysis?.gradedValueEstimates && (
+              {/* Grading ROI Calculator (hidden when raw anchor is unreliable) */}
+              {analysis?.gradedValueEstimates && analysis?.rawConfidence !== "low" && (
                 <GradingROICalculator 
                   rawValue={avgValue}
                   gradedEstimates={analysis.gradedValueEstimates}
@@ -1547,14 +1564,14 @@ function GraderCard({ name, color, grader, grades, extra }: GraderCardProps) {
         {grades.map((grade) => (
           <div key={grade.label} className="flex justify-between items-center">
             <span className="text-xs text-muted-foreground">{grade.label}</span>
-            <span className="font-medium text-foreground">
-              {grade.value ? `$${grade.value.toLocaleString()}` : "—"}
+            <span className={`font-medium ${grade.value != null ? "text-foreground" : "text-muted-foreground italic"}`}>
+              {grade.value != null ? `$${grade.value.toLocaleString()}` : "No sold comps"}
             </span>
           </div>
         ))}
       </div>
 
-      {grader.valueAtGrade && (
+      {grader.valueAtGrade != null ? (
         <div className="mt-3 pt-3 border-t border-border">
           <div className="flex justify-between items-center">
             <span className="text-xs text-muted-foreground">At Est. Grade</span>
@@ -1563,7 +1580,13 @@ function GraderCard({ name, color, grader, grades, extra }: GraderCardProps) {
             </span>
           </div>
         </div>
-      )}
+      ) : grader.estimatedGrade != null ? (
+        <div className="mt-3 pt-3 border-t border-border">
+          <p className="text-[11px] text-muted-foreground italic">
+            Insufficient sold comps at this grade — no estimate
+          </p>
+        </div>
+      ) : null}
 
       {grader.gradingCost && (
         <div className="mt-2 flex justify-between items-center text-xs">
