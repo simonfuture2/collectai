@@ -558,7 +558,45 @@ async function searchMarketPrices(cardId: CardIdentification, category: string |
     if (blended) summary += `\n### SUGGESTED BLENDED VALUE: $${blended.median.toFixed(2)}\n`;
     summary += `\nCRITICAL: Your estimatedValueLow and estimatedValueHigh MUST be within the range of these real prices.\n`;
 
-    return { summary, hasData: true, extractedMarketData: { sources, blended } };
+    // ---- Build per-grade summary block for the LLM ----
+    summary += `\n## REAL PER-GRADE SOLD COMPS (use these verbatim — DO NOT invent or extrapolate)\n`;
+    const graderEntries = Object.entries(gradedComps) as [GraderKey, Record<string, GradedTierComps | null>][];
+    if (graderEntries.length === 0) {
+      summary += `(No per-grade comp retrieval was performed.)\n`;
+    } else {
+      for (const [grader, tiers] of graderEntries) {
+        for (const [grade, comp] of Object.entries(tiers)) {
+          if (comp) {
+            summary += `- ${grader.toUpperCase()} ${grade}: median $${comp.median.toFixed(2)} (range $${comp.low.toFixed(2)}-$${comp.high.toFixed(2)}, ${comp.count} sold comps)\n`;
+          } else {
+            summary += `- ${grader.toUpperCase()} ${grade}: NO SOLD COMPS FOUND — value must be null and confidence low.\n`;
+          }
+        }
+      }
+    }
+
+    // ---- Raw-anchor sanity flag (passed back as rawConfidence) ----
+    let rawConfidence: "high" | "medium" | "low" = "high";
+    let rawConfidenceReason: string | undefined;
+    if (soldPrices.length < 3) {
+      rawConfidence = "low";
+      rawConfidenceReason = `Only ${soldPrices.length} raw sold comp(s) — anchor is unreliable.`;
+    } else {
+      const sortedDesc = [...soldPrices].sort((a, b) => b - a);
+      if (sortedDesc[0] > 2 * (sortedDesc[1] ?? 0)) {
+        rawConfidence = "low";
+        rawConfidenceReason = `Top raw sale ($${sortedDesc[0].toFixed(0)}) is >2× the next ($${(sortedDesc[1] ?? 0).toFixed(0)}) — likely anomalous/mixed-set listing inflating the anchor.`;
+      }
+    }
+    if (rawConfidence === "low") {
+      summary += `\n⚠️ RAW-ANCHOR WARNING: ${rawConfidenceReason} Treat raw value as uncertain.\n`;
+    }
+
+    return {
+      summary,
+      hasData: true,
+      extractedMarketData: { sources, blended, gradedComps, rawConfidence, rawConfidenceReason },
+    };
   } catch (err) {
     console.error("Market price search failed:", err);
     return empty;
