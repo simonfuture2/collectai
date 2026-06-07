@@ -52,6 +52,7 @@ import AIDisclaimer from "@/components/AIDisclaimer";
 import Footer from "@/components/Footer";
 import ThemeToggle from "@/components/ThemeToggle";
 import DefectMapOverlay from "@/components/DefectMapOverlay";
+import AnalysisProgress from "@/components/AnalysisProgress";
 
 type Card = Tables<"cards">;
 
@@ -606,73 +607,14 @@ export default function CardDetail() {
       </header>
 
       <main className="container mx-auto px-4 py-8">
-        {(() => {
-          const status = (card as any).analysis_status;
-          if (!["pending", "identifying", "pricing", "analyzing", "verifying"].includes(status)) return null;
-          const steps = [
-            { key: "identifying", label: "Identifying" },
-            { key: "pricing", label: "Pulling prices" },
-            { key: "analyzing", label: "Analyzing" },
-            { key: "verifying", label: "Verifying" },
-          ];
-          const statusToIdx: Record<string, number> = {
-            pending: 0, identifying: 0, pricing: 1, analyzing: 2, verifying: 3,
-          };
-          const activeIdx = statusToIdx[status] ?? 0;
-          return (
-            <div className="mb-6 rounded-xl border border-primary/30 bg-primary/5 p-4">
-              <ol className="flex items-center justify-between gap-2">
-                {steps.map((step, i) => {
-                  const isDone = i < activeIdx;
-                  const isActive = i === activeIdx;
-                  return (
-                    <li key={step.key} className="flex-1 flex flex-col items-center text-center">
-                      <div className="flex items-center w-full">
-                        <span className={`flex-1 h-px ${i === 0 ? "invisible" : isDone || isActive ? "bg-primary" : "bg-border"}`} />
-                        <span
-                          className={`flex items-center justify-center w-7 h-7 rounded-full mx-1 transition-colors ${
-                            isDone
-                              ? "bg-primary text-primary-foreground"
-                              : isActive
-                                ? "border-2 border-primary text-primary bg-background"
-                                : "border border-border text-muted-foreground bg-background"
-                          }`}
-                        >
-                          {isDone ? (
-                            <Check className="w-4 h-4" />
-                          ) : isActive ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <Circle className="w-3 h-3" />
-                          )}
-                        </span>
-                        <span className={`flex-1 h-px ${i === steps.length - 1 ? "invisible" : isDone ? "bg-primary" : "bg-border"}`} />
-                      </div>
-                      <p className={`mt-2 text-xs font-medium ${isActive ? "text-primary" : isDone ? "text-foreground" : "text-muted-foreground"}`}>
-                        {step.label}
-                      </p>
-                    </li>
-                  );
-                })}
-              </ol>
-              <p className="mt-3 text-xs text-muted-foreground text-center">
-                This usually takes 30–45 seconds. Feel free to navigate away — it'll be ready when you come back.
-              </p>
-            </div>
-          );
-        })()}
-        {(card as any).analysis_status === "failed" && (
-          <div className="mb-6 rounded-xl border border-destructive/30 bg-destructive/5 p-4 flex items-center gap-3">
-            <XCircle className="w-5 h-5 text-destructive shrink-0" />
-            <div className="flex-1">
-              <p className="font-display font-semibold text-sm">AI analysis failed</p>
-              <p className="text-xs text-muted-foreground">{(card as any).analysis_error || "Something went wrong while pulling market data."}</p>
-            </div>
-            <Button size="sm" variant="outline" onClick={rescanPrices} disabled={rescanning}>
-              {rescanning ? "Retrying…" : "Retry"}
-            </Button>
-          </div>
-        )}
+        <AnalysisProgress
+          status={(card as any).analysis_status}
+          startedAt={(card as any).analysis_started_at}
+          errorMessage={(card as any).analysis_error}
+          onRetry={reanalyzeFull}
+          retrying={reanalyzing}
+        />
+
         <div className="grid lg:grid-cols-2 gap-8">
           {/* Left: Card Image + Grading Value Sections (on desktop) */}
           <div className="space-y-6">
