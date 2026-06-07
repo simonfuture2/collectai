@@ -415,11 +415,18 @@ export default function CardDetail() {
       });
       if (error) throw error;
 
-      // Insert new price history rows
-      if (data?.extractedMarketData?.sources) {
+      // Determine if we actually got usable pricing data back.
+      const sources = data?.extractedMarketData?.sources;
+      const blended = data?.extractedMarketData?.blended;
+      const hasUsableData =
+        !data?.noData &&
+        ((Array.isArray(sources) && sources.length > 0) ||
+          (blended && (blended.low != null || blended.high != null || blended.median != null)));
+
+      if (hasUsableData) {
         const user = session.user;
         const priceRows: any[] = [];
-        for (const src of data.extractedMarketData.sources) {
+        for (const src of sources || []) {
           priceRows.push({
             card_id: id,
             user_id: user.id,
@@ -431,14 +438,14 @@ export default function CardDetail() {
             raw_prices: src.prices,
           });
         }
-        if (data.extractedMarketData.blended) {
+        if (blended) {
           priceRows.push({
             card_id: id,
             user_id: user.id,
             source: "blended",
-            median_price: data.extractedMarketData.blended.median,
-            low_price: data.extractedMarketData.blended.low,
-            high_price: data.extractedMarketData.blended.high,
+            median_price: blended.median,
+            low_price: blended.low,
+            high_price: blended.high,
             price_count: 0,
             raw_prices: [],
           });
@@ -447,19 +454,22 @@ export default function CardDetail() {
           await supabase.from("price_history").insert(priceRows);
         }
 
-        // === FIX: Update card values in DB ===
-        const blended = data.extractedMarketData.blended;
+        // Merge new pricing into the existing analysis WITHOUT clobbering
+        // identification/condition/grading fields written by enrich-card.
         const newLow = blended?.low ?? card.estimated_value_low;
         const newHigh = blended?.high ?? card.estimated_value_high;
+        const existingAnalysis = (card.ai_analysis as any) || {};
         const updatedAnalysis = {
-          ...(card.ai_analysis as any || {}),
+          ...existingAnalysis,
           estimatedValueLow: newLow,
           estimatedValueHigh: newHigh,
           noMarketData: false,
-          dataSource: "Real eBay + TCGPlayer data (re-scan update)",
+          dataSource: existingAnalysis.dataSource
+            ? `${existingAnalysis.dataSource} + re-scan update`
+            : "Real eBay + TCGPlayer data (re-scan update)",
           lastRescanData: {
             blended: blended || null,
-            sources: data.extractedMarketData.sources?.map((s: any) => ({ source: s.source, median: s.median, count: s.count })) || [],
+            sources: (sources || []).map((s: any) => ({ source: s.source, median: s.median, count: s.count })),
             rescanDate: new Date().toISOString(),
           },
         };
@@ -477,7 +487,6 @@ export default function CardDetail() {
         if (updateError) {
           console.error("Failed to update card values:", updateError);
         } else {
-          // Update local state immediately
           setCard((prev) => prev ? {
             ...prev,
             estimated_value_low: newLow,
@@ -487,7 +496,6 @@ export default function CardDetail() {
           } as Card : prev);
         }
 
-        // Refresh price history display
         const { data: priceData } = await supabase
           .from("price_history")
           .select("*")
@@ -510,10 +518,12 @@ export default function CardDetail() {
         }
         toast.success("Prices updated with fresh market data!");
       } else {
-        // Even with no new market data, update last_scanned_at
+        // No usable market data — only bump last_scanned_at, keep existing analysis intact.
         await supabase.from("cards").update({ last_scanned_at: new Date().toISOString() }).eq("id", id);
         setCard((prev) => prev ? { ...prev, last_scanned_at: new Date().toISOString() } as Card : prev);
-        toast.error("No market data found for this card");
+        toast.message("No fresh market data found", {
+          description: "Keeping previous values. Try Re-run full analysis for a complete rescan.",
+        });
       }
     } catch (err: any) {
       toast.error(err.message || "Failed to re-scan prices");
