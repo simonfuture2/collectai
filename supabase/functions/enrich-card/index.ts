@@ -237,11 +237,14 @@ Respond with ONLY a single valid JSON object (no markdown):
     "tag": { "estimatedGrade": number, "valueAtGrade": number, "valueAtTAG10": number, "valueAtTAG9_5": number, "valueAtTAG9": number, "gradingCost": number, "turnaroundTime": "string" }
   },
 
-GRADER COVERAGE RULES (MANDATORY):
-- For TCG cards (Pokémon, Magic, Yu-Gi-Oh, Dragon Ball, One Piece, sports-TCG hybrids, etc.): populate psa, cgc, bgs, and tag. Omit sgc (set to null).
-- For Sports cards: populate psa, cgc, bgs, and sgc. Omit tag (set to null).
-- For other categories: populate psa, cgc, and bgs at minimum; set others to null.
-- NEVER return only psa. If you lack precise per-grader sales, estimate based on the PSA anchor and typical inter-grader premiums (BGS ~PSA, CGC ~0.85x PSA for sports / ~0.9x for TCG, SGC ~0.9x PSA for sports, TAG ~0.8x PSA for TCG). Mark confidence accordingly.
+GRADED-LADDER RULES (MANDATORY — read carefully, this is the most-checked output):
+- Per-tier grounding: for every grader/grade tier (PSA 10, PSA 9, PSA 8, BGS 10, BGS 9.5, BGS 9, CGC 10, CGC 9.5, SGC 10, SGC 9.5, TAG 10, TAG 9.5) you MUST use the median from the "REAL PER-GRADE SOLD COMPS" block when it lists comps for that tier. Round to the nearest dollar. Quote 1–2 of those comps in priceFactors.
+- NO-COMPS RULE: when the per-grade block says "NO SOLD COMPS FOUND" for a tier, you MUST set that value field to null. DO NOT extrapolate from the PSA anchor, from raw value, or from inter-grader premiums. Inventing a number here is the single worst failure mode of this system.
+- Set valueAtGrade for each grader to the median of comps at the grader's estimatedGrade tier. If there are no comps at that tier, set valueAtGrade to null and lower confidence to "low".
+- Sanity check: valueAtPSA10 ≥ valueAtPSA9 ≥ valueAtPSA8 (same ladder for BGS/CGC/SGC/TAG). If your numbers violate this, your tier values are wrong — re-check the comp data.
+- Category coverage: TCG → populate psa, cgc, bgs, tag (set sgc to null). Sports → populate psa, cgc, bgs, sgc (set tag to null). Other → psa, cgc, bgs (others null). A grader block with all null value fields is still acceptable — honest > invented.
+- Confidence: if any tier you returned has fewer than 2 real comps backing it, set top-level confidence to "low" and write a confidenceReason that names the missing tiers.
+
   "priceFactors": ["string"],
   "valueTrend": "rising" | "stable" | "falling" | "unknown",
   "trendReason": "string",
