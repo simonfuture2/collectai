@@ -228,11 +228,20 @@ Respond with ONLY a single valid JSON object (no markdown):
     "currentGradeEstimate": "string",
     "worthGrading": boolean,
     "worthGradingReason": "string",
-    "recommendedGrader": "PSA" | "BGS" | "CGC" | "SGC",
+    "recommendedGrader": "PSA" | "BGS" | "CGC" | "SGC" | "TAG",
     "recommendedGraderReason": "string",
-    "psa": { "estimatedGrade": number, "valueAtGrade": number, "valueAtPSA10": number, "valueAtPSA9": number, "gradingCost": number, "turnaroundTime": "string" },
-    "otherGraders": { "bgsEstimatedGrade": number, "cgcEstimatedGrade": number, "sgcEstimatedGrade": number }
+    "psa": { "estimatedGrade": number, "valueAtGrade": number, "valueAtPSA10": number, "valueAtPSA9": number, "valueAtPSA8": number, "gradingCost": number, "turnaroundTime": "string" },
+    "bgs": { "estimatedGrade": number, "valueAtGrade": number, "valueAtBGS10": number, "valueAtBGS9_5": number, "valueAtBGS9": number, "gradingCost": number, "turnaroundTime": "string", "blackLabelPotential": "string" },
+    "cgc": { "estimatedGrade": number, "valueAtGrade": number, "valueAtCGC10": number, "valueAtCGC9_5": number, "valueAtCGC9": number, "gradingCost": number, "turnaroundTime": "string" },
+    "sgc": { "estimatedGrade": number, "valueAtGrade": number, "valueAtSGC10": number, "valueAtSGC9_5": number, "valueAtSGC9": number, "gradingCost": number, "turnaroundTime": "string" },
+    "tag": { "estimatedGrade": number, "valueAtGrade": number, "valueAtTAG10": number, "valueAtTAG9_5": number, "valueAtTAG9": number, "gradingCost": number, "turnaroundTime": "string" }
   },
+
+GRADER COVERAGE RULES (MANDATORY):
+- For TCG cards (Pokémon, Magic, Yu-Gi-Oh, Dragon Ball, One Piece, sports-TCG hybrids, etc.): populate psa, cgc, bgs, and tag. Omit sgc (set to null).
+- For Sports cards: populate psa, cgc, bgs, and sgc. Omit tag (set to null).
+- For other categories: populate psa, cgc, and bgs at minimum; set others to null.
+- NEVER return only psa. If you lack precise per-grader sales, estimate based on the PSA anchor and typical inter-grader premiums (BGS ~PSA, CGC ~0.85x PSA for sports / ~0.9x for TCG, SGC ~0.9x PSA for sports, TAG ~0.8x PSA for TCG). Mark confidence accordingly.
   "priceFactors": ["string"],
   "valueTrend": "rising" | "stable" | "falling" | "unknown",
   "trendReason": "string",
