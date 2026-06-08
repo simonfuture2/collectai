@@ -47,6 +47,26 @@ serve(async (req) => {
     { auth: { persistSession: false } }
   );
 
+  // Idempotency: insert event.id; if it already exists, ack and return.
+  const { error: dedupErr } = await supabaseClient
+    .from("processed_stripe_events")
+    .insert({ event_id: event.id, event_type: event.type });
+
+  if (dedupErr) {
+    // 23505 = unique_violation -> already processed
+    if ((dedupErr as any).code === "23505") {
+      logStep("Duplicate event, skipping", { id: event.id, type: event.type });
+      return new Response(JSON.stringify({ received: true, duplicate: true }), {
+        headers: { "Content-Type": "application/json" },
+        status: 200,
+      });
+    }
+    logStep("Failed to record event for idempotency", { error: dedupErr.message });
+    // Fall through — better to risk reprocessing than to drop the event.
+  }
+
+
+
   try {
     if (event.type === "checkout.session.completed") {
       const session = event.data.object as Stripe.Checkout.Session;
@@ -97,25 +117,24 @@ serve(async (req) => {
           return new Response("OK", { status: 200 });
         }
 
-        // Get current credits
-        const { data: existing } = await supabaseClient
-          .from("user_credits")
-          .select("credits")
-          .eq("user_id", userId)
-          .single();
+        // Atomic credit grant via SECURITY DEFINER RPC
+        const { data: newCredits, error: rpcErr } = await supabaseClient.rpc("add_credits", {
+          _user_id: userId,
+          _amount: creditsToAdd,
+        });
 
-        const currentCredits = existing?.credits ?? 0;
-        const newCredits = currentCredits + creditsToAdd;
+        if (rpcErr) {
+          logStep("add_credits RPC failed", { error: rpcErr.message });
+          throw rpcErr;
+        }
 
+        // Best-effort: ensure stripe_customer_id is set
         await supabaseClient
           .from("user_credits")
-          .upsert({
-            user_id: userId,
-            credits: newCredits,
-            stripe_customer_id: customerId,
-          }, { onConflict: "user_id" });
+          .update({ stripe_customer_id: customerId })
+          .eq("user_id", userId);
 
-        logStep("Credits added", { userId, creditsToAdd, newCredits });
+        logStep("Credits added atomically", { userId, creditsToAdd, newCredits });
 
         // Log transaction
         await supabaseClient.from("credit_transactions").insert({
