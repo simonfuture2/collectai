@@ -605,12 +605,22 @@ serve(async (req) => {
     console.log(`Card identified by ${IDENTIFY_MODEL} in ${Date.now() - t0}ms:`, JSON.stringify(cardId));
 
     // ===== STEP 2: Tiered cross-referenced market data (PriceCharting + eBay + TCGPlayer) =====
-    let aggregated: AggregatedMarketData = { sources: [], blended: null, crossReference: {}, summary: "", hasData: false };
+    let aggregated: AggregatedMarketData = { sources: [], blended: null, crossReference: {}, summary: "", hasData: false, compTitles: [] };
     if (cardId?.card_name) {
       console.log("Step 2: Aggregating market data from PriceCharting + Firecrawl comps...");
       aggregated = await getMarketData(cardId, body.category, body.fastScan === true);
       console.log("Market data found:", aggregated.hasData ? "Yes" : "No", "| sources:", aggregated.sources.map(s => s.source).join(","));
     }
+
+    // ===== ID ↔ comp cross-check + variant uncertainty =====
+    const idCheck = cardId ? crossCheckIdentification(cardId, aggregated.compTitles) : { matchPct: 0, identificationUncertain: false, matchedCount: 0, total: 0 };
+    const variantConfidence = cardId?.variant_confidence || "medium";
+    const variantUncertain = variantConfidence !== "high";
+    const identificationUncertain = idCheck.identificationUncertain || variantUncertain;
+    if (cardId) {
+      console.log(`[id-check] comp match ${idCheck.matchedCount}/${idCheck.total} (${idCheck.matchPct}%), variant_confidence=${variantConfidence}, identificationUncertain=${identificationUncertain}`);
+    }
+
     // Backward-compat shape consumed by the rest of this function.
     const marketData = {
       summary: aggregated.summary,
