@@ -47,6 +47,39 @@ export interface AggregatedMarketData {
   crossReference: CrossReference;
   summary: string;
   hasData: boolean;
+  compTitles: string[]; // raw titles from eBay sold comps used for ID cross-check
+}
+
+/**
+ * Cross-check identified card against eBay comp titles.
+ * Returns matchPct (0-100) and an `identificationUncertain` flag when comps
+ * largely don't reflect the identified card_name / card_number.
+ */
+export function crossCheckIdentification(
+  cardId: CardIdentification,
+  titles: string[],
+): { matchPct: number; identificationUncertain: boolean; matchedCount: number; total: number } {
+  if (!titles || titles.length === 0) {
+    return { matchPct: 0, identificationUncertain: false, matchedCount: 0, total: 0 };
+  }
+  const name = (cardId.card_name || "").toLowerCase().trim();
+  const number = (cardId.card_number || "").toLowerCase().trim();
+  const nameTokens = name.split(/\s+/).filter((t) => t.length >= 3);
+  if (nameTokens.length === 0) {
+    return { matchPct: 0, identificationUncertain: false, matchedCount: 0, total: titles.length };
+  }
+  let matched = 0;
+  for (const tRaw of titles) {
+    const t = (tRaw || "").toLowerCase();
+    if (!t) continue;
+    const nameHit = nameTokens.every((tok) => t.includes(tok));
+    const numberHit = number ? t.includes(number) : true;
+    if (nameHit && numberHit) matched++;
+  }
+  const pct = Math.round((matched / titles.length) * 100);
+  // If we have at least 3 comps and <40% match, flag uncertain.
+  const identificationUncertain = titles.length >= 3 && pct < 40;
+  return { matchPct: pct, identificationUncertain, matchedCount: matched, total: titles.length };
 }
 
 // ---------- helpers ----------
