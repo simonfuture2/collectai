@@ -443,6 +443,38 @@ Return ONLY the JSON object, no other text.`;
       }
     }
 
+    // ===== STEP 5: Apply identification-uncertainty widening + user-facing notes =====
+    {
+      const notes: string[] = [];
+      let widenFactor = 1;
+      if (variantUncertain) {
+        widenFactor = variantConfidence === "low" ? 1.5 : 1.25;
+        notes.push(
+          variantConfidence === "low"
+            ? "Variant could not be confidently identified — please confirm the variant/parallel from the card."
+            : "Variant identification is uncertain — please confirm the variant/parallel.",
+        );
+      }
+      if (idCheck.identificationUncertain) {
+        widenFactor = Math.max(widenFactor, 1.4);
+        notes.push(
+          `eBay comp titles largely don't match the identified card (${idCheck.matchedCount}/${idCheck.total} matched). Treat the range as a rough estimate.`,
+        );
+      }
+      if (widenFactor > 1) {
+        const lo = Number(result.estimated_value_low) || 0;
+        const hi = Number(result.estimated_value_high) || 0;
+        const mid = (lo + hi) / 2;
+        result.estimated_value_low = Math.round(Math.max(0, mid - (mid - lo) * widenFactor));
+        result.estimated_value_high = Math.round(mid + (hi - mid) * widenFactor);
+        result.confidence = Math.min(result.confidence, 60);
+      }
+      result.identification_uncertain = identificationUncertain;
+      result.variant_confidence = variantConfidence;
+      result.id_comp_match_pct = idCheck.matchPct;
+      if (notes.length > 0) result.identification_note = notes.join(" ");
+    }
+
     console.log(`Final result: $${result.estimated_value_low}-$${result.estimated_value_high}`);
 
     return new Response(JSON.stringify(result), {
