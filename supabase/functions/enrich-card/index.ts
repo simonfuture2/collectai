@@ -337,12 +337,16 @@ interface ExtractedMarketData {
   ebaySoldRecencyWindow?: RecencyWindow;
 }
 
-const TBS_BY_WINDOW: Record<RecencyWindow, string> = {
-  "7d": "qdr:w",
-  "30d": "qdr:m",
-  "12m": "qdr:y",
-  "36m": "cdr:1,cd_min:1/1/2022", // last ~3 years (custom date range fallback)
-};
+function tbsForWindow(w: RecencyWindow): string {
+  if (w === "7d") return "qdr:w";
+  if (w === "30d") return "qdr:m";
+  if (w === "12m") return "qdr:y";
+  // ~3 years: Google custom date range from today-3y to today
+  const now = new Date();
+  const past = new Date(now.getFullYear() - 3, now.getMonth(), now.getDate());
+  const fmt = (d: Date) => `${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear()}`;
+  return `cdr:1,cd_min:${fmt(past)},cd_max:${fmt(now)}`;
+}
 
 function buildSearchTerms(cardId: CardIdentification, category?: string) {
   const isSportsCard = /sport|baseball|basketball|football|hockey|soccer/i.test(category || "");
