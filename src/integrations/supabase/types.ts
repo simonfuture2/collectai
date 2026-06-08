@@ -253,6 +253,27 @@ export type Database = {
         }
         Relationships: []
       }
+      daily_budget_counters: {
+        Row: {
+          bucket_key: string
+          count: number
+          day: string
+          updated_at: string
+        }
+        Insert: {
+          bucket_key: string
+          count?: number
+          day: string
+          updated_at?: string
+        }
+        Update: {
+          bucket_key?: string
+          count?: number
+          day?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       demo_scan_rate_limit: {
         Row: {
           ip_hash: string
@@ -1225,6 +1246,14 @@ export type Database = {
       add_credits: {
         Args: { _amount: number; _user_id: string }
         Returns: number
+      }
+      consume_daily_budget: {
+        Args: { _bucket_key: string; _max_per_day: number }
+        Returns: {
+          allowed: boolean
+          remaining: number
+          used: number
+        }[]
       }
       consume_demo_scan: {
         Args: { _ip_hash: string; _max_per_day?: number }

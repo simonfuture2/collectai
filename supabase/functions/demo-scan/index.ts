@@ -85,6 +85,33 @@ serve(async (req) => {
       );
     }
 
+    // Global daily budget — caps total public spend across all IPs,
+    // since per-IP limit keys on a spoofable x-forwarded-for header.
+    const DEMO_DAILY_BUDGET = Number(Deno.env.get("DEMO_SCAN_DAILY_BUDGET") ?? "300");
+    const { data: budgetRows, error: budgetErr } = await admin.rpc("consume_daily_budget", {
+      _bucket_key: "demo_scan",
+      _max_per_day: DEMO_DAILY_BUDGET,
+    });
+    if (budgetErr) {
+      console.error("daily budget error", budgetErr);
+      return new Response(JSON.stringify({ error: "Budget check failed" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const budgetRow = Array.isArray(budgetRows) ? budgetRows[0] : budgetRows;
+    if (!budgetRow?.allowed) {
+      console.warn(`[demo-scan] daily budget exhausted (used=${budgetRow?.used})`);
+      return new Response(
+        JSON.stringify({
+          error: "Today's free demo budget is used up. Sign up for a free account to keep scanning.",
+          rateLimited: true,
+        }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+
     const systemPrompt = `You are a trading card expert. From the image, identify the card and estimate its raw (ungraded) market value.
 
 Respond ONLY with valid JSON in this exact shape:

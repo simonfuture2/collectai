@@ -600,6 +600,7 @@ serve(async (req) => {
     }
 
     console.log(`Analyzing ${images.length} image(s) for user:`, user.id);
+    const hasBackImage = images.some((i) => /back/i.test(i.label));
 
     // ===== STEP 1: Detailed identification with Gemini =====
     console.log(`Step 1: Identifying card with ${IDENTIFY_MODEL}...`);
@@ -1171,7 +1172,10 @@ GRADE-CEILING RULE (MANDATORY):
       console.log(`[confidence] score=${analysis.confidenceScore} band=${band} | ${explanation}`);
     }
 
-
+    // Flag whether the user uploaded a back image — the UI gates graded-value
+    // estimates on this so we don't over-promise grade-based pricing from a
+    // front-only photo (we can't see edges/corners/back surface).
+    analysis.hasBackImage = hasBackImage;
 
 
     // ===== STEP 5: Save card server-side, then deduct credit =====
