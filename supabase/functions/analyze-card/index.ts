@@ -917,6 +917,42 @@ GRADER COVERAGE RULES (MANDATORY):
       }
     }
 
+    // ===== STEP 4.5: Apply identification-uncertainty widening + user-facing notes =====
+    {
+      const notes: string[] = [];
+      let widenFactor = 1;
+      if (variantUncertain) {
+        widenFactor = variantConfidence === "low" ? 1.5 : 1.25;
+        notes.push(
+          variantConfidence === "low"
+            ? "Variant could not be confidently identified — please confirm the variant/parallel from the card."
+            : "Variant identification is uncertain — please confirm the variant/parallel from the card.",
+        );
+      }
+      if (idCheck.identificationUncertain) {
+        widenFactor = Math.max(widenFactor, 1.4);
+        notes.push(
+          `eBay comp titles largely don't match the identified card (${idCheck.matchedCount}/${idCheck.total} matched, ${idCheck.matchPct}%). Treat the value range as a rough estimate and re-scan with a clearer photo.`,
+        );
+      }
+      if (widenFactor > 1 && analysis.estimatedValueLow != null && analysis.estimatedValueHigh != null) {
+        const lo = Number(analysis.estimatedValueLow) || 0;
+        const hi = Number(analysis.estimatedValueHigh) || 0;
+        const mid = (lo + hi) / 2;
+        analysis.estimatedValueLow = Math.round(Math.max(0, mid - (mid - lo) * widenFactor) * 100) / 100;
+        analysis.estimatedValueHigh = Math.round((mid + (hi - mid) * widenFactor) * 100) / 100;
+      }
+      analysis.identificationUncertain = identificationUncertain;
+      analysis.variantConfidence = variantConfidence;
+      analysis.idCompMatchPct = idCheck.matchPct;
+      if (notes.length > 0) {
+        analysis.confidenceReason = `${analysis.confidenceReason || ""} ${notes.join(" ")}`.trim();
+        analysis.identificationNote = notes.join(" ");
+        if (analysis.confidence === "high") analysis.confidence = "medium";
+      }
+    }
+
+
     // ===== STEP 5: Save card server-side, then deduct credit =====
     // Extract the file path from the signed URL
     const firstImageUrl = images[0]?.url || "";
