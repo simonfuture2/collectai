@@ -287,6 +287,20 @@ serve(async (req) => {
       );
     }
 
+    // Global daily budget — second gate so spoofed x-forwarded-for cannot drain spend.
+    const budget = await checkDailyBudget();
+    if (!budget.allowed) {
+      console.warn(`[quick-scan] daily budget exhausted (used=${budget.used})`);
+      return new Response(
+        JSON.stringify({
+          error: "Today's free scan budget is used up. Sign up for a free account to keep scanning.",
+          rateLimited: true,
+        }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+
     const { imageBase64 } = await req.json();
     if (!imageBase64 || typeof imageBase64 !== "string") {
       return new Response(
