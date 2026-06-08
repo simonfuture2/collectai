@@ -91,6 +91,8 @@ function parseJsonLoose(text: string): any | null {
 
 function normalizeResult(parsed: any): CardIdentification {
   const s = (v: unknown) => (v == null ? "" : String(v));
+  const rawVc = String(parsed?.variant_confidence ?? parsed?.variantConfidence ?? "").toLowerCase();
+  const vc: VariantConfidence = rawVc === "high" || rawVc === "medium" || rawVc === "low" ? (rawVc as VariantConfidence) : "medium";
   return {
     card_name: s(parsed?.card_name ?? parsed?.cardName),
     card_number: s(parsed?.card_number ?? parsed?.cardNumber),
@@ -98,6 +100,7 @@ function normalizeResult(parsed: any): CardIdentification {
     card_year: s(parsed?.card_year ?? parsed?.cardYear),
     variant: s(parsed?.variant),
     rarity: s(parsed?.rarity),
+    variant_confidence: vc,
   };
 }
 
