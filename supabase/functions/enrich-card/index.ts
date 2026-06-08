@@ -323,8 +323,9 @@ interface CardIdentification {
   variant: string;
   rarity: string;
 }
-interface MarketSourceData { source: string; median: number; low: number; high: number; count: number; prices: number[]; }
-interface GradedTierComps { median: number; low: number; high: number; count: number; prices: number[] }
+type RecencyWindow = "7d" | "30d" | "12m" | "36m";
+interface MarketSourceData { source: string; median: number; low: number; high: number; count: number; prices: number[]; recencyWindow?: RecencyWindow; }
+interface GradedTierComps { median: number; low: number; high: number; count: number; prices: number[]; recencyWindow?: RecencyWindow }
 type GraderKey = "psa" | "bgs" | "cgc" | "sgc" | "tag";
 type GradedComps = Partial<Record<GraderKey, Record<string, GradedTierComps | null>>>;
 interface ExtractedMarketData {
@@ -333,6 +334,18 @@ interface ExtractedMarketData {
   gradedComps?: GradedComps;
   rawConfidence?: "high" | "medium" | "low";
   rawConfidenceReason?: string;
+  ebaySoldRecencyWindow?: RecencyWindow;
+}
+
+function tbsForWindow(w: RecencyWindow): string {
+  if (w === "7d") return "qdr:w";
+  if (w === "30d") return "qdr:m";
+  if (w === "12m") return "qdr:y";
+  // ~3 years: Google custom date range from today-3y to today
+  const now = new Date();
+  const past = new Date(now.getFullYear() - 3, now.getMonth(), now.getDate());
+  const fmt = (d: Date) => `${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear()}`;
+  return `cdr:1,cd_min:${fmt(past)},cd_max:${fmt(now)}`;
 }
 
 function buildSearchTerms(cardId: CardIdentification, category?: string) {
@@ -380,10 +393,27 @@ async function searchMarketPrices(cardId: CardIdentification, category: string |
       return urlFilter ? results.filter((r: any) => r.url?.includes(urlFilter)) : results;
     } catch { return []; }
   }
+  // Escalating recency ladder so vintage / low-volume cards still find real sold comps.
+  // Returns the first window that meets the threshold, tagged with the window used.
+  async function searchSoldLadder(query: string, limit: number): Promise<{ results: any[]; window: RecencyWindow }> {
+    const ladder: { w: RecencyWindow; need: number }[] = [
+      { w: "7d", need: 3 },
+      { w: "30d", need: 3 },
+      { w: "12m", need: 2 },
+      { w: "36m", need: 1 },
+    ];
+    let lastResults: any[] = [];
+    let lastWindow: RecencyWindow = "36m";
+    for (const step of ladder) {
+      const r = await doSearch(query, limit, "ebay.com", tbsForWindow(step.w));
+      lastResults = r;
+      lastWindow = step.w;
+      if (r.length >= step.need) return { results: r, window: step.w };
+    }
+    return { results: lastResults, window: lastWindow };
+  }
   async function searchSold(query: string, limit: number) {
-    const fresh = await doSearch(query, limit, "ebay.com", "qdr:w");
-    if (fresh.length >= 2) return fresh;
-    return doSearch(query, limit, "ebay.com", "qdr:m");
+    return (await searchSoldLadder(query, limit)).results;
   }
 
   async function scrapeListing(url: string): Promise<string> {
@@ -404,20 +434,24 @@ async function searchMarketPrices(cardId: CardIdentification, category: string |
   }
 
   try {
-    let [soldResults, activeResults, tcgResults] = await Promise.all([
-      searchSold(`"${specific}" sold site:ebay.com`, 6),
+    let soldLadder = await searchSoldLadder(`"${specific}" sold site:ebay.com`, 6);
+    let soldResults = soldLadder.results;
+    let ebaySoldRecencyWindow: RecencyWindow = soldLadder.window;
+    let [activeResults, tcgResults] = await Promise.all([
       doSearch(`"${specific}" site:ebay.com`, 4, "ebay.com"),
       isSportsCard ? Promise.resolve([]) : doSearch(`"${specific}" price site:tcgplayer.com`, 3, "tcgplayer.com"),
     ]);
     const totalSpecific = soldResults.length + activeResults.length + tcgResults.length;
     if (!fastScan && totalSpecific < 3 && specific !== broad) {
-      const [soldBroad, activeBroad, tcgBroad] = await Promise.all([
-        searchSold(`${broad} sold site:ebay.com`, 6),
+      const soldBroadLadder = await searchSoldLadder(`${broad} sold site:ebay.com`, 6);
+      const [activeBroad, tcgBroad] = await Promise.all([
         doSearch(`${broad} site:ebay.com`, 4, "ebay.com"),
         isSportsCard ? Promise.resolve([]) : doSearch(`${broad} price site:tcgplayer.com`, 3, "tcgplayer.com"),
       ]);
-      if (soldBroad.length + activeBroad.length + tcgBroad.length > totalSpecific) {
-        soldResults = soldBroad; activeResults = activeBroad; tcgResults = tcgBroad;
+      if (soldBroadLadder.results.length + activeBroad.length + tcgBroad.length > totalSpecific) {
+        soldResults = soldBroadLadder.results;
+        ebaySoldRecencyWindow = soldBroadLadder.window;
+        activeResults = activeBroad; tcgResults = tcgBroad;
       }
     }
 
@@ -451,6 +485,11 @@ async function searchMarketPrices(cardId: CardIdentification, category: string |
     // ---- Per-grade graded-comp retrieval (parallel) ----
     // Pulls real sold comps for each grader/grade tier relevant to the card category.
     // A tier with insufficient comps stays null — NEVER filled by multiplier.
+    // Category coverage:
+    //   Sports     → PSA + BGS + SGC (no TAG/CGC)
+    //   TCG        → PSA + CGC + BGS + TAG (no SGC)
+    //   Coin/Other → PSA + CGC + BGS
+    const isTcgCategory = /trading card|tcg|pokemon|pokémon|magic|yu-?gi-?oh|lorcana|one piece/i.test(category || "");
     const tiersForCategory: { grader: GraderKey; grade: string; query: string }[] = [
       { grader: "psa", grade: "10", query: `"${specific}" "PSA 10" sold site:ebay.com` },
       { grader: "psa", grade: "9",  query: `"${specific}" "PSA 9" sold site:ebay.com` },
@@ -458,19 +497,25 @@ async function searchMarketPrices(cardId: CardIdentification, category: string |
       { grader: "bgs", grade: "10", query: `"${specific}" "BGS 10" sold site:ebay.com` },
       { grader: "bgs", grade: "9.5", query: `"${specific}" "BGS 9.5" sold site:ebay.com` },
       { grader: "bgs", grade: "9",  query: `"${specific}" "BGS 9" sold site:ebay.com` },
-      { grader: "cgc", grade: "10", query: `"${specific}" "CGC 10" sold site:ebay.com` },
-      { grader: "cgc", grade: "9.5", query: `"${specific}" "CGC 9.5" sold site:ebay.com` },
     ];
     if (isSportsCard) {
       tiersForCategory.push(
         { grader: "sgc", grade: "10", query: `"${specific}" "SGC 10" sold site:ebay.com` },
         { grader: "sgc", grade: "9.5", query: `"${specific}" "SGC 9.5" sold site:ebay.com` },
+        { grader: "sgc", grade: "9",  query: `"${specific}" "SGC 9" sold site:ebay.com` },
       );
     } else {
       tiersForCategory.push(
-        { grader: "tag", grade: "10", query: `"${specific}" "TAG 10" sold site:ebay.com` },
-        { grader: "tag", grade: "9.5", query: `"${specific}" "TAG 9.5" sold site:ebay.com` },
+        { grader: "cgc", grade: "10", query: `"${specific}" "CGC 10" sold site:ebay.com` },
+        { grader: "cgc", grade: "9.5", query: `"${specific}" "CGC 9.5" sold site:ebay.com` },
+        { grader: "cgc", grade: "9",  query: `"${specific}" "CGC 9" sold site:ebay.com` },
       );
+      if (isTcgCategory) {
+        tiersForCategory.push(
+          { grader: "tag", grade: "10", query: `"${specific}" "TAG 10" sold site:ebay.com` },
+          { grader: "tag", grade: "9.5", query: `"${specific}" "TAG 9.5" sold site:ebay.com` },
+        );
+      }
     }
 
     // Skip per-grade retrieval entirely on fast scans (would blow the time budget).
@@ -478,17 +523,32 @@ async function searchMarketPrices(cardId: CardIdentification, category: string |
     if (!fastScan) {
       const gradedResults = await Promise.all(
         tiersForCategory.map(async (t) => {
-          const results = await doSearch(t.query, 4, "ebay.com", "qdr:m");
+          // Try recency ladder: 30d → 12m → 36m. Skip 7d for graded tiers (too sparse).
+          const windows: RecencyWindow[] = ["30d", "12m", "36m"];
           let prices: number[] = [];
-          for (const r of results.slice(0, 4)) {
-            const text = `${r.title || ""} ${r.description || ""} ${(r.markdown || "").substring(0, 600)}`;
-            // Only count prices from listings whose title also contains the grader+grade token.
+          let usedWindow: RecencyWindow = "36m";
+          for (const w of windows) {
+            const results = await doSearch(t.query, 4, "ebay.com", tbsForWindow(w));
             const tokenRe = new RegExp(`${t.grader}\\s*${t.grade.replace(".", "\\.")}\\b`, "i");
-            if (!tokenRe.test(r.title || "") && !tokenRe.test(r.description || "")) continue;
-            prices.push(...extractPrices(text));
+            const tierPrices: number[] = [];
+            for (const r of results.slice(0, 4)) {
+              if (!tokenRe.test(r.title || "") && !tokenRe.test(r.description || "")) continue;
+              const text = `${r.title || ""} ${r.description || ""} ${(r.markdown || "").substring(0, 600)}`;
+              tierPrices.push(...extractPrices(text));
+            }
+            if (tierPrices.length >= 2) {
+              prices = tierPrices;
+              usedWindow = w;
+              break;
+            }
+            // keep the largest set we saw as a fallback
+            if (tierPrices.length > prices.length) {
+              prices = tierPrices;
+              usedWindow = w;
+            }
           }
           prices = filterOutliers(prices);
-          return { ...t, prices };
+          return { ...t, prices, window: usedWindow };
         }),
       );
       for (const r of gradedResults) {
@@ -500,6 +560,7 @@ async function searchMarketPrices(cardId: CardIdentification, category: string |
               high: Math.max(...r.prices),
               count: r.prices.length,
               prices: r.prices,
+              recencyWindow: r.window,
             }
           : null;
       }
@@ -530,36 +591,58 @@ async function searchMarketPrices(cardId: CardIdentification, category: string |
     const medianTcg = median(tcgPrices);
 
     const sources: MarketSourceData[] = [];
-    if (soldPrices.length > 0) sources.push({ source: "ebay_sold", median: medianSold, low: Math.min(...soldPrices), high: Math.max(...soldPrices), count: soldPrices.length, prices: soldPrices });
+    if (soldPrices.length > 0) sources.push({ source: "ebay_sold", median: medianSold, low: Math.min(...soldPrices), high: Math.max(...soldPrices), count: soldPrices.length, prices: soldPrices, recencyWindow: ebaySoldRecencyWindow });
     if (activePrices.length > 0) sources.push({ source: "ebay_active", median: medianActive, low: Math.min(...activePrices), high: Math.max(...activePrices), count: activePrices.length, prices: activePrices });
     if (tcgPrices.length > 0) sources.push({ source: "tcgplayer", median: medianTcg, low: Math.min(...tcgPrices), high: Math.max(...tcgPrices), count: tcgPrices.length, prices: tcgPrices });
 
+    // Category-aware blending weights.
+    //   TCG                   → eBay sold 50% + TCGPlayer 30% + eBay active 20%
+    //   Sports / Coin / Other → eBay sold 70% + eBay active 30% (no TCGPlayer relevance)
+    const useTcgWeights = isTcgCategory && tcgPrices.length > 0;
     const allMedians: { value: number; weight: number }[] = [];
-    if (soldPrices.length > 0) allMedians.push({ value: medianSold, weight: 0.5 });
-    if (activePrices.length > 0) allMedians.push({ value: medianActive, weight: 0.2 });
-    if (tcgPrices.length > 0) allMedians.push({ value: medianTcg, weight: 0.3 });
+    if (useTcgWeights) {
+      if (soldPrices.length > 0) allMedians.push({ value: medianSold, weight: 0.5 });
+      if (tcgPrices.length > 0)  allMedians.push({ value: medianTcg, weight: 0.3 });
+      if (activePrices.length > 0) allMedians.push({ value: medianActive, weight: 0.2 });
+    } else {
+      if (soldPrices.length > 0) allMedians.push({ value: medianSold, weight: 0.7 });
+      if (activePrices.length > 0) allMedians.push({ value: medianActive, weight: 0.3 });
+    }
 
     let blended: ExtractedMarketData["blended"] = null;
     if (allMedians.length > 0) {
       const totalWeight = allMedians.reduce((s, m) => s + m.weight, 0);
       const blendedMedian = allMedians.reduce((s, m) => s + m.value * (m.weight / totalWeight), 0);
-      const allPrices = [...soldPrices, ...activePrices, ...tcgPrices];
+      const allPrices = useTcgWeights
+        ? [...soldPrices, ...activePrices, ...tcgPrices]
+        : [...soldPrices, ...activePrices];
       blended = { median: blendedMedian, low: Math.min(...allPrices), high: Math.max(...allPrices) };
     }
 
+    const windowLabel: Record<RecencyWindow, string> = {
+      "7d": "last 7 days",
+      "30d": "last 30 days",
+      "12m": "last 12 months",
+      "36m": "last 3 years",
+    };
+
     let summary = "\n\n## REAL MARKET PRICE DATA (retrieved today from multiple sources)\n";
     summary += `Card searched: ${specific}\n`;
+    summary += `Category resolved: ${category || "unknown"} (sports=${isSportsCard}, tcg=${isTcgCategory})\n`;
     if (soldPrices.length > 0) {
-      summary += `\n### eBay SOLD LISTINGS (last 30 days):\n- Filtered prices: ${soldPrices.map((p) => `$${p.toFixed(2)}`).join(", ")}\n- Median sold price: $${medianSold.toFixed(2)}\n- Range: $${Math.min(...soldPrices).toFixed(2)} - $${Math.max(...soldPrices).toFixed(2)}\n- Count: ${soldPrices.length} price points\n\nDetails:\n${soldListings.join("\n")}\n`;
+      summary += `\n### eBay SOLD LISTINGS (${windowLabel[ebaySoldRecencyWindow]}):\n- Filtered prices: ${soldPrices.map((p) => `$${p.toFixed(2)}`).join(", ")}\n- Median sold price: $${medianSold.toFixed(2)}\n- Range: $${Math.min(...soldPrices).toFixed(2)} - $${Math.max(...soldPrices).toFixed(2)}\n- Count: ${soldPrices.length} price points\n\nDetails:\n${soldListings.join("\n")}\n`;
     }
     if (activePrices.length > 0) {
       summary += `\n### eBay ACTIVE LISTINGS:\n- Filtered prices: ${activePrices.map((p) => `$${p.toFixed(2)}`).join(", ")}\n- Median asking price: $${medianActive.toFixed(2)}\n\nDetails:\n${activeListings.join("\n")}\n`;
     }
-    if (tcgPrices.length > 0) {
+    if (useTcgWeights && tcgPrices.length > 0) {
       summary += `\n### TCGPlayer PRICES:\n- Filtered prices: ${tcgPrices.map((p) => `$${p.toFixed(2)}`).join(", ")}\n- Median TCGPlayer price: $${medianTcg.toFixed(2)}\n\nDetails:\n${tcgListings.join("\n")}\n`;
     }
     if (blended) summary += `\n### SUGGESTED BLENDED VALUE: $${blended.median.toFixed(2)}\n`;
     summary += `\nCRITICAL: Your estimatedValueLow and estimatedValueHigh MUST be within the range of these real prices.\n`;
+    if (ebaySoldRecencyWindow === "12m" || ebaySoldRecencyWindow === "36m") {
+      summary += `\n⚠️ RECENCY NOTE: Only older eBay sold comps were found (${windowLabel[ebaySoldRecencyWindow]}). Confidence must be "Limited market data" — not "High Confidence".\n`;
+    }
 
     // ---- Build per-grade summary block for the LLM ----
     summary += `\n## REAL PER-GRADE SOLD COMPS (use these verbatim — DO NOT invent or extrapolate)\n`;
@@ -570,7 +653,8 @@ async function searchMarketPrices(cardId: CardIdentification, category: string |
       for (const [grader, tiers] of graderEntries) {
         for (const [grade, comp] of Object.entries(tiers)) {
           if (comp) {
-            summary += `- ${grader.toUpperCase()} ${grade}: median $${comp.median.toFixed(2)} (range $${comp.low.toFixed(2)}-$${comp.high.toFixed(2)}, ${comp.count} sold comps)\n`;
+            const win = comp.recencyWindow ? ` [${windowLabel[comp.recencyWindow]}]` : "";
+            summary += `- ${grader.toUpperCase()} ${grade}: median $${comp.median.toFixed(2)} (range $${comp.low.toFixed(2)}-$${comp.high.toFixed(2)}, ${comp.count} sold comps)${win}\n`;
           } else {
             summary += `- ${grader.toUpperCase()} ${grade}: NO SOLD COMPS FOUND — value must be null and confidence low.\n`;
           }
@@ -598,7 +682,7 @@ async function searchMarketPrices(cardId: CardIdentification, category: string |
     return {
       summary,
       hasData: true,
-      extractedMarketData: { sources, blended, gradedComps, rawConfidence, rawConfidenceReason },
+      extractedMarketData: { sources, blended, gradedComps, rawConfidence, rawConfidenceReason, ebaySoldRecencyWindow },
     };
   } catch (err) {
     console.error("Market price search failed:", err);
