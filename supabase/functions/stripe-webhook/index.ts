@@ -117,25 +117,24 @@ serve(async (req) => {
           return new Response("OK", { status: 200 });
         }
 
-        // Get current credits
-        const { data: existing } = await supabaseClient
-          .from("user_credits")
-          .select("credits")
-          .eq("user_id", userId)
-          .single();
+        // Atomic credit grant via SECURITY DEFINER RPC
+        const { data: newCredits, error: rpcErr } = await supabaseClient.rpc("add_credits", {
+          _user_id: userId,
+          _amount: creditsToAdd,
+        });
 
-        const currentCredits = existing?.credits ?? 0;
-        const newCredits = currentCredits + creditsToAdd;
+        if (rpcErr) {
+          logStep("add_credits RPC failed", { error: rpcErr.message });
+          throw rpcErr;
+        }
 
+        // Best-effort: ensure stripe_customer_id is set
         await supabaseClient
           .from("user_credits")
-          .upsert({
-            user_id: userId,
-            credits: newCredits,
-            stripe_customer_id: customerId,
-          }, { onConflict: "user_id" });
+          .update({ stripe_customer_id: customerId })
+          .eq("user_id", userId);
 
-        logStep("Credits added", { userId, creditsToAdd, newCredits });
+        logStep("Credits added atomically", { userId, creditsToAdd, newCredits });
 
         // Log transaction
         await supabaseClient.from("credit_transactions").insert({
