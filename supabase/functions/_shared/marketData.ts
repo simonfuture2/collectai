@@ -382,7 +382,7 @@ export async function getMarketData(
     summary += `\nCRITICAL: Your estimatedValueLow/High MUST reflect this data.\n`;
   }
 
-  return { sources, blended, crossReference: cross, summary, hasData, compTitles };
+  return { sources, blended, crossReference: cross, summary, hasData, compTitles, priceChartingGraded: pcGraded, priceChartingProduct: pcProduct };
 }
 
 // Convenience: persist per-source rows to price_history (each source attributed).
