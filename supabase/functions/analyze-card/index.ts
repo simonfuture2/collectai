@@ -951,7 +951,10 @@ GRADER COVERAGE RULES (MANDATORY):
         analysis.confidenceReason = `${analysis.confidenceReason || ""} ${notes.join(" ")}`.trim();
         analysis.identificationNote = notes.join(" ");
         if (analysis.confidence === "high") analysis.confidence = "medium";
+      }
     }
+
+
 
     // ===== STEP 4.7: Data-quality + cross-source confidence score (0–100) =====
     {
