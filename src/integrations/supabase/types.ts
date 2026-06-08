@@ -14,6 +14,56 @@ export type Database = {
   }
   public: {
     Tables: {
+      bakeoff_truth: {
+        Row: {
+          card_id: string
+          card_name: string | null
+          card_number: string | null
+          card_set: string | null
+          card_year: string | null
+          created_at: string
+          created_by: string | null
+          notes: string | null
+          rarity: string | null
+          updated_at: string
+          variant: string | null
+        }
+        Insert: {
+          card_id: string
+          card_name?: string | null
+          card_number?: string | null
+          card_set?: string | null
+          card_year?: string | null
+          created_at?: string
+          created_by?: string | null
+          notes?: string | null
+          rarity?: string | null
+          updated_at?: string
+          variant?: string | null
+        }
+        Update: {
+          card_id?: string
+          card_name?: string | null
+          card_number?: string | null
+          card_set?: string | null
+          card_year?: string | null
+          created_at?: string
+          created_by?: string | null
+          notes?: string | null
+          rarity?: string | null
+          updated_at?: string
+          variant?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bakeoff_truth_card_id_fkey"
+            columns: ["card_id"]
+            isOneToOne: true
+            referencedRelation: "cards"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       campaign_templates: {
         Row: {
           body: string
