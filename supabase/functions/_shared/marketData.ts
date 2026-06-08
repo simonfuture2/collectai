@@ -180,6 +180,7 @@ export async function getMarketData(
   let activePrices: number[] = [];
   let tcgPrices: number[] = [];
   let soldRecencyDays = 30;
+  let compTitles: string[] = [];
 
   if (FIRECRAWL_API_KEY && cardId.card_name) {
     async function doSearch(query: string, limit: number, urlFilter?: string, tbs = "qdr:m") {
