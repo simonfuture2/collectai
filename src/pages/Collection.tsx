@@ -368,8 +368,16 @@ const Collection = () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error("Not authenticated");
 
+      // analyze-card requires a signed URL from the card-images bucket
+      const { data: signed, error: signErr } = await supabase
+        .storage.from("card-images").createSignedUrl(imagePath, 3600);
+      if (signErr || !signed?.signedUrl) throw signErr || new Error("Could not sign image URL");
+
       const response = await supabase.functions.invoke("analyze-card", {
-        body: { imageUrl: imagePath, cardId: card.id },
+        body: {
+          images: [{ label: "Front", url: signed.signedUrl }],
+          cardId: card.id,
+        },
       });
 
       if (response.error) throw response.error;
