@@ -896,10 +896,11 @@ GRADER COVERAGE RULES (MANDATORY):
 
         analysis.estimatedValueLow = Math.round(reconciledLow * 100) / 100;
         analysis.estimatedValueHigh = Math.round(reconciledHigh * 100) / 100;
-        analysis.verificationNote = `Claude: $${safeFixed(claudeVerification.verifiedLow)}-$${safeFixed(claudeVerification.verifiedHigh)}. Gemini: $${safeFixed(geminiVerification.verifiedLow)}-$${safeFixed(geminiVerification.verifiedHigh)}. ${agree ? "Models agree — high confidence." : "Models disagree — using blended midpoint."} ${claudeVerification.verificationNote}`;
+        analysis.verificationNote = `Claude: $${safeFixed(claudeVerification.verifiedLow)}-$${safeFixed(claudeVerification.verifiedHigh)}. Gemini: $${safeFixed(geminiVerification.verifiedLow)}-$${safeFixed(geminiVerification.verifiedHigh)}. ${agree ? "Models agree (sanity check ✓)." : `Models disagree by ${(disagreementPct * 100).toFixed(0)}% — using blended midpoint and reducing confidence.`} ${claudeVerification.verificationNote}`;
         analysis.crossVerified = true;
         analysis.modelsAgree = agree;
-        if (agree && analysis.confidence !== "high") analysis.confidence = "high";
+        analysis.verifierDisagreementPct = Math.round(disagreementPct * 100);
+        // Sanity-check only: never RAISE confidence here. Only nudge DOWN on big disagreement.
         analysis.dataSource = `Real eBay + TCGPlayer data + Claude × Gemini cross-verified ${agree ? "✓✓" : "(disagreement flagged)"}`;
         console.log(`Cross-verified: Claude $${claudeVerification.verifiedLow}-$${claudeVerification.verifiedHigh}, Gemini $${geminiVerification.verifiedLow}-$${geminiVerification.verifiedHigh}, agree=${agree}`);
       } else if (claudeVerification) {
