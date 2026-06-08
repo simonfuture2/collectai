@@ -1,64 +1,61 @@
-# Plan: Show graded-version sold data in the card detail
+## Goal
 
-## What we already have (server side)
+Make eBay sold-comp searches reach back ~3 years (so historical sales for niche/vintage cards like the '97-'98 Metal Universe Jordan #23 actually surface), and make per-grader pricing category-aware (sports → PSA + BGS + SGC; TCG/non-sports → PSA + CGC + BGS + TAG; never invent missing tiers).
 
-`enrich-card` already runs a per-grade Firecrawl pass (`PSA 10 sold site:ebay.com`, `PSA 9 sold site:ebay.com`, `BGS 9.5 sold ...`, etc.) and builds a `gradedComps` object:
-
-```ts
-gradedComps: {
-  psa: { "10": { median, low, high, count, prices: number[] } | null, "9": ..., "8": ... },
-  bgs: { "10": ..., "9.5": ..., "9": ... },
-  cgc: { ... }, sgc: { ... }, tag: { ... }
-}
-```
-
-This is already persisted on the card row inside `ai_analysis.extractedMarketData.gradedComps`. **The UI just doesn't render it yet** — `GraderCard` shows a per-grade dollar number with no underlying comp evidence.
-
-## What's missing (UI)
-
-The user (and Anthropic's critique) want to see the actual sold comps that back each PSA/BGS/CGC/SGC/TAG tier — not just a number. So we surface what's already in the database.
+All changes are in `supabase/functions/enrich-card/index.ts`. No DB/UI changes needed.
 
 ## Changes
 
-### 1. `src/pages/CardDetail.tsx` — read & display `gradedComps`
+### 1. Extend eBay sold search to ~3 years with tiered fallback
 
-- Pull `analysis.extractedMarketData?.gradedComps` alongside the existing `gradedValueEstimates`.
-- Update `GraderCard` so each grade row shows:
-  - The median dollar value (existing behavior).
-  - A muted "n sold" pill next to it (e.g. `$151 · 7 sold`) when `gradedComps[grader][grade]` has comps.
-  - When `count === 0` → keep current "No sold comps" italic state.
-- Add a small collapsible "Sold comps" disclosure under each grade tier that has comps, listing:
-  - Low / median / high (formatted dollars).
-  - Up to ~8 individual sale prices (`comp.prices`), sorted desc.
-  - A "View on eBay" link that opens the same `"<card name>" <grade> sold site:ebay.com` query in a new tab so the user can audit the source.
-- When *no* tier for a grader has comps, show a single muted line: *"No graded sold comps found in last 30 days."*
-- Confidence badge logic stays as-is (already grounded in real comp counts).
+Today every eBay search uses `qdr:w` then `qdr:m` (week → month). For vintage / low-volume cards this returns 0 comps and the engine then either invents a value or shows "no data."
 
-### 2. `src/pages/CardDetail.tsx` — top-level "Per-grade comps" summary
+Replace the single-step fallback with an **escalating recency ladder** that stops as soon as we have enough comps:
 
-Above the grader grid, add a compact strip when any `gradedComps` exist:
-
-```
-Real sold comps · PSA 10 (3) · PSA 9 (7) · BGS 9.5 (2) · CGC 9.5 (1)
+```text
+qdr:w  (last 7 days)   → need ≥ 3 results
+qdr:m  (last 30 days)  → need ≥ 3 results
+qdr:y  (last 12 months)→ need ≥ 2 results
+qdr:y3 (last 3 years)  → accept whatever exists
 ```
 
-Tiers with `count === 0` are omitted. This gives the user instant signal that real per-grade data was retrieved (the thing Anthropic flagged as missing trust).
+Apply this ladder to:
+- `searchSold(...)` used for raw eBay sold comps
+- The per-grade `gradedComps` Firecrawl calls in the `tiers` loop (currently hardcoded to `qdr:m`)
 
-### 3. Types
+In the persisted `extractedMarketData`, tag each comp set with the recency window that produced it (`recencyWindow: "7d" | "30d" | "12m" | "36m"`) so the UI can later display "Sold in last 3 years" instead of falsely implying 30‑day freshness.
 
-Extend the local `AIAnalysis`/`extractedMarketData` interface in `CardDetail.tsx` with a `gradedComps` field matching the server shape. No DB migration needed — the data is already in `ai_analysis` JSON.
+### 2. Category-aware grader coverage
 
-## Out of scope (already done in previous pass)
+`searchMarketPrices` already computes `isSportsCard`. Currently the `tiers` array always searches PSA + BGS + CGC for every category (SGC and TAG are skipped entirely). Make the tier list depend on category:
 
-- Per-grade Firecrawl retrieval (already implemented).
-- Null-out for ungrounded tiers (already implemented).
-- Raw-vs-graded reconciliation gate (already implemented).
-- Honest "Limited market data" badge (already implemented).
+```text
+Sports     → PSA (10/9/8), BGS (10/9.5/9), SGC (10/9.5/9)
+TCG        → PSA (10/9/8), CGC (10/9.5/9), BGS (10/9.5/9), TAG (10/9)
+Coin/Other → PSA (10/9/8), CGC (10/9.5/9), BGS (10/9.5/9)
+```
+
+Skipped graders are stored as `null` in `gradedComps` (already the convention) so the UI honestly shows "not tracked for this category" instead of an invented number.
+
+### 3. Category-aware raw price sources
+
+In the same function:
+- Sports cards: skip TCGPlayer entirely (already partially done) and weight blended price = eBay sold 70% + eBay active 30%.
+- TCG: keep current eBay sold 50% + TCGPlayer 30% + eBay active 20%.
+- Coin / Comic / Other: eBay sold 70% + eBay active 30% (no TCGPlayer).
+
+### 4. Pass `recencyWindow` to the AI pricing prompt
+
+In the Gemini pricing prompt, include which recency window produced the comps and instruct the model that older comps (12m / 36m) should be treated as lower-confidence anchors and the confidence badge must drop to "Limited market data" when only `qdr:y` / `qdr:y3` returned results. This keeps the "High Confidence" badge honest.
+
+### 5. Sanity-check still applies
+
+The existing raw-vs-graded reconciliation and the `psaAtGrade < rawHigh` warning stay as-is — they now operate on better-grounded comps because the 3-year window provides real anchors for vintage cards.
 
 ## Files touched
 
-- `src/pages/CardDetail.tsx` — only the `GraderCard` component, its container, and the analysis type.
+- `supabase/functions/enrich-card/index.ts` — `searchSold`, the `tiers` array construction inside `searchMarketPrices`, blended-weight logic, and the pricing prompt assembly.
 
 ## How we'll know it worked
 
-Re-open the Jordan card. Each grader tile shows real sold counts where Firecrawl found comps, and a collapsible list of the actual sale prices with an eBay deep-link. Tiers with no comps stay honest ("No sold comps") instead of inventing a number.
+Re-scan the '97-'98 Metal Universe Jordan #23. The card should now show real PSA 9 and PSA 10 sold comps pulled from eBay's last 3 years (matching the ~$151 PSA 9 / higher PSA 10 ballpark from Card Ladder), SGC tiers populated (sports), no TCGPlayer row, and a confidence badge that reflects how recent the comps actually are.
