@@ -1,6 +1,8 @@
 // Shared helper: call Google's Generative Language API directly to identify a trading card.
 // Returns the canonical CardIdentification shape used elsewhere in the project, or null on failure.
 
+export type VariantConfidence = "high" | "medium" | "low";
+
 export type CardIdentification = {
   card_name: string;
   card_number: string;
@@ -8,6 +10,7 @@ export type CardIdentification = {
   card_year: string;
   variant: string;
   rarity: string;
+  variant_confidence: VariantConfidence;
 };
 
 const IDENTIFY_SYSTEM_PROMPT = `You are a trading card identification expert. Look at this card image VERY carefully. Read ALL text on the card including:
@@ -20,6 +23,11 @@ const IDENTIFY_SYSTEM_PROMPT = `You are a trading card identification expert. Lo
 
 Be EXTREMELY specific. Do NOT return generic names. Include the card number and variant type.
 
+Also rate your confidence in the VARIANT/PARALLEL identification specifically:
+- "high": you can clearly read variant markings (holo pattern, "Illustration Rare", set symbol, stamp, foil, numbered, etc.) and are certain.
+- "medium": the variant is likely but some indicators are ambiguous (lighting/glare/cropped edge).
+- "low": you cannot confidently distinguish this from other parallels/variants of the same card.
+
 Respond with ONLY valid JSON in this exact format:
 {
   "card_name": "Full character/player name on the card",
@@ -27,7 +35,8 @@ Respond with ONLY valid JSON in this exact format:
   "card_set": "Full set/series name",
   "card_year": "Year of release",
   "variant": "Variant type: Illustration Rare, Full Art, Alt Art, Holo, Reverse Holo, Regular, etc.",
-  "rarity": "Rarity level"
+  "rarity": "Rarity level",
+  "variant_confidence": "high" | "medium" | "low"
 }`;
 
 const USER_MSG =
