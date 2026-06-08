@@ -879,6 +879,96 @@ export type Database = {
           },
         ]
       }
+      pricecharting_catalog: {
+        Row: {
+          asin: string | null
+          bgs_10_price: number | null
+          box_only_price: number | null
+          category: string
+          cib_price: number | null
+          condition_17_price: number | null
+          condition_18_price: number | null
+          console_name: string | null
+          epid: string | null
+          genre: string | null
+          graded_price: number | null
+          id: number
+          last_synced_at: string
+          loose_price: number | null
+          manual_only_price: number | null
+          new_price: number | null
+          product_name: string
+          release_date: string | null
+          retail_cib_buy: number | null
+          retail_cib_sell: number | null
+          retail_loose_buy: number | null
+          retail_loose_sell: number | null
+          retail_new_buy: number | null
+          retail_new_sell: number | null
+          sales_volume: number | null
+          upc: string | null
+          updated_at: string
+        }
+        Insert: {
+          asin?: string | null
+          bgs_10_price?: number | null
+          box_only_price?: number | null
+          category: string
+          cib_price?: number | null
+          condition_17_price?: number | null
+          condition_18_price?: number | null
+          console_name?: string | null
+          epid?: string | null
+          genre?: string | null
+          graded_price?: number | null
+          id: number
+          last_synced_at?: string
+          loose_price?: number | null
+          manual_only_price?: number | null
+          new_price?: number | null
+          product_name: string
+          release_date?: string | null
+          retail_cib_buy?: number | null
+          retail_cib_sell?: number | null
+          retail_loose_buy?: number | null
+          retail_loose_sell?: number | null
+          retail_new_buy?: number | null
+          retail_new_sell?: number | null
+          sales_volume?: number | null
+          upc?: string | null
+          updated_at?: string
+        }
+        Update: {
+          asin?: string | null
+          bgs_10_price?: number | null
+          box_only_price?: number | null
+          category?: string
+          cib_price?: number | null
+          condition_17_price?: number | null
+          condition_18_price?: number | null
+          console_name?: string | null
+          epid?: string | null
+          genre?: string | null
+          graded_price?: number | null
+          id?: number
+          last_synced_at?: string
+          loose_price?: number | null
+          manual_only_price?: number | null
+          new_price?: number | null
+          product_name?: string
+          release_date?: string | null
+          retail_cib_buy?: number | null
+          retail_cib_sell?: number | null
+          retail_loose_buy?: number | null
+          retail_loose_sell?: number | null
+          retail_new_buy?: number | null
+          retail_new_sell?: number | null
+          sales_volume?: number | null
+          upc?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null

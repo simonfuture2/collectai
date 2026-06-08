@@ -1,80 +1,100 @@
+## Goal
 
-## Context
+Stop hitting PriceCharting's `/api/product` per scan. Instead, mirror their full CSV price guide for the categories we care about into a local `pricecharting_catalog` table, refreshed daily. Future lookups become a cheap Postgres query keyed by `product-name` / `console-name`.
 
-I fetched https://www.pricecharting.com/api-documentation. The current `supabase/functions/_shared/pricecharting.ts` has two real bugs against the live API:
+## 1. Secret
 
-1. It calls `/api/sales` for "recent sales" — **that endpoint does not exist**. The Prices API explicitly says: *"Historic prices and historic sales are not supported."* So `recentSales` cannot come from PriceCharting at all and must be removed (or hard-set to `[]`).
-2. The graded-price field names in `extractGradedPrices` (`psa-10-price`, `psa-9-price`, etc.) **do not exist**. PriceCharting uses overloaded generic keys whose meaning depends on whether the product is a card.
+`PRICECHARTING_API_KEY` is already configured (confirmed via fetch_secrets). No action needed.
 
-The correct card-grade mapping from the docs:
+## 2. New table: `public.pricecharting_catalog`
 
-| PriceCharting key      | Card meaning              |
-| ---------------------- | ------------------------- |
-| `loose-price`          | Ungraded (raw)            |
-| `new-price`            | PSA 8 / BGS 8             |
-| `cib-price`            | PSA 7 / 7.5               |
-| `graded-price`         | PSA 9                     |
-| `manual-only-price`    | **PSA 10**                |
-| `box-only-price`       | BGS 9.5                   |
-| `bgs-10-price`         | BGS 10                    |
-| `condition-17-price`   | CGC 10                    |
-| `condition-18-price`   | SGC 10                    |
+Column names match PriceCharting's CSV headers 1:1 so the parser can map directly (hyphens → underscores only where Postgres requires it; we'll keep hyphenated names quoted to preserve the 1:1 mapping — alternative: use snake_case and a small header→column map. Recommending **snake_case** to avoid quoting every query. Mapping is trivial.)
 
-Other relevant facts:
+Columns (all nullable except `id`, `product_name`, `category`):
 
-- Base URL: `https://www.pricecharting.com`
-- Auth: `?t=<API_KEY>` query param (40-char token)
-- Single product: `GET /api/product?t=...&id=...` (or `&upc=...`, `&q=<freetext>`)
-- Multi search: `GET /api/products?t=...&q=...` returns up to 20 matches with `{id, product-name, console-name}` only (no prices)
-- All prices are integer pennies → divide by 100
-- Rate limit: 1 request/second; CSV calls limited to 1 / 10 min (not used here)
-- Status is `success` or `error` (with `error-message`)
+| Column                  | Type        | PriceCharting CSV header   |
+| ----------------------- | ----------- | -------------------------- |
+| `id`                    | bigint PK   | `id`                       |
+| `product_name`          | text        | `product-name`             |
+| `console_name`          | text        | `console-name`             |
+| `category`              | text        | (our tag: pokemon-cards, magic-cards, yugioh-cards, onepiece-cards, video-games) |
+| `loose_price`           | int (cents) | `loose-price`              |
+| `cib_price`             | int         | `cib-price`                |
+| `new_price`             | int         | `new-price`                |
+| `graded_price`          | int         | `graded-price`             |
+| `box_only_price`        | int         | `box-only-price`           |
+| `manual_only_price`     | int         | `manual-only-price`        |
+| `bgs_10_price`          | int         | `bgs-10-price`             |
+| `condition_17_price`    | int         | `condition-17-price`       |
+| `condition_18_price`    | int         | `condition-18-price`       |
+| `release_date`          | date        | `release-date`             |
+| `upc`                   | text        | `upc`                      |
+| `asin`                  | text        | `asin`                     |
+| `epid`                  | text        | `epid`                     |
+| `genre`                 | text        | `genre`                    |
+| `retail_loose_buy`      | int         | `retail-loose-buy`         |
+| `retail_loose_sell`     | int         | `retail-loose-sell`        |
+| `retail_cib_buy`        | int         | `retail-cib-buy`           |
+| `retail_cib_sell`       | int         | `retail-cib-sell`          |
+| `retail_new_buy`        | int         | `retail-new-buy`           |
+| `retail_new_sell`       | int         | `retail-new-sell`          |
+| `sales_volume`          | int         | `sales-volume`             |
+| `last_synced_at`        | timestamptz | set by sync job            |
+| `updated_at`            | timestamptz | trigger                    |
 
-## Plan
+Indexes:
+- PK on `id`
+- `CREATE INDEX ON pricecharting_catalog (category)`
+- `CREATE INDEX ON pricecharting_catalog USING GIN (to_tsvector('simple', product_name))` for fuzzy name lookup
+- `CREATE INDEX ON pricecharting_catalog (lower(product_name))` for exact-name lookup
+- Optional composite `(category, lower(product_name))`
 
-### 1. Save the mapping as project memory so future edits use it
+RLS: enable. No anon access. `GRANT SELECT` to `authenticated` (so client-side lookups work later if needed), `GRANT ALL` to `service_role` (sync job + edge functions). No insert/update/delete policies for users — only service role writes.
 
-Create `mem://integration/pricecharting` with the endpoint list, auth shape, card-grade field mapping, and the "no historical sales" rule. Update `mem://index.md` to reference it.
+## 3. New edge function: `pricecharting-sync`
 
-### 2. Rewrite `supabase/functions/_shared/pricecharting.ts`
+Path: `supabase/functions/pricecharting-sync/index.ts`. `verify_jwt = false` in `config.toml`.
 
-Keep the exported signature stable so callers don't change:
+Responsibilities:
+- For each category in `["pokemon-cards", "magic-cards", "yugioh-cards", "onepiece-cards", "video-games"]`:
+  - Build URL: `https://www.pricecharting.com/price-guide/download-custom?t=${PRICECHARTING_API_KEY}&category=${category}` (URL built in code from secret — never logged with token).
+  - Stream the CSV response. Parse with a lightweight CSV parser (`npm:csv-parse@5/sync` via Deno `npm:` specifier, or hand-rolled streaming parser if memory is a concern — Pokemon CSV is ~50–80k rows).
+  - Map each row: hyphenated header → snake_case column; coerce price fields to int (already pennies); coerce `release-date` to ISO date or null.
+  - Batch upsert in chunks of 1000 via `supabase.from('pricecharting_catalog').upsert(rows, { onConflict: 'id' })`. Set `last_synced_at = now()` and `category` per row.
+  - Track per-category counts: `fetched`, `parsed`, `upserted`, `errors`. `console.log` a summary per category and one final summary.
+- Wrap each category in try/catch so one bad CSV doesn't kill the run. Return JSON `{ ok, results: [{category, count, ms, error?}] }`.
 
-```ts
-export type CardId = { card_name; card_number; card_set; card_year; variant; rarity };
+Failure modes handled:
+- Missing `PRICECHARTING_API_KEY` → 500 with clear error.
+- HTTP non-200 from PriceCharting → log + skip category.
+- Malformed CSV row → log + skip row, continue.
 
-export type PriceChartingResult = {
-  matched: boolean;
-  productName?: string;
-  consoleName?: string;       // PriceCharting "category", e.g. "Pokemon Scarlet & Violet"
-  productId?: string;
-  marketValue?: number;       // loose-price in $
-  gradedPrices?: {            // any subset, in $
-    psa7?: number; psa8?: number; psa9?: number; psa10?: number;
-    bgs95?: number; bgs10?: number; cgc10?: number; sgc10?: number;
-  };
-  recentSales: [];            // always empty — API doesn't expose this
-  source: "pricecharting";
-  fetchedAt: string;          // ISO
-  reason?: string;            // populated when matched=false
-};
+## 4. Schedule
 
-export async function getPriceChartingData(cardId: CardId): Promise<PriceChartingResult>;
+Use `pg_cron` + `pg_net` to invoke the function once daily at 04:00 UTC (off-peak; PriceCharting refreshes daily). Insert via the supabase insert tool (not migration, since URL + anon key are user-specific):
+
+```sql
+select cron.schedule(
+  'pricecharting-sync-daily',
+  '0 4 * * *',
+  $$ select net.http_post(
+       url:='https://<project>.supabase.co/functions/v1/pricecharting-sync',
+       headers:='{"Content-Type":"application/json","apikey":"<anon>"}'::jsonb,
+       body:='{}'::jsonb
+     ); $$
+);
 ```
 
-Implementation details:
+## 5. Existing `_shared/pricecharting.ts`
 
-- Build query string by joining `card_name`, `card_number`, `card_set`, `variant` (skip empty / "Regular" / "Standard"). Always include card_name.
-- Call `/api/product?t=KEY&q=<query>` first. PriceCharting returns the single best match.
-- If status is not "success" or the returned `product-name` doesn't share at least one significant token with `card_name`, retry once with a looser query (drop `card_number`). If still no good match → `{ matched: false, reason: "no_match", recentSales: [], ... }`.
-- On match, build `gradedPrices` using the table above. Only include keys whose source field is present and > 0 after the penny→dollar conversion.
-- `marketValue` = `loose-price` in dollars (raw ungraded — the "raw market value" callers want).
-- Wrap everything in try/catch. Any throw, non-2xx, missing API key, or JSON parse failure returns `{ matched: false, reason: "<short reason>", recentSales: [], source, fetchedAt }`. Log the failure with `console.error("[pricecharting] ...")` but never re-throw.
-- Add a small in-module timeout (8s via `AbortController`) so a hung PriceCharting call can't stall analyze-card / quick-scan.
+Not changed in this prompt. A follow-up prompt will swap `fetchProduct` from the live `/api/product` call to a local `pricecharting_catalog` query. Keeping live-API path intact for now means nothing breaks while the catalog backfills on first run.
 
-### 3. Out of scope (not touching this prompt)
+## 6. Memory
 
-- Wiring `getPriceChartingData` into `analyze-card` / `quick-scan` — that's the next prompt.
-- Recent sales: if you ever want them, they'd have to come from eBay (already done via Firecrawl) or PriceCharting's HTML scraping, not the API.
+Update `mem://integration/pricecharting` to note: catalog table exists, daily sync job, lookups should prefer the local table going forward, CSV field → column mapping table.
 
-Confirm and I'll implement both the memory file and the helper rewrite.
+## Open questions
+
+1. **Categories** — listed `pokemon-cards, magic-cards, yugioh-cards, onepiece-cards, video-games`. Want to add `lorcana-cards`, `sports-cards`, anything else, or drop any?
+2. **Schedule time** — 04:00 UTC OK, or different (PriceCharting recommends pulling after their nightly refresh, ~06:00 UTC)?
+3. **CSV vs JSON-per-category** — PriceCharting also offers a JSON endpoint per-product but no bulk JSON. CSV is the only bulk option, confirming that's what you want.
