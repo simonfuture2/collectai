@@ -299,13 +299,25 @@ serve(async (req) => {
 
     // ===== STEP 2: Tiered cross-referenced market data =====
     let marketContext = "";
+    let compTitles: string[] = [];
     if (cardId?.card_name) {
       const aggregated = await getMarketData(cardId, undefined, true);
       marketContext = aggregated.summary;
+      compTitles = aggregated.compTitles;
       console.log(
         `Quick scan market: sources=${aggregated.sources.map(s => s.source).join(",")} | crossRef agree=${aggregated.crossReference.agree ?? "n/a"}`,
       );
     }
+
+    // ===== ID ↔ comp cross-check + variant uncertainty =====
+    const idCheck = cardId ? crossCheckIdentification(cardId, compTitles) : { matchPct: 0, identificationUncertain: false, matchedCount: 0, total: 0 };
+    const variantConfidence = cardId?.variant_confidence || "medium";
+    const variantUncertain = variantConfidence !== "high";
+    const identificationUncertain = idCheck.identificationUncertain || variantUncertain;
+    if (cardId) {
+      console.log(`[quick-scan id-check] match ${idCheck.matchedCount}/${idCheck.total} (${idCheck.matchPct}%), variant_confidence=${variantConfidence}, uncertain=${identificationUncertain}`);
+    }
+
 
     // ===== STEP 3: Use Claude for full analysis + pricing =====
     const today = new Date().toISOString().split("T")[0];
