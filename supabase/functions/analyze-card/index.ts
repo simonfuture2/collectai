@@ -2,7 +2,7 @@ import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { identifyWithGemini } from "../_shared/gemini.ts";
-import { getMarketData, type AggregatedMarketData } from "../_shared/marketData.ts";
+import { getMarketData, type AggregatedMarketData, crossCheckIdentification } from "../_shared/marketData.ts";
 
 // Model used for Step 1 card identification (bake-off winner).
 // Change this single constant to swap identification models.
@@ -51,6 +51,7 @@ interface CardIdentification {
   card_year: string;
   variant: string;
   rarity: string;
+  variant_confidence?: "high" | "medium" | "low";
 }
 
 interface MarketSourceData {
@@ -605,12 +606,22 @@ serve(async (req) => {
     console.log(`Card identified by ${IDENTIFY_MODEL} in ${Date.now() - t0}ms:`, JSON.stringify(cardId));
 
     // ===== STEP 2: Tiered cross-referenced market data (PriceCharting + eBay + TCGPlayer) =====
-    let aggregated: AggregatedMarketData = { sources: [], blended: null, crossReference: {}, summary: "", hasData: false };
+    let aggregated: AggregatedMarketData = { sources: [], blended: null, crossReference: {}, summary: "", hasData: false, compTitles: [] };
     if (cardId?.card_name) {
       console.log("Step 2: Aggregating market data from PriceCharting + Firecrawl comps...");
       aggregated = await getMarketData(cardId, body.category, body.fastScan === true);
       console.log("Market data found:", aggregated.hasData ? "Yes" : "No", "| sources:", aggregated.sources.map(s => s.source).join(","));
     }
+
+    // ===== ID ↔ comp cross-check + variant uncertainty =====
+    const idCheck = cardId ? crossCheckIdentification(cardId, aggregated.compTitles) : { matchPct: 0, identificationUncertain: false, matchedCount: 0, total: 0 };
+    const variantConfidence = cardId?.variant_confidence || "medium";
+    const variantUncertain = variantConfidence !== "high";
+    const identificationUncertain = idCheck.identificationUncertain || variantUncertain;
+    if (cardId) {
+      console.log(`[id-check] comp match ${idCheck.matchedCount}/${idCheck.total} (${idCheck.matchPct}%), variant_confidence=${variantConfidence}, identificationUncertain=${identificationUncertain}`);
+    }
+
     // Backward-compat shape consumed by the rest of this function.
     const marketData = {
       summary: aggregated.summary,
@@ -906,6 +917,42 @@ GRADER COVERAGE RULES (MANDATORY):
         analysis.dataSource = "Real eBay + TCGPlayer data + Gemini-verified ✓";
       }
     }
+
+    // ===== STEP 4.5: Apply identification-uncertainty widening + user-facing notes =====
+    {
+      const notes: string[] = [];
+      let widenFactor = 1;
+      if (variantUncertain) {
+        widenFactor = variantConfidence === "low" ? 1.5 : 1.25;
+        notes.push(
+          variantConfidence === "low"
+            ? "Variant could not be confidently identified — please confirm the variant/parallel from the card."
+            : "Variant identification is uncertain — please confirm the variant/parallel from the card.",
+        );
+      }
+      if (idCheck.identificationUncertain) {
+        widenFactor = Math.max(widenFactor, 1.4);
+        notes.push(
+          `eBay comp titles largely don't match the identified card (${idCheck.matchedCount}/${idCheck.total} matched, ${idCheck.matchPct}%). Treat the value range as a rough estimate and re-scan with a clearer photo.`,
+        );
+      }
+      if (widenFactor > 1 && analysis.estimatedValueLow != null && analysis.estimatedValueHigh != null) {
+        const lo = Number(analysis.estimatedValueLow) || 0;
+        const hi = Number(analysis.estimatedValueHigh) || 0;
+        const mid = (lo + hi) / 2;
+        analysis.estimatedValueLow = Math.round(Math.max(0, mid - (mid - lo) * widenFactor) * 100) / 100;
+        analysis.estimatedValueHigh = Math.round((mid + (hi - mid) * widenFactor) * 100) / 100;
+      }
+      analysis.identificationUncertain = identificationUncertain;
+      analysis.variantConfidence = variantConfidence;
+      analysis.idCompMatchPct = idCheck.matchPct;
+      if (notes.length > 0) {
+        analysis.confidenceReason = `${analysis.confidenceReason || ""} ${notes.join(" ")}`.trim();
+        analysis.identificationNote = notes.join(" ");
+        if (analysis.confidence === "high") analysis.confidence = "medium";
+      }
+    }
+
 
     // ===== STEP 5: Save card server-side, then deduct credit =====
     // Extract the file path from the signed URL

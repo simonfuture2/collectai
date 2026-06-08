@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { identifyWithGemini } from "../_shared/gemini.ts";
-import { getMarketData } from "../_shared/marketData.ts";
+import { getMarketData, crossCheckIdentification } from "../_shared/marketData.ts";
 
 const IDENTIFY_MODEL = "gemini-3.5-flash";
 
@@ -87,6 +87,7 @@ interface CardIdentification {
   card_year: string;
   variant: string;
   rarity: string;
+  variant_confidence?: "high" | "medium" | "low";
 }
 
 // Build specific search queries from card identification
@@ -299,13 +300,25 @@ serve(async (req) => {
 
     // ===== STEP 2: Tiered cross-referenced market data =====
     let marketContext = "";
+    let compTitles: string[] = [];
     if (cardId?.card_name) {
       const aggregated = await getMarketData(cardId, undefined, true);
       marketContext = aggregated.summary;
+      compTitles = aggregated.compTitles;
       console.log(
         `Quick scan market: sources=${aggregated.sources.map(s => s.source).join(",")} | crossRef agree=${aggregated.crossReference.agree ?? "n/a"}`,
       );
     }
+
+    // ===== ID ↔ comp cross-check + variant uncertainty =====
+    const idCheck = cardId ? crossCheckIdentification(cardId, compTitles) : { matchPct: 0, identificationUncertain: false, matchedCount: 0, total: 0 };
+    const variantConfidence = cardId?.variant_confidence || "medium";
+    const variantUncertain = variantConfidence !== "high";
+    const identificationUncertain = idCheck.identificationUncertain || variantUncertain;
+    if (cardId) {
+      console.log(`[quick-scan id-check] match ${idCheck.matchedCount}/${idCheck.total} (${idCheck.matchPct}%), variant_confidence=${variantConfidence}, uncertain=${identificationUncertain}`);
+    }
+
 
     // ===== STEP 3: Use Claude for full analysis + pricing =====
     const today = new Date().toISOString().split("T")[0];
@@ -429,6 +442,38 @@ Return ONLY the JSON object, no other text.`;
       } else {
         console.log(`Claude estimate aligns with market data (mid=$${claudeMid.toFixed(2)}, blended=$${blendedValue.toFixed(2)}) — keeping Claude's values`);
       }
+    }
+
+    // ===== STEP 5: Apply identification-uncertainty widening + user-facing notes =====
+    {
+      const notes: string[] = [];
+      let widenFactor = 1;
+      if (variantUncertain) {
+        widenFactor = variantConfidence === "low" ? 1.5 : 1.25;
+        notes.push(
+          variantConfidence === "low"
+            ? "Variant could not be confidently identified — please confirm the variant/parallel from the card."
+            : "Variant identification is uncertain — please confirm the variant/parallel.",
+        );
+      }
+      if (idCheck.identificationUncertain) {
+        widenFactor = Math.max(widenFactor, 1.4);
+        notes.push(
+          `eBay comp titles largely don't match the identified card (${idCheck.matchedCount}/${idCheck.total} matched). Treat the range as a rough estimate.`,
+        );
+      }
+      if (widenFactor > 1) {
+        const lo = Number(result.estimated_value_low) || 0;
+        const hi = Number(result.estimated_value_high) || 0;
+        const mid = (lo + hi) / 2;
+        result.estimated_value_low = Math.round(Math.max(0, mid - (mid - lo) * widenFactor));
+        result.estimated_value_high = Math.round(mid + (hi - mid) * widenFactor);
+        result.confidence = Math.min(result.confidence, 60);
+      }
+      result.identification_uncertain = identificationUncertain;
+      result.variant_confidence = variantConfidence;
+      result.id_comp_match_pct = idCheck.matchPct;
+      if (notes.length > 0) result.identification_note = notes.join(" ");
     }
 
     console.log(`Final result: $${result.estimated_value_low}-$${result.estimated_value_high}`);
