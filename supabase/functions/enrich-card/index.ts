@@ -323,8 +323,9 @@ interface CardIdentification {
   variant: string;
   rarity: string;
 }
-interface MarketSourceData { source: string; median: number; low: number; high: number; count: number; prices: number[]; }
-interface GradedTierComps { median: number; low: number; high: number; count: number; prices: number[] }
+type RecencyWindow = "7d" | "30d" | "12m" | "36m";
+interface MarketSourceData { source: string; median: number; low: number; high: number; count: number; prices: number[]; recencyWindow?: RecencyWindow; }
+interface GradedTierComps { median: number; low: number; high: number; count: number; prices: number[]; recencyWindow?: RecencyWindow }
 type GraderKey = "psa" | "bgs" | "cgc" | "sgc" | "tag";
 type GradedComps = Partial<Record<GraderKey, Record<string, GradedTierComps | null>>>;
 interface ExtractedMarketData {
@@ -333,7 +334,15 @@ interface ExtractedMarketData {
   gradedComps?: GradedComps;
   rawConfidence?: "high" | "medium" | "low";
   rawConfidenceReason?: string;
+  ebaySoldRecencyWindow?: RecencyWindow;
 }
+
+const TBS_BY_WINDOW: Record<RecencyWindow, string> = {
+  "7d": "qdr:w",
+  "30d": "qdr:m",
+  "12m": "qdr:y",
+  "36m": "cdr:1,cd_min:1/1/2022", // last ~3 years (custom date range fallback)
+};
 
 function buildSearchTerms(cardId: CardIdentification, category?: string) {
   const isSportsCard = /sport|baseball|basketball|football|hockey|soccer/i.test(category || "");
