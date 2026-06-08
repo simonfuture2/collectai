@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { identifyWithGemini } from "../_shared/gemini.ts";
+import { getMarketData } from "../_shared/marketData.ts";
 
 const IDENTIFY_MODEL = "gemini-3.5-flash";
 
@@ -296,10 +297,14 @@ serve(async (req) => {
       console.error(`Step 1 (${IDENTIFY_MODEL}) failed:`, err);
     }
 
-    // ===== STEP 2: Search eBay + TCGPlayer with specific details =====
+    // ===== STEP 2: Tiered cross-referenced market data =====
     let marketContext = "";
     if (cardId?.card_name) {
-      marketContext = await quickMarketSearch(cardId);
+      const aggregated = await getMarketData(cardId, undefined, true);
+      marketContext = aggregated.summary;
+      console.log(
+        `Quick scan market: sources=${aggregated.sources.map(s => s.source).join(",")} | crossRef agree=${aggregated.crossReference.agree ?? "n/a"}`,
+      );
     }
 
     // ===== STEP 3: Use Claude for full analysis + pricing =====
