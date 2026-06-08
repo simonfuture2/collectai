@@ -18,12 +18,18 @@ self.addEventListener("activate", (event) =>
         const cacheNames = await caches.keys();
         const toDelete = cacheNames.filter(isWorkboxCacheForThisRegistration);
         await Promise.allSettled(toDelete.map((name) => caches.delete(name)));
+      } catch { /* keep going */ }
+
+      // Unregister BEFORE navigating clients so the recovery navigation is
+      // not intercepted by this dying worker (otherwise it can re-serve a
+      // stale index.html pointing at hashed chunks that no longer exist).
+      try { await self.registration.unregister(); } catch { /* noop */ }
+
+      try {
         await self.clients.claim();
         const windowClients = await self.clients.matchAll({ type: "window" });
         await Promise.allSettled(windowClients.map((client) => client.navigate(client.url)));
-      } finally {
-        await self.registration.unregister();
-      }
+      } catch { /* noop */ }
     })(),
   ),
 );

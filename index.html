@@ -8,9 +8,9 @@
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
     <link rel="icon" type="image/png" href="/favicon.png">
-    <link rel="manifest" href="/manifest.webmanifest">
     <link rel="apple-touch-icon" href="/pwa-192x192.png">
     <meta name="theme-color" content="#0a0a0a" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="CollectAI" />
@@ -65,6 +65,83 @@
 
   <body>
     <div id="root"></div>
+    <!-- Pre-boot stale-cache guard. Runs even if hashed chunks 404, which
+         is the situation main.tsx's own recovery cannot handle (because
+         main.tsx never executes). One-shot reload guarded by sessionStorage. -->
+    <script>
+      (function () {
+        var RELOAD_KEY = "__preboot_reload__";
+
+        // Best-effort: unregister any leftover app service workers. Leave
+        // Firebase Messaging / OneSignal workers alone.
+        if ("serviceWorker" in navigator) {
+          navigator.serviceWorker.getRegistrations().then(function (regs) {
+            regs.forEach(function (reg) {
+              var url = (reg.active && reg.active.scriptURL) ||
+                        (reg.waiting && reg.waiting.scriptURL) ||
+                        (reg.installing && reg.installing.scriptURL) || "";
+              if (url.indexOf("firebase-messaging-sw") !== -1) return;
+              if (url.indexOf("OneSignalSDKWorker") !== -1) return;
+              if (/\/(sw|service-worker)\.js(\?|$)/.test(url)) {
+                reg.unregister().catch(function () {});
+              }
+            });
+          }).catch(function () {});
+        }
+
+        function isAssetLoadFailure(target) {
+          if (!target || !target.tagName) return false;
+          var tag = target.tagName;
+          if (tag === "SCRIPT") return /\/assets\/.+\.js(\?|$)/.test(target.src || "");
+          if (tag === "LINK") {
+            var rel = (target.rel || "").toLowerCase();
+            return (rel === "stylesheet" || rel === "modulepreload") &&
+                   /\/assets\/.+\.(css|js)(\?|$)/.test(target.href || "");
+          }
+          return false;
+        }
+
+        function recoverOnce() {
+          if (sessionStorage.getItem(RELOAD_KEY)) return;
+          sessionStorage.setItem(RELOAD_KEY, "1");
+
+          var done = function () {
+            var url = new URL(window.location.href);
+            url.searchParams.set("_r", String(Date.now()));
+            window.location.replace(url.toString());
+          };
+
+          var jobs = [];
+          if ("caches" in window) {
+            jobs.push(
+              caches.keys().then(function (keys) {
+                return Promise.all(keys.map(function (k) { return caches.delete(k); }));
+              }).catch(function () {})
+            );
+          }
+          if ("serviceWorker" in navigator) {
+            jobs.push(
+              navigator.serviceWorker.getRegistrations().then(function (regs) {
+                return Promise.all(regs.map(function (r) { return r.unregister().catch(function () {}); }));
+              }).catch(function () {})
+            );
+          }
+
+          // Don't wait forever — recover within 1.5s no matter what.
+          var t = setTimeout(done, 1500);
+          Promise.all(jobs).then(function () { clearTimeout(t); done(); }, function () { clearTimeout(t); done(); });
+        }
+
+        window.addEventListener("error", function (e) {
+          if (isAssetLoadFailure(e.target)) recoverOnce();
+        }, true);
+
+        // Clear the one-shot flag after a successful boot.
+        window.addEventListener("load", function () {
+          setTimeout(function () { sessionStorage.removeItem(RELOAD_KEY); }, 5000);
+        });
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
