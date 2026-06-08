@@ -13,7 +13,7 @@
 //   - crossReference: PriceCharting vs eBay-sold agreement (within ~15%)
 //   - summary: human/LLM-readable markdown for downstream prompt context
 
-import { getPriceChartingData, type CardId } from "./pricecharting.ts";
+import { getPriceChartingData, type CardId, type GradedPrices } from "./pricecharting.ts";
 
 export interface CardIdentification {
   card_name: string;
