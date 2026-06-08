@@ -600,6 +600,7 @@ serve(async (req) => {
     }
 
     console.log(`Analyzing ${images.length} image(s) for user:`, user.id);
+    const hasBackImage = images.some((i) => /back/i.test(i.label));
 
     // ===== STEP 1: Detailed identification with Gemini =====
     console.log(`Step 1: Identifying card with ${IDENTIFY_MODEL}...`);
