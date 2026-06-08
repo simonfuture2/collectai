@@ -255,7 +255,11 @@ export async function getMarketData(
       };
       pushPrices(soldResults, soldPrices);
       pushPrices(activeResults, activePrices);
-      pushPrices(tcgResults, tcgPrices);
+      pushPrices(tcgPrices.length ? tcgResults : tcgResults, tcgPrices);
+      compTitles = [
+        ...soldResults.slice(0, 10).map((r: any) => String(r.title || "")),
+        ...activeResults.slice(0, 5).map((r: any) => String(r.title || "")),
+      ].filter(Boolean);
 
       soldPrices = filterOutliers(soldPrices);
       activePrices = filterOutliers(activePrices);
