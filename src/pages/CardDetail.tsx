@@ -53,6 +53,7 @@ import Footer from "@/components/Footer";
 import ThemeToggle from "@/components/ThemeToggle";
 import DefectMapOverlay from "@/components/DefectMapOverlay";
 import AnalysisProgress from "@/components/AnalysisProgress";
+import MarketEvidence from "@/components/MarketEvidence";
 
 type Card = Tables<"cards">;
 
@@ -197,6 +198,22 @@ interface ExtractedMarketData {
   gradedComps?: GradedComps;
   rawConfidence?: "high" | "medium" | "low";
   rawConfidenceReason?: string;
+  sources?: Array<{
+    source: string;
+    median?: number;
+    low?: number;
+    high?: number;
+    count?: number;
+    recencyDays?: number;
+    prices?: number[];
+  }>;
+  blended?: { median: number; low: number; high: number } | null;
+  crossReference?: {
+    priceChartingValue?: number;
+    ebaySoldMedian?: number;
+    agreementPct?: number;
+    agree?: boolean;
+  };
 }
 
 interface AIAnalysis {
@@ -230,6 +247,36 @@ interface AIAnalysis {
   dataSource?: string;
   verificationNote?: string;
   extractedMarketData?: ExtractedMarketData;
+  confidenceBand?: "high" | "medium" | "low";
+  confidenceExplanation?: string;
+  priceTrend?: {
+    status?: "ok" | "insufficient_history" | string;
+    direction?: "up" | "down" | "flat";
+    change30dPct?: number | null;
+    change90dPct?: number | null;
+    sampleSize?: number;
+    source?: string;
+  };
+  gradingEdge?: {
+    service?: string;
+    rawValue?: number;
+    mostLikelyGrade?: string | number;
+    valueAtMostLikely?: number;
+    nextGrade?: string | number;
+    valueAtNextGrade?: number;
+    gradingCost?: number;
+    turnaroundTime?: string;
+    netEvAtMostLikely?: number;
+    netEvAtNextGrade?: number;
+    verdict?: "worth_it" | "borderline" | "not_worth_it";
+    verdictReason?: string;
+  };
+  recommendation?: {
+    action?: "buy" | "sell" | "hold" | "grade_then_sell";
+    label?: string;
+    rationale?: string;
+    disclaimer?: string;
+  };
 }
 
 // Generate mock price history as fallback
@@ -816,6 +863,23 @@ export default function CardDetail() {
                 )}
               </div>
             )}
+
+            {/* Market Evidence — per-source values, cross-check, comps, trend, grading edge, recommendation */}
+            {analysis && (
+              <MarketEvidence
+                sources={analysis.extractedMarketData?.sources}
+                crossReference={analysis.extractedMarketData?.crossReference}
+                notableSales={analysis.ebayRecentSales?.notableSales as string[] | undefined}
+                cardSearchQuery={[card?.card_year, card?.card_name, card?.card_set].filter(Boolean).join(" ")}
+                priceTrend={analysis.priceTrend}
+                gradingEdge={analysis.gradingEdge}
+                recommendation={analysis.recommendation}
+                confidenceBand={analysis.confidenceBand ?? analysis.confidence}
+                confidenceExplanation={analysis.confidenceExplanation}
+                confidenceReason={analysis.confidenceReason}
+              />
+            )}
+
 
             {/* Graded Value Estimates - Desktop only under photo */}
             <div className="hidden lg:block space-y-6">
