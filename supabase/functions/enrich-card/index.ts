@@ -393,10 +393,27 @@ async function searchMarketPrices(cardId: CardIdentification, category: string |
       return urlFilter ? results.filter((r: any) => r.url?.includes(urlFilter)) : results;
     } catch { return []; }
   }
+  // Escalating recency ladder so vintage / low-volume cards still find real sold comps.
+  // Returns the first window that meets the threshold, tagged with the window used.
+  async function searchSoldLadder(query: string, limit: number): Promise<{ results: any[]; window: RecencyWindow }> {
+    const ladder: { w: RecencyWindow; need: number }[] = [
+      { w: "7d", need: 3 },
+      { w: "30d", need: 3 },
+      { w: "12m", need: 2 },
+      { w: "36m", need: 1 },
+    ];
+    let lastResults: any[] = [];
+    let lastWindow: RecencyWindow = "36m";
+    for (const step of ladder) {
+      const r = await doSearch(query, limit, "ebay.com", tbsForWindow(step.w));
+      lastResults = r;
+      lastWindow = step.w;
+      if (r.length >= step.need) return { results: r, window: step.w };
+    }
+    return { results: lastResults, window: lastWindow };
+  }
   async function searchSold(query: string, limit: number) {
-    const fresh = await doSearch(query, limit, "ebay.com", "qdr:w");
-    if (fresh.length >= 2) return fresh;
-    return doSearch(query, limit, "ebay.com", "qdr:m");
+    return (await searchSoldLadder(query, limit)).results;
   }
 
   async function scrapeListing(url: string): Promise<string> {
