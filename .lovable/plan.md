@@ -1,61 +1,60 @@
-## Goal
+## Why mycollectai.com goes blank
 
-Make eBay sold-comp searches reach back ~3 years (so historical sales for niche/vintage cards like the '97-'98 Metal Universe Jordan #23 actually surface), and make per-grader pricing category-aware (sports → PSA + BGS + SGC; TCG/non-sports → PSA + CGC + BGS + TAG; never invent missing tiers).
+Your DevTools errors confirm the cause:
 
-All changes are in `supabase/functions/enrich-card/index.ts`. No DB/UI changes needed.
+- `index-BkTw_Akm.css` served as `text/plain` and `index-CjxIsh9g.js` → 404 mean your browser is loading an **old `index.html` from cache** that references asset filenames the new deploy no longer has.
+- `manifest.webmanifest` 404 + `favicon.png` 404 say the cached HTML is from a deploy where those paths existed differently.
+- Lovable serves `index.html` with `no-cache` headers, so the HTTP cache isn't doing this on its own — a **leftover service worker** from the old PWA is intercepting requests and returning the stale shell.
 
-## Changes
+The kill-switch worker in `public/sw.js` is meant to fix this, but it navigates clients **before** unregistering, so the rescued navigation can still go through the dying SW and re-serve stale HTML. Plus, if the first `/src/...` request fails, `src/main.tsx` never runs and the in-app recovery never fires.
 
-### 1. Extend eBay sold search to ~3 years with tiered fallback
+## Fix — three small changes
 
-Today every eBay search uses `qdr:w` then `qdr:m` (week → month). For vintage / low-volume cards this returns 0 comps and the engine then either invents a value or shows "no data."
+### 1. `public/sw.js` — unregister before navigating
 
-Replace the single-step fallback with an **escalating recency ladder** that stops as soon as we have enough comps:
-
-```text
-qdr:w  (last 7 days)   → need ≥ 3 results
-qdr:m  (last 30 days)  → need ≥ 3 results
-qdr:y  (last 12 months)→ need ≥ 2 results
-qdr:y3 (last 3 years)  → accept whatever exists
-```
-
-Apply this ladder to:
-- `searchSold(...)` used for raw eBay sold comps
-- The per-grade `gradedComps` Firecrawl calls in the `tiers` loop (currently hardcoded to `qdr:m`)
-
-In the persisted `extractedMarketData`, tag each comp set with the recency window that produced it (`recencyWindow: "7d" | "30d" | "12m" | "36m"`) so the UI can later display "Sold in last 3 years" instead of falsely implying 30‑day freshness.
-
-### 2. Category-aware grader coverage
-
-`searchMarketPrices` already computes `isSportsCard`. Currently the `tiers` array always searches PSA + BGS + CGC for every category (SGC and TAG are skipped entirely). Make the tier list depend on category:
+Reorder the `activate` handler:
 
 ```text
-Sports     → PSA (10/9/8), BGS (10/9.5/9), SGC (10/9.5/9)
-TCG        → PSA (10/9/8), CGC (10/9.5/9), BGS (10/9.5/9), TAG (10/9)
-Coin/Other → PSA (10/9/8), CGC (10/9.5/9), BGS (10/9.5/9)
+1. delete only this registration's Workbox caches  (unchanged)
+2. await self.registration.unregister()            ← BEFORE navigate
+3. clients.claim()
+4. clients.matchAll() → client.navigate(client.url)
 ```
 
-Skipped graders are stored as `null` in `gradedComps` (already the convention) so the UI honestly shows "not tracked for this category" instead of an invented number.
+This guarantees the post-cleanup navigation is uncontrolled by the SW and always hits the network for a fresh `index.html` + fresh hashed asset URLs.
 
-### 3. Category-aware raw price sources
+### 2. `index.html` — inline pre-boot guard
 
-In the same function:
-- Sports cards: skip TCGPlayer entirely (already partially done) and weight blended price = eBay sold 70% + eBay active 30%.
-- TCG: keep current eBay sold 50% + TCGPlayer 30% + eBay active 20%.
-- Coin / Comic / Other: eBay sold 70% + eBay active 30% (no TCGPlayer).
+Add a small inline `<script>` at the top of `<body>`, **before** the `main.tsx` module tag. No imports, ~25 lines. It runs even when hashed chunks 404:
 
-### 4. Pass `recencyWindow` to the AI pricing prompt
+- Best-effort unregister any `/sw.js` / `/service-worker.js` registrations (leave Firebase Messaging / OneSignal workers alone).
+- Listen for `error` events bubbling from `<script type="module">` / `<link rel="stylesheet">` that fail to load. On the first such failure: `caches.delete(...)` all caches, unregister SWs, then `location.replace(url + '?_r=' + Date.now())` exactly once (guarded by `sessionStorage` so it can't loop).
 
-In the Gemini pricing prompt, include which recency window produced the comps and instruct the model that older comps (12m / 36m) should be treated as lower-confidence anchors and the confidence badge must drop to "Limited market data" when only `qdr:y` / `qdr:y3` returned results. This keeps the "High Confidence" badge honest.
+This catches the exact scenario your DevTools shows: cached HTML pointing at 404'd assets, where `main.tsx` never gets a chance to run its existing chunk-recovery logic.
 
-### 5. Sanity-check still applies
+### 3. `index.html` — clean up dead PWA tags
 
-The existing raw-vs-graded reconciliation and the `psaAtGrade < rawHigh` warning stay as-is — they now operate on better-grounded comps because the 3-year window provides real anchors for vintage cards.
+- Remove `<link rel="manifest" href="/manifest.webmanifest">` (project no longer ships a real PWA; just generates 404s).
+- Remove `<link rel="apple-touch-icon" href="/pwa-192x192.png">` (icon file isn't shipped either).
+- Replace deprecated `<meta name="apple-mobile-web-app-capable">` with `<meta name="mobile-web-app-capable">` (keep the Apple one too for older iOS).
+- Fix the `<link rel="icon" href="/favicon.png">` → point to a file that actually exists (`/favicon.ico`, or whichever icon is in `public/`). I'll verify which exists before editing.
+
+## Out of scope
+
+- No new dependencies, no `vite-plugin-pwa`, no Vite config changes.
+- No edits to `main.tsx`'s existing chunk-reload recovery — it stays as the second line of defence for chunk failures **after** boot.
+- No backend / edge-function / Supabase changes — purely a hosting/cache problem.
+
+## Verification
+
+1. Republish after the change.
+2. In a normal browser that's currently broken: one visit should auto-recover (you may see a half-second flash as the guard reloads), then load cleanly. No more hard-refresh needed.
+3. DevTools → Application → Service Workers on `mycollectai.com` shows **no** registered worker after the recovery visit.
+4. Console is clean — no manifest/favicon 404s, no MIME-type CSS error.
 
 ## Files touched
 
-- `supabase/functions/enrich-card/index.ts` — `searchSold`, the `tiers` array construction inside `searchMarketPrices`, blended-weight logic, and the pricing prompt assembly.
+- `public/sw.js` — reorder `activate`.
+- `index.html` — add inline guard, remove dead PWA tags, fix icon, swap deprecated meta.
 
-## How we'll know it worked
-
-Re-scan the '97-'98 Metal Universe Jordan #23. The card should now show real PSA 9 and PSA 10 sold comps pulled from eBay's last 3 years (matching the ~$151 PSA 9 / higher PSA 10 ballpark from Card Ladder), SGC tiers populated (sports), no TCGPlayer row, and a confidence badge that reflects how recent the comps actually are.
+Approve to implement.
