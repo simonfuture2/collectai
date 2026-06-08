@@ -48,6 +48,8 @@ export interface AggregatedMarketData {
   summary: string;
   hasData: boolean;
   compTitles: string[]; // raw titles from eBay sold comps used for ID cross-check
+  priceChartingGraded?: GradedPrices; // PC graded tier anchors when matched
+  priceChartingProduct?: string;
 }
 
 /**
