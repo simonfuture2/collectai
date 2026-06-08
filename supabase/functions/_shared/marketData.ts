@@ -13,7 +13,7 @@
 //   - crossReference: PriceCharting vs eBay-sold agreement (within ~15%)
 //   - summary: human/LLM-readable markdown for downstream prompt context
 
-import { getPriceChartingData, type CardId } from "./pricecharting.ts";
+import { getPriceChartingData, type CardId, type GradedPrices } from "./pricecharting.ts";
 
 export interface CardIdentification {
   card_name: string;
@@ -48,6 +48,8 @@ export interface AggregatedMarketData {
   summary: string;
   hasData: boolean;
   compTitles: string[]; // raw titles from eBay sold comps used for ID cross-check
+  priceChartingGraded?: GradedPrices; // PC graded tier anchors when matched
+  priceChartingProduct?: string;
 }
 
 /**
@@ -142,6 +144,8 @@ export async function getMarketData(
 
   // ===== 1) PriceCharting (independent) =====
   let pcSummary = "";
+  let pcGraded: GradedPrices | undefined;
+  let pcProduct: string | undefined;
   try {
     const pcCardId: CardId = { ...cardId, category };
     const pc = await getPriceChartingData(pcCardId);
@@ -155,6 +159,8 @@ export async function getMarketData(
         prices: [pc.marketValue],
       });
       cross.priceChartingValue = pc.marketValue;
+      pcGraded = pc.gradedPrices;
+      pcProduct = pc.productName;
       pcSummary =
         `\n### PriceCharting (${pc.via || "api"}): ${pc.productName || ""}\n` +
         `- Ungraded (loose): $${pc.marketValue.toFixed(2)}\n` +
@@ -170,6 +176,7 @@ export async function getMarketData(
   } catch (err) {
     console.error("[marketData] PriceCharting error:", (err as Error)?.message);
   }
+
 
   // ===== 2/3/4) Firecrawl eBay + TCGPlayer comps =====
   const FIRECRAWL_API_KEY = Deno.env.get("FIRECRAWL_API_KEY");
@@ -375,7 +382,7 @@ export async function getMarketData(
     summary += `\nCRITICAL: Your estimatedValueLow/High MUST reflect this data.\n`;
   }
 
-  return { sources, blended, crossReference: cross, summary, hasData, compTitles };
+  return { sources, blended, crossReference: cross, summary, hasData, compTitles, priceChartingGraded: pcGraded, priceChartingProduct: pcProduct };
 }
 
 // Convenience: persist per-source rows to price_history (each source attributed).

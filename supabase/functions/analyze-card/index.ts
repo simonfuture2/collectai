@@ -703,6 +703,13 @@ Respond with ONLY valid JSON (no markdown code fences) with this structure:
     "overallScore": number,
     "predictedGrades": { "psa": number, "bgs": number, "cgc": number, "sgc": number },
     "bgsSubgrades": { "centering": number, "corners": number, "edges": number, "surface": number },
+    "gradeCeiling": {
+      "grade": number,
+      "service": "PSA" | "BGS" | "CGC" | "SGC",
+      "limitingSubscore": "centering" | "corners" | "edges" | "surface",
+      "reason": "string — explain WHY this subscore caps the grade (e.g. 'off-center 60/40 caps this at PSA 9')",
+      "relatedDefectIndexes": [0]
+    },
     "gradingRecommendation": "string"
   },
   "defects": [
@@ -741,7 +748,14 @@ GRADER COVERAGE RULES (MANDATORY):
 - TCG cards (Pokémon, Magic, Yu-Gi-Oh, Dragon Ball, One Piece, etc.): populate psa, cgc, bgs, tag. Set sgc to null.
 - Sports cards: populate psa, cgc, bgs, sgc. Set tag to null.
 - Other categories: populate psa, cgc, bgs at minimum; others may be null.
-- Never return only psa. When you lack direct sales for a grader, estimate from the PSA anchor (BGS ~PSA, CGC ~0.85-0.9x PSA, SGC ~0.9x PSA for sports, TAG ~0.8x PSA for TCG) and lower confidence accordingly.`;
+- Never return only psa. When you lack direct sales for a grader, estimate from the PSA anchor (BGS ~PSA, CGC ~0.85-0.9x PSA, SGC ~0.9x PSA for sports, TAG ~0.8x PSA for TCG) and lower confidence accordingly.
+
+GRADE-CEILING RULE (MANDATORY):
+- You MUST populate preGradingAnalysis.gradeCeiling for every card.
+- Pick the LOWEST of centering / corners / edges / surface — that subscore IS the limiting subscore.
+- The gradeCeiling.grade must reflect that subscore (e.g. centering 7 → caps at PSA 9; corners 6 → caps at PSA 8).
+- gradeCeiling.reason MUST cite the concrete observation (e.g. "off-center 60/40 front", "soft top-right corner", "diagonal scratch through holo") AND reference the defect indexes in 'defects' that drive it via relatedDefectIndexes.
+- If the card is pristine across all four subscores (all ≥9.5), set grade=10 and reason="no limiting flaws detected".`;
 
     const userMessage = images.length > 1
       ? `I'm providing ${images.length} images of this collectible item (${images.map(i => i.label).join(", ")}). Please analyze all views together for a comprehensive identification, condition assessment, and value estimate.`
@@ -954,6 +968,114 @@ GRADER COVERAGE RULES (MANDATORY):
       }
     }
 
+
+    // ===== STEP 4.6: Grading-arbitrage EV headline =====
+    {
+      try {
+        const ebaySoldSrc = aggregated.sources.find((s) => s.source === "ebay_sold");
+        const rawValue =
+          (ebaySoldSrc?.median && ebaySoldSrc.median > 0 ? ebaySoldSrc.median : null) ??
+          aggregated.crossReference.priceChartingValue ??
+          aggregated.blended?.median ??
+          ((Number(analysis.estimatedValueLow) + Number(analysis.estimatedValueHigh)) / 2 || 0);
+
+        const pg = analysis.preGradingAnalysis || {};
+        const gve = analysis.gradedValueEstimates || {};
+        const service: "PSA" | "BGS" | "CGC" | "SGC" | "TAG" =
+          (gve.recommendedGrader as any) || "PSA";
+        const tier = (gve[service.toLowerCase() as keyof typeof gve] as any) || gve.psa || {};
+
+        // Most-likely grade: prefer gradeCeiling.grade, fall back to predictedGrades.<service> or tier.estimatedGrade
+        const predicted = pg.predictedGrades || {};
+        const ceiling = pg.gradeCeiling || {};
+        const mostLikelyGrade: number =
+          Number(ceiling.grade) ||
+          Number(predicted[service.toLowerCase()]) ||
+          Number(tier.estimatedGrade) ||
+          9;
+        const nextGrade = Math.min(10, Math.round(mostLikelyGrade) + 1);
+
+        // PriceCharting graded anchors (preferred for PSA tiers when present)
+        const pcg = aggregated.priceChartingGraded || {};
+        const pcAt = (g: number): number | undefined => {
+          if (service !== "PSA") return undefined;
+          if (g >= 10) return pcg.psa10;
+          if (g >= 9) return pcg.psa9;
+          if (g >= 8) return pcg.psa8;
+          if (g >= 7) return pcg.psa7;
+          return undefined;
+        };
+
+        const gveAt = (g: number): number | undefined => {
+          const key10 = `valueAt${service}10`;
+          const key95 = `valueAt${service}9_5`;
+          const key9 = `valueAt${service}9`;
+          const key8 = `valueAt${service}8`;
+          if (g >= 10) return Number(tier[key10]) || Number(tier.valueAtGrade) || undefined;
+          if (g >= 9.5) return Number(tier[key95]) || undefined;
+          if (g >= 9) return Number(tier[key9]) || Number(tier.valueAtGrade) || undefined;
+          if (g >= 8) return Number(tier[key8]) || undefined;
+          return Number(tier.valueAtGrade) || undefined;
+        };
+
+        const valueAtMostLikely = pcAt(mostLikelyGrade) ?? gveAt(mostLikelyGrade) ?? Number(tier.valueAtGrade) ?? 0;
+        const valueAtNextGrade = pcAt(nextGrade) ?? gveAt(nextGrade) ?? 0;
+
+        const gradingCost = Number(tier.gradingCost) || 25;
+        const turnaroundTime = String(tier.turnaroundTime || "unknown");
+
+        // Net EV vs raw, after grading cost (use most-likely grade as primary)
+        const evMostLikely = (valueAtMostLikely || 0) - gradingCost - (rawValue || 0);
+        const evNextGrade = (valueAtNextGrade || 0) - gradingCost - (rawValue || 0);
+
+        let verdict: "worth_it" | "borderline" | "not_worth_it";
+        let verdictReason: string;
+        if (!valueAtMostLikely || !rawValue) {
+          verdict = "not_worth_it";
+          verdictReason = "Insufficient graded-price data to compute a reliable grading edge.";
+        } else if (evMostLikely >= Math.max(25, rawValue * 0.4)) {
+          verdict = "worth_it";
+          verdictReason = `Net edge after $${gradingCost} grading ≈ $${evMostLikely.toFixed(2)} at ${service} ${mostLikelyGrade}. Strong upside vs raw $${rawValue.toFixed(2)}.`;
+        } else if (evMostLikely > 0 || evNextGrade >= Math.max(40, rawValue * 0.6)) {
+          verdict = "borderline";
+          verdictReason = `Marginal at ${service} ${mostLikelyGrade} (net $${evMostLikely.toFixed(2)}), but ${service} ${nextGrade} would pay $${(valueAtNextGrade - gradingCost - rawValue).toFixed(2)}. Grade ceiling: ${ceiling.reason || "see pre-grading analysis"}.`;
+        } else {
+          verdict = "not_worth_it";
+          verdictReason = `Net edge after grading is $${evMostLikely.toFixed(2)} — keep raw. Limiting factor: ${ceiling.reason || "condition not strong enough"}.`;
+        }
+
+        analysis.gradingEdge = {
+          service,
+          rawValue: Math.round(rawValue * 100) / 100,
+          mostLikelyGrade,
+          valueAtMostLikely: Math.round((valueAtMostLikely || 0) * 100) / 100,
+          nextGrade,
+          valueAtNextGrade: Math.round((valueAtNextGrade || 0) * 100) / 100,
+          gradingCost,
+          turnaroundTime,
+          netEvAtMostLikely: Math.round(evMostLikely * 100) / 100,
+          netEvAtNextGrade: Math.round(evNextGrade * 100) / 100,
+          verdict,
+          verdictReason,
+          gradeCeiling: ceiling.grade
+            ? {
+                grade: ceiling.grade,
+                service: ceiling.service || service,
+                limitingSubscore: ceiling.limitingSubscore || null,
+                reason: ceiling.reason || null,
+                relatedDefectIndexes: ceiling.relatedDefectIndexes || [],
+              }
+            : null,
+          gradedAnchorSource: pcAt(mostLikelyGrade) !== undefined ? "pricecharting" : "ai_estimate",
+        };
+
+        console.log(
+          `[gradingEdge] service=${service} raw=$${rawValue.toFixed(2)} | ${service} ${mostLikelyGrade}=$${(valueAtMostLikely || 0).toFixed(2)} (net $${evMostLikely.toFixed(2)}) → ${verdict}`,
+        );
+      } catch (err) {
+        console.error("[gradingEdge] computation failed:", (err as Error)?.message);
+      }
+    }
 
 
     // ===== STEP 4.7: Data-quality + cross-source confidence score (0–100) =====
