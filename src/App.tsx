@@ -24,6 +24,7 @@ const FAQ = lazy(() => import("./pages/FAQ"));
 const About = lazy(() => import("./pages/About"));
 const HowItWorks = lazy(() => import("./pages/HowItWorks"));
 const Admin = lazy(() => import("./pages/Admin"));
+const IdBakeoff = lazy(() => import("./pages/admin/IdBakeoff"));
 const SharedCard = lazy(() => import("./pages/SharedCard"));
 const PublicCollection = lazy(() => import("./pages/PublicCollection"));
 const PartnerSignup = lazy(() => import("./pages/PartnerSignup"));
