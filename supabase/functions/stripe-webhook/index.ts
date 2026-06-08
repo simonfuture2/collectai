@@ -47,6 +47,26 @@ serve(async (req) => {
     { auth: { persistSession: false } }
   );
 
+  // Idempotency: insert event.id; if it already exists, ack and return.
+  const { error: dedupErr } = await supabaseClient
+    .from("processed_stripe_events")
+    .insert({ event_id: event.id, event_type: event.type });
+
+  if (dedupErr) {
+    // 23505 = unique_violation -> already processed
+    if ((dedupErr as any).code === "23505") {
+      logStep("Duplicate event, skipping", { id: event.id, type: event.type });
+      return new Response(JSON.stringify({ received: true, duplicate: true }), {
+        headers: { "Content-Type": "application/json" },
+        status: 200,
+      });
+    }
+    logStep("Failed to record event for idempotency", { error: dedupErr.message });
+    // Fall through — better to risk reprocessing than to drop the event.
+  }
+
+
+
   try {
     if (event.type === "checkout.session.completed") {
       const session = event.data.object as Stripe.Checkout.Session;
