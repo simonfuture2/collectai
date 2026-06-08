@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { identifyWithGemini } from "../_shared/gemini.ts";
-import { getMarketData } from "../_shared/marketData.ts";
+import { getMarketData, crossCheckIdentification } from "../_shared/marketData.ts";
 
 const IDENTIFY_MODEL = "gemini-3.5-flash";
 
