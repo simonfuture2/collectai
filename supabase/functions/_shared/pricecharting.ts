@@ -1,5 +1,11 @@
-// Shared helper: PriceCharting product + price lookup for identified trading cards.
-// Degrades gracefully — never throws. On any failure returns { matched: false, ... }.
+// Shared helper: query PriceCharting Prices API for a trading card and return
+// a normalized result. Degrades gracefully — never throws.
+//
+// Docs: https://www.pricecharting.com/api-documentation
+// - Auth via ?t=<API_KEY>
+// - All prices are integer pennies
+// - No historical sales endpoint (do not call /api/sales — it does not exist)
+// - For cards, generic video-game field names are reused. See mapping below.
 
 export type CardId = {
   card_name?: string;
@@ -10,166 +16,178 @@ export type CardId = {
   rarity?: string;
 };
 
-export type RecentSale = {
-  price: number;          // dollars
-  date: string;           // ISO or raw string from API
-  grade: string;
-  certId: string;
+export type GradedPrices = {
+  psa7?: number;
+  psa8?: number;
+  psa9?: number;
+  psa10?: number;
+  bgs95?: number;
+  bgs10?: number;
+  cgc10?: number;
+  sgc10?: number;
 };
 
 export type PriceChartingResult = {
   matched: boolean;
   productName?: string;
+  consoleName?: string;
   productId?: string;
-  marketValue?: number;                       // raw / ungraded, dollars
-  gradedPrices?: Record<string, number>;      // e.g. { psa10: 1234.56, psa9: 456.78, bgs95: ... }
-  recentSales?: RecentSale[];
+  marketValue?: number; // raw / ungraded, in dollars
+  gradedPrices?: GradedPrices;
+  recentSales: []; // API does not expose this — always empty
   source: "pricecharting";
   fetchedAt: string;
-  reason?: string;                            // present when matched=false, for diagnostics
+  reason?: string;
 };
 
-const BASE = "https://www.pricecharting.com/api";
+const BASE_URL = "https://www.pricecharting.com";
+const TIMEOUT_MS = 8000;
 
-// PriceCharting returns integer cents — convert to dollars (2dp).
-function centsToDollars(v: unknown): number | undefined {
-  if (v == null) return undefined;
-  const n = typeof v === "number" ? v : Number(v);
-  if (!Number.isFinite(n) || n < 0) return undefined;
+function cents(v: unknown): number | undefined {
+  const n = typeof v === "number" ? v : typeof v === "string" ? parseInt(v, 10) : NaN;
+  if (!Number.isFinite(n) || n <= 0) return undefined;
   return Math.round(n) / 100;
 }
 
-function buildQuery(card: CardId): string {
-  const parts = [
-    card.card_year,
-    card.card_set,
-    card.card_name,
-    card.card_number,
-    card.variant && !/^regular$/i.test(card.variant) ? card.variant : "",
-  ]
-    .map((p) => (p ?? "").toString().trim())
-    .filter(Boolean);
-  return parts.join(" ");
-}
-
-function unmatched(reason: string): PriceChartingResult {
+function emptyResult(reason: string): PriceChartingResult {
   return {
     matched: false,
+    recentSales: [],
     source: "pricecharting",
     fetchedAt: new Date().toISOString(),
     reason,
   };
 }
 
-async function fetchProduct(apiKey: string, query: string): Promise<any | null> {
-  const url = `${BASE}/product?t=${encodeURIComponent(apiKey)}&q=${encodeURIComponent(query)}`;
-  const res = await fetch(url, { headers: { Accept: "application/json" } });
-  if (!res.ok) {
-    console.error("[pricecharting] product HTTP", res.status, await res.text().catch(() => ""));
-    return null;
-  }
-  const data = await res.json().catch(() => null);
-  if (!data || data.status !== "success" || !data.id) return null;
-  return data;
+function buildQuery(cardId: CardId, includeNumber: boolean): string {
+  const parts: string[] = [];
+  if (cardId.card_name) parts.push(cardId.card_name);
+  if (includeNumber && cardId.card_number) parts.push(cardId.card_number);
+  const variant = (cardId.variant || "").trim();
+  if (variant && !/^(regular|standard|normal)$/i.test(variant)) parts.push(variant);
+  if (cardId.card_set) parts.push(cardId.card_set);
+  return parts.filter(Boolean).join(" ").trim();
 }
 
-async function fetchRecentSales(apiKey: string, productId: string): Promise<RecentSale[]> {
+function tokensOf(s: string): Set<string> {
+  return new Set(
+    (s || "")
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, " ")
+      .split(/\s+/)
+      .filter((t) => t.length >= 3),
+  );
+}
+
+function looseMatch(productName: string, cardName: string): boolean {
+  const p = tokensOf(productName);
+  const c = tokensOf(cardName);
+  if (c.size === 0) return true;
+  for (const t of c) if (p.has(t)) return true;
+  return false;
+}
+
+async function fetchProduct(query: string, apiKey: string): Promise<any | null> {
+  const url = `${BASE_URL}/api/product?t=${encodeURIComponent(apiKey)}&q=${encodeURIComponent(query)}`;
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
   try {
-    const url = `${BASE}/sales?t=${encodeURIComponent(apiKey)}&id=${encodeURIComponent(productId)}`;
-    const res = await fetch(url, { headers: { Accept: "application/json" } });
-    if (!res.ok) return [];
-    const data = await res.json().catch(() => null);
-    const rows: any[] = Array.isArray(data?.sales) ? data.sales : Array.isArray(data) ? data : [];
-    return rows
-      .map((s) => ({
-        price: centsToDollars(s?.price ?? s?.sale_price) ?? 0,
-        date: String(s?.date ?? s?.sale_date ?? ""),
-        grade: String(s?.grade ?? s?.condition ?? ""),
-        certId: String(s?.cert_id ?? s?.certification ?? s?.certId ?? ""),
-      }))
-      .filter((s) => s.price > 0)
-      .slice(0, 25);
+    const res = await fetch(url, { signal: ctrl.signal });
+    if (!res.ok) {
+      console.error("[pricecharting] HTTP", res.status, "for query", query);
+      return null;
+    }
+    const data = await res.json();
+    if (data?.status !== "success") {
+      console.warn("[pricecharting] non-success status for query", query, data?.["error-message"]);
+      return null;
+    }
+    return data;
   } catch (err) {
-    console.error("[pricecharting] sales error", err);
-    return [];
+    console.error("[pricecharting] fetch error", (err as Error)?.message);
+    return null;
+  } finally {
+    clearTimeout(timer);
   }
 }
 
-function extractGradedPrices(p: any): Record<string, number> {
-  // PriceCharting fields use prefixes like manual-only-price, graded-price, bgs-10-price, etc.
-  // Map common ones to a normalized dictionary.
-  const map: Array<[string, string[]]> = [
-    ["psa10", ["psa-10-price", "manual-only-price"]],   // manual-only often = PSA 10 for cards
-    ["psa9",  ["graded-price"]],                         // "graded" ≈ PSA 9 in PC schema
-    ["psa8",  ["box-only-price"]],                       // PC reuses this slot for PSA 8 on cards
-    ["bgs10", ["bgs-10-price"]],
-    ["cgc10", ["cgc-10-price"]],
-    ["sgc10", ["sgc-10-price"]],
-  ];
-  const out: Record<string, number> = {};
-  for (const [key, sources] of map) {
-    for (const f of sources) {
-      const v = centsToDollars(p?.[f]);
-      if (v && v > 0) { out[key] = v; break; }
-    }
-  }
+function extractGradedPrices(p: any): GradedPrices {
+  const out: GradedPrices = {};
+  // Card-meaning mapping per PriceCharting docs:
+  // loose-price = Ungraded (raw, used as marketValue)
+  // cib-price            = PSA 7 / 7.5
+  // new-price            = PSA 8 / BGS 8
+  // graded-price         = PSA 9
+  // manual-only-price    = PSA 10
+  // box-only-price       = BGS 9.5
+  // bgs-10-price         = BGS 10
+  // condition-17-price   = CGC 10
+  // condition-18-price   = SGC 10
+  const psa7 = cents(p["cib-price"]);
+  const psa8 = cents(p["new-price"]);
+  const psa9 = cents(p["graded-price"]);
+  const psa10 = cents(p["manual-only-price"]);
+  const bgs95 = cents(p["box-only-price"]);
+  const bgs10 = cents(p["bgs-10-price"]);
+  const cgc10 = cents(p["condition-17-price"]);
+  const sgc10 = cents(p["condition-18-price"]);
+  if (psa7) out.psa7 = psa7;
+  if (psa8) out.psa8 = psa8;
+  if (psa9) out.psa9 = psa9;
+  if (psa10) out.psa10 = psa10;
+  if (bgs95) out.bgs95 = bgs95;
+  if (bgs10) out.bgs10 = bgs10;
+  if (cgc10) out.cgc10 = cgc10;
+  if (sgc10) out.sgc10 = sgc10;
   return out;
 }
 
 export async function getPriceChartingData(cardId: CardId): Promise<PriceChartingResult> {
-  const fetchedAt = new Date().toISOString();
   try {
     const apiKey = Deno.env.get("PRICECHARTING_API_KEY");
     if (!apiKey) {
       console.error("[pricecharting] PRICECHARTING_API_KEY not configured");
-      return unmatched("missing_api_key");
+      return emptyResult("missing_api_key");
+    }
+    if (!cardId?.card_name) return emptyResult("missing_card_name");
+
+    const specific = buildQuery(cardId, true);
+    let product = specific ? await fetchProduct(specific, apiKey) : null;
+
+    // Validate match; retry once with a looser query (no card number) if weak
+    if (!product || !looseMatch(product["product-name"] || "", cardId.card_name)) {
+      const broad = buildQuery(cardId, false);
+      if (broad && broad !== specific) {
+        const retry = await fetchProduct(broad, apiKey);
+        if (retry && looseMatch(retry["product-name"] || "", cardId.card_name)) {
+          product = retry;
+        } else if (!product) {
+          product = retry; // last resort
+        }
+      }
     }
 
-    const query = buildQuery(cardId);
-    if (!query) return unmatched("empty_query");
-
-    const product = await fetchProduct(apiKey, query);
-    if (!product) {
-      // Retry with a looser query (no card number) if first attempt failed
-      const loose = buildQuery({ ...cardId, card_number: "" });
-      const fallback = loose !== query ? await fetchProduct(apiKey, loose) : null;
-      if (!fallback) return unmatched("no_product_match");
-      return await assemble(apiKey, fallback, fetchedAt);
+    if (!product) return emptyResult("no_match");
+    if (!looseMatch(product["product-name"] || "", cardId.card_name)) {
+      return emptyResult("low_confidence_match");
     }
 
-    return await assemble(apiKey, product, fetchedAt);
-  } catch (err) {
-    console.error("[pricecharting] unexpected error", err);
+    const marketValue = cents(product["loose-price"]);
+    const gradedPrices = extractGradedPrices(product);
+
     return {
-      matched: false,
+      matched: true,
+      productName: product["product-name"],
+      consoleName: product["console-name"],
+      productId: product.id ? String(product.id) : undefined,
+      marketValue,
+      gradedPrices: Object.keys(gradedPrices).length ? gradedPrices : undefined,
+      recentSales: [],
       source: "pricecharting",
-      fetchedAt,
-      reason: "exception",
+      fetchedAt: new Date().toISOString(),
     };
+  } catch (err) {
+    console.error("[pricecharting] unexpected error", (err as Error)?.message);
+    return emptyResult("unexpected_error");
   }
-}
-
-async function assemble(
-  apiKey: string,
-  product: any,
-  fetchedAt: string,
-): Promise<PriceChartingResult> {
-  const productId = String(product.id);
-  const marketValue =
-    centsToDollars(product["loose-price"]) ??
-    centsToDollars(product["used-price"]) ??
-    centsToDollars(product["ungraded-price"]);
-  const gradedPrices = extractGradedPrices(product);
-  const recentSales = await fetchRecentSales(apiKey, productId);
-
-  return {
-    matched: true,
-    productId,
-    productName: String(product["product-name"] ?? product.name ?? ""),
-    marketValue,
-    gradedPrices,
-    recentSales,
-    source: "pricecharting",
-    fetchedAt,
-  };
 }
