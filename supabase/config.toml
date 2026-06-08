@@ -62,3 +62,6 @@ verify_jwt = false
 
 [functions.process-email-queue]
 verify_jwt = true
+
+[functions.pricecharting-sync]
+verify_jwt = false
