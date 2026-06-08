@@ -53,6 +53,7 @@ import Footer from "@/components/Footer";
 import ThemeToggle from "@/components/ThemeToggle";
 import DefectMapOverlay from "@/components/DefectMapOverlay";
 import AnalysisProgress from "@/components/AnalysisProgress";
+import MarketEvidence from "@/components/MarketEvidence";
 
 type Card = Tables<"cards">;
 
