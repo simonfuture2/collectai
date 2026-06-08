@@ -1276,6 +1276,21 @@ GRADE-CEILING RULE (MANDATORY):
       }
     }
 
+    // ===== STEP 6: Real price trend (from stored history, not a model guess) =====
+    try {
+      const trend = await computePriceTrend(supabaseAdmin, savedCard.id);
+      analysis.priceTrend = trend;
+      await supabaseAdmin
+        .from("cards")
+        .update({ ai_analysis: analysis })
+        .eq("id", savedCard.id);
+      console.log(
+        `[priceTrend] ${trend.status} dir=${trend.direction ?? "-"} 30d=${trend.change30dPct ?? "-"}% 90d=${trend.change90dPct ?? "-"}% n=${trend.sampleSize} src=${trend.source}`,
+      );
+    } catch (err) {
+      console.error("[priceTrend] failed:", (err as Error)?.message);
+    }
+
     // NOW deduct credit (only after card is saved)
     if (!isPro) {
       const { data: remaining, error: deductError } = await supabaseAdmin.rpc("deduct_credit", {
