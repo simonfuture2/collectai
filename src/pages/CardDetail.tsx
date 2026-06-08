@@ -864,6 +864,23 @@ export default function CardDetail() {
               </div>
             )}
 
+            {/* Market Evidence — per-source values, cross-check, comps, trend, grading edge, recommendation */}
+            {analysis && (
+              <MarketEvidence
+                sources={analysis.extractedMarketData?.sources}
+                crossReference={analysis.extractedMarketData?.crossReference}
+                notableSales={analysis.ebayRecentSales?.notableSales as string[] | undefined}
+                cardSearchQuery={[card?.card_year, card?.card_name, card?.card_set].filter(Boolean).join(" ")}
+                priceTrend={analysis.priceTrend}
+                gradingEdge={analysis.gradingEdge}
+                recommendation={analysis.recommendation}
+                confidenceBand={analysis.confidenceBand ?? analysis.confidence}
+                confidenceExplanation={analysis.confidenceExplanation}
+                confidenceReason={analysis.confidenceReason}
+              />
+            )}
+
+
             {/* Graded Value Estimates - Desktop only under photo */}
             <div className="hidden lg:block space-y-6">
               {analysis?.gradedValueEstimates && (
