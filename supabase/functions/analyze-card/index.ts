@@ -597,10 +597,11 @@ serve(async (req) => {
 
     console.log(`Analyzing ${images.length} image(s) for user:`, user.id);
 
-    // ===== STEP 1: Detailed identification with Claude Sonnet =====
-    console.log("Step 1: Identifying card with Claude Sonnet...");
-    const cardId = await identifyCard(images, ANTHROPIC_API_KEY);
-    console.log("Card identified (detailed):", JSON.stringify(cardId));
+    // ===== STEP 1: Detailed identification with Gemini =====
+    console.log(`Step 1: Identifying card with ${IDENTIFY_MODEL}...`);
+    const t0 = Date.now();
+    const cardId = await identifyWithGemini(images[0].url, IDENTIFY_MODEL);
+    console.log(`Card identified by ${IDENTIFY_MODEL} in ${Date.now() - t0}ms:`, JSON.stringify(cardId));
 
     // ===== STEP 2: Search eBay + TCGPlayer with specific details =====
     let marketData: { summary: string; hasData: boolean; extractedMarketData: ExtractedMarketData } = { summary: "", hasData: false, extractedMarketData: { sources: [], blended: null } };
