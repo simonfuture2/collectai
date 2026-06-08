@@ -2,6 +2,7 @@ import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { identifyWithGemini } from "../_shared/gemini.ts";
+import { getMarketData, type AggregatedMarketData } from "../_shared/marketData.ts";
 
 // Model used for Step 1 card identification (bake-off winner).
 // Change this single constant to swap identification models.
@@ -603,13 +604,23 @@ serve(async (req) => {
     const cardId = await identifyWithGemini(images[0].url, IDENTIFY_MODEL);
     console.log(`Card identified by ${IDENTIFY_MODEL} in ${Date.now() - t0}ms:`, JSON.stringify(cardId));
 
-    // ===== STEP 2: Search eBay + TCGPlayer with specific details =====
-    let marketData: { summary: string; hasData: boolean; extractedMarketData: ExtractedMarketData } = { summary: "", hasData: false, extractedMarketData: { sources: [], blended: null } };
+    // ===== STEP 2: Tiered cross-referenced market data (PriceCharting + eBay + TCGPlayer) =====
+    let aggregated: AggregatedMarketData = { sources: [], blended: null, crossReference: {}, summary: "", hasData: false };
     if (cardId?.card_name) {
-      console.log("Step 2: Searching eBay + TCGPlayer with specific query...");
-      marketData = await searchMarketPrices(cardId, body.category, body.fastScan === true);
-      console.log("Market data found:", marketData.hasData ? "Yes" : "No");
+      console.log("Step 2: Aggregating market data from PriceCharting + Firecrawl comps...");
+      aggregated = await getMarketData(cardId, body.category, body.fastScan === true);
+      console.log("Market data found:", aggregated.hasData ? "Yes" : "No", "| sources:", aggregated.sources.map(s => s.source).join(","));
     }
+    // Backward-compat shape consumed by the rest of this function.
+    const marketData = {
+      summary: aggregated.summary,
+      hasData: aggregated.hasData,
+      extractedMarketData: {
+        sources: aggregated.sources,
+        blended: aggregated.blended,
+        crossReference: aggregated.crossReference,
+      } as ExtractedMarketData & { crossReference: typeof aggregated.crossReference },
+    };
 
     // ===== STEP 3: Full analysis with Claude =====
     const today = new Date().toISOString().split("T")[0];
