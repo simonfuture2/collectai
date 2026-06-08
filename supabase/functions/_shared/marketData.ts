@@ -255,7 +255,7 @@ export async function getMarketData(
       };
       pushPrices(soldResults, soldPrices);
       pushPrices(activeResults, activePrices);
-      pushPrices(tcgPrices.length ? tcgResults : tcgResults, tcgPrices);
+      pushPrices(tcgResults, tcgPrices);
       compTitles = [
         ...soldResults.slice(0, 10).map((r: any) => String(r.title || "")),
         ...activeResults.slice(0, 5).map((r: any) => String(r.title || "")),
