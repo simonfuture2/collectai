@@ -1,68 +1,82 @@
-# Identification Bake-Off Harness
+# Gemini Direct-API Client
 
-Admin-only tool to compare card-identification accuracy across three models on cards you've already scanned, with manual ground-truth entry and per-field accuracy scoring.
+Adds a shared edge-function helper that calls Google's Generative Language API directly (no Lovable AI Gateway, no Anthropic) and returns the existing `CardIdentification` shape used elsewhere in the project.
 
-## ⚠️ Two decisions to confirm before building
+## 1. Secret
 
-1. **Gemini API path.** You asked for "direct API, GEMINI_API_KEY". The rest of the project routes all Gemini through the Lovable AI Gateway (no per-provider key, already-funded, no extra secret). The bake-off works identically either way. I'll default to **Lovable AI Gateway** (no new secret, uses existing `LOVABLE_API_KEY`) unless you say otherwise — if you want the direct Google API you'll need to add a `GEMINI_API_KEY` secret.
-2. **Model IDs.** `gemini-3.5-flash` exists in the gateway catalog. `gemini-3.1-pro` does not — the closest match is `google/gemini-3.1-pro-preview`. I'll use that for the "Pro" column. (If using the direct Google API, exact model strings would differ again.)
+Request `GEMINI_API_KEY` via `add_secret`. You'll paste the value from Google AI Studio. No other secrets touched.
 
-## What gets built
+## 2. New file: `supabase/functions/_shared/gemini.ts`
 
-### 1. New table: `bakeoff_truth`
-Stores your manually-entered ground truth per card.
+First file in a new `_shared/` directory (Deno edge functions can import sibling paths with `../_shared/gemini.ts`).
 
-Fields: `card_id` (PK, FK → cards), `card_name`, `card_number`, `card_set`, `card_year`, `variant`, `rarity`, `notes`, plus timestamps.
+Exports:
 
-Access: admin-only (RLS using existing `has_role` / `is_admin` pattern). Grants for `authenticated` + `service_role`.
+```ts
+export type CardIdentification = {
+  card_name: string;
+  card_number: string;
+  card_set: string;
+  card_year: string;
+  variant: string;
+  rarity: string;
+};
 
-### 2. New edge function: `id-bakeoff` (`verify_jwt = false`, validates in code)
+export async function identifyWithGemini(
+  imageInput: string,                  // signed https URL OR base64 data string (with or without data: prefix)
+  model: string = "gemini-3.5-flash",
+): Promise<CardIdentification | null>
+```
 
-Endpoints (single function, action-dispatched like `admin-data`):
+### Behavior
 
-- `action: "run"` — body `{ cardIds?: string[], limit?: number }`. Admin check → loads cards (filtered list, or all of admin's cards up to `limit`). For each card:
-  - Reads the stored `ai_analysis` identification fields → "Claude (current)" column (no new API call, no latency).
-  - Signs a short-lived URL for the card image from `card-images` bucket.
-  - Calls Gemini 3.5 Flash with the **exact identifyCard system prompt from `analyze-card`** (copied verbatim), measures latency.
-  - Calls Gemini 3.1 Pro the same way, measures latency.
-  - Parses JSON, returns `{ cardId, image_url, claude, gemini_flash: {result, latency_ms}, gemini_pro: {result, latency_ms}, truth }`.
-  - **No credit deduction** anywhere in this path.
-- `action: "save_truth"` — body `{ cardId, truth: {...} }`. Admin-only upsert into `bakeoff_truth`.
-- `action: "list_results"` — optional, returns cached last-run results if we choose to persist them (see "Persistence" below).
+- Reads `GEMINI_API_KEY` from `Deno.env`. If missing → log + return `null`.
+- Normalizes `imageInput`:
+  - If it starts with `http(s)://` → `fetch` the URL, read bytes, base64-encode, infer mime from `Content-Type` (fallback `image/jpeg`).
+  - If it starts with `data:<mime>;base64,<…>` → strip prefix, capture mime.
+  - Otherwise treat as raw base64, mime defaults to `image/jpeg`.
+- Calls:
+  ```
+  POST https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={GEMINI_API_KEY}
+  ```
+  Body:
+  ```json
+  {
+    "system_instruction": { "parts": [{ "text": IDENTIFY_SYSTEM_PROMPT }] },
+    "contents": [{
+      "role": "user",
+      "parts": [
+        { "inline_data": { "mime_type": "<mime>", "data": "<base64>" } },
+        { "text": "Identify this trading card with maximum specificity. Read the card number, variant type, and all visible text." }
+      ]
+    }],
+    "generationConfig": {
+      "responseMimeType": "application/json",
+      "thinkingConfig": { "thinkingLevel": "low" }
+    }
+  }
+  ```
+- `IDENTIFY_SYSTEM_PROMPT` is the verbatim identification prompt already used in `analyze-card` and `id-bakeoff` (asks for `card_name`, `card_number`, `card_set`, `card_year`, `variant`, `rarity` as JSON).
+- Parses `candidates[0].content.parts[].text` (concatenated), then `JSON.parse`. Uses a loose-JSON fallback (extract first `{…}` block) for resilience.
+- Normalizes the parsed object to `CardIdentification` (every field coerced to string, missing fields → `""`).
+- Full try/catch around fetch + parse; on any error or non-2xx response, `console.error("[gemini] …", details)` and return `null`. Never throws.
 
-Errors per row are caught and returned in-band so one bad card doesn't kill the batch. Gemini calls run in parallel per card; cards run sequentially (or small concurrency) to avoid rate limits.
+### Out of scope (this prompt)
 
-### 3. New page: `/admin/id-bakeoff`
+- Wiring this helper into `id-bakeoff`, `analyze-card`, or any other function (separate follow-up).
+- Latency measurement (caller's responsibility).
+- Pricing / grading endpoints.
 
-- Gated by `useAdmin()` (same hook `/admin` uses); non-admins get redirected.
-- Linked from the existing Admin page.
-- Controls: "Run on N most recent cards" input + "Run on selected card IDs" textarea + Run button. Loading state with progress.
-- Results table, one row per card:
-  - Thumbnail + card_id
-  - Three model columns, each showing `card_name`, `card_number`, `variant` (other fields in a hover/expand)
-  - Latency badge per Gemini column
-  - Inline-editable "Verified truth" cells (`card_name`, `card_number`, `variant`, etc.) with Save button → `save_truth`
-  - Per-cell ✅/❌ highlighting once truth is entered (exact-match, case-insensitive, trimmed)
-- Summary bar above the table, computed client-side from rows that have truth:
-  - Per model: overall % match, `card_number` %, `variant` %, avg latency (Gemini only)
-  - Total cards scored / total in run
-
-### Persistence decision
-Run results are returned in the response and held in page state only (not persisted). Truth entries persist in `bakeoff_truth`. If you later want historical runs saved, that's a small follow-up table — out of scope for v1.
-
-## Files touched
+## Files
 
 **New**
-- `supabase/migrations/<ts>_bakeoff_truth.sql` — table + grants + RLS
-- `supabase/functions/id-bakeoff/index.ts` — the function
-- `src/pages/admin/IdBakeoff.tsx` — the page
-- Route added in `src/App.tsx` (`/admin/id-bakeoff`, lazy-loaded)
-- Small link added on `src/pages/Admin.tsx`
+- `supabase/functions/_shared/gemini.ts`
 
-**No changes** to `analyze-card`, credits, RLS for `cards`, or any non-admin code path.
+**Touched**
+- Secrets: `GEMINI_API_KEY` added via secret tool.
 
-## Out of scope
-- Pricing model comparison (identification only, per your prompt)
-- Auto-grading bake-off
-- Bulk import of truth from CSV
-- Persisting historical run snapshots
+No DB changes, no frontend changes, no config.toml changes.
+
+## Confirm before I build
+
+- Model default `gemini-3.5-flash` matches your prompt — Google's current GA flash model id is `gemini-2.5-flash`. I'll use `gemini-3.5-flash` exactly as you wrote it; if the API rejects it the helper will log and return `null`. Say the word if you'd rather default to `gemini-2.5-flash`.
