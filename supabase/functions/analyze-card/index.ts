@@ -4,6 +4,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { identifyWithGemini } from "../_shared/gemini.ts";
 import { getMarketData, type AggregatedMarketData, crossCheckIdentification } from "../_shared/marketData.ts";
 import { computePriceTrend } from "../_shared/priceTrend.ts";
+import { buildRecommendation } from "../_shared/recommendation.ts";
 
 // Model used for Step 1 card identification (bake-off winner).
 // Change this single constant to swap identification models.
@@ -1280,15 +1281,34 @@ GRADE-CEILING RULE (MANDATORY):
     try {
       const trend = await computePriceTrend(supabaseAdmin, savedCard.id);
       analysis.priceTrend = trend;
-      await supabaseAdmin
-        .from("cards")
-        .update({ ai_analysis: analysis })
-        .eq("id", savedCard.id);
       console.log(
         `[priceTrend] ${trend.status} dir=${trend.direction ?? "-"} 30d=${trend.change30dPct ?? "-"}% 90d=${trend.change90dPct ?? "-"}% n=${trend.sampleSize} src=${trend.source}`,
       );
     } catch (err) {
       console.error("[priceTrend] failed:", (err as Error)?.message);
+    }
+
+    // ===== STEP 7: Deterministic recommendation (buy/sell/hold/grade_then_sell) =====
+    try {
+      const rec = buildRecommendation({
+        trend: analysis.priceTrend ?? null,
+        gradingEdge: analysis.gradingEdge ?? null,
+        confidenceBand: analysis.confidenceBand ?? null,
+      });
+      analysis.recommendation = rec;
+      console.log(`[recommendation] ${rec.action} — ${rec.rationale}`);
+    } catch (err) {
+      console.error("[recommendation] failed:", (err as Error)?.message);
+    }
+
+    // Persist trend + recommendation together
+    try {
+      await supabaseAdmin
+        .from("cards")
+        .update({ ai_analysis: analysis })
+        .eq("id", savedCard.id);
+    } catch (err) {
+      console.error("[persist analysis] failed:", (err as Error)?.message);
     }
 
     // NOW deduct credit (only after card is saved)
