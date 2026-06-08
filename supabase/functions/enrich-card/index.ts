@@ -591,36 +591,58 @@ async function searchMarketPrices(cardId: CardIdentification, category: string |
     const medianTcg = median(tcgPrices);
 
     const sources: MarketSourceData[] = [];
-    if (soldPrices.length > 0) sources.push({ source: "ebay_sold", median: medianSold, low: Math.min(...soldPrices), high: Math.max(...soldPrices), count: soldPrices.length, prices: soldPrices });
+    if (soldPrices.length > 0) sources.push({ source: "ebay_sold", median: medianSold, low: Math.min(...soldPrices), high: Math.max(...soldPrices), count: soldPrices.length, prices: soldPrices, recencyWindow: ebaySoldRecencyWindow });
     if (activePrices.length > 0) sources.push({ source: "ebay_active", median: medianActive, low: Math.min(...activePrices), high: Math.max(...activePrices), count: activePrices.length, prices: activePrices });
     if (tcgPrices.length > 0) sources.push({ source: "tcgplayer", median: medianTcg, low: Math.min(...tcgPrices), high: Math.max(...tcgPrices), count: tcgPrices.length, prices: tcgPrices });
 
+    // Category-aware blending weights.
+    //   TCG                   → eBay sold 50% + TCGPlayer 30% + eBay active 20%
+    //   Sports / Coin / Other → eBay sold 70% + eBay active 30% (no TCGPlayer relevance)
+    const useTcgWeights = isTcgCategory && tcgPrices.length > 0;
     const allMedians: { value: number; weight: number }[] = [];
-    if (soldPrices.length > 0) allMedians.push({ value: medianSold, weight: 0.5 });
-    if (activePrices.length > 0) allMedians.push({ value: medianActive, weight: 0.2 });
-    if (tcgPrices.length > 0) allMedians.push({ value: medianTcg, weight: 0.3 });
+    if (useTcgWeights) {
+      if (soldPrices.length > 0) allMedians.push({ value: medianSold, weight: 0.5 });
+      if (tcgPrices.length > 0)  allMedians.push({ value: medianTcg, weight: 0.3 });
+      if (activePrices.length > 0) allMedians.push({ value: medianActive, weight: 0.2 });
+    } else {
+      if (soldPrices.length > 0) allMedians.push({ value: medianSold, weight: 0.7 });
+      if (activePrices.length > 0) allMedians.push({ value: medianActive, weight: 0.3 });
+    }
 
     let blended: ExtractedMarketData["blended"] = null;
     if (allMedians.length > 0) {
       const totalWeight = allMedians.reduce((s, m) => s + m.weight, 0);
       const blendedMedian = allMedians.reduce((s, m) => s + m.value * (m.weight / totalWeight), 0);
-      const allPrices = [...soldPrices, ...activePrices, ...tcgPrices];
+      const allPrices = useTcgWeights
+        ? [...soldPrices, ...activePrices, ...tcgPrices]
+        : [...soldPrices, ...activePrices];
       blended = { median: blendedMedian, low: Math.min(...allPrices), high: Math.max(...allPrices) };
     }
 
+    const windowLabel: Record<RecencyWindow, string> = {
+      "7d": "last 7 days",
+      "30d": "last 30 days",
+      "12m": "last 12 months",
+      "36m": "last 3 years",
+    };
+
     let summary = "\n\n## REAL MARKET PRICE DATA (retrieved today from multiple sources)\n";
     summary += `Card searched: ${specific}\n`;
+    summary += `Category resolved: ${category || "unknown"} (sports=${isSportsCard}, tcg=${isTcgCategory})\n`;
     if (soldPrices.length > 0) {
-      summary += `\n### eBay SOLD LISTINGS (last 30 days):\n- Filtered prices: ${soldPrices.map((p) => `$${p.toFixed(2)}`).join(", ")}\n- Median sold price: $${medianSold.toFixed(2)}\n- Range: $${Math.min(...soldPrices).toFixed(2)} - $${Math.max(...soldPrices).toFixed(2)}\n- Count: ${soldPrices.length} price points\n\nDetails:\n${soldListings.join("\n")}\n`;
+      summary += `\n### eBay SOLD LISTINGS (${windowLabel[ebaySoldRecencyWindow]}):\n- Filtered prices: ${soldPrices.map((p) => `$${p.toFixed(2)}`).join(", ")}\n- Median sold price: $${medianSold.toFixed(2)}\n- Range: $${Math.min(...soldPrices).toFixed(2)} - $${Math.max(...soldPrices).toFixed(2)}\n- Count: ${soldPrices.length} price points\n\nDetails:\n${soldListings.join("\n")}\n`;
     }
     if (activePrices.length > 0) {
       summary += `\n### eBay ACTIVE LISTINGS:\n- Filtered prices: ${activePrices.map((p) => `$${p.toFixed(2)}`).join(", ")}\n- Median asking price: $${medianActive.toFixed(2)}\n\nDetails:\n${activeListings.join("\n")}\n`;
     }
-    if (tcgPrices.length > 0) {
+    if (useTcgWeights && tcgPrices.length > 0) {
       summary += `\n### TCGPlayer PRICES:\n- Filtered prices: ${tcgPrices.map((p) => `$${p.toFixed(2)}`).join(", ")}\n- Median TCGPlayer price: $${medianTcg.toFixed(2)}\n\nDetails:\n${tcgListings.join("\n")}\n`;
     }
     if (blended) summary += `\n### SUGGESTED BLENDED VALUE: $${blended.median.toFixed(2)}\n`;
     summary += `\nCRITICAL: Your estimatedValueLow and estimatedValueHigh MUST be within the range of these real prices.\n`;
+    if (ebaySoldRecencyWindow === "12m" || ebaySoldRecencyWindow === "36m") {
+      summary += `\n⚠️ RECENCY NOTE: Only older eBay sold comps were found (${windowLabel[ebaySoldRecencyWindow]}). Confidence must be "Limited market data" — not "High Confidence".\n`;
+    }
 
     // ---- Build per-grade summary block for the LLM ----
     summary += `\n## REAL PER-GRADE SOLD COMPS (use these verbatim — DO NOT invent or extrapolate)\n`;
@@ -631,7 +653,8 @@ async function searchMarketPrices(cardId: CardIdentification, category: string |
       for (const [grader, tiers] of graderEntries) {
         for (const [grade, comp] of Object.entries(tiers)) {
           if (comp) {
-            summary += `- ${grader.toUpperCase()} ${grade}: median $${comp.median.toFixed(2)} (range $${comp.low.toFixed(2)}-$${comp.high.toFixed(2)}, ${comp.count} sold comps)\n`;
+            const win = comp.recencyWindow ? ` [${windowLabel[comp.recencyWindow]}]` : "";
+            summary += `- ${grader.toUpperCase()} ${grade}: median $${comp.median.toFixed(2)} (range $${comp.low.toFixed(2)}-$${comp.high.toFixed(2)}, ${comp.count} sold comps)${win}\n`;
           } else {
             summary += `- ${grader.toUpperCase()} ${grade}: NO SOLD COMPS FOUND — value must be null and confidence low.\n`;
           }
