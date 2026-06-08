@@ -485,6 +485,11 @@ async function searchMarketPrices(cardId: CardIdentification, category: string |
     // ---- Per-grade graded-comp retrieval (parallel) ----
     // Pulls real sold comps for each grader/grade tier relevant to the card category.
     // A tier with insufficient comps stays null — NEVER filled by multiplier.
+    // Category coverage:
+    //   Sports     → PSA + BGS + SGC (no TAG/CGC)
+    //   TCG        → PSA + CGC + BGS + TAG (no SGC)
+    //   Coin/Other → PSA + CGC + BGS
+    const isTcgCategory = /trading card|tcg|pokemon|pokémon|magic|yu-?gi-?oh|lorcana|one piece/i.test(category || "");
     const tiersForCategory: { grader: GraderKey; grade: string; query: string }[] = [
       { grader: "psa", grade: "10", query: `"${specific}" "PSA 10" sold site:ebay.com` },
       { grader: "psa", grade: "9",  query: `"${specific}" "PSA 9" sold site:ebay.com` },
@@ -492,19 +497,25 @@ async function searchMarketPrices(cardId: CardIdentification, category: string |
       { grader: "bgs", grade: "10", query: `"${specific}" "BGS 10" sold site:ebay.com` },
       { grader: "bgs", grade: "9.5", query: `"${specific}" "BGS 9.5" sold site:ebay.com` },
       { grader: "bgs", grade: "9",  query: `"${specific}" "BGS 9" sold site:ebay.com` },
-      { grader: "cgc", grade: "10", query: `"${specific}" "CGC 10" sold site:ebay.com` },
-      { grader: "cgc", grade: "9.5", query: `"${specific}" "CGC 9.5" sold site:ebay.com` },
     ];
     if (isSportsCard) {
       tiersForCategory.push(
         { grader: "sgc", grade: "10", query: `"${specific}" "SGC 10" sold site:ebay.com` },
         { grader: "sgc", grade: "9.5", query: `"${specific}" "SGC 9.5" sold site:ebay.com` },
+        { grader: "sgc", grade: "9",  query: `"${specific}" "SGC 9" sold site:ebay.com` },
       );
     } else {
       tiersForCategory.push(
-        { grader: "tag", grade: "10", query: `"${specific}" "TAG 10" sold site:ebay.com` },
-        { grader: "tag", grade: "9.5", query: `"${specific}" "TAG 9.5" sold site:ebay.com` },
+        { grader: "cgc", grade: "10", query: `"${specific}" "CGC 10" sold site:ebay.com` },
+        { grader: "cgc", grade: "9.5", query: `"${specific}" "CGC 9.5" sold site:ebay.com` },
+        { grader: "cgc", grade: "9",  query: `"${specific}" "CGC 9" sold site:ebay.com` },
       );
+      if (isTcgCategory) {
+        tiersForCategory.push(
+          { grader: "tag", grade: "10", query: `"${specific}" "TAG 10" sold site:ebay.com` },
+          { grader: "tag", grade: "9.5", query: `"${specific}" "TAG 9.5" sold site:ebay.com` },
+        );
+      }
     }
 
     // Skip per-grade retrieval entirely on fast scans (would blow the time budget).
@@ -512,17 +523,32 @@ async function searchMarketPrices(cardId: CardIdentification, category: string |
     if (!fastScan) {
       const gradedResults = await Promise.all(
         tiersForCategory.map(async (t) => {
-          const results = await doSearch(t.query, 4, "ebay.com", "qdr:m");
+          // Try recency ladder: 30d → 12m → 36m. Skip 7d for graded tiers (too sparse).
+          const windows: RecencyWindow[] = ["30d", "12m", "36m"];
           let prices: number[] = [];
-          for (const r of results.slice(0, 4)) {
-            const text = `${r.title || ""} ${r.description || ""} ${(r.markdown || "").substring(0, 600)}`;
-            // Only count prices from listings whose title also contains the grader+grade token.
+          let usedWindow: RecencyWindow = "36m";
+          for (const w of windows) {
+            const results = await doSearch(t.query, 4, "ebay.com", tbsForWindow(w));
             const tokenRe = new RegExp(`${t.grader}\\s*${t.grade.replace(".", "\\.")}\\b`, "i");
-            if (!tokenRe.test(r.title || "") && !tokenRe.test(r.description || "")) continue;
-            prices.push(...extractPrices(text));
+            const tierPrices: number[] = [];
+            for (const r of results.slice(0, 4)) {
+              if (!tokenRe.test(r.title || "") && !tokenRe.test(r.description || "")) continue;
+              const text = `${r.title || ""} ${r.description || ""} ${(r.markdown || "").substring(0, 600)}`;
+              tierPrices.push(...extractPrices(text));
+            }
+            if (tierPrices.length >= 2) {
+              prices = tierPrices;
+              usedWindow = w;
+              break;
+            }
+            // keep the largest set we saw as a fallback
+            if (tierPrices.length > prices.length) {
+              prices = tierPrices;
+              usedWindow = w;
+            }
           }
           prices = filterOutliers(prices);
-          return { ...t, prices };
+          return { ...t, prices, window: usedWindow };
         }),
       );
       for (const r of gradedResults) {
@@ -534,6 +560,7 @@ async function searchMarketPrices(cardId: CardIdentification, category: string |
               high: Math.max(...r.prices),
               count: r.prices.length,
               prices: r.prices,
+              recencyWindow: r.window,
             }
           : null;
       }
