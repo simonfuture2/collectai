@@ -32,9 +32,29 @@ serve(async (req) => {
     if (!user?.email) throw new Error("User not authenticated or email not available");
     logStep("User authenticated", { userId: user.id, email: user.email });
 
-    const { priceId, mode } = await req.json();
-    if (!priceId) throw new Error("priceId is required");
-    logStep("Checkout request", { priceId, mode });
+    // Server-side allowlist — single source of truth for price/mode/product.
+    // Mirrors src/lib/stripe-config.ts. Anything not on this list is rejected.
+    const PRICE_ALLOWLIST: Record<string, { mode: "payment" | "subscription"; product_id: string; name: string }> = {
+      "price_1T5Ept1sHqLtRhMjmjQKR2mY": { mode: "subscription", product_id: "prod_U3LWcSgpIvvEwb", name: "Pro Monthly" },
+      "price_1T5En91sHqLtRhMjieEskxnU": { mode: "payment",      product_id: "prod_U3LUssmKAJLMjx", name: "10 Credit Pack" },
+      "price_1T5Enq1sHqLtRhMji0VcN36u": { mode: "payment",      product_id: "prod_U3LUNHmWz9efkI", name: "50 Credit Pack" },
+      "price_1T5EoT1sHqLtRhMj8uG8CN60": { mode: "payment",      product_id: "prod_U3LVySbsHL6Sur", name: "100 Credit Pack" },
+    };
+
+    const body = await req.json().catch(() => ({}));
+    const priceId = typeof body?.priceId === "string" ? body.priceId : null;
+
+    if (!priceId || !PRICE_ALLOWLIST[priceId]) {
+      logStep("Rejected: priceId not on allowlist", { priceId });
+      return new Response(
+        JSON.stringify({ error: "Invalid priceId" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const allowed = PRICE_ALLOWLIST[priceId];
+    const mode = allowed.mode; // derived server-side; client value ignored
+    logStep("Checkout request", { priceId, mode, product: allowed.name });
 
     const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
       apiVersion: "2025-08-27.basil",
@@ -53,12 +73,13 @@ serve(async (req) => {
       customer: customerId,
       customer_email: customerId ? undefined : user.email,
       line_items: [{ price: priceId, quantity: 1 }],
-      mode: mode === "subscription" ? "subscription" : "payment",
+      mode,
       success_url: `${origin}/checkout/success`,
       cancel_url: `${origin}/checkout/cancel`,
       metadata: {
         user_id: user.id,
         price_id: priceId,
+        product_id: allowed.product_id,
       },
     });
 
