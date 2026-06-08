@@ -37,6 +37,32 @@ async function checkRateLimit(ip: string): Promise<{ allowed: boolean; remaining
   return { allowed: !!row?.allowed, remaining: row?.remaining ?? 0 };
 }
 
+// Global daily budget cap (across ALL IPs) to protect against spoofed
+// x-forwarded-for values draining real third-party spend.
+const QUICK_SCAN_DAILY_BUDGET = Number(Deno.env.get("QUICK_SCAN_DAILY_BUDGET") ?? "500");
+async function checkDailyBudget(): Promise<{ allowed: boolean; remaining: number; used: number }> {
+  const supabase = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+  );
+  const { data, error } = await supabase.rpc("consume_daily_budget", {
+    _bucket_key: "quick_scan",
+    _max_per_day: QUICK_SCAN_DAILY_BUDGET,
+  });
+  if (error) {
+    console.error("daily budget RPC error:", error);
+    // Fail closed on public spend path.
+    return { allowed: false, remaining: 0, used: -1 };
+  }
+  const row = Array.isArray(data) ? data[0] : data;
+  return {
+    allowed: !!row?.allowed,
+    remaining: row?.remaining ?? 0,
+    used: row?.used ?? 0,
+  };
+}
+
+
 // Retry helper with exponential backoff for 429/529 errors
 async function fetchWithRetry(
   url: string,
