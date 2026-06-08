@@ -1,6 +1,11 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { identifyWithGemini } from "../_shared/gemini.ts";
+
+// Model used for Step 1 card identification (bake-off winner).
+// Change this single constant to swap identification models.
+const IDENTIFY_MODEL = "gemini-3.5-flash";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -592,10 +597,11 @@ serve(async (req) => {
 
     console.log(`Analyzing ${images.length} image(s) for user:`, user.id);
 
-    // ===== STEP 1: Detailed identification with Claude Sonnet =====
-    console.log("Step 1: Identifying card with Claude Sonnet...");
-    const cardId = await identifyCard(images, ANTHROPIC_API_KEY);
-    console.log("Card identified (detailed):", JSON.stringify(cardId));
+    // ===== STEP 1: Detailed identification with Gemini =====
+    console.log(`Step 1: Identifying card with ${IDENTIFY_MODEL}...`);
+    const t0 = Date.now();
+    const cardId = await identifyWithGemini(images[0].url, IDENTIFY_MODEL);
+    console.log(`Card identified by ${IDENTIFY_MODEL} in ${Date.now() - t0}ms:`, JSON.stringify(cardId));
 
     // ===== STEP 2: Search eBay + TCGPlayer with specific details =====
     let marketData: { summary: string; hasData: boolean; extractedMarketData: ExtractedMarketData } = { summary: "", hasData: false, extractedMarketData: { sources: [], blended: null } };
