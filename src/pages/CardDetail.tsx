@@ -884,7 +884,15 @@ export default function CardDetail() {
 
             {/* Graded Value Estimates - Desktop only under photo */}
             <div className="hidden lg:block space-y-6">
-              {analysis?.gradedValueEstimates && (
+              {analysis?.gradedValueEstimates && analysis?.hasBackImage === false && (
+                <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 text-sm">
+                  <p className="font-semibold text-amber-700 dark:text-amber-400 mb-1">Add a back photo for graded-value estimates</p>
+                  <p className="text-muted-foreground">
+                    Grade-based pricing depends on edges, corners, and back surface — we can't see those from the front alone. Re-scan with a back image to unlock estimated value after grading.
+                  </p>
+                </div>
+              )}
+              {analysis?.gradedValueEstimates && analysis?.hasBackImage !== false && (
                 <div className="bg-card border border-border rounded-2xl p-6">
                   <div className="flex items-center gap-2 mb-4">
                     <Award className="w-5 h-5 text-amber-500" />
