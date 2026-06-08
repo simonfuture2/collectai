@@ -1,11 +1,18 @@
-// Shared helper: query PriceCharting Prices API for a trading card and return
-// a normalized result. Degrades gracefully — never throws.
+// Shared helper: hybrid PriceCharting lookup.
+// Resolution order:
+//   1) Local pricecharting_catalog table (fast, no rate limit)
+//   2) Live PriceCharting /api/product (or sportscardspro.com for sports)
+//
+// Sports categories always go straight to the live SportsCardsPro API since
+// the daily catalog sync doesn't ingest those.
 //
 // Docs: https://www.pricecharting.com/api-documentation
 // - Auth via ?t=<API_KEY>
-// - All prices are integer pennies
-// - No historical sales endpoint (do not call /api/sales — it does not exist)
-// - For cards, generic video-game field names are reused. See mapping below.
+// - Integer pennies for all price fields
+// - No historical sales endpoint exists — recentSales is always []
+// - JSON keys match CSV header names, so one normalizer covers both paths.
+
+import { createClient, SupabaseClient } from "npm:@supabase/supabase-js@2";
 
 export type CardId = {
   card_name?: string;
@@ -14,6 +21,7 @@ export type CardId = {
   card_year?: string;
   variant?: string;
   rarity?: string;
+  category?: string; // e.g. "pokemon-cards", "baseball-cards"; optional
 };
 
 export type GradedPrices = {
@@ -27,6 +35,8 @@ export type GradedPrices = {
   sgc10?: number;
 };
 
+export type RecentSale = { price: number; date: string; grade?: string };
+
 export type PriceChartingResult = {
   matched: boolean;
   productName?: string;
@@ -34,14 +44,45 @@ export type PriceChartingResult = {
   productId?: string;
   marketValue?: number; // raw / ungraded, in dollars
   gradedPrices?: GradedPrices;
-  recentSales: []; // API does not expose this — always empty
+  recentSales: RecentSale[];
   source: "pricecharting";
   fetchedAt: string;
   reason?: string;
+  via?: "local" | "api" | "sportscardspro";
 };
 
-const BASE_URL = "https://www.pricecharting.com";
+const PC_BASE = "https://www.pricecharting.com";
+const SCP_BASE = "https://www.sportscardspro.com";
 const TIMEOUT_MS = 8000;
+
+const SPORTS_CATEGORIES = new Set([
+  "baseball-cards",
+  "basketball-cards",
+  "football-cards",
+  "hockey-cards",
+  "soccer-cards",
+]);
+
+const SPORTS_SET_HINTS = [
+  "topps",
+  "panini",
+  "bowman",
+  "upper deck",
+  "prizm",
+  "donruss",
+  "fleer",
+  "score",
+  "select",
+  "optic",
+  "mosaic",
+  "chronicles",
+];
+
+function isSports(cardId: CardId): boolean {
+  if (cardId.category && SPORTS_CATEGORIES.has(cardId.category)) return true;
+  const blob = `${cardId.card_set ?? ""} ${cardId.variant ?? ""}`.toLowerCase();
+  return SPORTS_SET_HINTS.some((h) => blob.includes(h));
+}
 
 function cents(v: unknown): number | undefined {
   const n = typeof v === "number" ? v : typeof v === "string" ? parseInt(v, 10) : NaN;
@@ -57,16 +98,6 @@ function emptyResult(reason: string): PriceChartingResult {
     fetchedAt: new Date().toISOString(),
     reason,
   };
-}
-
-function buildQuery(cardId: CardId, includeNumber: boolean): string {
-  const parts: string[] = [];
-  if (cardId.card_name) parts.push(cardId.card_name);
-  if (includeNumber && cardId.card_number) parts.push(cardId.card_number);
-  const variant = (cardId.variant || "").trim();
-  if (variant && !/^(regular|standard|normal)$/i.test(variant)) parts.push(variant);
-  if (cardId.card_set) parts.push(cardId.card_set);
-  return parts.filter(Boolean).join(" ").trim();
 }
 
 function tokensOf(s: string): Set<string> {
@@ -87,50 +118,48 @@ function looseMatch(productName: string, cardName: string): boolean {
   return false;
 }
 
-async function fetchProduct(query: string, apiKey: string): Promise<any | null> {
-  const url = `${BASE_URL}/api/product?t=${encodeURIComponent(apiKey)}&q=${encodeURIComponent(query)}`;
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
-  try {
-    const res = await fetch(url, { signal: ctrl.signal });
-    if (!res.ok) {
-      console.error("[pricecharting] HTTP", res.status, "for query", query);
-      return null;
-    }
-    const data = await res.json();
-    if (data?.status !== "success") {
-      console.warn("[pricecharting] non-success status for query", query, data?.["error-message"]);
-      return null;
-    }
-    return data;
-  } catch (err) {
-    console.error("[pricecharting] fetch error", (err as Error)?.message);
-    return null;
-  } finally {
-    clearTimeout(timer);
-  }
+function buildQuery(cardId: CardId, includeNumber: boolean): string {
+  const parts: string[] = [];
+  if (cardId.card_name) parts.push(cardId.card_name);
+  if (includeNumber && cardId.card_number) parts.push(cardId.card_number);
+  const variant = (cardId.variant || "").trim();
+  if (variant && !/^(regular|standard|normal)$/i.test(variant)) parts.push(variant);
+  if (cardId.card_set) parts.push(cardId.card_set);
+  return parts.filter(Boolean).join(" ").trim();
 }
 
-function extractGradedPrices(p: any): GradedPrices {
+// ---------------------------------------------------------------------------
+// One normalizer for both API JSON rows and catalog DB rows.
+// API uses hyphenated keys ("loose-price"); DB uses snake_case ("loose_price").
+// We check both. PriceCharting field → card-grade mapping (per docs):
+//   loose       → Ungraded (raw, used as marketValue)
+//   cib         → PSA 7 / 7.5
+//   new         → PSA 8 / BGS 8
+//   graded      → PSA 9
+//   manual-only → PSA 10
+//   box-only    → BGS 9.5
+//   bgs-10      → BGS 10
+//   condition-17 → CGC 10
+//   condition-18 → SGC 10
+// ---------------------------------------------------------------------------
+
+function pick(rec: Record<string, unknown>, ...keys: string[]): unknown {
+  for (const k of keys) {
+    if (rec[k] !== undefined && rec[k] !== null && rec[k] !== "") return rec[k];
+  }
+  return undefined;
+}
+
+function extractGraded(rec: Record<string, unknown>): GradedPrices {
   const out: GradedPrices = {};
-  // Card-meaning mapping per PriceCharting docs:
-  // loose-price = Ungraded (raw, used as marketValue)
-  // cib-price            = PSA 7 / 7.5
-  // new-price            = PSA 8 / BGS 8
-  // graded-price         = PSA 9
-  // manual-only-price    = PSA 10
-  // box-only-price       = BGS 9.5
-  // bgs-10-price         = BGS 10
-  // condition-17-price   = CGC 10
-  // condition-18-price   = SGC 10
-  const psa7 = cents(p["cib-price"]);
-  const psa8 = cents(p["new-price"]);
-  const psa9 = cents(p["graded-price"]);
-  const psa10 = cents(p["manual-only-price"]);
-  const bgs95 = cents(p["box-only-price"]);
-  const bgs10 = cents(p["bgs-10-price"]);
-  const cgc10 = cents(p["condition-17-price"]);
-  const sgc10 = cents(p["condition-18-price"]);
+  const psa7 = cents(pick(rec, "cib-price", "cib_price"));
+  const psa8 = cents(pick(rec, "new-price", "new_price"));
+  const psa9 = cents(pick(rec, "graded-price", "graded_price"));
+  const psa10 = cents(pick(rec, "manual-only-price", "manual_only_price"));
+  const bgs95 = cents(pick(rec, "box-only-price", "box_only_price"));
+  const bgs10 = cents(pick(rec, "bgs-10-price", "bgs_10_price"));
+  const cgc10 = cents(pick(rec, "condition-17-price", "condition_17_price"));
+  const sgc10 = cents(pick(rec, "condition-18-price", "condition_18_price"));
   if (psa7) out.psa7 = psa7;
   if (psa8) out.psa8 = psa8;
   if (psa9) out.psa9 = psa9;
@@ -142,50 +171,175 @@ function extractGradedPrices(p: any): GradedPrices {
   return out;
 }
 
-export async function getPriceChartingData(cardId: CardId): Promise<PriceChartingResult> {
+function normalize(
+  rec: Record<string, unknown>,
+  via: "local" | "api" | "sportscardspro",
+): PriceChartingResult {
+  const productName = String(pick(rec, "product-name", "product_name") ?? "");
+  const consoleName = pick(rec, "console-name", "console_name");
+  const productId = pick(rec, "id");
+  const marketValue = cents(pick(rec, "loose-price", "loose_price"));
+  const graded = extractGraded(rec);
+  return {
+    matched: true,
+    productName,
+    consoleName: consoleName ? String(consoleName) : undefined,
+    productId: productId !== undefined ? String(productId) : undefined,
+    marketValue,
+    gradedPrices: Object.keys(graded).length ? graded : undefined,
+    recentSales: [], // API does not expose historical sales
+    source: "pricecharting",
+    fetchedAt: new Date().toISOString(),
+    via,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Local lookup
+// ---------------------------------------------------------------------------
+
+function getSupabase(): SupabaseClient | null {
   try {
+    const url = Deno.env.get("SUPABASE_URL");
+    const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (!url || !key) return null;
+    return createClient(url, key);
+  } catch {
+    return null;
+  }
+}
+
+async function lookupLocal(
+  cardId: CardId,
+  supabase: SupabaseClient,
+): Promise<PriceChartingResult | null> {
+  if (!cardId.card_name) return null;
+
+  // Build an OR-ish full-text query against product_name. Postgres `ilike` with
+  // wildcards is the simplest portable match here; the GIN index on
+  // to_tsvector(product_name) can also be used via .textSearch if needed.
+  const name = cardId.card_name.trim();
+  const number = (cardId.card_number || "").trim();
+
+  let query = supabase
+    .from("pricecharting_catalog")
+    .select("*")
+    .ilike("product_name", `%${name}%`)
+    .limit(25);
+
+  if (cardId.category) query = query.eq("category", cardId.category);
+
+  const { data, error } = await query;
+  if (error || !data || data.length === 0) return null;
+
+  // Prefer rows whose product_name also contains the card number (most precise).
+  let best = data[0];
+  if (number) {
+    const withNum = data.find((r: any) =>
+      String(r.product_name || "").toLowerCase().includes(number.toLowerCase()),
+    );
+    if (withNum) best = withNum;
+  }
+
+  if (!looseMatch(String(best.product_name || ""), name)) return null;
+  return normalize(best as Record<string, unknown>, "local");
+}
+
+// ---------------------------------------------------------------------------
+// Live API lookup (shared between pricecharting.com and sportscardspro.com)
+// ---------------------------------------------------------------------------
+
+async function fetchProduct(
+  base: string,
+  query: string,
+  apiKey: string,
+): Promise<Record<string, unknown> | null> {
+  const url = `${base}/api/product?t=${encodeURIComponent(apiKey)}&q=${encodeURIComponent(query)}`;
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
+  try {
+    const res = await fetch(url, { signal: ctrl.signal });
+    if (!res.ok) {
+      console.error("[pricecharting] HTTP", res.status, "for", base, query);
+      return null;
+    }
+    const data = await res.json();
+    if (data?.status !== "success") {
+      console.warn("[pricecharting] non-success", base, query, data?.["error-message"]);
+      return null;
+    }
+    return data as Record<string, unknown>;
+  } catch (err) {
+    console.error("[pricecharting] fetch error", (err as Error)?.message);
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function lookupApi(
+  cardId: CardId,
+  apiKey: string,
+  sports: boolean,
+): Promise<PriceChartingResult | null> {
+  const base = sports ? SCP_BASE : PC_BASE;
+  const via = sports ? "sportscardspro" : "api";
+
+  const specific = buildQuery(cardId, true);
+  let product = specific ? await fetchProduct(base, specific, apiKey) : null;
+
+  if (!product || !looseMatch(String(product["product-name"] ?? ""), cardId.card_name ?? "")) {
+    const broad = buildQuery(cardId, false);
+    if (broad && broad !== specific) {
+      const retry = await fetchProduct(base, broad, apiKey);
+      if (retry && looseMatch(String(retry["product-name"] ?? ""), cardId.card_name ?? "")) {
+        product = retry;
+      } else if (!product) {
+        product = retry;
+      }
+    }
+  }
+
+  if (!product) return null;
+  if (!looseMatch(String(product["product-name"] ?? ""), cardId.card_name ?? "")) return null;
+  return normalize(product, via);
+}
+
+// ---------------------------------------------------------------------------
+// Public entry point
+// ---------------------------------------------------------------------------
+
+export async function getPriceChartingData(
+  cardId: CardId,
+  supabaseClient?: SupabaseClient,
+): Promise<PriceChartingResult> {
+  try {
+    if (!cardId?.card_name) return emptyResult("missing_card_name");
+
     const apiKey = Deno.env.get("PRICECHARTING_API_KEY");
+    const sports = isSports(cardId);
+
+    // 1) Local catalog (skip for sports — not ingested)
+    if (!sports) {
+      const supabase = supabaseClient ?? getSupabase();
+      if (supabase) {
+        const local = await lookupLocal(cardId, supabase).catch((err) => {
+          console.error("[pricecharting] local lookup error", (err as Error)?.message);
+          return null;
+        });
+        if (local) return local;
+      }
+    }
+
+    // 2) API fallback (always for sports)
     if (!apiKey) {
       console.error("[pricecharting] PRICECHARTING_API_KEY not configured");
       return emptyResult("missing_api_key");
     }
-    if (!cardId?.card_name) return emptyResult("missing_card_name");
+    const api = await lookupApi(cardId, apiKey, sports);
+    if (api) return api;
 
-    const specific = buildQuery(cardId, true);
-    let product = specific ? await fetchProduct(specific, apiKey) : null;
-
-    // Validate match; retry once with a looser query (no card number) if weak
-    if (!product || !looseMatch(product["product-name"] || "", cardId.card_name)) {
-      const broad = buildQuery(cardId, false);
-      if (broad && broad !== specific) {
-        const retry = await fetchProduct(broad, apiKey);
-        if (retry && looseMatch(retry["product-name"] || "", cardId.card_name)) {
-          product = retry;
-        } else if (!product) {
-          product = retry; // last resort
-        }
-      }
-    }
-
-    if (!product) return emptyResult("no_match");
-    if (!looseMatch(product["product-name"] || "", cardId.card_name)) {
-      return emptyResult("low_confidence_match");
-    }
-
-    const marketValue = cents(product["loose-price"]);
-    const gradedPrices = extractGradedPrices(product);
-
-    return {
-      matched: true,
-      productName: product["product-name"],
-      consoleName: product["console-name"],
-      productId: product.id ? String(product.id) : undefined,
-      marketValue,
-      gradedPrices: Object.keys(gradedPrices).length ? gradedPrices : undefined,
-      recentSales: [],
-      source: "pricecharting",
-      fetchedAt: new Date().toISOString(),
-    };
+    return emptyResult("no_match");
   } catch (err) {
     console.error("[pricecharting] unexpected error", (err as Error)?.message);
     return emptyResult("unexpected_error");
