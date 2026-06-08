@@ -682,7 +682,7 @@ async function searchMarketPrices(cardId: CardIdentification, category: string |
     return {
       summary,
       hasData: true,
-      extractedMarketData: { sources, blended, gradedComps, rawConfidence, rawConfidenceReason },
+      extractedMarketData: { sources, blended, gradedComps, rawConfidence, rawConfidenceReason, ebaySoldRecencyWindow },
     };
   } catch (err) {
     console.error("Market price search failed:", err);
