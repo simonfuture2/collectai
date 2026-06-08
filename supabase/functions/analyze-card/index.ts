@@ -703,6 +703,13 @@ Respond with ONLY valid JSON (no markdown code fences) with this structure:
     "overallScore": number,
     "predictedGrades": { "psa": number, "bgs": number, "cgc": number, "sgc": number },
     "bgsSubgrades": { "centering": number, "corners": number, "edges": number, "surface": number },
+    "gradeCeiling": {
+      "grade": number,
+      "service": "PSA" | "BGS" | "CGC" | "SGC",
+      "limitingSubscore": "centering" | "corners" | "edges" | "surface",
+      "reason": "string — explain WHY this subscore caps the grade (e.g. 'off-center 60/40 caps this at PSA 9')",
+      "relatedDefectIndexes": [0]
+    },
     "gradingRecommendation": "string"
   },
   "defects": [
