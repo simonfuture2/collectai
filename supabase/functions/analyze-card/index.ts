@@ -748,7 +748,14 @@ GRADER COVERAGE RULES (MANDATORY):
 - TCG cards (Pokémon, Magic, Yu-Gi-Oh, Dragon Ball, One Piece, etc.): populate psa, cgc, bgs, tag. Set sgc to null.
 - Sports cards: populate psa, cgc, bgs, sgc. Set tag to null.
 - Other categories: populate psa, cgc, bgs at minimum; others may be null.
-- Never return only psa. When you lack direct sales for a grader, estimate from the PSA anchor (BGS ~PSA, CGC ~0.85-0.9x PSA, SGC ~0.9x PSA for sports, TAG ~0.8x PSA for TCG) and lower confidence accordingly.`;
+- Never return only psa. When you lack direct sales for a grader, estimate from the PSA anchor (BGS ~PSA, CGC ~0.85-0.9x PSA, SGC ~0.9x PSA for sports, TAG ~0.8x PSA for TCG) and lower confidence accordingly.
+
+GRADE-CEILING RULE (MANDATORY):
+- You MUST populate preGradingAnalysis.gradeCeiling for every card.
+- Pick the LOWEST of centering / corners / edges / surface — that subscore IS the limiting subscore.
+- The gradeCeiling.grade must reflect that subscore (e.g. centering 7 → caps at PSA 9; corners 6 → caps at PSA 8).
+- gradeCeiling.reason MUST cite the concrete observation (e.g. "off-center 60/40 front", "soft top-right corner", "diagonal scratch through holo") AND reference the defect indexes in 'defects' that drive it via relatedDefectIndexes.
+- If the card is pristine across all four subscores (all ≥9.5), set grade=10 and reason="no limiting flaws detected".`;
 
     const userMessage = images.length > 1
       ? `I'm providing ${images.length} images of this collectible item (${images.map(i => i.label).join(", ")}). Please analyze all views together for a comprehensive identification, condition assessment, and value estimate.`
