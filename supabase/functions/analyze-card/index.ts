@@ -1226,7 +1226,7 @@ GRADE-CEILING RULE (MANDATORY):
         ebay_recent_sales: analysis.ebayRecentSales || null,
         tcgplayer_price: analysis.tcgplayerPrice || null,
         psa_population_data: analysis.psaPopulation || null,
-        ai_analysis: { ...analysis, hasBackImage: images.some((i) => /back/i.test(i.label)) },
+        ai_analysis: analysis,
         last_scanned_at: new Date().toISOString(),
       })
       .select("id")
