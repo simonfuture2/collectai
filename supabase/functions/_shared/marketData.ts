@@ -144,6 +144,8 @@ export async function getMarketData(
 
   // ===== 1) PriceCharting (independent) =====
   let pcSummary = "";
+  let pcGraded: GradedPrices | undefined;
+  let pcProduct: string | undefined;
   try {
     const pcCardId: CardId = { ...cardId, category };
     const pc = await getPriceChartingData(pcCardId);
@@ -157,6 +159,8 @@ export async function getMarketData(
         prices: [pc.marketValue],
       });
       cross.priceChartingValue = pc.marketValue;
+      pcGraded = pc.gradedPrices;
+      pcProduct = pc.productName;
       pcSummary =
         `\n### PriceCharting (${pc.via || "api"}): ${pc.productName || ""}\n` +
         `- Ungraded (loose): $${pc.marketValue.toFixed(2)}\n` +
@@ -172,6 +176,7 @@ export async function getMarketData(
   } catch (err) {
     console.error("[marketData] PriceCharting error:", (err as Error)?.message);
   }
+
 
   // ===== 2/3/4) Firecrawl eBay + TCGPlayer comps =====
   const FIRECRAWL_API_KEY = Deno.env.get("FIRECRAWL_API_KEY");
