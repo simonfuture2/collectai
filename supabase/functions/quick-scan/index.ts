@@ -281,74 +281,19 @@ serve(async (req) => {
     const mimeType = mimeMatch ? mimeMatch[1] : "image/jpeg";
     const cleanBase64 = imageBase64.replace(/^data:image\/\w+;base64,/, "");
 
-    // ===== STEP 1: Detailed identification with Claude Sonnet =====
-    console.log("Quick scan Step 1: Identifying card with Claude Sonnet...");
-    const idResponse = await fetchWithRetry("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "claude-opus-4-5",
-        max_tokens: 1024,
-        system: `You are a trading card identification expert. Look at this card image VERY carefully. Read ALL text on the card including:
-- The card name (character/player name)
-- The card NUMBER (e.g., "105/086", "PSA 10", etc.) - look at bottom of card
-- The set/series name and any set symbols
-- The year of release
-- The variant type (Illustration Rare, Full Art, Alt Art, Holo, Reverse Holo, Regular, etc.)
-- The rarity symbol and level
-
-Be EXTREMELY specific. Do NOT return generic names. Include the card number and variant type.
-
-Respond with ONLY a JSON object with these exact fields:
-{
-  "card_name": "Full character/player name on the card",
-  "card_number": "Card number as printed (e.g., '105/086', '25/198'). Empty string if not visible.",
-  "card_set": "Full set/series name (e.g., 'Scarlet & Violet: Black Bolt', NOT abbreviated)",
-  "card_year": "Year of release",
-  "variant": "Variant/parallel type: 'Illustration Rare', 'Full Art', 'Alt Art', 'Holo', 'Reverse Holo', 'Regular', 'Secret Rare', 'Gold', etc.",
-  "rarity": "Rarity level: Common, Uncommon, Rare, Ultra Rare, Secret Rare, etc."
-}`,
-        messages: [
-          {
-            role: "user",
-            content: [
-              {
-                type: "image",
-                source: {
-                  type: "base64",
-                  media_type: mimeType,
-                  data: cleanBase64,
-                },
-              },
-              {
-                type: "text",
-                text: "Identify this trading card with maximum specificity. Read the card number, variant type, and all visible text. Return ONLY JSON.",
-              },
-            ],
-          },
-        ],
-      }),
-    });
-
+    // ===== STEP 1: Identification with Gemini (direct API) =====
+    console.log(`Quick scan Step 1: Identifying card with ${IDENTIFY_MODEL}...`);
+    const idStart = Date.now();
     let cardId: CardIdentification | null = null;
-    if (idResponse.ok) {
-      const idData = await idResponse.json();
-      const idText = idData.content?.[0]?.text || "";
-      try {
-        const jsonMatch = idText.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          cardId = JSON.parse(jsonMatch[0]);
-          console.log("Card identified (detailed):", JSON.stringify(cardId));
-        }
-      } catch (parseErr) {
-        console.error("Failed to parse identification JSON:", parseErr);
-      }
-    } else {
-      console.error("Step 1 failed:", idResponse.status, await idResponse.text());
+    try {
+      const dataUrl = `data:${mimeType};base64,${cleanBase64}`;
+      cardId = await identifyWithGemini(dataUrl, IDENTIFY_MODEL);
+      console.log(
+        `Quick scan Step 1 done in ${Date.now() - idStart}ms (model=${IDENTIFY_MODEL}):`,
+        cardId ? JSON.stringify(cardId) : "null",
+      );
+    } catch (err) {
+      console.error(`Step 1 (${IDENTIFY_MODEL}) failed:`, err);
     }
 
     // ===== STEP 2: Search eBay + TCGPlayer with specific details =====
