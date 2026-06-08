@@ -1,60 +1,68 @@
-## Why mycollectai.com goes blank
+# Identification Bake-Off Harness
 
-Your DevTools errors confirm the cause:
+Admin-only tool to compare card-identification accuracy across three models on cards you've already scanned, with manual ground-truth entry and per-field accuracy scoring.
 
-- `index-BkTw_Akm.css` served as `text/plain` and `index-CjxIsh9g.js` → 404 mean your browser is loading an **old `index.html` from cache** that references asset filenames the new deploy no longer has.
-- `manifest.webmanifest` 404 + `favicon.png` 404 say the cached HTML is from a deploy where those paths existed differently.
-- Lovable serves `index.html` with `no-cache` headers, so the HTTP cache isn't doing this on its own — a **leftover service worker** from the old PWA is intercepting requests and returning the stale shell.
+## ⚠️ Two decisions to confirm before building
 
-The kill-switch worker in `public/sw.js` is meant to fix this, but it navigates clients **before** unregistering, so the rescued navigation can still go through the dying SW and re-serve stale HTML. Plus, if the first `/src/...` request fails, `src/main.tsx` never runs and the in-app recovery never fires.
+1. **Gemini API path.** You asked for "direct API, GEMINI_API_KEY". The rest of the project routes all Gemini through the Lovable AI Gateway (no per-provider key, already-funded, no extra secret). The bake-off works identically either way. I'll default to **Lovable AI Gateway** (no new secret, uses existing `LOVABLE_API_KEY`) unless you say otherwise — if you want the direct Google API you'll need to add a `GEMINI_API_KEY` secret.
+2. **Model IDs.** `gemini-3.5-flash` exists in the gateway catalog. `gemini-3.1-pro` does not — the closest match is `google/gemini-3.1-pro-preview`. I'll use that for the "Pro" column. (If using the direct Google API, exact model strings would differ again.)
 
-## Fix — three small changes
+## What gets built
 
-### 1. `public/sw.js` — unregister before navigating
+### 1. New table: `bakeoff_truth`
+Stores your manually-entered ground truth per card.
 
-Reorder the `activate` handler:
+Fields: `card_id` (PK, FK → cards), `card_name`, `card_number`, `card_set`, `card_year`, `variant`, `rarity`, `notes`, plus timestamps.
 
-```text
-1. delete only this registration's Workbox caches  (unchanged)
-2. await self.registration.unregister()            ← BEFORE navigate
-3. clients.claim()
-4. clients.matchAll() → client.navigate(client.url)
-```
+Access: admin-only (RLS using existing `has_role` / `is_admin` pattern). Grants for `authenticated` + `service_role`.
 
-This guarantees the post-cleanup navigation is uncontrolled by the SW and always hits the network for a fresh `index.html` + fresh hashed asset URLs.
+### 2. New edge function: `id-bakeoff` (`verify_jwt = false`, validates in code)
 
-### 2. `index.html` — inline pre-boot guard
+Endpoints (single function, action-dispatched like `admin-data`):
 
-Add a small inline `<script>` at the top of `<body>`, **before** the `main.tsx` module tag. No imports, ~25 lines. It runs even when hashed chunks 404:
+- `action: "run"` — body `{ cardIds?: string[], limit?: number }`. Admin check → loads cards (filtered list, or all of admin's cards up to `limit`). For each card:
+  - Reads the stored `ai_analysis` identification fields → "Claude (current)" column (no new API call, no latency).
+  - Signs a short-lived URL for the card image from `card-images` bucket.
+  - Calls Gemini 3.5 Flash with the **exact identifyCard system prompt from `analyze-card`** (copied verbatim), measures latency.
+  - Calls Gemini 3.1 Pro the same way, measures latency.
+  - Parses JSON, returns `{ cardId, image_url, claude, gemini_flash: {result, latency_ms}, gemini_pro: {result, latency_ms}, truth }`.
+  - **No credit deduction** anywhere in this path.
+- `action: "save_truth"` — body `{ cardId, truth: {...} }`. Admin-only upsert into `bakeoff_truth`.
+- `action: "list_results"` — optional, returns cached last-run results if we choose to persist them (see "Persistence" below).
 
-- Best-effort unregister any `/sw.js` / `/service-worker.js` registrations (leave Firebase Messaging / OneSignal workers alone).
-- Listen for `error` events bubbling from `<script type="module">` / `<link rel="stylesheet">` that fail to load. On the first such failure: `caches.delete(...)` all caches, unregister SWs, then `location.replace(url + '?_r=' + Date.now())` exactly once (guarded by `sessionStorage` so it can't loop).
+Errors per row are caught and returned in-band so one bad card doesn't kill the batch. Gemini calls run in parallel per card; cards run sequentially (or small concurrency) to avoid rate limits.
 
-This catches the exact scenario your DevTools shows: cached HTML pointing at 404'd assets, where `main.tsx` never gets a chance to run its existing chunk-recovery logic.
+### 3. New page: `/admin/id-bakeoff`
 
-### 3. `index.html` — clean up dead PWA tags
+- Gated by `useAdmin()` (same hook `/admin` uses); non-admins get redirected.
+- Linked from the existing Admin page.
+- Controls: "Run on N most recent cards" input + "Run on selected card IDs" textarea + Run button. Loading state with progress.
+- Results table, one row per card:
+  - Thumbnail + card_id
+  - Three model columns, each showing `card_name`, `card_number`, `variant` (other fields in a hover/expand)
+  - Latency badge per Gemini column
+  - Inline-editable "Verified truth" cells (`card_name`, `card_number`, `variant`, etc.) with Save button → `save_truth`
+  - Per-cell ✅/❌ highlighting once truth is entered (exact-match, case-insensitive, trimmed)
+- Summary bar above the table, computed client-side from rows that have truth:
+  - Per model: overall % match, `card_number` %, `variant` %, avg latency (Gemini only)
+  - Total cards scored / total in run
 
-- Remove `<link rel="manifest" href="/manifest.webmanifest">` (project no longer ships a real PWA; just generates 404s).
-- Remove `<link rel="apple-touch-icon" href="/pwa-192x192.png">` (icon file isn't shipped either).
-- Replace deprecated `<meta name="apple-mobile-web-app-capable">` with `<meta name="mobile-web-app-capable">` (keep the Apple one too for older iOS).
-- Fix the `<link rel="icon" href="/favicon.png">` → point to a file that actually exists (`/favicon.ico`, or whichever icon is in `public/`). I'll verify which exists before editing.
-
-## Out of scope
-
-- No new dependencies, no `vite-plugin-pwa`, no Vite config changes.
-- No edits to `main.tsx`'s existing chunk-reload recovery — it stays as the second line of defence for chunk failures **after** boot.
-- No backend / edge-function / Supabase changes — purely a hosting/cache problem.
-
-## Verification
-
-1. Republish after the change.
-2. In a normal browser that's currently broken: one visit should auto-recover (you may see a half-second flash as the guard reloads), then load cleanly. No more hard-refresh needed.
-3. DevTools → Application → Service Workers on `mycollectai.com` shows **no** registered worker after the recovery visit.
-4. Console is clean — no manifest/favicon 404s, no MIME-type CSS error.
+### Persistence decision
+Run results are returned in the response and held in page state only (not persisted). Truth entries persist in `bakeoff_truth`. If you later want historical runs saved, that's a small follow-up table — out of scope for v1.
 
 ## Files touched
 
-- `public/sw.js` — reorder `activate`.
-- `index.html` — add inline guard, remove dead PWA tags, fix icon, swap deprecated meta.
+**New**
+- `supabase/migrations/<ts>_bakeoff_truth.sql` — table + grants + RLS
+- `supabase/functions/id-bakeoff/index.ts` — the function
+- `src/pages/admin/IdBakeoff.tsx` — the page
+- Route added in `src/App.tsx` (`/admin/id-bakeoff`, lazy-loaded)
+- Small link added on `src/pages/Admin.tsx`
 
-Approve to implement.
+**No changes** to `analyze-card`, credits, RLS for `cards`, or any non-admin code path.
+
+## Out of scope
+- Pricing model comparison (identification only, per your prompt)
+- Auto-grading bake-off
+- Bulk import of truth from CSV
+- Persisting historical run snapshots
