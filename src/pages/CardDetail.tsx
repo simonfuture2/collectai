@@ -249,6 +249,7 @@ interface AIAnalysis {
   extractedMarketData?: ExtractedMarketData;
   confidenceBand?: "high" | "medium" | "low";
   confidenceExplanation?: string;
+  hasBackImage?: boolean;
   priceTrend?: {
     status?: "ok" | "insufficient_history" | string;
     direction?: "up" | "down" | "flat";
