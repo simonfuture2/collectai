@@ -87,6 +87,7 @@ interface CardIdentification {
   card_year: string;
   variant: string;
   rarity: string;
+  variant_confidence?: "high" | "medium" | "low";
 }
 
 // Build specific search queries from card identification
