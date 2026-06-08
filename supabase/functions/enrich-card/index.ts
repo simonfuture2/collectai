@@ -434,20 +434,24 @@ async function searchMarketPrices(cardId: CardIdentification, category: string |
   }
 
   try {
-    let [soldResults, activeResults, tcgResults] = await Promise.all([
-      searchSold(`"${specific}" sold site:ebay.com`, 6),
+    let soldLadder = await searchSoldLadder(`"${specific}" sold site:ebay.com`, 6);
+    let soldResults = soldLadder.results;
+    let ebaySoldRecencyWindow: RecencyWindow = soldLadder.window;
+    let [activeResults, tcgResults] = await Promise.all([
       doSearch(`"${specific}" site:ebay.com`, 4, "ebay.com"),
       isSportsCard ? Promise.resolve([]) : doSearch(`"${specific}" price site:tcgplayer.com`, 3, "tcgplayer.com"),
     ]);
     const totalSpecific = soldResults.length + activeResults.length + tcgResults.length;
     if (!fastScan && totalSpecific < 3 && specific !== broad) {
-      const [soldBroad, activeBroad, tcgBroad] = await Promise.all([
-        searchSold(`${broad} sold site:ebay.com`, 6),
+      const soldBroadLadder = await searchSoldLadder(`${broad} sold site:ebay.com`, 6);
+      const [activeBroad, tcgBroad] = await Promise.all([
         doSearch(`${broad} site:ebay.com`, 4, "ebay.com"),
         isSportsCard ? Promise.resolve([]) : doSearch(`${broad} price site:tcgplayer.com`, 3, "tcgplayer.com"),
       ]);
-      if (soldBroad.length + activeBroad.length + tcgBroad.length > totalSpecific) {
-        soldResults = soldBroad; activeResults = activeBroad; tcgResults = tcgBroad;
+      if (soldBroadLadder.results.length + activeBroad.length + tcgBroad.length > totalSpecific) {
+        soldResults = soldBroadLadder.results;
+        ebaySoldRecencyWindow = soldBroadLadder.window;
+        activeResults = activeBroad; tcgResults = tcgBroad;
       }
     }
 
