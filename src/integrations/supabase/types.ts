@@ -969,6 +969,24 @@ export type Database = {
         }
         Relationships: []
       }
+      processed_stripe_events: {
+        Row: {
+          event_id: string
+          event_type: string | null
+          processed_at: string
+        }
+        Insert: {
+          event_id: string
+          event_type?: string | null
+          processed_at?: string
+        }
+        Update: {
+          event_id?: string
+          event_type?: string | null
+          processed_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -1204,6 +1222,10 @@ export type Database = {
       }
     }
     Functions: {
+      add_credits: {
+        Args: { _amount: number; _user_id: string }
+        Returns: number
+      }
       consume_demo_scan: {
         Args: { _ip_hash: string; _max_per_day?: number }
         Returns: {
