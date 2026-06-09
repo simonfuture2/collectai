@@ -802,6 +802,19 @@ export default function CardDetail() {
               </div>
             )}
 
+            {/* Soft warning (fallback analysis) — shown when engine had to use a low-confidence fallback */}
+            {analysis && (analysis as any).softWarning && !(analysis as any).noMarketData && (
+              <div className="flex items-start gap-3 p-4 rounded-xl bg-amber-500/10 border border-amber-500/30">
+                <svg className="w-5 h-5 text-amber-500 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>
+                <div>
+                  <p className="text-sm font-semibold text-amber-600 dark:text-amber-400">Best-effort estimate</p>
+                  <p className="text-xs text-muted-foreground mt-1">{(analysis as any).softWarning}</p>
+                </div>
+              </div>
+            )}
+
             {analysis?.rawConfidence === "low" && !(analysis as any).noMarketData && (
               <div className="flex items-start gap-3 p-4 rounded-xl bg-amber-500/10 border border-amber-500/30">
                 <svg className="w-5 h-5 text-amber-500 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
