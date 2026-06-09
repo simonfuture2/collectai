@@ -265,6 +265,106 @@ Deno.serve(async (req) => {
       });
     }
 
+    // ─── LIST ADMINS ───
+    if (action === "list_admins") {
+      const { data: roles, error: rolesErr } = await adminClient
+        .from("user_roles")
+        .select("user_id, role, created_at")
+        .eq("role", "admin");
+      if (rolesErr) throw rolesErr;
+
+      const authUsersRes = await adminClient.auth.admin.listUsers({ perPage: 1000 });
+      const emailMap: Record<string, string> = {};
+      for (const u of authUsersRes.data?.users || []) {
+        if (u.id && u.email) emailMap[u.id] = u.email;
+      }
+
+      const admins = (roles || []).map((r: any) => ({
+        user_id: r.user_id,
+        email: emailMap[r.user_id] || null,
+        granted_at: r.created_at,
+        is_self: r.user_id === userId,
+      }));
+
+      return new Response(JSON.stringify({ admins }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ─── GRANT ADMIN (by email) ───
+    if (action === "grant_admin") {
+      const { email } = body;
+      if (!email || typeof email !== "string") {
+        return new Response(JSON.stringify({ error: "email required" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const normalized = email.trim().toLowerCase();
+
+      const authUsersRes = await adminClient.auth.admin.listUsers({ perPage: 1000 });
+      const found = (authUsersRes.data?.users || []).find(
+        (u: any) => (u.email || "").toLowerCase() === normalized
+      );
+      if (!found) {
+        return new Response(JSON.stringify({ error: "No user found with that email" }), {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const { data: existing } = await adminClient
+        .from("user_roles")
+        .select("id")
+        .eq("user_id", found.id)
+        .eq("role", "admin")
+        .maybeSingle();
+
+      if (existing) {
+        return new Response(JSON.stringify({ success: true, alreadyAdmin: true }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const { error: insErr } = await adminClient
+        .from("user_roles")
+        .insert({ user_id: found.id, role: "admin" });
+      if (insErr) throw insErr;
+
+      return new Response(JSON.stringify({ success: true, user_id: found.id, email: found.email }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ─── REVOKE ADMIN ───
+    if (action === "revoke_admin") {
+      const { targetUserId } = body;
+      if (!targetUserId) {
+        return new Response(JSON.stringify({ error: "targetUserId required" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (targetUserId === userId) {
+        return new Response(JSON.stringify({ error: "You cannot revoke your own admin access" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const { error: delErr } = await adminClient
+        .from("user_roles")
+        .delete()
+        .eq("user_id", targetUserId)
+        .eq("role", "admin");
+      if (delErr) throw delErr;
+
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+
     return new Response(JSON.stringify({ error: "Unknown action" }), {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
