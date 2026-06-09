@@ -5,8 +5,8 @@ const Refund = () => {
   return (
     <LegalPageLayout title="Refund Policy" lastUpdated="February 25, 2026">
       <SEO
-        title="Refund Policy – CollectAI"
-        description="CollectAI's refund policy for Pro subscriptions, credit packs, and AuthentiSeal certificates — what's eligible and how to request a refund."
+        title="Refund Policy – MyCollectAI"
+        description="MyCollectAI's refund policy for Pro subscriptions, credit packs, and AuthentiSeal certificates — what's eligible and how to request a refund."
         path="/refund"
       />
       <section>

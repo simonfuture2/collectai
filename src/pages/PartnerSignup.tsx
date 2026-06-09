@@ -37,15 +37,15 @@ const PartnerSignup = () => {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <SEO
-        title="Partner with CollectAI – Card Shops & Creators"
-        description="Join the CollectAI partner program for card shops, breakers, and creators. Co-marketing, revenue share, and integration support."
+        title="Partner with MyCollectAI – Card Shops & Creators"
+        description="Join the MyCollectAI partner program for card shops, breakers, and creators. Co-marketing, revenue share, and integration support."
         path="/partners"
       />
       <header className="border-b border-border">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <Link to="/" className="flex items-center gap-2">
-            <img src={collectaiLogo} alt="CollectAI" className="w-8 h-8 rounded-lg" />
-            <span className="text-xl font-display font-bold text-gradient-primary">CollectAI</span>
+            <img src={collectaiLogo} alt="MyCollectAI" className="w-8 h-8 rounded-lg" />
+            <span className="text-xl font-display font-bold text-gradient-primary">MyCollectAI</span>
           </Link>
           <ThemeToggle />
         </div>
@@ -71,7 +71,7 @@ const PartnerSignup = () => {
               </div>
               <CardTitle className="text-2xl">Become a Partner</CardTitle>
               <CardDescription>
-                Join the CollectAI partner program and help grow the future of AI-powered collectibles.
+                Join the MyCollectAI partner program and help grow the future of AI-powered collectibles.
               </CardDescription>
             </CardHeader>
             <CardContent>

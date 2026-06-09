@@ -97,8 +97,8 @@ export default function SharedCard() {
   const avgValue = ((card.estimated_value_low || 0) + (card.estimated_value_high || 0)) / 2;
   const cardLabel = card.card_name || "Trading Card";
   const gradeLabel = card.condition_grade ? `Grade ${card.condition_grade}` : "AI Graded";
-  const seoTitle = `${cardLabel} – ${gradeLabel} | CollectAI`.slice(0, 60);
-  const seoDesc = `${cardLabel}${card.card_set ? ` (${card.card_set}${card.card_year ? ` ${card.card_year}` : ""})` : ""} — ${gradeLabel}. Estimated value $${avgValue.toFixed(2)}. AI-graded certificate from CollectAI.`.slice(0, 160);
+  const seoTitle = `${cardLabel} – ${gradeLabel} | MyCollectAI`.slice(0, 60);
+  const seoDesc = `${cardLabel}${card.card_set ? ` (${card.card_set}${card.card_year ? ` ${card.card_year}` : ""})` : ""} — ${gradeLabel}. Estimated value $${avgValue.toFixed(2)}. AI-graded certificate from MyCollectAI.`.slice(0, 160);
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "Product",
@@ -129,8 +129,8 @@ export default function SharedCard() {
       <header className="border-b border-border">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
-            <img src={collectaiLogo} alt="CollectAI" className="w-8 h-8 rounded-lg" />
-            <span className="text-xl font-display font-bold text-gradient-primary">CollectAI</span>
+            <img src={collectaiLogo} alt="MyCollectAI" className="w-8 h-8 rounded-lg" />
+            <span className="text-xl font-display font-bold text-gradient-primary">MyCollectAI</span>
           </Link>
           <Link to="/auth">
             <Button size="sm" className="gradient-primary">

@@ -27,7 +27,7 @@ export default function PublicCollection() {
   const [notFound, setNotFound] = useState(false);
 
   useEffect(() => {
-    document.title = "CollectAI – Public Collection";
+    document.title = "MyCollectAI – Public Collection";
   }, []);
 
   useEffect(() => {
@@ -111,16 +111,16 @@ export default function PublicCollection() {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <SEO
-        title={`${profile?.display_name ?? "Collector"}'s Public Collection | CollectAI`}
-        description={`Browse ${profile?.display_name ?? "this collector"}'s public card collection on CollectAI — grades, sets, and estimated values.`}
+        title={`${profile?.display_name ?? "Collector"}'s Public Collection | MyCollectAI`}
+        description={`Browse ${profile?.display_name ?? "this collector"}'s public card collection on MyCollectAI — grades, sets, and estimated values.`}
         path={`/u/${slug ?? ""}`}
         ogType="website"
       />
       <header className="border-b border-border">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
-            <img src={collectaiLogo} alt="CollectAI" className="w-8 h-8 rounded-lg" />
-            <span className="text-xl font-display font-bold text-gradient-primary">CollectAI</span>
+            <img src={collectaiLogo} alt="MyCollectAI" className="w-8 h-8 rounded-lg" />
+            <span className="text-xl font-display font-bold text-gradient-primary">MyCollectAI</span>
           </Link>
           <Link to="/auth">
             <Button size="sm" className="gradient-primary">

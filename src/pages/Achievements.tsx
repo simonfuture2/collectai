@@ -209,7 +209,7 @@ const Achievements = () => {
   return (
     <div className="min-h-screen bg-background">
       <SEO
-        title="Achievements & Badges | CollectAI"
+        title="Achievements & Badges | MyCollectAI"
         description="Unlock badges as you scan, grade, and grow your collection. Track streaks and milestones."
         path="/achievements"
         noIndex
@@ -219,11 +219,11 @@ const Achievements = () => {
           <Link to="/" className="flex items-center gap-2">
             <img
               src={collectaiLogo}
-              alt="CollectAI Logo"
+              alt="MyCollectAI Logo"
               className="w-10 h-10 rounded-lg"
             />
             <span className="text-2xl font-display font-bold text-gradient-primary">
-              CollectAI
+              MyCollectAI
             </span>
           </Link>
           <div className="flex items-center gap-4">

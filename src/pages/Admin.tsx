@@ -180,7 +180,7 @@ const Admin = () => {
               <ArrowLeft className="w-5 h-5" />
             </Button>
             <Link to="/" className="flex items-center gap-2">
-              <img src={collectaiLogo} alt="CollectAI Logo" className="w-8 h-8 rounded-lg" />
+              <img src={collectaiLogo} alt="MyCollectAI Logo" className="w-8 h-8 rounded-lg" />
               <span className="text-xl font-display font-bold text-gradient-primary">Admin</span>
             </Link>
           </div>

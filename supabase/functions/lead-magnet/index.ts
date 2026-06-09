@@ -30,7 +30,7 @@ const cheatSheetHTML = `
 <!-- Header -->
 <tr><td style="background:linear-gradient(135deg,#7c3aed,#a855f7);padding:32px 40px;text-align:center;">
 <h1 style="color:#ffffff;font-size:26px;margin:0 0 4px;">The Collector's Card Grading Cheat Sheet</h1>
-<p style="color:#e9d5ff;font-size:14px;margin:0;">by CollectAI — Your AI Card Grading Companion</p>
+<p style="color:#e9d5ff;font-size:14px;margin:0;">by MyCollectAI — Your AI Card Grading Companion</p>
 </td></tr>
 
 <!-- Grade Scale -->
@@ -66,7 +66,7 @@ const cheatSheetHTML = `
 <li>Place card on a dark, non-reflective surface</li>
 <li>Shoot straight-on for centering; angled for surface defects</li>
 <li>Photograph all 4 corners close-up</li>
-<li>Use CollectAI's scanner for instant AI-powered grading</li>
+<li>Use MyCollectAI's scanner for instant AI-powered grading</li>
 </ul>
 </td></tr>
 
@@ -89,7 +89,7 @@ const cheatSheetHTML = `
 
 <!-- Footer -->
 <tr><td style="background:#f9fafb;padding:20px 40px;text-align:center;border-top:1px solid #e5e7eb;">
-<p style="font-size:11px;color:#9ca3af;margin:0;">© CollectAI — AI-Powered Card Grading & Value Scanner</p>
+<p style="font-size:11px;color:#9ca3af;margin:0;">© MyCollectAI — AI-Powered Card Grading & Value Scanner</p>
 </td></tr>
 
 </table>
@@ -218,7 +218,7 @@ Deno.serve(async (req) => {
         },
         body: JSON.stringify({
           personalizations: [{ to: [{ email }] }],
-          from: { email: fromEmail, name: "CollectAI" },
+          from: { email: fromEmail, name: "MyCollectAI" },
           subject: "Your Card Grading Cheat Sheet 📊",
           content: [{ type: "text/html", value: cheatSheetHTML }],
         }),

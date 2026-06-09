@@ -89,7 +89,7 @@ export default function Marketplace() {
   return (
     <div className="min-h-screen bg-background">
       <SEO
-        title="Card Marketplace – Buy & Sell with USDC/USDT | CollectAI"
+        title="Card Marketplace – Buy & Sell with USDC/USDT | MyCollectAI"
         description="Browse trading cards listed by collectors. Pay with USDC or USDT on Ethereum or Solana with on-chain escrow and verified shipping."
         path="/marketplace"
       />

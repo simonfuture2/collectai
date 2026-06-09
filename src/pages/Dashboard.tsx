@@ -119,15 +119,15 @@ const Dashboard = () => {
   return (
     <div className="min-h-screen bg-background">
       <SEO
-        title="Your Collection Dashboard – CollectAI"
+        title="Your Collection Dashboard – MyCollectAI"
         description="Manage your graded card collection, track total value, view recent scans, and access AuthentiSeal certificates."
         path="/dashboard"
       />
       <header className="border-b border-border">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <Link to="/" className="flex items-center gap-2">
-            <img src={collectaiLogo} alt="CollectAI Logo" className="w-10 h-10 rounded-lg" />
-            <span className="text-2xl font-display font-bold text-gradient-primary">CollectAI</span>
+            <img src={collectaiLogo} alt="MyCollectAI Logo" className="w-10 h-10 rounded-lg" />
+            <span className="text-2xl font-display font-bold text-gradient-primary">MyCollectAI</span>
           </Link>
           <div className="flex items-center gap-4">
             <CreditBalance credits={credits} isPro={isPro} loading={creditsLoading} />

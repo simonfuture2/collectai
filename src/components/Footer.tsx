@@ -8,8 +8,8 @@ const Footer = () => {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-8">
           <div>
             <div className="flex items-center gap-2 mb-3">
-              <img src={collectaiLogo} alt="CollectAI Logo" className="w-8 h-8 rounded-lg" />
-              <h3 className="font-display font-bold text-gradient-primary text-lg">CollectAI</h3>
+              <img src={collectaiLogo} alt="MyCollectAI Logo" className="w-8 h-8 rounded-lg" />
+              <h3 className="font-display font-bold text-gradient-primary text-lg">MyCollectAI</h3>
             </div>
             <p className="text-sm text-muted-foreground">
               AI-powered card identification, grading, and valuation.
@@ -48,7 +48,7 @@ const Footer = () => {
 
         <div className="border-t border-border pt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
           <p className="text-xs text-muted-foreground">
-            © {new Date().getFullYear()} CollectAI. All rights reserved.
+            © {new Date().getFullYear()} MyCollectAI. All rights reserved.
           </p>
           <p className="text-xs text-muted-foreground text-center">
             AI valuations are estimates and should not be treated as professional appraisals or financial advice.

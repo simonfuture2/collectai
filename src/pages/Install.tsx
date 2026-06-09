@@ -45,8 +45,8 @@ const Install = () => {
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <SEO
-        title="Install CollectAI on Your Phone"
-        description="Install the CollectAI app for one-tap scanning, offline access, and push notifications on iOS and Android."
+        title="Install MyCollectAI on Your Phone"
+        description="Install the MyCollectAI app for one-tap scanning, offline access, and push notifications on iOS and Android."
         path="/install"
       />
       <Card className="max-w-md w-full border-border/50">
@@ -54,7 +54,7 @@ const Install = () => {
           <div className="mx-auto mb-4 h-20 w-20 rounded-2xl bg-primary/10 flex items-center justify-center">
             <Smartphone className="h-10 w-10 text-primary" />
           </div>
-          <CardTitle className="text-2xl font-display">Install CollectAI</CardTitle>
+          <CardTitle className="text-2xl font-display">Install MyCollectAI</CardTitle>
           <CardDescription>
             Get the full app experience on your device
           </CardDescription>
@@ -63,7 +63,7 @@ const Install = () => {
           {isInstalled ? (
             <div className="text-center space-y-3">
               <CheckCircle2 className="h-12 w-12 text-green-500 mx-auto" />
-              <p className="text-muted-foreground">CollectAI is already installed on your device!</p>
+              <p className="text-muted-foreground">MyCollectAI is already installed on your device!</p>
             </div>
           ) : isIOS ? (
             <div className="space-y-4">
@@ -111,7 +111,7 @@ const Install = () => {
           <Link to="/">
             <Button variant="ghost" className="w-full mt-2">
               <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to CollectAI
+              Back to MyCollectAI
             </Button>
           </Link>
         </CardContent>

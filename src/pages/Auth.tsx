@@ -89,8 +89,8 @@ const Auth = () => {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <SEO
-        title="Sign In or Create an Account – CollectAI"
-        description="Sign in to CollectAI or create a free account to scan, grade, and value your trading card collection with AI."
+        title="Sign In or Create an Account – MyCollectAI"
+        description="Sign in to MyCollectAI or create a free account to scan, grade, and value your trading card collection with AI."
         path="/auth"
       />
       <div className="absolute top-4 right-4 z-10">
@@ -102,15 +102,15 @@ const Auth = () => {
           <div className="flex justify-center mb-6">
             <img
               src={comboGraphic}
-              alt="CollectAI card grading with AuthentiSeal"
+              alt="MyCollectAI card grading with AuthentiSeal"
               className="w-48 h-auto opacity-80"
               loading="lazy"
             />
           </div>
           <div className="text-center mb-8">
             <Link to="/" className="inline-flex items-center gap-2 mb-4">
-              <img src={collectaiLogo} alt="CollectAI Logo" className="w-10 h-10 rounded-lg" />
-              <h1 className="text-3xl font-display font-bold text-gradient-primary">CollectAI – Sign In to Your Account</h1>
+              <img src={collectaiLogo} alt="MyCollectAI Logo" className="w-10 h-10 rounded-lg" />
+              <h1 className="text-3xl font-display font-bold text-gradient-primary">MyCollectAI – Sign In to Your Account</h1>
             </Link>
             <p className="text-muted-foreground">
               {resetMode ? "Reset your password" : isLogin ? "Welcome back, collector!" : "Start your collection journey"}

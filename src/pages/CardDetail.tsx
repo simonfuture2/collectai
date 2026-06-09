@@ -647,8 +647,8 @@ export default function CardDetail() {
   return (
     <div className="min-h-screen bg-background">
       <SEO
-        title={`${card.card_name ?? "Card"} – Grade & Value | CollectAI`}
-        description={`${card.card_name ?? "This card"}${card.condition_grade ? ` graded ${card.condition_grade}` : ""}. View AI analysis, estimated market value, and grading breakdown on CollectAI.`}
+        title={`${card.card_name ?? "Card"} – Grade & Value | MyCollectAI`}
+        description={`${card.card_name ?? "This card"}${card.condition_grade ? ` graded ${card.condition_grade}` : ""}. View AI analysis, estimated market value, and grading breakdown on MyCollectAI.`}
         path={`/card/${card.id}`}
         ogType="product"
         noIndex

@@ -407,7 +407,7 @@ const Collection = () => {
   return (
     <div className="min-h-screen bg-background">
       <SEO
-        title="My Collection – Cards, Grades & Values | CollectAI"
+        title="My Collection – Cards, Grades & Values | MyCollectAI"
         description="Browse your scanned cards, organize folders, and track total estimated value across your collection."
         path="/collection"
         noIndex

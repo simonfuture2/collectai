@@ -58,7 +58,7 @@ serve(async (req) => {
 
     if (type === "logo") {
       prompt =
-        "Create a modern app logo for 'CollectAI', a trading card scanning and grading app. The logo should feature a stylized playing card or trading card icon with an AI sparkle/scan effect. Use a vibrant purple-to-blue gradient color scheme. Clean, flat design style suitable for an app icon. The logo should feel premium and tech-forward. Square format, no text, just the icon mark. White or transparent background.";
+        "Create a modern app logo for 'MyCollectAI', a trading card scanning and grading app. The logo should feature a stylized playing card or trading card icon with an AI sparkle/scan effect. Use a vibrant purple-to-blue gradient color scheme. Clean, flat design style suitable for an app icon. The logo should feel premium and tech-forward. Square format, no text, just the icon mark. White or transparent background.";
       fileName = "collectai-logo.png";
     } else if (type === "hero") {
       prompt =

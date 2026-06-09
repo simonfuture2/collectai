@@ -289,7 +289,7 @@ serve(async (req) => {
       );
     }
 
-    console.log("CollectAI Price API called for:", cardName || "image-based lookup");
+    console.log("MyCollectAI Price API called for:", cardName || "image-based lookup");
 
     let marketResult = { summary: "", extractedMarketData: { sources: [], blended: null } as ExtractedMarketData };
     if (cardName) {
@@ -436,7 +436,7 @@ If the estimate is wrong based on the data, correct it. Return ONLY JSON:
     return new Response(
       JSON.stringify({
         success: true,
-        source: "CollectAI",
+        source: "MyCollectAI",
         data: pricing,
         extractedMarketData: emd,
         noData: !hasUsableMarket,

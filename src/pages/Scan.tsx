@@ -268,7 +268,7 @@ const Scan = () => {
   return (
     <div className="min-h-screen bg-background">
       <SEO
-        title="Scan a Card – AI Grading & Value | CollectAI"
+        title="Scan a Card – AI Grading & Value | MyCollectAI"
         description="Upload card photos to get instant AI identification, condition grading, and live market value estimates."
         path="/scan"
         noIndex
