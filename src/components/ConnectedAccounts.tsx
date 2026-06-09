@@ -75,7 +75,7 @@ const ConnectedAccounts = () => {
         </div>
 
         <p className="text-xs text-muted-foreground leading-relaxed">
-          Your CollectAI account is linked to AuthentiSeal for seamless certificate creation. 
+          Your MyCollectAI account is linked to AuthentiSeal for seamless certificate creation.
           When you create a certificate from a card detail page, your data is securely transferred via a signed token.
         </p>
       </CardContent>

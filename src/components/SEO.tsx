@@ -1,8 +1,7 @@
 import { Helmet } from "react-helmet-async";
 
 const SITE_URL = "https://mycollectai.com";
-const DEFAULT_OG_IMAGE =
-  "https://storage.googleapis.com/gpt-engineer-file-uploads/JZx857dg1wZk7DNNlgZf62ZfnzR2/social-images/social-1772043147642-collectai_logo-removebg-preview.webp";
+const DEFAULT_OG_IMAGE = "https://mycollectai.com/og-image.png";
 
 interface SEOProps {
   title: string;

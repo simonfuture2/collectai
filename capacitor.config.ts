@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'com.collectai.app',
-  appName: 'CollectAI',
+  appName: 'MyCollectAI',
   webDir: 'dist',
   android: {
     buildOptions: {
@@ -15,7 +15,7 @@ const config: CapacitorConfig = {
       launchShowDuration: 2000,
       launchAutoHide: true,
       launchFadeOutDuration: 500,
-      backgroundColor: '#0a0a0a',
+      backgroundColor: '#ffffff',
       androidScaleType: 'CENTER_CROP',
       showSpinner: false,
       splashFullScreen: true,
