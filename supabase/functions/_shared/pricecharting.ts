@@ -209,41 +209,126 @@ function getSupabase(): SupabaseClient | null {
   }
 }
 
+// Common Japanese ↔ English Pokémon set-name aliases. AI identification often
+// returns a hybrid label like "Team Rocket (Rocket Gang)" while PriceCharting
+// console-names use "Pokemon Japanese Rocket Gang". Either side matching wins.
+const SET_ALIASES: Array<[RegExp, string[]]> = [
+  [/\b(team\s*rocket|rocket\s*gang)\b/i, ["team rocket", "rocket gang"]],
+  [/\bneo\s*genesis\b/i, ["neo genesis", "neo 1"]],
+  [/\bneo\s*discovery\b/i, ["neo discovery", "neo 2"]],
+  [/\bneo\s*revelation\b/i, ["neo revelation", "neo 3"]],
+  [/\bneo\s*destiny\b/i, ["neo destiny", "neo 4"]],
+  [/\bbase\s*set\s*2\b/i, ["base set 2"]],
+  [/\bbase\s*set\b/i, ["base set", "base"]],
+  [/\bjungle\b/i, ["jungle"]],
+  [/\bfossil\b/i, ["fossil"]],
+  [/\bvs\b/i, ["vs"]],
+  [/\bweb\b/i, ["web"]],
+  [/\bgym\s*heroes?\b/i, ["gym heroes", "gym 1"]],
+  [/\bgym\s*challenge\b/i, ["gym challenge", "gym 2"]],
+  [/\blegendary\s*collection\b/i, ["legendary collection"]],
+  [/\be[\-\s]?reader\b/i, ["e-reader", "expedition", "aquapolis", "skyridge"]],
+];
+
+function setAliasTokens(rawSet: string): string[] {
+  const tokens = new Set<string>();
+  const s = (rawSet || "").toLowerCase();
+  for (const [re, aliases] of SET_ALIASES) {
+    if (re.test(s)) for (const a of aliases) tokens.add(a);
+  }
+  // Also include raw alphanumeric tokens from the supplied set label.
+  for (const t of s.replace(/[^a-z0-9\s]/g, " ").split(/\s+/)) {
+    if (t.length >= 3) tokens.add(t);
+  }
+  return [...tokens];
+}
+
+// Normalize a card number to a canonical "9" form. Strips "#", leading zeros,
+// and "/total" suffixes ("9/82" → "9", "009" → "9", "#9" → "9").
+function normalizeCardNumber(n: string): string {
+  if (!n) return "";
+  const cleaned = n.replace(/^#/, "").split("/")[0].trim();
+  const m = cleaned.match(/(\d+)/);
+  if (!m) return cleaned.toLowerCase();
+  return String(parseInt(m[1], 10));
+}
+
+function productNumber(productName: string): string {
+  const m = String(productName || "").match(/#\s*([A-Za-z0-9]+)/);
+  return m ? normalizeCardNumber(m[1]) : "";
+}
+
 async function lookupLocal(
   cardId: CardId,
   supabase: SupabaseClient,
 ): Promise<PriceChartingResult | null> {
   if (!cardId.card_name) return null;
 
-  // Build an OR-ish full-text query against product_name. Postgres `ilike` with
-  // wildcards is the simplest portable match here; the GIN index on
-  // to_tsvector(product_name) can also be used via .textSearch if needed.
   const name = cardId.card_name.trim();
-  const number = (cardId.card_number || "").trim();
+  const number = normalizeCardNumber(cardId.card_number || "");
+  const setTokens = setAliasTokens(cardId.card_set || "");
+  const variant = (cardId.variant || "").toLowerCase().trim();
+  const wantsFirstEdition = /1st\s*ed|first\s*edition/i.test(variant) ||
+    /1st\s*ed|first\s*edition/i.test(cardId.card_set || "");
 
-  let query = supabase
+  // No hard category filter — category is only a soft ranking signal below.
+  // This lets identifications like "Team Rocket (Rocket Gang)" match catalog
+  // rows under `Pokemon Japanese Rocket Gang` even if upstream tagged the
+  // category inconsistently.
+  const { data, error } = await supabase
     .from("pricecharting_catalog")
     .select("*")
     .ilike("product_name", `%${name}%`)
-    .limit(25);
+    .limit(50);
 
-  if (cardId.category) query = query.eq("category", cardId.category);
-
-  const { data, error } = await query;
   if (error || !data || data.length === 0) return null;
 
-  // Prefer rows whose product_name also contains the card number (most precise).
-  let best = data[0];
-  if (number) {
-    const withNum = data.find((r: any) =>
-      String(r.product_name || "").toLowerCase().includes(number.toLowerCase()),
-    );
-    if (withNum) best = withNum;
-  }
+  type Row = Record<string, any>;
+  const scored = (data as Row[])
+    .map((r) => {
+      const pname = String(r.product_name || "");
+      const cname = String(r.console_name || "").toLowerCase();
+      let score = 0;
+      const reasons: string[] = [];
 
-  if (!looseMatch(String(best.product_name || ""), name)) return null;
-  return normalize(best as Record<string, unknown>, "local");
+      // (1) Card-number match is the strongest signal.
+      const pnum = productNumber(pname);
+      if (number && pnum && pnum === number) { score += 50; reasons.push(`#${number}`); }
+      else if (number && pnum && pnum !== number) { score -= 20; }
+      else if (!number && !pnum) { score += 5; }
+
+      // (2) Set-name token overlap against console_name (with aliases).
+      let setHits = 0;
+      for (const t of setTokens) if (cname.includes(t)) setHits++;
+      if (setHits > 0) { score += Math.min(40, setHits * 15); reasons.push(`set:${setHits}`); }
+
+      // (3) Soft category signal.
+      if (cardId.category && r.category === cardId.category) { score += 8; }
+
+      // (4) 1st Edition disambiguation.
+      const isFirstEd = /1st\s*edition/i.test(pname);
+      if (wantsFirstEdition && isFirstEd) score += 10;
+      else if (!wantsFirstEdition && isFirstEd) score -= 8;
+
+      // (5) Loose name token overlap.
+      if (looseMatch(pname, name)) score += 5;
+
+      return { row: r, score, reasons };
+    })
+    .filter((x) => x.score > 0)
+    .sort((a, b) => b.score - a.score);
+
+  if (scored.length === 0) return null;
+
+  const best = scored[0];
+  console.log(
+    `[pricecharting/local] best="${best.row.product_name}" (${best.row.console_name}) score=${best.score} reasons=${best.reasons.join(",")} of ${scored.length} candidates`,
+  );
+
+  if (!looseMatch(String(best.row.product_name || ""), name)) return null;
+  return normalize(best.row as Record<string, unknown>, "local");
 }
+
 
 // ---------------------------------------------------------------------------
 // Live API lookup (shared between pricecharting.com and sportscardspro.com)
