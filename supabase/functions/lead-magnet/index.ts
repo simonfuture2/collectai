@@ -84,7 +84,7 @@ const cheatSheetHTML = `
 <!-- CTA -->
 <tr><td style="padding:32px 40px;text-align:center;">
 <p style="font-size:14px;color:#6b7280;margin:0 0 16px;">Ready to scan and grade your cards with AI?</p>
-<a href="https://collectai.lovable.app" style="display:inline-block;background:linear-gradient(135deg,#7c3aed,#a855f7);color:#ffffff;text-decoration:none;padding:14px 32px;border-radius:8px;font-weight:bold;font-size:15px;">Scan Your Cards Now →</a>
+<a href="https://mycollectai.com" style="display:inline-block;background:linear-gradient(135deg,#7c3aed,#a855f7);color:#ffffff;text-decoration:none;padding:14px 32px;border-radius:8px;font-weight:bold;font-size:15px;">Scan Your Cards Now →</a>
 </td></tr>
 
 <!-- Footer -->

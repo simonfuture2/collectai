@@ -27,7 +27,7 @@ const emailTemplates: Record<number, (name: string) => string> = {
 <li><strong>Edges:</strong> Run your fingertip along each edge. Feel for nicks, chips, or rough cuts.</li>
 </ol>
 
-<p style="font-size:15px;color:#374151;line-height:1.7;">💡 <strong>Pro tip:</strong> CollectAI's scanner uses AI to check all 4 factors in seconds — <a href="https://collectai.lovable.app" style="color:#7c3aed;">try it free</a>.</p>
+<p style="font-size:15px;color:#374151;line-height:1.7;">💡 <strong>Pro tip:</strong> CollectAI's scanner uses AI to check all 4 factors in seconds — <a href="https://mycollectai.com" style="color:#7c3aed;">try it free</a>.</p>
 
 <p style="font-size:13px;color:#9ca3af;margin-top:32px;">More tips coming in your next email!</p>
 </td></tr>
@@ -57,7 +57,7 @@ const emailTemplates: Record<number, (name: string) => string> = {
 <tr><td style="border:1px solid #e5e7eb;">1986 Fleer Michael Jordan PSA 10</td><td style="border:1px solid #e5e7eb;">$738K</td></tr>
 </table>
 
-<p style="font-size:15px;color:#374151;line-height:1.7;">🔑 <strong>The pattern?</strong> Every single card was professionally graded. Grading multiplied these cards' raw values by 5–50x. Know what your cards could be worth — <a href="https://collectai.lovable.app" style="color:#7c3aed;">scan yours now</a>.</p>
+<p style="font-size:15px;color:#374151;line-height:1.7;">🔑 <strong>The pattern?</strong> Every single card was professionally graded. Grading multiplied these cards' raw values by 5–50x. Know what your cards could be worth — <a href="https://mycollectai.com" style="color:#7c3aed;">scan yours now</a>.</p>
 </td></tr>
 <tr><td style="background:#f9fafb;padding:16px 40px;text-align:center;border-top:1px solid #e5e7eb;">
 <p style="font-size:11px;color:#9ca3af;margin:0;">© CollectAI — AI-Powered Card Grading & Value Scanner</p>
@@ -91,7 +91,7 @@ const emailTemplates: Record<number, (name: string) => string> = {
 <li>Masaki promo set (trade-only release)</li>
 </ul>
 
-<p style="font-size:15px;color:#374151;line-height:1.7;">Have Japanese cards? <a href="https://collectai.lovable.app" style="color:#7c3aed;">Scan them with CollectAI</a> to get instant grade estimates and value ranges.</p>
+<p style="font-size:15px;color:#374151;line-height:1.7;">Have Japanese cards? <a href="https://mycollectai.com" style="color:#7c3aed;">Scan them with CollectAI</a> to get instant grade estimates and value ranges.</p>
 </td></tr>
 <tr><td style="background:#f9fafb;padding:16px 40px;text-align:center;border-top:1px solid #e5e7eb;">
 <p style="font-size:11px;color:#9ca3af;margin:0;">© CollectAI — AI-Powered Card Grading & Value Scanner</p>
@@ -119,7 +119,7 @@ const emailTemplates: Record<number, (name: string) => string> = {
 <h3 style="color:#7c3aed;font-size:16px;margin:20px 0 8px;">🏈 Tom Brady — 2000 Playoff Contenders Auto</h3>
 <p style="font-size:14px;color:#374151;line-height:1.7;">BGS 9.5: <strong>$3.1M</strong> (2021 sale). Only 100 made. The GOAT card for modern sports collecting.</p>
 
-<p style="font-size:15px;color:#374151;line-height:1.7;margin-top:24px;">💡 The takeaway: <strong>condition is everything</strong>. A half-grade difference can mean tens of thousands of dollars. <a href="https://collectai.lovable.app" style="color:#7c3aed;">Check your cards' condition with AI</a>.</p>
+<p style="font-size:15px;color:#374151;line-height:1.7;margin-top:24px;">💡 The takeaway: <strong>condition is everything</strong>. A half-grade difference can mean tens of thousands of dollars. <a href="https://mycollectai.com" style="color:#7c3aed;">Check your cards' condition with AI</a>.</p>
 </td></tr>
 <tr><td style="background:#f9fafb;padding:16px 40px;text-align:center;border-top:1px solid #e5e7eb;">
 <p style="font-size:11px;color:#9ca3af;margin:0;">© CollectAI — AI-Powered Card Grading & Value Scanner</p>
@@ -148,7 +148,7 @@ const emailTemplates: Record<number, (name: string) => string> = {
 <p style="font-size:14px;color:#374151;line-height:1.7;">Touching the surface with bare fingers, using old penny sleeves that scratch, stacking without toploaders — these silently destroy card value every day.</p>
 
 <h3 style="color:#16a34a;font-size:16px;margin:20px 0 8px;">✅ The Fix: Pre-Grade Before You Send</h3>
-<p style="font-size:14px;color:#374151;line-height:1.7;">CollectAI's AI scanner analyzes centering, corners, edges, and surface in seconds — so you only submit cards with real PSA 9–10 potential. <a href="https://collectai.lovable.app" style="color:#7c3aed;">Try it now →</a></p>
+<p style="font-size:14px;color:#374151;line-height:1.7;">CollectAI's AI scanner analyzes centering, corners, edges, and surface in seconds — so you only submit cards with real PSA 9–10 potential. <a href="https://mycollectai.com" style="color:#7c3aed;">Try it now →</a></p>
 </td></tr>
 <tr><td style="background:#f9fafb;padding:16px 40px;text-align:center;border-top:1px solid #e5e7eb;">
 <p style="font-size:11px;color:#9ca3af;margin:0;">© CollectAI — AI-Powered Card Grading & Value Scanner</p>
@@ -182,7 +182,7 @@ const emailTemplates: Record<number, (name: string) => string> = {
 <li>Use CollectAI to pre-grade and identify submission-worthy cards</li>
 </ol>
 
-<p style="font-size:15px;color:#374151;line-height:1.7;margin-top:16px;"><a href="https://collectai.lovable.app" style="color:#7c3aed;">Scan your collection</a> — you might be sitting on a low-pop goldmine.</p>
+<p style="font-size:15px;color:#374151;line-height:1.7;margin-top:16px;"><a href="https://mycollectai.com" style="color:#7c3aed;">Scan your collection</a> — you might be sitting on a low-pop goldmine.</p>
 </td></tr>
 <tr><td style="background:#f9fafb;padding:16px 40px;text-align:center;border-top:1px solid #e5e7eb;">
 <p style="font-size:11px;color:#9ca3af;margin:0;">© CollectAI — AI-Powered Card Grading & Value Scanner</p>
@@ -216,7 +216,7 @@ const emailTemplates: Record<number, (name: string) => string> = {
 <li><strong>Specialty collectors insurance:</strong> Companies like Collectibles Insurance Services specialize in this</li>
 </ul>
 
-<p style="font-size:15px;color:#374151;line-height:1.7;margin-top:16px;">💡 <strong>Pro tip:</strong> Use <a href="https://collectai.lovable.app" style="color:#7c3aed;">CollectAI's collection manager</a> to keep a digital inventory with AI-verified grades and real-time valuations — perfect for insurance documentation.</p>
+<p style="font-size:15px;color:#374151;line-height:1.7;margin-top:16px;">💡 <strong>Pro tip:</strong> Use <a href="https://mycollectai.com" style="color:#7c3aed;">CollectAI's collection manager</a> to keep a digital inventory with AI-verified grades and real-time valuations — perfect for insurance documentation.</p>
 </td></tr>
 <tr><td style="background:#f9fafb;padding:16px 40px;text-align:center;border-top:1px solid #e5e7eb;">
 <p style="font-size:11px;color:#9ca3af;margin:0;">© CollectAI — AI-Powered Card Grading & Value Scanner</p>
@@ -250,7 +250,7 @@ const emailTemplates: Record<number, (name: string) => string> = {
 </ul>
 
 <h3 style="color:#7c3aed;font-size:16px;margin:20px 0 8px;">💡 Smart Move</h3>
-<p style="font-size:14px;color:#374151;line-height:1.7;">Grade and list your hot cards while demand is high. Know exactly what you have — <a href="https://collectai.lovable.app" style="color:#7c3aed;">scan your collection with CollectAI</a>.</p>
+<p style="font-size:14px;color:#374151;line-height:1.7;">Grade and list your hot cards while demand is high. Know exactly what you have — <a href="https://mycollectai.com" style="color:#7c3aed;">scan your collection with CollectAI</a>.</p>
 </td></tr>
 <tr><td style="background:#f9fafb;padding:16px 40px;text-align:center;border-top:1px solid #e5e7eb;">
 <p style="font-size:11px;color:#9ca3af;margin:0;">© CollectAI — AI-Powered Card Grading & Value Scanner</p>
@@ -288,7 +288,7 @@ const emailTemplates: Record<number, (name: string) => string> = {
 </ul>
 
 <div style="text-align:center;margin:32px 0;">
-<a href="https://collectai.lovable.app/pricing" style="display:inline-block;background:linear-gradient(135deg,#7c3aed,#a855f7);color:#ffffff;text-decoration:none;padding:16px 40px;border-radius:8px;font-weight:bold;font-size:16px;">Upgrade to Pro →</a>
+<a href="https://mycollectai.com/pricing" style="display:inline-block;background:linear-gradient(135deg,#7c3aed,#a855f7);color:#ffffff;text-decoration:none;padding:16px 40px;border-radius:8px;font-weight:bold;font-size:16px;">Upgrade to Pro →</a>
 </div>
 
 <p style="font-size:13px;color:#9ca3af;text-align:center;">Thanks for being part of the CollectAI community. Happy collecting! 🎉</p>
