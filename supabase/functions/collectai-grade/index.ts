@@ -39,7 +39,7 @@ serve(async (req) => {
       );
     }
 
-    console.log("CollectAI Grade API called with image URL (Claude)");
+    console.log("MyCollectAI Grade API called with image URL (Claude)");
 
     const systemPrompt = `You are an expert trading card grader. Analyze the card image and provide a detailed grading assessment.
 
@@ -117,7 +117,7 @@ Respond in JSON format:
     }
 
     return new Response(
-      JSON.stringify({ success: true, source: "CollectAI", data: analysis }),
+      JSON.stringify({ success: true, source: "MyCollectAI", data: analysis }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {

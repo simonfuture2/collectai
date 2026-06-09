@@ -1,8 +1,8 @@
-# CollectAI
+# MyCollectAI
 
 > AI-powered trading card identification, condition grading, and real-time market valuation for Pokémon, Magic, Yu-Gi-Oh!, sports cards, coins, and comics.
 
-CollectAI lets collectors snap a photo of any card and instantly receive identification, AI-graded condition, defect maps, and live market pricing aggregated from eBay and TCGPlayer. Collections can be organized into folders, shared publicly, and listed on a multi-chain (Ethereum + Solana) marketplace with USDC/USDT payments.
+MyCollectAI lets collectors snap a photo of any card and instantly receive identification, AI-graded condition, defect maps, and live market pricing aggregated from eBay and TCGPlayer. Collections can be organized into folders, shared publicly, and listed on a multi-chain (Ethereum + Solana) marketplace with USDC/USDT payments.
 
 ## Pages
 
@@ -14,7 +14,7 @@ CollectAI lets collectors snap a photo of any card and instantly receive identif
 - [Collection](/collection): Organize and manage your card collection.
 - [Marketplace](/marketplace): Browse cards listed by collectors with on-chain escrow.
 - [FAQ](/faq): Common questions about accuracy, payments, and grading.
-- [About](/about): Mission and team behind CollectAI.
+- [About](/about): Mission and team behind MyCollectAI.
 - [Partners](/partners): Card shop and grading partner program.
 - [Free Guide](/free-guide): Beginner's guide to card grading and valuation.
 

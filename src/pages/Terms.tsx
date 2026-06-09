@@ -5,21 +5,21 @@ const Terms = () => {
   return (
     <LegalPageLayout title="Terms of Service" lastUpdated="February 25, 2026">
       <SEO
-        title="Terms of Service – CollectAI"
-        description="The terms governing your use of CollectAI's AI card grading service, account responsibilities, AI disclaimers, and payments."
+        title="Terms of Service – MyCollectAI"
+        description="The terms governing your use of MyCollectAI's AI card grading service, account responsibilities, AI disclaimers, and payments."
         path="/terms"
       />
       <section>
         <h2 className="text-xl font-display font-bold">1. Acceptance of Terms</h2>
         <p className="text-muted-foreground">
-          By accessing or using CollectAI ("the Service"), you agree to be bound by these Terms of Service. If you do not agree to these terms, please do not use the Service.
+          By accessing or using MyCollectAI ("the Service"), you agree to be bound by these Terms of Service. If you do not agree to these terms, please do not use the Service.
         </p>
       </section>
 
       <section>
         <h2 className="text-xl font-display font-bold">2. Description of Service</h2>
         <p className="text-muted-foreground">
-          CollectAI provides AI-powered trading card identification, condition grading, and market valuation tools. Our Service uses artificial intelligence to analyze images of collectible cards and provide estimated information including card identity, condition assessment, and market value ranges.
+          MyCollectAI provides AI-powered trading card identification, condition grading, and market valuation tools. Our Service uses artificial intelligence to analyze images of collectible cards and provide estimated information including card identity, condition assessment, and market value ranges.
         </p>
       </section>
 
@@ -33,14 +33,14 @@ const Terms = () => {
       <section>
         <h2 className="text-xl font-display font-bold">4. AI Disclaimer &amp; Limitation of AI Services</h2>
         <p className="text-muted-foreground">
-          All card identifications, condition grades, and valuations provided by CollectAI are AI-generated estimates only. <strong>AI grading and valuation features are currently in beta and continuously improving. Results should be considered estimates only.</strong> They are <strong>not</strong> professional appraisals, certified grades, or guaranteed market values.
+          All card identifications, condition grades, and valuations provided by MyCollectAI are AI-generated estimates only. <strong>AI grading and valuation features are currently in beta and continuously improving. Results should be considered estimates only.</strong> They are <strong>not</strong> professional appraisals, certified grades, or guaranteed market values.
         </p>
         <p className="text-muted-foreground mt-2">
           <strong>You acknowledge and agree that:</strong>
         </p>
         <ul className="list-disc pl-5 text-muted-foreground space-y-1 mt-1">
           <li>AI valuations are rough estimates and may differ significantly from actual market prices. They should never be relied upon as the sole basis for buying, selling, or insuring collectible cards.</li>
-          <li>CollectAI is <strong>not liable</strong> for any financial losses, missed opportunities, or damages arising from decisions made based on AI-generated grades, values, or identifications.</li>
+          <li>MyCollectAI is <strong>not liable</strong> for any financial losses, missed opportunities, or damages arising from decisions made based on AI-generated grades, values, or identifications.</li>
           <li>For high-value cards or transactions exceeding $100, you should seek professional grading from certified services such as PSA, BGS, CGC, or SGC, and verify market values through independent sources.</li>
           <li>Market values fluctuate constantly. An estimate provided today may be significantly different from actual sale prices at any given time.</li>
           <li>AI identification may occasionally misidentify cards, especially variants, parallels, or cards with similar artwork. Always verify identification before making financial decisions.</li>
@@ -50,11 +50,11 @@ const Terms = () => {
       <section>
         <h2 className="text-xl font-display font-bold">5. Blockchain and Digital Certificates</h2>
         <p className="text-muted-foreground">
-          CollectAI's AuthentiSeal feature uses blockchain technology (Solana) to create Non-Fungible Tokens (NFTs) / Digital Assets for authentication purposes. AuthentiSeal certificates provide a verifiable, tamper-proof record of your card's AI analysis results. Please be aware:
+          MyCollectAI's AuthentiSeal feature uses blockchain technology (Solana) to create Non-Fungible Tokens (NFTs) / Digital Assets for authentication purposes. AuthentiSeal certificates provide a verifiable, tamper-proof record of your card's AI analysis results. Please be aware:
         </p>
         <ul className="list-disc pl-5 text-muted-foreground space-y-1">
           <li>Certificates are public and immutable once created on the blockchain.</li>
-          <li>CollectAI is not a cryptocurrency exchange and does not facilitate trading of digital assets.</li>
+          <li>MyCollectAI is not a cryptocurrency exchange and does not facilitate trading of digital assets.</li>
           <li>You are responsible for maintaining access to your own wallet credentials.</li>
           <li>On-chain data cannot be modified or deleted after creation.</li>
         </ul>
@@ -84,14 +84,14 @@ const Terms = () => {
       <section>
         <h2 className="text-xl font-display font-bold">9. Intellectual Property</h2>
         <p className="text-muted-foreground">
-          The Service, including its AI models, algorithms, design, and branding, is the property of CollectAI. You retain ownership of images you upload but grant CollectAI a limited license to process them for the purpose of providing the Service.
+          The Service, including its AI models, algorithms, design, and branding, is the property of MyCollectAI. You retain ownership of images you upload but grant MyCollectAI a limited license to process them for the purpose of providing the Service.
         </p>
       </section>
 
       <section>
         <h2 className="text-xl font-display font-bold">10. Limitation of Liability</h2>
         <p className="text-muted-foreground">
-          CollectAI shall not be liable for any indirect, incidental, special, consequential, or punitive damages arising from your use of the Service. Our total liability shall not exceed the amount paid by you to CollectAI in the 12 months preceding the claim. The Service is provided "as is" without warranties of any kind.
+          MyCollectAI shall not be liable for any indirect, incidental, special, consequential, or punitive damages arising from your use of the Service. Our total liability shall not exceed the amount paid by you to MyCollectAI in the 12 months preceding the claim. The Service is provided "as is" without warranties of any kind.
         </p>
       </section>
 

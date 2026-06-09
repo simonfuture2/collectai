@@ -63,7 +63,7 @@ const Pricing = () => {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <SEO
-        title="Pricing & Plans – CollectAI"
+        title="Pricing & Plans – MyCollectAI"
         description="Free tier with 3 scans, Pro at $14.99/month for unlimited scans, plus credit packs. Choose the plan that fits your collection."
         path="/pricing"
       />

@@ -1,6 +1,6 @@
-# Rebrand: CollectAI → MyCollectAI
+# Rebrand: MyCollectAI → MyCollectAI
 
-A scan found ~150 occurrences of "CollectAI" across ~40 files. I'll split them into **rename** (user-facing copy) and **leave alone** (technical identifiers that would break things).
+A scan found ~150 occurrences of "MyCollectAI" across ~40 files. I'll split them into **rename** (user-facing copy) and **leave alone** (technical identifiers that would break things).
 
 ## What I'll rename (user-visible)
 
@@ -14,7 +14,7 @@ All display strings, headings, body copy, meta tags, alt text, JSON-LD `name`, m
 - Edge function user-facing strings: `drip-campaign`, `lead-magnet`, `generate-assets`
 - `capacitor.config.ts` — `appName` display string (NOT `appId`)
 
-Rule: literal word "CollectAI" preceded by a space, quote, `>`, or start-of-string → "MyCollectAI". Compound brand phrases like "MyCollectAI" (already correct) and "AuthentiSeal" stay untouched.
+Rule: literal word "MyCollectAI" preceded by a space, quote, `>`, or start-of-string → "MyCollectAI". Compound brand phrases like "MyCollectAI" (already correct) and "AuthentiSeal" stay untouched.
 
 ## What I'll leave alone (technical — renaming breaks the app)
 
@@ -30,4 +30,4 @@ After edits I'll re-grep to confirm only the allow-listed technical references r
 
 ## Open question
 
-The published URL `collectai.lovable.app` and the `CollectAI` label inside `EcosystemBadge` currently present CollectAI as a *separate* product in the W3MCT ecosystem (alongside AuthentiSeal). If those references should also be flipped to MyCollectAI (treating them as the same product), tell me and I'll include them — otherwise I'll leave the ecosystem cross-links as-is.
+The published URL `collectai.lovable.app` and the `MyCollectAI` label inside `EcosystemBadge` currently present MyCollectAI as a *separate* product in the W3MCT ecosystem (alongside AuthentiSeal). If those references should also be flipped to MyCollectAI (treating them as the same product), tell me and I'll include them — otherwise I'll leave the ecosystem cross-links as-is.

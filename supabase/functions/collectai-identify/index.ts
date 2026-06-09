@@ -39,7 +39,7 @@ serve(async (req) => {
       );
     }
 
-    console.log("CollectAI Identify API called (Claude)");
+    console.log("MyCollectAI Identify API called (Claude)");
 
     const systemPrompt = `You are an expert trading card identifier. Analyze the card image and identify all details.
 
@@ -115,7 +115,7 @@ Respond in JSON format:
     }
 
     return new Response(
-      JSON.stringify({ success: true, source: "CollectAI", data: identification }),
+      JSON.stringify({ success: true, source: "MyCollectAI", data: identification }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {

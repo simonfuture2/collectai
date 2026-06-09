@@ -10,7 +10,7 @@ const projectId =
   "08d568ba6a3be40fbcfa2e8fce2f34c2";
 
 const metadata = {
-  name: "CollectAI Marketplace",
+  name: "MyCollectAI Marketplace",
   description: "Trade collectibles on Ethereum & Solana",
   url: typeof window !== "undefined" ? window.location.origin : "https://mycollectai.com",
   icons: ["https://mycollectai.com/favicon.ico"],

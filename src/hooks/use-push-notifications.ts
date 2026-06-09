@@ -39,7 +39,7 @@ export function usePushNotifications() {
 
       PushNotifications.addListener("pushNotificationReceived", (notification) => {
         toast({
-          title: notification.title || "CollectAI",
+          title: notification.title || "MyCollectAI",
           description: notification.body || "",
         });
       });

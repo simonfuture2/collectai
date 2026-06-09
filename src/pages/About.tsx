@@ -5,20 +5,20 @@ import SEO from "@/components/SEO";
 
 const About = () => {
   return (
-    <LegalPageLayout title="About CollectAI" lastUpdated="February 25, 2026">
+    <LegalPageLayout title="About MyCollectAI" lastUpdated="February 25, 2026">
       <SEO
-        title="About CollectAI – AI Card Grading Platform"
-        description="Meet the team and mission behind CollectAI: AI-powered identification, condition grading, and pricing for trading cards."
+        title="About MyCollectAI – AI Card Grading Platform"
+        description="Meet the team and mission behind MyCollectAI: AI-powered identification, condition grading, and pricing for trading cards."
         path="/about"
         jsonLd={{
           "@context": "https://schema.org",
           "@type": "AboutPage",
-          name: "About CollectAI",
+          name: "About MyCollectAI",
           description: "AI-powered card grading, identification, and real-time market pricing.",
           url: "https://mycollectai.com/about",
           publisher: {
             "@type": "Organization",
-            name: "CollectAI",
+            name: "MyCollectAI",
             url: "https://mycollectai.com",
             logo: "https://mycollectai.com/favicon.png",
           },
@@ -28,7 +28,7 @@ const About = () => {
       <div className="flex justify-center mb-10">
         <img
           src={comboGraphic}
-          alt="CollectAI card grading with AuthentiSeal certification"
+          alt="MyCollectAI card grading with AuthentiSeal certification"
           className="w-full max-w-md rounded-xl"
           loading="lazy"
         />
@@ -40,25 +40,25 @@ const About = () => {
           Stop guessing the grade. Start sealing the value.
         </p>
         <p className="text-muted-foreground text-base leading-relaxed">
-          CollectAI brings professional-grade artificial intelligence to your pocket. Whether you're a Pokémon master, 
-          a Magic enthusiast, or a high-stakes sports card investor, CollectAI gives you the tools to authenticate and 
+          MyCollectAI brings professional-grade artificial intelligence to your pocket. Whether you're a Pokémon master, 
+          a Magic enthusiast, or a high-stakes sports card investor, MyCollectAI gives you the tools to authenticate and 
           value your collection in seconds.
         </p>
       </div>
 
       {/* Features */}
       <section className="mb-8">
-        <h2 className="text-xl font-display font-bold mb-4">What CollectAI Does</h2>
+        <h2 className="text-xl font-display font-bold mb-4">What MyCollectAI Does</h2>
         <div className="space-y-6">
           <Feature
             icon={Camera}
-            title="CollectAI Scanner"
+            title="MyCollectAI Scanner"
             description="Our advanced AI analyzes centering, edges, corners, and surface quality from your card photos to provide an instant estimated grade. Optimized for Pokémon, Magic: The Gathering, Yu-Gi-Oh!, and major sports cards including basketball, baseball, and football."
           />
           <Feature
             icon={Link2}
             title="AuthentiSeal Integration"
-            description="Powered by the Solana blockchain. Generate a permanent, tamper-proof digital certificate for your physical cards. AuthentiSeal certificates are Non-Fungible Tokens (NFTs) used solely for authentication — CollectAI is not a cryptocurrency exchange."
+            description="Powered by the Solana blockchain. Generate a permanent, tamper-proof digital certificate for your physical cards. AuthentiSeal certificates are Non-Fungible Tokens (NFTs) used solely for authentication — MyCollectAI is not a cryptocurrency exchange."
           />
           <Feature
             icon={BarChart3}
@@ -68,14 +68,14 @@ const About = () => {
           <Feature
             icon={Globe}
             title="W3MCT Ecosystem"
-            description="CollectAI is part of the W3MCT Forge — merging physical collectibles with the future of Web3 technology. Built by collectors, for collectors."
+            description="MyCollectAI is part of the W3MCT Forge — merging physical collectibles with the future of Web3 technology. Built by collectors, for collectors."
           />
         </div>
       </section>
 
       {/* Why section */}
       <section className="mb-8">
-        <h2 className="text-xl font-display font-bold mb-3">Why CollectAI?</h2>
+        <h2 className="text-xl font-display font-bold mb-3">Why MyCollectAI?</h2>
         <p className="text-muted-foreground leading-relaxed">
           Don't wait weeks for mail-in grading. Get an instant analysis of your Charizard, LeBron rookie, or Black Lotus. 
           Perfect for pre-grading cards before sending them to PSA or BGS, or for verifying trades at local card shows. 
@@ -100,7 +100,7 @@ const About = () => {
           <Feature
             icon={AlertTriangle}
             title="Blockchain Disclosure"
-            description="AuthentiSeal certificates are recorded on public blockchain networks (Solana) and are publicly visible and immutable. Only card analysis metadata is stored on-chain — no personal information. CollectAI does not operate as a cryptocurrency exchange or financial service. You are responsible for securing your own wallet credentials."
+            description="AuthentiSeal certificates are recorded on public blockchain networks (Solana) and are publicly visible and immutable. Only card analysis metadata is stored on-chain — no personal information. MyCollectAI does not operate as a cryptocurrency exchange or financial service. You are responsible for securing your own wallet credentials."
           />
         </div>
       </section>

@@ -184,7 +184,7 @@ const PackRip = () => {
   return (
     <div className="min-h-screen bg-background">
       <SEO
-        title="Pack Rip – Log Your Pulls Instantly | CollectAI"
+        title="Pack Rip – Log Your Pulls Instantly | MyCollectAI"
         description="Capture every pack you open. AI identifies each pull, totals the value, and tracks your hit rate."
         path="/pack-rip"
         noIndex

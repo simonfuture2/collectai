@@ -71,7 +71,7 @@ const FreeGuide = () => {
   return (
     <div className="min-h-screen bg-background">
       <SEO
-        title="Free Card Grading Cheat Sheet – CollectAI"
+        title="Free Card Grading Cheat Sheet – MyCollectAI"
         description="Get our free PSA & BGS grading cheat sheet: 10 condition checkpoints, value tiers, and pro photo tips for self-grading."
         path="/free-guide"
         jsonLd={{
@@ -79,10 +79,10 @@ const FreeGuide = () => {
           "@type": "Article",
           headline: "Free Card Grading Cheat Sheet",
           description: "A practical guide to self-grading trading cards: 10 condition checkpoints, value tiers, and pro photo tips before mail-in grading.",
-          author: { "@type": "Organization", name: "CollectAI" },
+          author: { "@type": "Organization", name: "MyCollectAI" },
           publisher: {
             "@type": "Organization",
-            name: "CollectAI",
+            name: "MyCollectAI",
             logo: { "@type": "ImageObject", url: "https://mycollectai.com/favicon.png" },
           },
           mainEntityOfPage: "https://mycollectai.com/free-guide",
@@ -90,8 +90,8 @@ const FreeGuide = () => {
       />
       <header className="container mx-auto px-4 py-6 flex justify-between items-center">
         <Link to="/" className="flex items-center gap-2">
-          <img src={collectaiLogo} alt="CollectAI Logo" className="w-10 h-10 rounded-lg" />
-          <span className="text-2xl font-display font-bold text-gradient-primary">CollectAI</span>
+          <img src={collectaiLogo} alt="MyCollectAI Logo" className="w-10 h-10 rounded-lg" />
+          <span className="text-2xl font-display font-bold text-gradient-primary">MyCollectAI</span>
         </Link>
         <div className="flex items-center gap-4">
           <Link to="/pricing" className="text-sm text-muted-foreground hover:text-foreground transition-colors hidden sm:inline">Pricing</Link>
@@ -157,7 +157,7 @@ const FreeGuide = () => {
                     <Link to="/auth">
                       <Button className="gradient-primary">
                         <Camera className="mr-2 w-4 h-4" />
-                        Try CollectAI Free
+                        Try MyCollectAI Free
                         <ArrowRight className="ml-2 w-4 h-4" />
                       </Button>
                     </Link>
@@ -195,7 +195,7 @@ const FreeGuide = () => {
                       </Button>
                     </form>
                     <p className="text-xs text-muted-foreground mt-4 text-center">
-                      By submitting, you agree to receive this guide and occasional updates from CollectAI.
+                      By submitting, you agree to receive this guide and occasional updates from MyCollectAI.
                     </p>
                   </>
                 )}
@@ -275,12 +275,12 @@ const FreeGuide = () => {
             Ready to Know Your Cards' <span className="text-gradient-primary">True Value</span>?
           </h2>
           <p className="text-muted-foreground mb-8">
-            CollectAI instantly identifies, grades, and prices any trading card with AI.
+            MyCollectAI instantly identifies, grades, and prices any trading card with AI.
           </p>
           <Link to="/auth">
             <Button size="lg" className="gradient-primary text-lg px-10 py-7 rounded-xl glow-purple hover-lift">
               <Camera className="mr-2 w-6 h-6" />
-              Try CollectAI Free
+              Try MyCollectAI Free
             </Button>
           </Link>
         </motion.section>

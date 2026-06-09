@@ -5,8 +5,8 @@ const Privacy = () => {
   return (
     <LegalPageLayout title="Privacy Policy" lastUpdated="February 25, 2026">
       <SEO
-        title="Privacy Policy – CollectAI"
-        description="How CollectAI collects, uses, and protects your data — camera images, account info, payment details, and blockchain interactions."
+        title="Privacy Policy – MyCollectAI"
+        description="How MyCollectAI collects, uses, and protects your data — camera images, account info, payment details, and blockchain interactions."
         path="/privacy"
       />
       <section>
@@ -74,7 +74,7 @@ const Privacy = () => {
         </p>
         <ul className="list-disc pl-5 text-muted-foreground space-y-1">
           <li>On-chain certificate data is publicly visible and permanently recorded.</li>
-          <li>CollectAI does not operate as a cryptocurrency exchange or financial service.</li>
+          <li>MyCollectAI does not operate as a cryptocurrency exchange or financial service.</li>
           <li>We do not store your private wallet keys. You are responsible for securing your own wallet credentials.</li>
           <li>Certificates contain card analysis metadata only — no personal information is recorded on-chain.</li>
         </ul>

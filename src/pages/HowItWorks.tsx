@@ -201,13 +201,13 @@ const HowItWorks = () => {
   return (
     <LegalPageLayout title="How It Works" lastUpdated="June 2025">
       <SEO
-        title="How CollectAI Works – AI Card Grading in 5 Steps"
-        description="From snap to seal in five steps: scan, AI grade, identify, value, and verify your trading cards with CollectAI."
+        title="How MyCollectAI Works – AI Card Grading in 5 Steps"
+        description="From snap to seal in five steps: scan, AI grade, identify, value, and verify your trading cards with MyCollectAI."
         path="/how-it-works"
       />
       <div className="text-center mb-12 -mt-2">
         <h2 className="text-3xl md:text-4xl font-display font-bold text-foreground mb-3">
-          How CollectAI Works
+          How MyCollectAI Works
         </h2>
         <p className="text-muted-foreground max-w-xl mx-auto">
           From snap to seal in five simple steps. Here's how our AI-powered platform helps you

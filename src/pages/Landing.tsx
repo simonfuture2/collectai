@@ -27,21 +27,21 @@ const Landing = () => {
   return (
     <div className="min-h-screen bg-background">
       <SEO
-        title="CollectAI – AI Card Grading & Value Scanner"
+        title="MyCollectAI – AI Card Grading & Value Scanner"
         description="Snap a photo of any trading card and get instant AI identification, condition grading, and real-time market values."
         path="/"
         jsonLd={{
           "@context": "https://schema.org",
           "@type": "WebSite",
-          name: "CollectAI",
+          name: "MyCollectAI",
           url: "https://mycollectai.com/",
         }}
       />
       {/* Header */}
       <header className="container mx-auto px-4 py-6 flex justify-between items-center relative z-10">
         <Link to="/" className="flex items-center gap-2">
-          <img src={collectaiLogo} alt="CollectAI Logo" width={40} height={40} className="w-10 h-10 rounded-lg" />
-          <span className="text-2xl font-display font-bold text-gradient-primary">CollectAI</span>
+          <img src={collectaiLogo} alt="MyCollectAI Logo" width={40} height={40} className="w-10 h-10 rounded-lg" />
+          <span className="text-2xl font-display font-bold text-gradient-primary">MyCollectAI</span>
         </Link>
         <div className="flex items-center gap-2 sm:gap-4">
           <Link to="/how-it-works" className="text-sm text-muted-foreground hover:text-foreground transition-colors hidden sm:inline">How It Works</Link>
@@ -185,7 +185,7 @@ const Landing = () => {
         >
           <h3 className="text-sm font-display font-semibold text-muted-foreground uppercase tracking-wider mb-2">About AI Estimates</h3>
           <p className="text-sm text-muted-foreground">
-            CollectAI uses artificial intelligence to provide estimated card grades and valuations. These are <strong className="text-foreground">not professional appraisals, certified grades, or financial advice</strong>. AI features are continuously improving and currently in beta. For high-value cards, we recommend professional grading services.
+            MyCollectAI uses artificial intelligence to provide estimated card grades and valuations. These are <strong className="text-foreground">not professional appraisals, certified grades, or financial advice</strong>. AI features are continuously improving and currently in beta. For high-value cards, we recommend professional grading services.
           </p>
         </motion.div>
 
