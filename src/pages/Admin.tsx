@@ -22,6 +22,7 @@ import ThemeToggle from "@/components/ThemeToggle";
 import LeadsTab from "@/components/admin/LeadsTab";
 import CampaignsTab from "@/components/admin/CampaignsTab";
 import PushNotificationsTab from "@/components/admin/PushNotificationsTab";
+import AdminsTab from "@/components/admin/AdminsTab";
 import { toast } from "sonner";
 
 interface UserCredit {
@@ -226,6 +227,7 @@ const Admin = () => {
             <TabsTrigger value="leads">Leads</TabsTrigger>
             <TabsTrigger value="campaigns">Campaigns</TabsTrigger>
             <TabsTrigger value="push">Push</TabsTrigger>
+            <TabsTrigger value="admins">Admins</TabsTrigger>
           </TabsList>
 
           {/* Users Tab */}
@@ -418,6 +420,11 @@ const Admin = () => {
           {/* Push Notifications Tab */}
           <TabsContent value="push">
             <PushNotificationsTab />
+          </TabsContent>
+
+          {/* Admins Tab */}
+          <TabsContent value="admins">
+            <AdminsTab />
           </TabsContent>
         </Tabs>
       </main>
