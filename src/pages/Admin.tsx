@@ -421,6 +421,11 @@ const Admin = () => {
           <TabsContent value="push">
             <PushNotificationsTab />
           </TabsContent>
+
+          {/* Admins Tab */}
+          <TabsContent value="admins">
+            <AdminsTab />
+          </TabsContent>
         </Tabs>
       </main>
 
