@@ -53,7 +53,7 @@ const EcosystemBadge = ({ type, variant = "inline", className = "" }: EcosystemB
         className={`group inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 hover:bg-primary/20 transition-all duration-300 ${className}`}
       >
         <Sparkles className="w-3.5 h-3.5 text-primary" />
-        <span className="text-xs font-medium text-primary">Grade with CollectAI</span>
+        <span className="text-xs font-medium text-primary">Grade with MyCollectAI</span>
         <ExternalLink className="w-3 h-3 text-primary/50 group-hover:text-primary transition-colors" />
       </a>
     );

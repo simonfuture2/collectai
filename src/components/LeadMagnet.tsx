@@ -112,7 +112,7 @@ const LeadMagnet = () => {
                   </Button>
                 </form>
                 <p className="text-xs text-muted-foreground mt-3 text-center">
-                  By submitting, you agree to receive this guide and occasional updates from CollectAI.
+                  By submitting, you agree to receive this guide and occasional updates from MyCollectAI.
                 </p>
               </>
             )}
