@@ -450,6 +450,9 @@ GRADE-CEILING RULE (MANDATORY):
     analysis.noMarketData = true;
     analysis.confidenceReason = (analysis.confidenceReason || "") +
       " No real-time market data was found — values are AI estimates only and may be significantly inaccurate.";
+    if (!analysis.softWarning) {
+      analysis.softWarning = "Limited market data — this is a best-effort estimate. Re-scan with a clearer photo of the front and back for a tighter range.";
+    }
 
     const highVal = Number(analysis.estimatedValueHigh) || 0;
     const lowVal = Number(analysis.estimatedValueLow) || 0;
