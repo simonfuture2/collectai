@@ -416,11 +416,11 @@ GRADE-CEILING RULE (MANDATORY):
   } catch (parseError) {
     console.error("Failed to parse AI response as JSON:", parseError);
     analysis = {
-      cardName: "Unable to identify",
-      cardSet: "Unknown",
-      cardYear: "Unknown",
-      edition: "Unknown",
-      rarity: "Unknown",
+      cardName: cardId?.card_name || "Unable to identify",
+      cardSet: cardId?.card_set || "Unknown",
+      cardYear: cardId?.card_year || "Unknown",
+      edition: cardId?.variant || "Unknown",
+      rarity: cardId?.rarity || "Unknown",
       conditionGrade: "Unknown",
       conditionNotes: "Could not analyze the card properly. Please try with a clearer image.",
       specialFeatures: [],
@@ -433,7 +433,8 @@ GRADE-CEILING RULE (MANDATORY):
       valueTrend: "unknown",
       confidence: "low",
       additionalNotes: "The AI was unable to properly analyze this image. Please ensure the card is clearly visible and try again.",
-      dataSource: "Analysis failed",
+      dataSource: "Low-confidence fallback (AI response unparseable)",
+      softWarning: "Limited data — this is a best-effort estimate. Re-scan with a clearer photo of the front and back for a tighter range.",
     };
   }
 
