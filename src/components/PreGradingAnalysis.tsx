@@ -112,10 +112,42 @@ function ScoreBar({ score, label }: { score?: number; label: string }) {
   );
 }
 
+const GRADE_DIMENSIONS = ["centering", "corners", "edges", "surface"] as const;
+type GradeDimension = (typeof GRADE_DIMENSIONS)[number];
+
+function gradeBandLabel(score: number): string {
+  if (score >= 10) return "Gem Mint";
+  if (score >= 9) return "Mint";
+  if (score >= 7) return "Near Mint";
+  if (score >= 5) return "Excellent";
+  if (score >= 3) return "Very Good";
+  return "Poor";
+}
+
+// Mirror of the server-side grading rubric (supabase/functions/collectai-grade):
+// the overall pre-grade band is the LOWEST of the four dimensions — graders
+// punish the worst flaw, not the average — shown as a two-grade range with the
+// limiting dimension named, never a single certain grade.
+function computePreGrade(data: PreGradingData) {
+  const scores: Array<[GradeDimension, number]> = [];
+  for (const d of GRADE_DIMENSIONS) {
+    const s = data[d]?.score;
+    if (typeof s === "number" && Number.isFinite(s)) scores.push([d, s]);
+  }
+  if (scores.length === 0) return null;
+  const min = Math.min(...scores.map(([, v]) => v));
+  const limiting = scores.filter(([, v]) => v === min).map(([d]) => d);
+  const low = min >= 10 ? 9 : min;
+  const high = Math.min(10, min + 1);
+  return { low, high, band: gradeBandLabel(min), limiting, allTied: limiting.length === scores.length };
+}
+
 export default function PreGradingAnalysis({ data }: PreGradingAnalysisProps) {
   if (!data || (!data.centering && !data.corners && !data.edges && !data.surface)) {
     return null;
   }
+
+  const preGrade = computePreGrade(data);
 
   return (
     <div className="bg-card border border-border rounded-2xl p-6 space-y-6">
@@ -133,6 +165,27 @@ export default function PreGradingAnalysis({ data }: PreGradingAnalysisProps) {
           <p className="text-sm text-muted-foreground mb-1">Overall Condition Score</p>
           <p className="text-5xl font-display font-bold text-gradient-primary">{data.overallScore.toFixed(1)}</p>
           <p className="text-sm text-muted-foreground mt-1">out of 10</p>
+        </div>
+      )}
+
+      {/* Grounded pre-grade: lowest dimension caps the band */}
+      {preGrade && (
+        <div className="flex items-start gap-3 p-4 rounded-xl border border-primary/20 bg-primary/5">
+          <Sparkles className="w-5 h-5 text-primary mt-0.5 shrink-0" />
+          <div className="flex-1">
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">Estimated pre-grade</p>
+            <p className="font-display font-bold text-lg leading-tight">
+              {preGrade.band} {preGrade.low}–{preGrade.high}
+            </p>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              {preGrade.allTied
+                ? "Even across all four dimensions."
+                : `Limited by ${preGrade.limiting.join(" & ")} — the grade is capped at the worst flaw.`}
+            </p>
+            <p className="text-[11px] text-muted-foreground italic mt-1">
+              Pre-grade estimate from photos — a range, not a guaranteed grade.
+            </p>
+          </div>
         </div>
       )}
 
