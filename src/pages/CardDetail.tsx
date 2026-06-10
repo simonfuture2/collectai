@@ -532,11 +532,16 @@ export default function CardDetail() {
         const newLow = blended?.low ?? card.estimated_value_low;
         const newHigh = blended?.high ?? card.estimated_value_high;
         const existingAnalysis = (card.ai_analysis as any) || {};
+        const pricingResult = (data?.data as any) || {};
         const updatedAnalysis = {
           ...existingAnalysis,
           estimatedValueLow: newLow,
           estimatedValueHigh: newHigh,
           noMarketData: false,
+          // Carry the freshly-computed (comp-grounded) price confidence so the
+          // UI reflects this scan rather than a stale identification score.
+          ...(pricingResult.confidence ? { confidence: pricingResult.confidence } : {}),
+          ...(pricingResult.confidenceReason ? { confidenceReason: pricingResult.confidenceReason } : {}),
           dataSource: existingAnalysis.dataSource
             ? `${existingAnalysis.dataSource} + re-scan update`
             : "Real eBay + TCGPlayer data (re-scan update)",
