@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">MyCollectAI</string>
+    <string name="title_activity_main">MyCollectAI</string>
+    <string name="package_name">com.collectai.app</string>
+    <string name="custom_url_scheme">com.collectai.app</string>
+</resources>

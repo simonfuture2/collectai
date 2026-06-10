@@ -12,6 +12,7 @@ export function usePushNotifications() {
     if (!Capacitor.isNativePlatform() || registered.current) return;
 
     const setup = async () => {
+      try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user) return;
 
@@ -50,6 +51,10 @@ export function usePushNotifications() {
           window.location.href = data.route;
         }
       });
+      } catch (err) {
+        // Never let push setup crash the app (e.g. Firebase not configured)
+        console.error("Push notification setup failed (non-fatal):", err);
+      }
     };
 
     setup();
