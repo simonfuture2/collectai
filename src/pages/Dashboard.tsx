@@ -227,18 +227,18 @@ const Dashboard = () => {
               </div>
             )}
 
-            <div className="flex flex-wrap gap-4 mb-10">
-              <Link to="/scan">
-                <Button className="gradient-primary glow-purple hover-lift"><Camera className="mr-2 w-5 h-5" />Scan New Card</Button>
+            <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-3 sm:gap-4 mb-10">
+              <Link to="/scan" className="contents sm:block">
+                <Button className="gradient-primary glow-purple hover-lift w-full sm:w-auto"><Camera className="mr-2 w-5 h-5" />Scan</Button>
               </Link>
-              <Link to="/pack-rip">
-                <Button variant="outline" className="hover-lift"><Package className="mr-2 w-5 h-5" />Pack Rip Mode</Button>
+              <Link to="/pack-rip" className="contents sm:block">
+                <Button variant="outline" className="hover-lift w-full sm:w-auto"><Package className="mr-2 w-5 h-5" />Pack Rip</Button>
               </Link>
-              <Link to="/collection">
-                <Button variant="outline">View Full Collection</Button>
+              <Link to="/collection" className="contents sm:block">
+                <Button variant="outline" className="w-full sm:w-auto">Collection</Button>
               </Link>
-              <Link to="/marketplace">
-                <Button variant="outline" className="hover-lift"><Wallet className="mr-2 w-5 h-5" />Marketplace</Button>
+              <Link to="/marketplace" className="contents sm:block">
+                <Button variant="outline" className="hover-lift w-full sm:w-auto"><Wallet className="mr-2 w-5 h-5" />Marketplace</Button>
               </Link>
             </div>
 
