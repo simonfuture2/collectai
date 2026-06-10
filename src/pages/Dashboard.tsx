@@ -145,12 +145,13 @@ const Dashboard = () => {
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8">
-        <div className="flex items-center justify-between mb-8">
-          <h1 className="text-3xl font-display font-bold">Your Collection</h1>
+      <main className="container mx-auto px-3 sm:px-4 py-6 sm:py-8">
+        <div className="flex items-center justify-between gap-2 mb-6 sm:mb-8">
+          <h1 className="text-2xl sm:text-3xl font-display font-bold">Your Collection</h1>
           {cards.length > 0 && (
-            <Button 
-              variant={showAnalytics ? "default" : "outline"} 
+            <Button
+              size="sm"
+              variant={showAnalytics ? "default" : "outline"}
               onClick={() => {
                 if (!isPro && !showAnalytics) {
                   setShowUpgrade(true);
@@ -158,10 +159,11 @@ const Dashboard = () => {
                 }
                 setShowAnalytics(!showAnalytics);
               }}
-              className={showAnalytics ? "gradient-primary" : ""}
+              className={`${showAnalytics ? "gradient-primary" : ""} shrink-0`}
             >
-              <BarChart3 className="mr-2 w-4 h-4" />
-              {showAnalytics ? "Hide Analytics" : "View Analytics"}
+              <BarChart3 className="sm:mr-2 w-4 h-4" />
+              <span className="hidden sm:inline">{showAnalytics ? "Hide Analytics" : "View Analytics"}</span>
+              <span className="sm:hidden ml-1.5">{showAnalytics ? "Hide" : "Analytics"}</span>
               {!isPro && <Crown className="ml-1 w-3 h-3 text-primary" />}
             </Button>
           )}
