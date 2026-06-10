@@ -32,6 +32,70 @@ function median(nums: number[]): number {
   return sorted.length % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
 }
 
+// Coefficient of variation (std dev / mean) — measures how tightly comps cluster.
+function coefficientOfVariation(prices: number[]): number | null {
+  if (prices.length < 2) return null;
+  const mean = prices.reduce((s, p) => s + p, 0) / prices.length;
+  if (mean === 0) return null;
+  const variance = prices.reduce((s, p) => s + (p - mean) ** 2, 0) / prices.length;
+  return Math.sqrt(variance) / mean;
+}
+
+// Deterministic price confidence derived from the REAL comp statistics, rather
+// than the model's self-reported guess. Mirrors the card-valuation skill's
+// confidence-scoring rubric: comp count + price dispersion + recency, where the
+// weakest factor caps the band and we name the single biggest limiting factor.
+function computeConfidence(emd: ExtractedMarketData): { band: "high" | "medium" | "low"; reason: string } {
+  const sold = emd.sources.find((s) => s.source === "ebay_sold");
+  const compCount = sold?.count ?? 0;
+
+  // Dispersion is measured on the most authoritative price set available.
+  const dispersionPrices = sold?.prices?.length
+    ? sold.prices
+    : emd.sources.flatMap((s) => s.prices || []);
+  const cv = coefficientOfVariation(dispersionPrices);
+
+  // No sold comps at all — a value built only on active listings or guide
+  // prices can't be high-confidence, no matter how the model feels about it.
+  if (compCount === 0) {
+    return { band: "low", reason: "No recent sold comps — estimate based on listings/guide prices only." };
+  }
+
+  const rank = { strong: 2, moderate: 1, weak: 0 } as const;
+  type Band = keyof typeof rank;
+
+  const countFactor: Band = compCount >= 8 ? "strong" : compCount >= 3 ? "moderate" : "weak";
+  const dispFactor: Band = cv === null ? "weak" : cv <= 0.15 ? "strong" : cv <= 0.35 ? "moderate" : "weak";
+  // eBay sold comps come from a last-30-day search (tbs=qdr:m), so fresh sold
+  // comps mean recency is strong; we only reach here when compCount > 0.
+  const recencyFactor: Band = "strong";
+
+  const factors: Array<["count" | "dispersion" | "recency", Band]> = [
+    ["count", countFactor],
+    ["dispersion", dispFactor],
+    ["recency", recencyFactor],
+  ];
+
+  const minRank = Math.min(...factors.map(([, f]) => rank[f]));
+  const band = minRank === 2 ? "high" : minRank === 0 ? "low" : "medium";
+  const [limiting] = factors.find(([, f]) => rank[f] === minRank)!;
+
+  let reason: string;
+  if (band === "high") {
+    reason = `${compCount} recent sold comps in tight agreement.`;
+  } else if (limiting === "count") {
+    reason = `Limited by comp count (${compCount} sold comp${compCount === 1 ? "" : "s"} in the last 30 days).`;
+  } else if (limiting === "dispersion") {
+    reason = cv !== null
+      ? `Limited by price spread (sold comps vary ±${Math.round(cv * 100)}% around the median).`
+      : "Limited by price spread (too few comps to gauge agreement).";
+  } else {
+    reason = "Limited by recency of available comps.";
+  }
+
+  return { band, reason };
+}
+
 function extractJsonObject(text: string): any {
   let jsonStr = text.trim()
     .replace(/^```(?:json|JSON)?\s*/i, "")
@@ -432,6 +496,15 @@ If the estimate is wrong based on the data, correct it. Return ONLY JSON:
     const hasUsableMarket =
       (Array.isArray(emd?.sources) && emd.sources.length > 0) ||
       (emd?.blended && (emd.blended.low != null || emd.blended.high != null || emd.blended.median != null));
+
+    // Ground the confidence in the real comp statistics instead of the model's
+    // self-reported guess. Only override when we actually pulled market data;
+    // with no data we keep the model's (deliberately conservative) confidence.
+    if (hasUsableMarket) {
+      const grounded = computeConfidence(emd);
+      pricing.confidence = grounded.band;
+      pricing.confidenceReason = grounded.reason;
+    }
 
     return new Response(
       JSON.stringify({
