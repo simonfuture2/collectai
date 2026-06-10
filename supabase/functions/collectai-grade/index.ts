@@ -6,6 +6,44 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-api-key",
 };
 
+type Dimension = "centering" | "corners" | "edges" | "surface";
+
+function gradeBandLabel(score: number): string {
+  if (score >= 10) return "Gem Mint";
+  if (score >= 9) return "Mint";
+  if (score >= 7) return "Near Mint";
+  if (score >= 5) return "Excellent";
+  if (score >= 3) return "Very Good";
+  return "Poor";
+}
+
+// Deterministic pre-grade per the card-valuation skill's grading rubric: the
+// overall band is the LOWEST of the four dimensions ("graders punish the worst
+// flaw, not the average"), presented as a range (never a single certain grade)
+// with the limiting dimension named. Grounds the headline in the sub-scores so
+// the model can't report an overall grade higher than its own worst dimension.
+function groundedPreGrade(scores: Partial<Record<Dimension, number>>):
+  | { low: number; high: number; band: string; limitingDimensions: Dimension[]; label: string }
+  | null {
+  const dims: Dimension[] = ["centering", "corners", "edges", "surface"];
+  const present = dims
+    .map((d) => [d, scores[d]] as const)
+    .filter(([, v]) => typeof v === "number" && Number.isFinite(v as number)) as Array<[Dimension, number]>;
+  if (present.length === 0) return null;
+
+  const min = Math.min(...present.map(([, v]) => v));
+  const limitingDimensions = present.filter(([, v]) => v === min).map(([d]) => d);
+  // Always a two-grade range to express single-photo uncertainty; cap at 10.
+  const low = min >= 10 ? 9 : min;
+  const high = Math.min(10, min + 1);
+  const band = gradeBandLabel(min);
+  const allTied = limitingDimensions.length === present.length;
+  const label = allTied
+    ? `${band} ${low}–${high} (even across all dimensions)`
+    : `${band} ${low}–${high} (limited by ${limitingDimensions.join(" & ")})`;
+  return { low, high, band, limitingDimensions, label };
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -114,6 +152,23 @@ Respond in JSON format:
         JSON.stringify({ error: "Failed to parse grading analysis" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
+    }
+
+    // Ground the headline grade in the four sub-scores rather than trusting the
+    // model's self-reported overall. The pre-grade band is capped by the worst
+    // dimension and presented as a range with the limiting dimension named.
+    const preGrade = groundedPreGrade({
+      centering: analysis?.centering?.score,
+      corners: analysis?.corners?.score,
+      edges: analysis?.edges?.score,
+      surface: analysis?.surface?.score,
+    });
+    if (preGrade) {
+      analysis.preGrade = preGrade;
+      // Enforce the rubric: the overall score cannot exceed the worst dimension.
+      if (typeof analysis.overallScore === "number" && analysis.overallScore > preGrade.high) {
+        analysis.overallScore = preGrade.high;
+      }
     }
 
     return new Response(
