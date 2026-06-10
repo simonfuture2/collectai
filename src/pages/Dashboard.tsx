@@ -124,33 +124,34 @@ const Dashboard = () => {
         path="/dashboard"
       />
       <header className="border-b border-border">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <Link to="/" className="flex items-center gap-2">
-            <img src={collectaiLogo} alt="MyCollectAI Logo" className="w-10 h-10 rounded-lg" />
-            <span className="text-2xl font-display font-bold text-gradient-primary">MyCollectAI</span>
+        <div className="container mx-auto px-3 sm:px-4 py-3 sm:py-4 flex justify-between items-center gap-2">
+          <Link to="/" className="flex items-center gap-2 min-w-0 shrink-0">
+            <img src={collectaiLogo} alt="MyCollectAI Logo" className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg shrink-0" />
+            <span className="hidden sm:inline text-2xl font-display font-bold text-gradient-primary truncate">MyCollectAI</span>
           </Link>
-          <div className="flex items-center gap-4">
-            <CreditBalance credits={credits} isPro={isPro} loading={creditsLoading} />
+          <div className="flex items-center gap-1.5 sm:gap-4 flex-wrap justify-end">
+            <CreditBalance credits={credits} isPro={isPro} loading={creditsLoading} compact />
             {isAdmin && (
               <Link to="/admin">
-                <Button variant="outline" size="sm" className="gap-1">
-                  <Shield className="w-4 h-4" /> Admin
+                <Button variant="outline" size="sm" className="gap-1 px-2 sm:px-3">
+                  <Shield className="w-4 h-4" /> <span className="hidden sm:inline">Admin</span>
                 </Button>
               </Link>
             )}
-            <span className="text-sm text-muted-foreground hidden sm:block">{user?.email}</span>
+            <span className="text-sm text-muted-foreground hidden md:block">{user?.email}</span>
             <ThemeToggle />
             <Button variant="ghost" size="icon" onClick={handleLogout} aria-label="Log out"><LogOut className="w-5 h-5" /></Button>
           </div>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8">
-        <div className="flex items-center justify-between mb-8">
-          <h1 className="text-3xl font-display font-bold">Your Collection</h1>
+      <main className="container mx-auto px-3 sm:px-4 py-6 sm:py-8">
+        <div className="flex items-center justify-between gap-2 mb-6 sm:mb-8">
+          <h1 className="text-2xl sm:text-3xl font-display font-bold">Your Collection</h1>
           {cards.length > 0 && (
-            <Button 
-              variant={showAnalytics ? "default" : "outline"} 
+            <Button
+              size="sm"
+              variant={showAnalytics ? "default" : "outline"}
               onClick={() => {
                 if (!isPro && !showAnalytics) {
                   setShowUpgrade(true);
@@ -158,10 +159,11 @@ const Dashboard = () => {
                 }
                 setShowAnalytics(!showAnalytics);
               }}
-              className={showAnalytics ? "gradient-primary" : ""}
+              className={`${showAnalytics ? "gradient-primary" : ""} shrink-0`}
             >
-              <BarChart3 className="mr-2 w-4 h-4" />
-              {showAnalytics ? "Hide Analytics" : "View Analytics"}
+              <BarChart3 className="sm:mr-2 w-4 h-4" />
+              <span className="hidden sm:inline">{showAnalytics ? "Hide Analytics" : "View Analytics"}</span>
+              <span className="sm:hidden ml-1.5">{showAnalytics ? "Hide" : "Analytics"}</span>
               {!isPro && <Crown className="ml-1 w-3 h-3 text-primary" />}
             </Button>
           )}
@@ -198,17 +200,17 @@ const Dashboard = () => {
               </div>
             )}
 
-            <div className="grid sm:grid-cols-3 gap-6 mb-10">
+            <div className="grid grid-cols-3 gap-2 sm:gap-6 mb-8 sm:mb-10">
               {[
                 { icon: Layers, label: "Total Cards", value: stats.totalCards, color: "text-primary" },
                 { icon: Wallet, label: "Est. Value", value: `$${stats.totalValue.toFixed(0)}`, color: "text-secondary" },
                 { icon: TrendingUp, label: "Avg Value", value: stats.totalCards > 0 ? `$${(stats.totalValue / stats.totalCards).toFixed(2)}` : "—", color: "text-accent" },
               ].map((s, i) => (
-                <div key={i} className="bg-card border border-border rounded-xl p-6 flex items-center gap-4">
-                  <s.icon className={`w-10 h-10 ${s.color}`} />
-                  <div>
-                    <p className="text-sm text-muted-foreground">{s.label}</p>
-                    <p className="text-2xl font-display font-bold">{s.value}</p>
+                <div key={i} className="bg-card border border-border rounded-xl p-3 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
+                  <s.icon className={`w-6 h-6 sm:w-10 sm:h-10 ${s.color}`} />
+                  <div className="min-w-0">
+                    <p className="text-[11px] sm:text-sm text-muted-foreground leading-tight">{s.label}</p>
+                    <p className="text-base sm:text-2xl font-display font-bold truncate">{s.value}</p>
                   </div>
                 </div>
               ))}
@@ -225,18 +227,18 @@ const Dashboard = () => {
               </div>
             )}
 
-            <div className="flex flex-wrap gap-4 mb-10">
-              <Link to="/scan">
-                <Button className="gradient-primary glow-purple hover-lift"><Camera className="mr-2 w-5 h-5" />Scan New Card</Button>
+            <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-3 sm:gap-4 mb-10">
+              <Link to="/scan" className="contents sm:block">
+                <Button className="gradient-primary glow-purple hover-lift w-full sm:w-auto"><Camera className="mr-2 w-5 h-5" />Scan<span className="hidden sm:inline">&nbsp;New Card</span></Button>
               </Link>
-              <Link to="/pack-rip">
-                <Button variant="outline" className="hover-lift"><Package className="mr-2 w-5 h-5" />Pack Rip Mode</Button>
+              <Link to="/pack-rip" className="contents sm:block">
+                <Button variant="outline" className="hover-lift w-full sm:w-auto"><Package className="mr-2 w-5 h-5" />Pack Rip<span className="hidden sm:inline">&nbsp;Mode</span></Button>
               </Link>
-              <Link to="/collection">
-                <Button variant="outline">View Full Collection</Button>
+              <Link to="/collection" className="contents sm:block">
+                <Button variant="outline" className="w-full sm:w-auto"><span className="sm:hidden">Collection</span><span className="hidden sm:inline">View Full Collection</span></Button>
               </Link>
-              <Link to="/marketplace">
-                <Button variant="outline" className="hover-lift"><Wallet className="mr-2 w-5 h-5" />Marketplace</Button>
+              <Link to="/marketplace" className="contents sm:block">
+                <Button variant="outline" className="hover-lift w-full sm:w-auto"><Wallet className="mr-2 w-5 h-5" />Marketplace</Button>
               </Link>
             </div>
 

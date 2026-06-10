@@ -413,19 +413,19 @@ const Collection = () => {
         noIndex
       />
       <header className="border-b border-border sticky top-0 z-20 bg-background/95 backdrop-blur-sm">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+        <div className="container mx-auto px-3 sm:px-4 py-2 sm:py-4 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-3 min-w-0">
             <Link to="/dashboard">
               <Button variant="ghost" size="icon" aria-label="Go back"><ArrowLeft className="w-5 h-5" /></Button>
             </Link>
-            <h1 className="text-xl font-display font-bold">My Collection</h1>
+            <h1 className="text-base sm:text-xl font-display font-bold truncate">My Collection</h1>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             <div className="text-right">
-              <p className="text-sm text-muted-foreground">
+              <p className="text-[11px] sm:text-sm text-muted-foreground leading-tight">
                 {filtered.length}{filtered.length !== cards.length ? `/${cards.length}` : ""} items
               </p>
-              <p className="text-lg font-display font-bold text-gradient-primary">~${totalValue.toFixed(0)}</p>
+              <p className="text-sm sm:text-lg font-display font-bold text-gradient-primary leading-tight">~${totalValue.toFixed(0)}</p>
             </div>
             <ThemeToggle />
           </div>
@@ -454,7 +454,7 @@ const Collection = () => {
             </div>
 
             {/* Filter toggle, sort, view toggle, bulk */}
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <Button
                 variant={showFilters ? "secondary" : "outline"}
                 size="sm"
@@ -516,6 +516,51 @@ const Collection = () => {
             {/* Filter chips */}
             {showFilters && (
               <div className="space-y-2 animate-fade-in">
+                {/* MOBILE: dropdowns */}
+                <div className="sm:hidden grid grid-cols-1 gap-2">
+                  {categories.length > 1 && (
+                    <div className="relative">
+                      <select
+                        value={activeCategory ?? ""}
+                        onChange={(e) => setActiveCategory(e.target.value || null)}
+                        className="w-full appearance-none bg-card border border-border rounded-lg text-sm px-3 py-2 pr-8 text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                      >
+                        <option value="">All categories</option>
+                        {categories.map((c) => <option key={c} value={c}>{c}</option>)}
+                      </select>
+                      <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                    </div>
+                  )}
+                  {rarities.length > 1 && (
+                    <div className="relative">
+                      <select
+                        value={activeRarity ?? ""}
+                        onChange={(e) => setActiveRarity(e.target.value || null)}
+                        className="w-full appearance-none bg-card border border-border rounded-lg text-sm px-3 py-2 pr-8 text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                      >
+                        <option value="">All rarities</option>
+                        {rarities.map((r) => <option key={r} value={r}>{r}</option>)}
+                      </select>
+                      <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                    </div>
+                  )}
+                  {grades.length > 0 && (
+                    <div className="relative">
+                      <select
+                        value={activeGrade ?? ""}
+                        onChange={(e) => setActiveGrade(e.target.value || null)}
+                        className="w-full appearance-none bg-card border border-border rounded-lg text-sm px-3 py-2 pr-8 text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                      >
+                        <option value="">All grades</option>
+                        {grades.map((g) => <option key={g} value={g}>{g}</option>)}
+                      </select>
+                      <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                    </div>
+                  )}
+                </div>
+
+                {/* DESKTOP: chips */}
+                <div className="hidden sm:block space-y-2">
                 {categories.length > 1 && (
                   <div>
                     <p className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1.5 font-medium">Category</p>
@@ -578,6 +623,7 @@ const Collection = () => {
                     </div>
                   </div>
                 )}
+                </div>
 
                 {hasActiveFilters && (
                   <button
