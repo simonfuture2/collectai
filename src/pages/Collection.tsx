@@ -516,6 +516,51 @@ const Collection = () => {
             {/* Filter chips */}
             {showFilters && (
               <div className="space-y-2 animate-fade-in">
+                {/* MOBILE: dropdowns */}
+                <div className="sm:hidden grid grid-cols-1 gap-2">
+                  {categories.length > 1 && (
+                    <div className="relative">
+                      <select
+                        value={activeCategory ?? ""}
+                        onChange={(e) => setActiveCategory(e.target.value || null)}
+                        className="w-full appearance-none bg-card border border-border rounded-lg text-sm px-3 py-2 pr-8 text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                      >
+                        <option value="">All categories</option>
+                        {categories.map((c) => <option key={c} value={c}>{c}</option>)}
+                      </select>
+                      <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                    </div>
+                  )}
+                  {rarities.length > 1 && (
+                    <div className="relative">
+                      <select
+                        value={activeRarity ?? ""}
+                        onChange={(e) => setActiveRarity(e.target.value || null)}
+                        className="w-full appearance-none bg-card border border-border rounded-lg text-sm px-3 py-2 pr-8 text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                      >
+                        <option value="">All rarities</option>
+                        {rarities.map((r) => <option key={r} value={r}>{r}</option>)}
+                      </select>
+                      <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                    </div>
+                  )}
+                  {grades.length > 0 && (
+                    <div className="relative">
+                      <select
+                        value={activeGrade ?? ""}
+                        onChange={(e) => setActiveGrade(e.target.value || null)}
+                        className="w-full appearance-none bg-card border border-border rounded-lg text-sm px-3 py-2 pr-8 text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                      >
+                        <option value="">All grades</option>
+                        {grades.map((g) => <option key={g} value={g}>{g}</option>)}
+                      </select>
+                      <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                    </div>
+                  )}
+                </div>
+
+                {/* DESKTOP: chips */}
+                <div className="hidden sm:block space-y-2">
                 {categories.length > 1 && (
                   <div>
                     <p className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1.5 font-medium">Category</p>
@@ -578,6 +623,7 @@ const Collection = () => {
                     </div>
                   </div>
                 )}
+                </div>
 
                 {hasActiveFilters && (
                   <button
