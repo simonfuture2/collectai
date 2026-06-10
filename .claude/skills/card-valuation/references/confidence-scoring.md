@@ -1,50 +1,55 @@
 # Confidence Scoring
 
-Turns the raw comps into a single High / Medium / Low confidence label. Read this before reporting confidence in step 4 of the workflow.
+Turns the raw comps into a single High / Medium / Low label, backed by a 0–100
+score. This is the human-readable spec; the implementation is
+`supabase/functions/_shared/confidence.ts` (`computeMarketConfidence`). Keep
+them in sync.
 
-The point of the score is to keep the estimate honest. A $500 number from one stale sale and a $500 number from twelve recent tightly-clustered sales are not the same claim, and the user needs to see the difference.
+The point of the score is to keep the estimate honest. A $500 number from one
+stale sale and a $500 number from twelve recent tightly-clustered sales that
+PriceCharting also agrees with are not the same claim.
 
-## The three factors
+## The four weighted factors (0–100)
 
-### 1. Comp count
-How many qualifying sold comps came back (within the config's recency window).
-- **Strong:** ≥ `min_comps_for_high_confidence` (8 by default)
-- **Moderate:** 3–7
-- **Weak:** 1–2
-- **None:** 0 — do not report a value; report "insufficient comps"
+### 1. Data sufficiency (30 pts)
+Number of eBay sold comps:
+- **≥ 6** → 30 pts
+- **3–5** → 18 pts ("limited")
+- **1–2** → 8 pts
+- **0** → 0 pts ("no eBay sold comps")
 
-### 2. Price dispersion
-How tightly the comps cluster, measured as coefficient of variation (standard deviation ÷ mean).
-- **Strong:** CV ≤ 0.15
-- **Moderate:** 0.15–0.35
-- **Weak:** CV > 0.35 (the market disagrees with itself; the point estimate is shaky)
+### 2. Price dispersion (25 pts)
+Coefficient of variation (std dev ÷ mean) of the sold comps (needs ≥ 2):
+- **CV ≤ 0.10** → 25 pts (tight)
+- **CV ≤ 0.20** → 18 pts (moderate)
+- **CV ≤ 0.35** → 10 pts (wide)
+- **CV > 0.35** → 3 pts (very wide)
 
-### 3. Recency
-How fresh the most recent comps are.
-- **Strong:** multiple sales in the last 30 days
-- **Moderate:** sales in the last 90 days
-- **Weak:** newest sale older than the recency window
+### 3. Recency (20 pts)
+Freshness of the sold comps (eBay search is fresh-first: 7d → 30d):
+- **≤ 14 days** → 20 pts
+- **≤ 30 days** → 14 pts
+- **≤ 60 days** → 7 pts
+- **older** → 2 pts
 
-## Combining into a label
+### 4. Cross-source agreement (25 pts)
+PriceCharting vs eBay-sold median:
+- **Agree (within ~15%)** → 25 pts
+- **Diverge** → 4 pts
+- **Only one independent source present** → 10 pts
 
-Take the *weakest* of the three factors as the ceiling, then adjust:
+## Adjustments and banding
 
-- **High** — all three strong
-- **Medium** — no factor is weak, but not all are strong
-- **Low** — any single factor is weak
+- Verifier models disagree > 40% → subtract 15.
+- No sold comps and no PriceCharting value → cap score at 35.
+- Identification uncertain vs comps → cap score at 74.
 
-Always name the single biggest limiting factor in the output. The user should never have to ask "why is this only medium?"
+Band from the total: **High ≥ 75 · Medium ≥ 45 · Low < 45**. Always surface the
+explanation, which names the factors driving (and limiting) the score.
 
 ## Worked examples
 
-**Example 1**
-Input: 11 comps, CV 0.09, four sales in the last 2 weeks
-Output: High — tight cluster, strong recent volume
-
-**Example 2**
-Input: 6 comps, CV 0.12, newest sale 60 days ago
-Output: Medium — limited by recency (no sales in the last month)
-
-**Example 3**
-Input: 2 comps, CV 0.41, one sale this week
-Output: Low — limited by comp count (only 2 sales, and they disagree widely)
+- 11 sold comps, CV 9%, fresh (≤14d), PriceCharting agrees → 30+25+20+25 = **100 → High**.
+- 4 sold comps, CV 18%, ~30d old, PriceCharting agrees → 18+18+14+25 = **75 → High**.
+- 2 sold comps, CV 41%, fresh, no PriceCharting → 8+3+20+10 = **41 → Low**.
+- 0 sold comps, PriceCharting only → capped at 35 → **Low**.

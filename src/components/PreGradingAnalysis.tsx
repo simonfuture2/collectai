@@ -55,6 +55,14 @@ interface PreGradingData {
     surface?: number;
   };
   gradingRecommendation?: string;
+  // Deterministic pre-grade computed server-side (see _shared/grading.ts).
+  preGrade?: {
+    low: number;
+    high: number;
+    band: string;
+    limitingDimensions: string[];
+    label: string;
+  };
 }
 
 interface PreGradingAnalysisProps {
@@ -112,42 +120,15 @@ function ScoreBar({ score, label }: { score?: number; label: string }) {
   );
 }
 
-const GRADE_DIMENSIONS = ["centering", "corners", "edges", "surface"] as const;
-type GradeDimension = (typeof GRADE_DIMENSIONS)[number];
-
-function gradeBandLabel(score: number): string {
-  if (score >= 10) return "Gem Mint";
-  if (score >= 9) return "Mint";
-  if (score >= 7) return "Near Mint";
-  if (score >= 5) return "Excellent";
-  if (score >= 3) return "Very Good";
-  return "Poor";
-}
-
-// Mirror of the server-side grading rubric (supabase/functions/collectai-grade):
-// the overall pre-grade band is the LOWEST of the four dimensions — graders
-// punish the worst flaw, not the average — shown as a two-grade range with the
-// limiting dimension named, never a single certain grade.
-function computePreGrade(data: PreGradingData) {
-  const scores: Array<[GradeDimension, number]> = [];
-  for (const d of GRADE_DIMENSIONS) {
-    const s = data[d]?.score;
-    if (typeof s === "number" && Number.isFinite(s)) scores.push([d, s]);
-  }
-  if (scores.length === 0) return null;
-  const min = Math.min(...scores.map(([, v]) => v));
-  const limiting = scores.filter(([, v]) => v === min).map(([d]) => d);
-  const low = min >= 10 ? 9 : min;
-  const high = Math.min(10, min + 1);
-  return { low, high, band: gradeBandLabel(min), limiting, allTied: limiting.length === scores.length };
-}
-
 export default function PreGradingAnalysis({ data }: PreGradingAnalysisProps) {
   if (!data || (!data.centering && !data.corners && !data.edges && !data.surface)) {
     return null;
   }
 
-  const preGrade = computePreGrade(data);
+  // The pre-grade is computed once on the backend (supabase/functions/_shared/
+  // grading.ts) and emitted on the analysis — the rubric is NOT duplicated here.
+  const preGrade = data.preGrade ?? null;
+  const allTied = preGrade ? preGrade.limitingDimensions.length >= 4 : false;
 
   return (
     <div className="bg-card border border-border rounded-2xl p-6 space-y-6">
@@ -178,9 +159,9 @@ export default function PreGradingAnalysis({ data }: PreGradingAnalysisProps) {
               {preGrade.band} {preGrade.low}–{preGrade.high}
             </p>
             <p className="text-sm text-muted-foreground mt-0.5">
-              {preGrade.allTied
+              {allTied
                 ? "Even across all four dimensions."
-                : `Limited by ${preGrade.limiting.join(" & ")} — the grade is capped at the worst flaw.`}
+                : `Limited by ${preGrade.limitingDimensions.join(" & ")} — the grade is capped at the worst flaw.`}
             </p>
             <p className="text-[11px] text-muted-foreground italic mt-1">
               Pre-grade estimate from photos — a range, not a guaranteed grade.
