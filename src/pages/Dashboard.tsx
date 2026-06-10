@@ -124,21 +124,21 @@ const Dashboard = () => {
         path="/dashboard"
       />
       <header className="border-b border-border">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <Link to="/" className="flex items-center gap-2">
-            <img src={collectaiLogo} alt="MyCollectAI Logo" className="w-10 h-10 rounded-lg" />
-            <span className="text-2xl font-display font-bold text-gradient-primary">MyCollectAI</span>
+        <div className="container mx-auto px-3 sm:px-4 py-3 sm:py-4 flex justify-between items-center gap-2">
+          <Link to="/" className="flex items-center gap-2 min-w-0 shrink-0">
+            <img src={collectaiLogo} alt="MyCollectAI Logo" className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg shrink-0" />
+            <span className="hidden sm:inline text-2xl font-display font-bold text-gradient-primary truncate">MyCollectAI</span>
           </Link>
-          <div className="flex items-center gap-4">
-            <CreditBalance credits={credits} isPro={isPro} loading={creditsLoading} />
+          <div className="flex items-center gap-1.5 sm:gap-4 flex-wrap justify-end">
+            <CreditBalance credits={credits} isPro={isPro} loading={creditsLoading} compact />
             {isAdmin && (
               <Link to="/admin">
-                <Button variant="outline" size="sm" className="gap-1">
-                  <Shield className="w-4 h-4" /> Admin
+                <Button variant="outline" size="sm" className="gap-1 px-2 sm:px-3">
+                  <Shield className="w-4 h-4" /> <span className="hidden sm:inline">Admin</span>
                 </Button>
               </Link>
             )}
-            <span className="text-sm text-muted-foreground hidden sm:block">{user?.email}</span>
+            <span className="text-sm text-muted-foreground hidden md:block">{user?.email}</span>
             <ThemeToggle />
             <Button variant="ghost" size="icon" onClick={handleLogout} aria-label="Log out"><LogOut className="w-5 h-5" /></Button>
           </div>
