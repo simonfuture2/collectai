@@ -200,17 +200,17 @@ const Dashboard = () => {
               </div>
             )}
 
-            <div className="grid sm:grid-cols-3 gap-6 mb-10">
+            <div className="grid grid-cols-3 gap-2 sm:gap-6 mb-8 sm:mb-10">
               {[
                 { icon: Layers, label: "Total Cards", value: stats.totalCards, color: "text-primary" },
                 { icon: Wallet, label: "Est. Value", value: `$${stats.totalValue.toFixed(0)}`, color: "text-secondary" },
                 { icon: TrendingUp, label: "Avg Value", value: stats.totalCards > 0 ? `$${(stats.totalValue / stats.totalCards).toFixed(2)}` : "—", color: "text-accent" },
               ].map((s, i) => (
-                <div key={i} className="bg-card border border-border rounded-xl p-6 flex items-center gap-4">
-                  <s.icon className={`w-10 h-10 ${s.color}`} />
-                  <div>
-                    <p className="text-sm text-muted-foreground">{s.label}</p>
-                    <p className="text-2xl font-display font-bold">{s.value}</p>
+                <div key={i} className="bg-card border border-border rounded-xl p-3 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
+                  <s.icon className={`w-6 h-6 sm:w-10 sm:h-10 ${s.color}`} />
+                  <div className="min-w-0">
+                    <p className="text-[11px] sm:text-sm text-muted-foreground leading-tight">{s.label}</p>
+                    <p className="text-base sm:text-2xl font-display font-bold truncate">{s.value}</p>
                   </div>
                 </div>
               ))}
