@@ -1,0 +1,33 @@
+{
+  "$comment": "Single source of truth for comp sourcing. Edit this file to change which sources are queried, how they are weighted in the blended estimate, and how recent a sale must be to count. The skill reads this rather than hardcoding behavior.",
+  "version": 1,
+  "recency_window_days": 90,
+  "min_comps_for_high_confidence": 8,
+  "sources": [
+    {
+      "id": "pricecharting",
+      "enabled": true,
+      "type": "csv_bulk",
+      "weight": 0.6,
+      "covers": ["tcg", "video_games"],
+      "notes": "Bulk CSV load for TCG and video games. Authoritative for these categories."
+    },
+    {
+      "id": "pricecharting_api",
+      "enabled": true,
+      "type": "live_api",
+      "weight": 0.6,
+      "covers": ["sports"],
+      "notes": "Live API for sports cards, which move too fast for the bulk CSV."
+    },
+    {
+      "id": "ebay",
+      "enabled": true,
+      "type": "scrape",
+      "weight": 0.4,
+      "covers": ["all"],
+      "notes": "Independent second source. Used to corroborate PriceCharting, not replace it."
+    }
+  ],
+  "graded_grades_tracked": ["PSA 10", "PSA 9", "BGS 9.5", "SGC 10"]
+}
