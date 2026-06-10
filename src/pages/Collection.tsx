@@ -454,7 +454,7 @@ const Collection = () => {
             </div>
 
             {/* Filter toggle, sort, view toggle, bulk */}
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <Button
                 variant={showFilters ? "secondary" : "outline"}
                 size="sm"
