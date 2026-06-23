@@ -760,6 +760,12 @@ export default function CardDetail() {
           );
         })()}
 
+        {analysis && (
+          <div className="mb-8">
+            <AIAnalysisCard analysis={analysis as any} />
+          </div>
+        )}
+
         <div className="grid lg:grid-cols-2 gap-8">
           {/* Left: Card Image + Grading Value Sections (on desktop) */}
           <div className="space-y-6">
