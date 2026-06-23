@@ -7,7 +7,8 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { ArrowDownRight, ArrowUpRight } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, SearchX } from "lucide-react";
+import EmptyState from "@/components/EmptyState";
 import { GlassCard } from "@/components/ui/glass-card";
 import { Value } from "@/components/ui/value";
 import { FadeUp } from "@/components/ui/motion";

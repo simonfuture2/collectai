@@ -537,9 +537,13 @@ const ScanReveal = () => {
                 <Shimmer className="h-10 w-4/5" />
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground">
-                No recent comps located. Try re-scanning or check back shortly.
-              </p>
+              <EmptyState
+                icon={SearchX}
+                size="sm"
+                bare
+                title="No comps located yet"
+                description="We couldn't find recent sales for this card. Try a re-scan, or check back in a moment."
+              />
             )}
           </GlassCard>
         </FadeUp>
