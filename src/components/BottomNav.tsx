@@ -45,7 +45,18 @@ export function BottomNav() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  if (!shouldShow(location.pathname)) return null;
+  const visible = shouldShow(location.pathname);
+
+  useEffect(() => {
+    if (!visible) return;
+    const prev = document.body.style.paddingBottom;
+    document.body.style.paddingBottom = "calc(6rem + env(safe-area-inset-bottom))";
+    return () => {
+      document.body.style.paddingBottom = prev;
+    };
+  }, [visible]);
+
+  if (!visible) return null;
 
   const scanActive = location.pathname.startsWith("/scan");
 
