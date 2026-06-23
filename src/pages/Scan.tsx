@@ -369,11 +369,11 @@ const Scan = () => {
               <div className="space-y-3">
                 {/* Front-only reassurance */}
                 {filledSlots.length === 1 && filledSlots[0].id === "front" && (
-                  <div className="flex items-start gap-3 rounded-xl border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950/30">
-                    <Sparkles className="w-5 h-5 text-blue-600 mt-0.5 shrink-0" />
+                  <div className="flex items-start gap-3 rounded-xl border border-primary/25 bg-primary/5 p-4">
+                    <Sparkles className="w-5 h-5 text-primary mt-0.5 shrink-0" />
                     <div>
-                      <p className="text-sm font-semibold text-blue-900 dark:text-blue-200">Front-only image detected</p>
-                      <p className="text-xs text-blue-700 dark:text-blue-300 mt-0.5">
+                      <p className="text-sm font-semibold text-foreground">Front-only image detected</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
                         Our AI can identify and price your card from the front alone. For the most accurate grading and condition analysis, add a back photo too.
                       </p>
                     </div>
