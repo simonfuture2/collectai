@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import SEO from "@/components/SEO";
 import Footer from "@/components/Footer";
 import GradeLadder from "@/components/GradeLadder";
+import { AIAnalysisCard } from "@/components/AIAnalysisCard";
 
 const PENDING_STATUSES = ["pending", "identifying", "pricing", "analyzing", "verifying"];
 
@@ -457,6 +458,14 @@ const ScanReveal = () => {
         <FadeUp delay={0.13}>
           <GradeLadder estimates={card?.ai_analysis?.gradedValueEstimates} rawValue={rawValue} />
         </FadeUp>
+
+        {/* AI Analysis */}
+        {card?.ai_analysis && (
+          <FadeUp delay={0.14}>
+            <AIAnalysisCard analysis={card.ai_analysis as any} />
+          </FadeUp>
+        )}
+
 
         {/* Comps */}
         <FadeUp delay={0.15}>

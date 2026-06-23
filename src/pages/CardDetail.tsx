@@ -56,6 +56,7 @@ import AnalysisProgress from "@/components/AnalysisProgress";
 import MarketEvidence from "@/components/MarketEvidence";
 import CardDetailHero from "@/components/CardDetailHero";
 import GradeLadder from "@/components/GradeLadder";
+import { AIAnalysisCard } from "@/components/AIAnalysisCard";
 
 type Card = Tables<"cards">;
 
@@ -758,6 +759,12 @@ export default function CardDetail() {
             </div>
           );
         })()}
+
+        {analysis && (
+          <div className="mb-8">
+            <AIAnalysisCard analysis={analysis as any} />
+          </div>
+        )}
 
         <div className="grid lg:grid-cols-2 gap-8">
           {/* Left: Card Image + Grading Value Sections (on desktop) */}
