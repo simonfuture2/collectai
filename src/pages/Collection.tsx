@@ -26,6 +26,10 @@ import type { User } from "@supabase/supabase-js";
 import ThemeToggle from "@/components/ThemeToggle";
 import SEO from "@/components/SEO";
 import { HoloFoil, FoilBadge, shouldFoil } from "@/components/HoloFoil";
+import EmptyState from "@/components/EmptyState";
+import { useLongPress } from "@/hooks/use-long-press";
+import LongPressable from "@/components/LongPressable";
+import { Inbox, SearchX, Tag } from "lucide-react";
 
 interface Card {
   id: string;
@@ -698,20 +702,30 @@ const Collection = () => {
             ))}
           </div>
         ) : cards.length === 0 ? (
-          <div className="text-center py-16">
-            <Camera className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-            <p className="text-muted-foreground mb-6">No items in your collection yet</p>
-            <Link to="/scan"><Button className="gradient-primary">Scan Your First Item</Button></Link>
-          </div>
+          <EmptyState
+            icon={Inbox}
+            eyebrow="Your Collection"
+            title="No cards yet"
+            description="Scan your first card to start tracking grades, prices, and the value of your entire collection."
+            action={
+              <Link to="/scan">
+                <Button className="gradient-primary">
+                  <Camera className="w-4 h-4 mr-2" /> Scan Your First Card
+                </Button>
+              </Link>
+            }
+          />
         ) : filtered.length === 0 ? (
-          <div className="text-center py-16">
-            <Search className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-            <p className="text-muted-foreground mb-2">No items match your search</p>
-            <p className="text-xs text-muted-foreground mb-3">Try a broader term or different spelling</p>
-            <button onClick={clearFilters} className="text-primary text-sm hover:underline">
-              Clear filters
-            </button>
-          </div>
+          <EmptyState
+            icon={SearchX}
+            title="No matches"
+            description="No cards match these filters. Try a broader search term or clear filters to start over."
+            action={
+              <Button variant="outline" size="sm" onClick={clearFilters}>
+                Clear filters
+              </Button>
+            }
+          />
         ) : viewMode === "list" ? (
           /* ---- LIST / TABLE VIEW ---- */
           <div className="border border-border rounded-xl overflow-hidden bg-card">
@@ -801,7 +815,11 @@ const Collection = () => {
             {paginatedCards.map((card) => (
               <ContextMenu key={card.id}>
                 <ContextMenuTrigger asChild>
-                  <div
+                  <LongPressable
+                    onLongPress={() => {
+                      if (!bulkMode) setBulkMode(true);
+                      toggleSelect(card.id);
+                    }}
                     className="bg-card border border-border rounded-xl overflow-hidden hover-lift group cursor-pointer relative"
                     onClick={() => bulkMode ? toggleSelect(card.id) : navigate(`/card/${card.id}`)}
                   >
@@ -903,7 +921,7 @@ const Collection = () => {
                         )}
                       </div>
                     </div>
-                  </div>
+                  </LongPressable>
                 </ContextMenuTrigger>
                 {folders.length > 0 && (
                   <ContextMenuContent>
@@ -941,22 +959,40 @@ const Collection = () => {
           </div>
         )}
 
-        {/* Bulk action floating bar */}
-        {bulkMode && selectedIds.size > 0 && (
-          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-30 bg-card border border-border rounded-xl shadow-lg px-4 py-3 flex items-center gap-3 animate-fade-in">
-            <span className="text-sm font-medium">{selectedIds.size} selected</span>
+        {/* Bulk action glass bar (slides up when selection is active) */}
+        <div
+          className={`fixed bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 z-40 transition-all duration-300 ease-out ${
+            bulkMode && selectedIds.size > 0
+              ? "opacity-100 translate-y-0 pointer-events-auto"
+              : "opacity-0 translate-y-6 pointer-events-none"
+          }`}
+        >
+          <div className="rounded-2xl border border-border-subtle bg-glass backdrop-blur-xl shadow-glass px-3 py-2.5 sm:px-4 sm:py-3 flex items-center gap-2 sm:gap-3 max-w-[calc(100vw-1.5rem)]">
+            <div className="flex items-center gap-2 pr-2 sm:pr-3 border-r border-border-subtle">
+              <div className="w-7 h-7 rounded-full bg-primary/15 text-primary flex items-center justify-center text-xs font-bold tabular-nums">
+                {selectedIds.size}
+              </div>
+              <span className="hidden sm:inline text-xs uppercase tracking-wider text-muted-foreground font-medium">
+                selected
+              </span>
+            </div>
+
             <AddToFolderMenu
               cardIds={Array.from(selectedIds)}
               folders={folders}
               onDone={fetchFolders}
             />
-            <Button size="sm" variant="outline" className="gap-1.5" onClick={exportCSV}>
-              <Download className="w-3.5 h-3.5" /> Export CSV
+
+            <Button size="sm" variant="ghost" className="gap-1.5 h-8" onClick={exportCSV}>
+              <Download className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Export</span>
             </Button>
+
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button size="sm" variant="destructive" className="gap-1.5">
-                  <Trash2 className="w-3.5 h-3.5" /> Delete
+                <Button size="sm" variant="ghost" className="gap-1.5 h-8 text-destructive hover:text-destructive hover:bg-destructive/10">
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Delete</span>
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
@@ -970,8 +1006,21 @@ const Collection = () => {
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
+
+            <div className="w-px h-6 bg-border-subtle" />
+
+            <Button
+              size="sm"
+              variant="ghost"
+              className="gap-1.5 h-8"
+              onClick={() => { setSelectedIds(new Set()); setBulkMode(false); }}
+            >
+              <X className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Done</span>
+            </Button>
           </div>
-        )}
+        </div>
+
 
         <div className="flex justify-center pt-8">
           <EcosystemBadge type="authentiseal" variant="inline" />

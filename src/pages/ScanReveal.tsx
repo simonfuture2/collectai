@@ -6,7 +6,8 @@ import { GlassCard } from "@/components/ui/glass-card";
 import { Value } from "@/components/ui/value";
 import { FadeUp, PressScale } from "@/components/ui/motion";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, ArrowRight, BadgeCheck, Plus, ShieldCheck, Sparkles, TrendingUp } from "lucide-react";
+import { ArrowLeft, ArrowRight, BadgeCheck, Plus, SearchX, ShieldCheck, Sparkles, TrendingUp } from "lucide-react";
+import EmptyState from "@/components/EmptyState";
 import { toast } from "sonner";
 import SEO from "@/components/SEO";
 import Footer from "@/components/Footer";
@@ -537,9 +538,13 @@ const ScanReveal = () => {
                 <Shimmer className="h-10 w-4/5" />
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground">
-                No recent comps located. Try re-scanning or check back shortly.
-              </p>
+              <EmptyState
+                icon={SearchX}
+                size="sm"
+                bare
+                title="No comps located yet"
+                description="We couldn't find recent sales for this card. Try a re-scan, or check back in a moment."
+              />
             )}
           </GlassCard>
         </FadeUp>

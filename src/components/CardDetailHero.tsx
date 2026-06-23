@@ -7,7 +7,8 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { ArrowDownRight, ArrowUpRight } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, SearchX } from "lucide-react";
+import EmptyState from "@/components/EmptyState";
 import { GlassCard } from "@/components/ui/glass-card";
 import { Value } from "@/components/ui/value";
 import { FadeUp } from "@/components/ui/motion";
@@ -329,9 +330,13 @@ export default function CardDetailHero({
             </span>
           </div>
           {comps.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-6 text-center">
-              No recent comps found yet. Try a re-scan.
-            </p>
+            <EmptyState
+              icon={SearchX}
+              size="sm"
+              bare
+              title="No recent comps found"
+              description="We couldn't pull recent sales for this card. A re-scan often resolves it."
+            />
           ) : (
             <ul className="divide-y divide-border-subtle -mx-2">
               {comps.slice(0, 12).map((c, i) => (

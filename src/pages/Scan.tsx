@@ -15,6 +15,9 @@ import CreditBalance from "@/components/CreditBalance";
 import UpgradeModal from "@/components/UpgradeModal";
 import ThemeToggle from "@/components/ThemeToggle";
 import SEO from "@/components/SEO";
+import CameraWarmup from "@/components/CameraWarmup";
+
+const WARMUP_KEY = "mca-camera-warmup-seen";
 
 interface ImageSlot {
   id: string;
@@ -39,6 +42,15 @@ const Scan = () => {
   const [uploadedFilePaths, setUploadedFilePaths] = useState<string[]>([]);
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [fastScan, setFastScan] = useState(false);
+  const [showWarmup, setShowWarmup] = useState(() => {
+    if (typeof window === "undefined") return false;
+    try { return !localStorage.getItem(WARMUP_KEY); } catch { return false; }
+  });
+
+  const dismissWarmup = () => {
+    try { localStorage.setItem(WARMUP_KEY, "1"); } catch {/* ignore */}
+    setShowWarmup(false);
+  };
   const navigate = useNavigate();
   const { toast } = useToast();
   const { credits, isPro, canScan, loading: creditsLoading, refresh: refreshCredits } = useCredits();
@@ -287,7 +299,9 @@ const Scan = () => {
       </header>
 
       <main className="container mx-auto px-4 py-8 max-w-3xl">
-        {!result ? (
+        {showWarmup ? (
+          <CameraWarmup onContinue={dismissWarmup} onSkip={dismissWarmup} />
+        ) : !result ? (
           <div className="space-y-6">
             <p className="text-muted-foreground text-sm">
               Upload the front & back of a card, or multiple views of any collectible for the best analysis.
@@ -355,11 +369,11 @@ const Scan = () => {
               <div className="space-y-3">
                 {/* Front-only reassurance */}
                 {filledSlots.length === 1 && filledSlots[0].id === "front" && (
-                  <div className="flex items-start gap-3 rounded-xl border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950/30">
-                    <Sparkles className="w-5 h-5 text-blue-600 mt-0.5 shrink-0" />
+                  <div className="flex items-start gap-3 rounded-xl border border-primary/25 bg-primary/5 p-4">
+                    <Sparkles className="w-5 h-5 text-primary mt-0.5 shrink-0" />
                     <div>
-                      <p className="text-sm font-semibold text-blue-900 dark:text-blue-200">Front-only image detected</p>
-                      <p className="text-xs text-blue-700 dark:text-blue-300 mt-0.5">
+                      <p className="text-sm font-semibold text-foreground">Front-only image detected</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
                         Our AI can identify and price your card from the front alone. For the most accurate grading and condition analysis, add a back photo too.
                       </p>
                     </div>
