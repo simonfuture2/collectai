@@ -15,6 +15,7 @@ import ThemeToggle from "@/components/ThemeToggle";
 import PublicCollectionToggle from "@/components/PublicCollectionToggle";
 import { usePushNotifications } from "@/hooks/use-push-notifications";
 import AchievementsRow from "@/components/AchievementsRow";
+import PortfolioHero from "@/components/PortfolioHero";
 import SEO from "@/components/SEO";
 
 const PortfolioAnalytics = lazy(() => import("@/components/PortfolioAnalytics"));
