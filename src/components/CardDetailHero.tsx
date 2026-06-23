@@ -124,12 +124,19 @@ export default function CardDetailHero({
                   "radial-gradient(closest-side, hsl(var(--primary) / 0.18), transparent 70%)",
               }}
             />
-            <img
-              src={imageUrl}
-              alt={name ? `${name} trading card` : "Trading card"}
-              className="relative w-full h-full object-contain rounded-xl shadow-[0_30px_60px_-15px_rgba(0,0,0,0.7)]"
-              draggable={false}
-            />
+            <HoloFoil
+              active={foilOn}
+              radiusClassName="rounded-xl"
+              className="relative w-full h-full"
+              badge={conditionGrade ? <FoilBadge label="GRADED" /> : (foilOn ? <FoilBadge label={`$${Math.round(rawValue)}+`} /> : undefined)}
+            >
+              <img
+                src={imageUrl}
+                alt={name ? `${name} trading card` : "Trading card"}
+                className="relative w-full h-full object-contain rounded-xl shadow-[0_30px_60px_-15px_rgba(0,0,0,0.7)]"
+                draggable={false}
+              />
+            </HoloFoil>
             {/* Soft reflection */}
             <div
               aria-hidden
