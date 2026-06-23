@@ -453,6 +453,11 @@ const ScanReveal = () => {
           </GlassCard>
         </FadeUp>
 
+        {/* Grade Ladder */}
+        <FadeUp delay={0.13}>
+          <GradeLadder estimates={card?.ai_analysis?.gradedValueEstimates} rawValue={rawValue} />
+        </FadeUp>
+
         {/* Comps */}
         <FadeUp delay={0.15}>
           <GlassCard padding="lg">
