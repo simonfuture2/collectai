@@ -28,7 +28,8 @@ import SEO from "@/components/SEO";
 import { HoloFoil, FoilBadge, shouldFoil } from "@/components/HoloFoil";
 import EmptyState from "@/components/EmptyState";
 import { useLongPress } from "@/hooks/use-long-press";
-import { Inbox, SearchX } from "lucide-react";
+import LongPressable from "@/components/LongPressable";
+import { Inbox, SearchX, Tag } from "lucide-react";
 
 interface Card {
   id: string;
@@ -814,7 +815,11 @@ const Collection = () => {
             {paginatedCards.map((card) => (
               <ContextMenu key={card.id}>
                 <ContextMenuTrigger asChild>
-                  <div
+                  <LongPressable
+                    onLongPress={() => {
+                      if (!bulkMode) setBulkMode(true);
+                      toggleSelect(card.id);
+                    }}
                     className="bg-card border border-border rounded-xl overflow-hidden hover-lift group cursor-pointer relative"
                     onClick={() => bulkMode ? toggleSelect(card.id) : navigate(`/card/${card.id}`)}
                   >
