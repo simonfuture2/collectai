@@ -15,6 +15,9 @@ import CreditBalance from "@/components/CreditBalance";
 import UpgradeModal from "@/components/UpgradeModal";
 import ThemeToggle from "@/components/ThemeToggle";
 import SEO from "@/components/SEO";
+import CameraWarmup from "@/components/CameraWarmup";
+
+const WARMUP_KEY = "mca-camera-warmup-seen";
 
 interface ImageSlot {
   id: string;
@@ -39,6 +42,15 @@ const Scan = () => {
   const [uploadedFilePaths, setUploadedFilePaths] = useState<string[]>([]);
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [fastScan, setFastScan] = useState(false);
+  const [showWarmup, setShowWarmup] = useState(() => {
+    if (typeof window === "undefined") return false;
+    try { return !localStorage.getItem(WARMUP_KEY); } catch { return false; }
+  });
+
+  const dismissWarmup = () => {
+    try { localStorage.setItem(WARMUP_KEY, "1"); } catch {/* ignore */}
+    setShowWarmup(false);
+  };
   const navigate = useNavigate();
   const { toast } = useToast();
   const { credits, isPro, canScan, loading: creditsLoading, refresh: refreshCredits } = useCredits();
@@ -287,7 +299,9 @@ const Scan = () => {
       </header>
 
       <main className="container mx-auto px-4 py-8 max-w-3xl">
-        {!result ? (
+        {showWarmup ? (
+          <CameraWarmup onContinue={dismissWarmup} onSkip={dismissWarmup} />
+        ) : !result ? (
           <div className="space-y-6">
             <p className="text-muted-foreground text-sm">
               Upload the front & back of a card, or multiple views of any collectible for the best analysis.
