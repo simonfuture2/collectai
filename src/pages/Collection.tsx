@@ -959,22 +959,40 @@ const Collection = () => {
           </div>
         )}
 
-        {/* Bulk action floating bar */}
-        {bulkMode && selectedIds.size > 0 && (
-          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-30 bg-card border border-border rounded-xl shadow-lg px-4 py-3 flex items-center gap-3 animate-fade-in">
-            <span className="text-sm font-medium">{selectedIds.size} selected</span>
+        {/* Bulk action glass bar (slides up when selection is active) */}
+        <div
+          className={`fixed bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 z-40 transition-all duration-300 ease-out ${
+            bulkMode && selectedIds.size > 0
+              ? "opacity-100 translate-y-0 pointer-events-auto"
+              : "opacity-0 translate-y-6 pointer-events-none"
+          }`}
+        >
+          <div className="rounded-2xl border border-border-subtle bg-glass backdrop-blur-xl shadow-glass px-3 py-2.5 sm:px-4 sm:py-3 flex items-center gap-2 sm:gap-3 max-w-[calc(100vw-1.5rem)]">
+            <div className="flex items-center gap-2 pr-2 sm:pr-3 border-r border-border-subtle">
+              <div className="w-7 h-7 rounded-full bg-primary/15 text-primary flex items-center justify-center text-xs font-bold tabular-nums">
+                {selectedIds.size}
+              </div>
+              <span className="hidden sm:inline text-xs uppercase tracking-wider text-muted-foreground font-medium">
+                selected
+              </span>
+            </div>
+
             <AddToFolderMenu
               cardIds={Array.from(selectedIds)}
               folders={folders}
               onDone={fetchFolders}
             />
-            <Button size="sm" variant="outline" className="gap-1.5" onClick={exportCSV}>
-              <Download className="w-3.5 h-3.5" /> Export CSV
+
+            <Button size="sm" variant="ghost" className="gap-1.5 h-8" onClick={exportCSV}>
+              <Download className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Export</span>
             </Button>
+
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button size="sm" variant="destructive" className="gap-1.5">
-                  <Trash2 className="w-3.5 h-3.5" /> Delete
+                <Button size="sm" variant="ghost" className="gap-1.5 h-8 text-destructive hover:text-destructive hover:bg-destructive/10">
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Delete</span>
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
@@ -988,8 +1006,21 @@ const Collection = () => {
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
+
+            <div className="w-px h-6 bg-border-subtle" />
+
+            <Button
+              size="sm"
+              variant="ghost"
+              className="gap-1.5 h-8"
+              onClick={() => { setSelectedIds(new Set()); setBulkMode(false); }}
+            >
+              <X className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Done</span>
+            </Button>
           </div>
-        )}
+        </div>
+
 
         <div className="flex justify-center pt-8">
           <EcosystemBadge type="authentiseal" variant="inline" />
