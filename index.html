@@ -64,6 +64,16 @@
   </head>
 
   <body>
+    <script>
+      // Apply theme before paint to avoid a flash. Default = dark.
+      (function () {
+        try {
+          var t = localStorage.getItem("theme");
+          if (t === "light") document.documentElement.classList.remove("dark");
+          else document.documentElement.classList.add("dark");
+        } catch (e) { document.documentElement.classList.add("dark"); }
+      })();
+    </script>
     <div id="root"></div>
     <!-- Pre-boot stale-cache guard. Runs even if hashed chunks 404, which
          is the situation main.tsx's own recovery cannot handle (because
