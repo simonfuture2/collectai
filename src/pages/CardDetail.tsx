@@ -55,6 +55,7 @@ import DefectMapOverlay from "@/components/DefectMapOverlay";
 import AnalysisProgress from "@/components/AnalysisProgress";
 import MarketEvidence from "@/components/MarketEvidence";
 import CardDetailHero from "@/components/CardDetailHero";
+import GradeLadder from "@/components/GradeLadder";
 
 type Card = Tables<"cards">;
 
