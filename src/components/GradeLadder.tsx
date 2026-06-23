@@ -3,6 +3,7 @@ import { GlassCard } from "@/components/ui/glass-card";
 import { Value } from "@/components/ui/value";
 import { Input } from "@/components/ui/input";
 import { Award, Check, Minus, TrendingDown, TrendingUp } from "lucide-react";
+import EmptyState from "@/components/EmptyState";
 
 type GraderKey = "psa" | "bgs" | "cgc" | "sgc" | "tag";
 

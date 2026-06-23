@@ -329,9 +329,13 @@ export default function CardDetailHero({
             </span>
           </div>
           {comps.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-6 text-center">
-              No recent comps found yet. Try a re-scan.
-            </p>
+            <EmptyState
+              icon={SearchX}
+              size="sm"
+              bare
+              title="No recent comps found"
+              description="We couldn't pull recent sales for this card. A re-scan often resolves it."
+            />
           ) : (
             <ul className="divide-y divide-border-subtle -mx-2">
               {comps.slice(0, 12).map((c, i) => (
