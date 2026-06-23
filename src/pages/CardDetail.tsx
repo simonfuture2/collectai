@@ -54,6 +54,7 @@ import ThemeToggle from "@/components/ThemeToggle";
 import DefectMapOverlay from "@/components/DefectMapOverlay";
 import AnalysisProgress from "@/components/AnalysisProgress";
 import MarketEvidence from "@/components/MarketEvidence";
+import CardDetailHero from "@/components/CardDetailHero";
 
 type Card = Tables<"cards">;
 
@@ -690,6 +691,72 @@ export default function CardDetail() {
           onRetry={reanalyzeFull}
           retrying={reanalyzing}
         />
+
+        {/* Premium hero: image, metadata, value + raw/graded toggle, chart, comps */}
+        {(() => {
+          const a = analysis || null;
+          const recGrader = (a?.gradedValueEstimates?.recommendedGrader || "psa").toLowerCase() as
+            | "psa" | "bgs" | "cgc" | "sgc" | "tag";
+          const graderVals = a?.gradedValueEstimates?.[recGrader];
+          const gradedValue =
+            graderVals?.valueAtPSA10 ??
+            graderVals?.valueAtBGS10 ??
+            graderVals?.valueAtCGC10 ??
+            graderVals?.valueAtSGC10 ??
+            graderVals?.valueAtTAG10 ??
+            graderVals?.valueAtGrade ??
+            null;
+          const gradedLabel = recGrader.toUpperCase() + " 10";
+
+          // Build comps from extracted market sources + notable eBay sales
+          const compRows: Array<{ price: number; source: string; date?: string; title?: string }> = [];
+          const sources = a?.extractedMarketData?.sources || [];
+          sources.forEach((s) => {
+            if (s?.median != null) {
+              compRows.push({
+                price: Number(s.median),
+                source: s.source || "Market",
+                date: s.recencyDays != null ? `${s.recencyDays}d ago` : undefined,
+                title: `${s.source || "Source"} median${s.count ? ` (${s.count} sales)` : ""}`,
+              });
+            }
+            (s?.prices || []).slice(0, 3).forEach((p) => {
+              compRows.push({
+                price: Number(p),
+                source: s.source || "Market",
+                title: "Sold listing",
+              });
+            });
+          });
+          (a?.ebayRecentSales?.notableSales || []).forEach((sale) => {
+            const m = String(sale).match(/\$([\d,]+(?:\.\d+)?)/);
+            if (m) {
+              compRows.push({
+                price: parseFloat(m[1].replace(/,/g, "")),
+                source: "eBay",
+                title: String(sale).replace(/\$[\d,]+(?:\.\d+)?/, "").trim() || "Recent eBay sale",
+              });
+            }
+          });
+
+          return (
+            <div className="mb-10">
+              <CardDetailHero
+                imageUrl={cardImageUrl || card.image_url}
+                name={card.card_name}
+                set={card.card_set}
+                year={card.card_year}
+                number={(card as any).card_number || a?.cardNumber}
+                parallel={(card as any).parallel_variant || a?.parallelVariant}
+                rawValue={avgValue}
+                gradedValue={gradedValue}
+                gradedLabel={gradedLabel}
+                priceHistory={priceHistory}
+                comps={compRows}
+              />
+            </div>
+          );
+        })()}
 
         <div className="grid lg:grid-cols-2 gap-8">
           {/* Left: Card Image + Grading Value Sections (on desktop) */}
