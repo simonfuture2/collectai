@@ -42,6 +42,7 @@ interface CardDetailHeroProps {
   gradedLabel?: string;
   priceHistory: PricePoint[];
   comps: Comp[];
+  conditionGrade?: string | null;
 }
 
 const TIMEFRAMES: Timeframe[] = ["1D", "1W", "1M", "1Y", "ALL"];
