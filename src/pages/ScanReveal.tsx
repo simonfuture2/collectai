@@ -12,6 +12,7 @@ import SEO from "@/components/SEO";
 import Footer from "@/components/Footer";
 import GradeLadder from "@/components/GradeLadder";
 import { AIAnalysisCard } from "@/components/AIAnalysisCard";
+import { HoloFoil, FoilBadge, shouldFoil } from "@/components/HoloFoil";
 
 const PENDING_STATUSES = ["pending", "identifying", "pricing", "analyzing", "verifying"];
 
@@ -319,11 +320,32 @@ const ScanReveal = () => {
                 >
                   {imgUrl ? (
                     <>
-                      <img
-                        src={imgUrl}
-                        alt={cardName || "Scanned card"}
-                        className="h-56 w-auto rounded-xl border border-border-subtle shadow-[0_24px_60px_-20px_rgba(0,0,0,0.7)] object-cover"
-                      />
+                      {(() => {
+                        const foilOn = shouldFoil({
+                          isGraded: !!card?.condition_grade,
+                          value: Math.max(rawValue, gradedValue || 0),
+                          threshold: 50,
+                        });
+                        return (
+                          <HoloFoil
+                            active={foilOn}
+                            radiusClassName="rounded-xl"
+                            badge={
+                              card?.condition_grade
+                                ? <FoilBadge label="GRADED" />
+                                : foilOn
+                                ? <FoilBadge label={`$${Math.round(rawValue)}+`} />
+                                : undefined
+                            }
+                          >
+                            <img
+                              src={imgUrl}
+                              alt={cardName || "Scanned card"}
+                              className="h-56 w-auto rounded-xl border border-border-subtle shadow-[0_24px_60px_-20px_rgba(0,0,0,0.7)] object-cover"
+                            />
+                          </HoloFoil>
+                        );
+                      })()}
                       <div
                         aria-hidden
                         className="absolute -bottom-6 left-1/2 -translate-x-1/2 h-8 w-[80%] rounded-[50%]"

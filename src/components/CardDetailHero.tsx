@@ -12,6 +12,7 @@ import { GlassCard } from "@/components/ui/glass-card";
 import { Value } from "@/components/ui/value";
 import { FadeUp } from "@/components/ui/motion";
 import { cn } from "@/lib/utils";
+import { HoloFoil, FoilBadge, shouldFoil } from "@/components/HoloFoil";
 
 type Timeframe = "1D" | "1W" | "1M" | "1Y" | "ALL";
 type Mode = "RAW" | "GRADED";
@@ -41,6 +42,7 @@ interface CardDetailHeroProps {
   gradedLabel?: string;
   priceHistory: PricePoint[];
   comps: Comp[];
+  conditionGrade?: string | null;
 }
 
 const TIMEFRAMES: Timeframe[] = ["1D", "1W", "1M", "1Y", "ALL"];
@@ -76,9 +78,11 @@ export default function CardDetailHero({
   gradedLabel = "Graded",
   priceHistory,
   comps,
+  conditionGrade,
 }: CardDetailHeroProps) {
   const [timeframe, setTimeframe] = useState<Timeframe>("1M");
   const [mode, setMode] = useState<Mode>("RAW");
+  const foilOn = shouldFoil({ isGraded: !!conditionGrade, value: rawValue, threshold: 50 });
 
   const displayedValue =
     mode === "GRADED" && gradedValue != null ? gradedValue : rawValue;
@@ -120,12 +124,19 @@ export default function CardDetailHero({
                   "radial-gradient(closest-side, hsl(var(--primary) / 0.18), transparent 70%)",
               }}
             />
-            <img
-              src={imageUrl}
-              alt={name ? `${name} trading card` : "Trading card"}
-              className="relative w-full h-full object-contain rounded-xl shadow-[0_30px_60px_-15px_rgba(0,0,0,0.7)]"
-              draggable={false}
-            />
+            <HoloFoil
+              active={foilOn}
+              radiusClassName="rounded-xl"
+              className="relative w-full h-full"
+              badge={conditionGrade ? <FoilBadge label="GRADED" /> : (foilOn ? <FoilBadge label={`$${Math.round(rawValue)}+`} /> : undefined)}
+            >
+              <img
+                src={imageUrl}
+                alt={name ? `${name} trading card` : "Trading card"}
+                className="relative w-full h-full object-contain rounded-xl shadow-[0_30px_60px_-15px_rgba(0,0,0,0.7)]"
+                draggable={false}
+              />
+            </HoloFoil>
             {/* Soft reflection */}
             <div
               aria-hidden

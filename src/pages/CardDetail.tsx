@@ -755,6 +755,7 @@ export default function CardDetail() {
                 gradedLabel={gradedLabel}
                 priceHistory={priceHistory}
                 comps={compRows}
+                conditionGrade={card.condition_grade as any}
               />
             </div>
           );
