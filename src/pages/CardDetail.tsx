@@ -56,6 +56,7 @@ import AnalysisProgress from "@/components/AnalysisProgress";
 import MarketEvidence from "@/components/MarketEvidence";
 import CardDetailHero from "@/components/CardDetailHero";
 import GradeLadder from "@/components/GradeLadder";
+import { AIAnalysisCard } from "@/components/AIAnalysisCard";
 
 type Card = Tables<"cards">;
 
