@@ -25,6 +25,7 @@ import AddToFolderMenu from "@/components/AddToFolderMenu";
 import type { User } from "@supabase/supabase-js";
 import ThemeToggle from "@/components/ThemeToggle";
 import SEO from "@/components/SEO";
+import { HoloFoil, FoilBadge, shouldFoil } from "@/components/HoloFoil";
 
 interface Card {
   id: string;
