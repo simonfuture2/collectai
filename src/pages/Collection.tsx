@@ -921,7 +921,7 @@ const Collection = () => {
                         )}
                       </div>
                     </div>
-                  </div>
+                  </LongPressable>
                 </ContextMenuTrigger>
                 {folders.length > 0 && (
                   <ContextMenuContent>
