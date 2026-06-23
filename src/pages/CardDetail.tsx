@@ -1065,6 +1065,14 @@ export default function CardDetail() {
                 />
               )}
 
+              {/* Should I Grade This? — Grade Ladder */}
+              {analysis?.rawConfidence !== "low" && (
+                <GradeLadder
+                  estimates={analysis?.gradedValueEstimates as any}
+                  rawValue={avgValue}
+                />
+              )}
+
               {/* Investment Outlook - Desktop */}
               {analysis?.investmentOutlook && (
                 <div className="bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20 rounded-2xl p-6">
