@@ -28,6 +28,7 @@ const Admin = lazy(() => import("./pages/Admin"));
 const IdBakeoff = lazy(() => import("./pages/admin/IdBakeoff"));
 const SharedCard = lazy(() => import("./pages/SharedCard"));
 const PublicCollection = lazy(() => import("./pages/PublicCollection"));
+const Showcase = lazy(() => import("./pages/Showcase"));
 const PartnerSignup = lazy(() => import("./pages/PartnerSignup"));
 const FreeGuide = lazy(() => import("./pages/FreeGuide"));
 const Install = lazy(() => import("./pages/Install"));
@@ -137,6 +138,7 @@ const App = () => (
               <Route path="/free-guide" element={<FreeGuide />} />
               <Route path="/card/share/:id" element={<SharedCard />} />
               <Route path="/u/:slug" element={<PublicCollection />} />
+              <Route path="/showcase" element={<Showcase />} />
               <Route path="/install" element={<Install />} />
               <Route path="/delete-account" element={<DeleteAccount />} />
               <Route path="/reset-password" element={<ResetPassword />} />
