@@ -265,7 +265,12 @@ const ScanReveal = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <SEO title="Scan Result – MyCollectAI" path={`/scan/reveal/${cardId}`} noIndex />
+      <SEO
+        title="Scan Result – MyCollectAI"
+        description="Your card has been identified — view confidence, value, and recent sold comps."
+        path={`/scan/reveal/${cardId}`}
+        noIndex
+      />
 
       <header className="border-b border-border-subtle/60 backdrop-blur-md sticky top-0 z-30 bg-background/70">
         <div className="container mx-auto px-4 py-3 flex items-center justify-between">
