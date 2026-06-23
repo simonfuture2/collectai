@@ -15,6 +15,7 @@ import ThemeToggle from "@/components/ThemeToggle";
 import PublicCollectionToggle from "@/components/PublicCollectionToggle";
 import { usePushNotifications } from "@/hooks/use-push-notifications";
 import AchievementsRow from "@/components/AchievementsRow";
+import PortfolioHero from "@/components/PortfolioHero";
 import SEO from "@/components/SEO";
 
 const PortfolioAnalytics = lazy(() => import("@/components/PortfolioAnalytics"));
@@ -170,28 +171,7 @@ const Dashboard = () => {
         </div>
 
         {loading ? (
-          <>
-            <div className="grid sm:grid-cols-3 gap-6 mb-10">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="bg-card border border-border rounded-xl p-6 flex items-center gap-4">
-                  <Skeleton className="w-10 h-10 rounded-full" />
-                  <div className="space-y-2 flex-1">
-                    <Skeleton className="h-3 w-20" />
-                    <Skeleton className="h-6 w-16" />
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="grid sm:grid-cols-3 gap-6">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="bg-card border border-border rounded-xl p-4 space-y-3">
-                  <Skeleton className="aspect-[3/4] w-full rounded-lg" />
-                  <Skeleton className="h-4 w-3/4" />
-                  <Skeleton className="h-3 w-1/2" />
-                </div>
-              ))}
-            </div>
-          </>
+          <PortfolioHero cards={[]} loading />
         ) : (
           <>
             {loadError && (
@@ -200,21 +180,10 @@ const Dashboard = () => {
               </div>
             )}
 
-            <div className="grid grid-cols-3 gap-2 sm:gap-6 mb-8 sm:mb-10">
-              {[
-                { icon: Layers, label: "Total Cards", value: stats.totalCards, color: "text-primary" },
-                { icon: Wallet, label: "Est. Value", value: `$${stats.totalValue.toFixed(0)}`, color: "text-secondary" },
-                { icon: TrendingUp, label: "Avg Value", value: stats.totalCards > 0 ? `$${(stats.totalValue / stats.totalCards).toFixed(2)}` : "—", color: "text-accent" },
-              ].map((s, i) => (
-                <div key={i} className="bg-card border border-border rounded-xl p-3 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
-                  <s.icon className={`w-6 h-6 sm:w-10 sm:h-10 ${s.color}`} />
-                  <div className="min-w-0">
-                    <p className="text-[11px] sm:text-sm text-muted-foreground leading-tight">{s.label}</p>
-                    <p className="text-base sm:text-2xl font-display font-bold truncate">{s.value}</p>
-                  </div>
-                </div>
-              ))}
+            <div className="mb-8 sm:mb-10">
+              <PortfolioHero cards={cards} />
             </div>
+
 
             {cards.length > 0 && <AchievementsRow cards={cards} />}
 
