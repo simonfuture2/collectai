@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import SEO from "@/components/SEO";
 import Footer from "@/components/Footer";
 import GradeLadder from "@/components/GradeLadder";
+import { AIAnalysisCard } from "@/components/AIAnalysisCard";
 
 const PENDING_STATUSES = ["pending", "identifying", "pricing", "analyzing", "verifying"];
 
