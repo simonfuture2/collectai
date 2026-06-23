@@ -37,6 +37,7 @@ const Marketplace = lazy(() => import("./pages/Marketplace"));
 const MarketplaceListing = lazy(() => import("./pages/MarketplaceListing"));
 const CreateListing = lazy(() => import("./pages/CreateListing"));
 const WalletSettings = lazy(() => import("./pages/WalletSettings"));
+const DesignDemo = lazy(() => import("./pages/DesignDemo"));
 
 const queryClient = new QueryClient();
 
@@ -136,6 +137,7 @@ const App = () => (
               <Route path="/install" element={<Install />} />
               <Route path="/delete-account" element={<DeleteAccount />} />
               <Route path="/reset-password" element={<ResetPassword />} />
+              <Route path="/design-demo" element={<DesignDemo />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>

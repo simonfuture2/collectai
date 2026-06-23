@@ -16,13 +16,32 @@ export default {
       fontFamily: {
         sans: ['Space Grotesk', 'sans-serif'],
         display: ['Fredoka', 'sans-serif'],
+        numeric: ['ui-monospace', 'SF Mono', 'JetBrains Mono', 'Menlo', 'monospace'],
+      },
+      backgroundImage: {
+        'gradient-gold': 'var(--gradient-gold)',
+      },
+      boxShadow: {
+        glass: 'var(--shadow-glass)',
       },
       colors: {
         border: "hsl(var(--border))",
+        "border-subtle": "hsl(var(--border-subtle))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
+        base: "hsl(var(--bg-base))",
+        surface: "hsl(var(--bg-surface))",
+        "text-primary": "hsl(var(--text-primary))",
+        "text-muted": "hsl(var(--text-muted))",
+        gain: "hsl(var(--gain))",
+        loss: "hsl(var(--loss))",
+        gold: {
+          DEFAULT: "hsl(var(--gold-from))",
+          from: "hsl(var(--gold-from))",
+          to: "hsl(var(--gold-to))",
+        },
         primary: {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",
