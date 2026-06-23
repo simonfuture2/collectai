@@ -39,6 +39,7 @@ const MarketplaceListing = lazy(() => import("./pages/MarketplaceListing"));
 const CreateListing = lazy(() => import("./pages/CreateListing"));
 const WalletSettings = lazy(() => import("./pages/WalletSettings"));
 const DesignDemo = lazy(() => import("./pages/DesignDemo"));
+const ScanReveal = lazy(() => import("./pages/ScanReveal"));
 
 const queryClient = new QueryClient();
 
