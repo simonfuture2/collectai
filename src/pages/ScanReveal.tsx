@@ -10,6 +10,7 @@ import { ArrowLeft, ArrowRight, BadgeCheck, Plus, ShieldCheck, Sparkles, Trendin
 import { toast } from "sonner";
 import SEO from "@/components/SEO";
 import Footer from "@/components/Footer";
+import GradeLadder from "@/components/GradeLadder";
 
 const PENDING_STATUSES = ["pending", "identifying", "pricing", "analyzing", "verifying"];
 
@@ -450,6 +451,11 @@ const ScanReveal = () => {
               </div>
             </div>
           </GlassCard>
+        </FadeUp>
+
+        {/* Grade Ladder */}
+        <FadeUp delay={0.13}>
+          <GradeLadder estimates={card?.ai_analysis?.gradedValueEstimates} rawValue={rawValue} />
         </FadeUp>
 
         {/* Comps */}

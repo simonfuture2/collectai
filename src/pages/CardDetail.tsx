@@ -55,6 +55,7 @@ import DefectMapOverlay from "@/components/DefectMapOverlay";
 import AnalysisProgress from "@/components/AnalysisProgress";
 import MarketEvidence from "@/components/MarketEvidence";
 import CardDetailHero from "@/components/CardDetailHero";
+import GradeLadder from "@/components/GradeLadder";
 
 type Card = Tables<"cards">;
 
@@ -1061,6 +1062,14 @@ export default function CardDetail() {
                 <GradingROICalculator 
                   rawValue={avgValue}
                   gradedEstimates={analysis.gradedValueEstimates}
+                />
+              )}
+
+              {/* Should I Grade This? — Grade Ladder */}
+              {analysis?.rawConfidence !== "low" && (
+                <GradeLadder
+                  estimates={analysis?.gradedValueEstimates as any}
+                  rawValue={avgValue}
                 />
               )}
 
