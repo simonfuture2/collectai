@@ -33,7 +33,6 @@ export default {
         foreground: "hsl(var(--foreground))",
         base: "hsl(var(--bg-base))",
         surface: "hsl(var(--bg-surface))",
-        glass: "hsl(var(--glass-surface))",
         "text-primary": "hsl(var(--text-primary))",
         "text-muted": "hsl(var(--text-muted))",
         gain: "hsl(var(--gain))",
