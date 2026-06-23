@@ -54,6 +54,7 @@ import ThemeToggle from "@/components/ThemeToggle";
 import DefectMapOverlay from "@/components/DefectMapOverlay";
 import AnalysisProgress from "@/components/AnalysisProgress";
 import MarketEvidence from "@/components/MarketEvidence";
+import CardDetailHero from "@/components/CardDetailHero";
 
 type Card = Tables<"cards">;
 
