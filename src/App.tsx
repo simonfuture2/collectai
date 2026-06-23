@@ -39,6 +39,7 @@ const MarketplaceListing = lazy(() => import("./pages/MarketplaceListing"));
 const CreateListing = lazy(() => import("./pages/CreateListing"));
 const WalletSettings = lazy(() => import("./pages/WalletSettings"));
 const DesignDemo = lazy(() => import("./pages/DesignDemo"));
+const ScanReveal = lazy(() => import("./pages/ScanReveal"));
 
 const queryClient = new QueryClient();
 
@@ -112,6 +113,7 @@ const App = () => (
               <Route path="/auth" element={<Auth />} />
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/scan" element={<Scan />} />
+              <Route path="/scan/reveal/:cardId" element={<ScanReveal />} />
               <Route path="/collection" element={<Collection />} />
               <Route path="/pack-rip" element={<PackRip />} />
               <Route path="/card/:id" element={<CardDetail />} />

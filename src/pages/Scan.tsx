@@ -178,7 +178,7 @@ const Scan = () => {
           title: data.duplicate ? "Card already in collection" : "Card uploaded!",
           description: data.duplicate ? undefined : "Opening card — AI is identifying and pricing in the background.",
         });
-        navigate(`/card/${data.cardId}`);
+        navigate(data.duplicate ? `/card/${data.cardId}` : `/scan/reveal/${data.cardId}`);
         return;
       }
 
