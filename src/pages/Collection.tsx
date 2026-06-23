@@ -815,25 +815,41 @@ const Collection = () => {
                       </div>
                     )}
                     <div className="aspect-[3/4] bg-muted relative">
-                      <img
-                        src={card.image_url}
-                        alt={card.card_name ? `${card.card_name} trading card` : "Collectible item"}
-                        className="w-full h-full object-contain"
-                        loading="lazy"
-                        onError={(e) => { e.currentTarget.src = '/placeholder.svg'; }}
-                      />
+                      {(() => {
+                        const val = cardValue(card);
+                        const foilOn = shouldFoil({ isGraded: !!card.condition_grade, value: val, threshold: 50 });
+                        return (
+                          <HoloFoil
+                            active={foilOn}
+                            radiusClassName="rounded-none"
+                            className="w-full h-full"
+                          >
+                            <img
+                              src={card.image_url}
+                              alt={card.card_name ? `${card.card_name} trading card` : "Collectible item"}
+                              className="w-full h-full object-contain"
+                              loading="lazy"
+                              onError={(e) => { e.currentTarget.src = '/placeholder.svg'; }}
+                            />
+                          </HoloFoil>
+                        );
+                      })()}
                       <span
-                        className={`absolute top-1.5 left-1.5 text-[9px] sm:text-[10px] font-semibold px-1.5 py-0.5 rounded-full border ${getCategoryStyle(card.category)}`}
+                        className={`absolute top-1.5 left-1.5 z-10 text-[9px] sm:text-[10px] font-semibold px-1.5 py-0.5 rounded-full border ${getCategoryStyle(card.category)}`}
                       >
                         {card.category || "Trading Card"}
                       </span>
-                      {card.condition_grade && (
-                        <span className="absolute bottom-1.5 right-1.5 text-[9px] sm:text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-background/85 backdrop-blur-sm text-foreground border border-border">
-                          {card.condition_grade}
-                        </span>
-                      )}
+                      {card.condition_grade ? (
+                        <div className="absolute bottom-1.5 left-1.5 z-10">
+                          <FoilBadge label={`${card.condition_grade}`} />
+                        </div>
+                      ) : cardValue(card) >= 50 ? (
+                        <div className="absolute bottom-1.5 left-1.5 z-10">
+                          <FoilBadge label={`$${Math.round(cardValue(card))}+`} />
+                        </div>
+                      ) : null}
                       {card.authentiseal_serial && (
-                        <span className="absolute top-1.5 right-1.5 bg-emerald-500/90 backdrop-blur-sm text-white p-1 rounded-md" title="AuthentiSeal Certified">
+                        <span className="absolute top-1.5 right-1.5 z-10 bg-emerald-500/90 backdrop-blur-sm text-white p-1 rounded-md" title="AuthentiSeal Certified">
                           <Shield className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                         </span>
                       )}
