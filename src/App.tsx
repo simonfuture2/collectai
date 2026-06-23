@@ -8,6 +8,7 @@ import Landing from "./pages/Landing";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import { Web3Provider } from "./components/Web3Provider";
+import BottomNav from "./components/BottomNav";
 
 const Scan = lazy(() => import("./pages/Scan"));
 const Collection = lazy(() => import("./pages/Collection"));
