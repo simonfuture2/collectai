@@ -113,6 +113,7 @@ const App = () => (
               <Route path="/auth" element={<Auth />} />
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/scan" element={<Scan />} />
+              <Route path="/scan/reveal/:cardId" element={<ScanReveal />} />
               <Route path="/collection" element={<Collection />} />
               <Route path="/pack-rip" element={<PackRip />} />
               <Route path="/card/:id" element={<CardDetail />} />
