@@ -108,13 +108,13 @@ export default function GradeLadder({ estimates, rawValue, className }: GradeLad
       </div>
 
       {!hasData ? (
-        <div className="rounded-xl border border-dashed border-border-subtle/70 bg-surface/40 px-4 py-8 text-center">
-          <Minus className="w-5 h-5 text-muted-foreground mx-auto mb-2" />
-          <p className="text-sm font-medium text-foreground">Not enough graded comps yet</p>
-          <p className="text-xs text-muted-foreground mt-1">
-            Once recent graded sales are found, we'll show a full grade-by-grade breakdown.
-          </p>
-        </div>
+        <EmptyState
+          icon={Minus}
+          size="sm"
+          bare
+          title="Not enough graded comps yet"
+          description="Once recent graded sales are found, we'll show a full grade-by-grade breakdown."
+        />
       ) : (
         <>
           {/* Verdict banner */}
