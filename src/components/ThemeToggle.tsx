@@ -7,7 +7,8 @@ const ThemeToggle = () => {
     if (typeof window === "undefined") return true;
     const stored = localStorage.getItem("theme");
     if (stored) return stored === "dark";
-    return false;
+    // default to dark to preserve the premium look on first visit
+    return true;
   });
 
   useEffect(() => {
