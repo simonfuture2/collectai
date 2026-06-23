@@ -26,6 +26,9 @@ import type { User } from "@supabase/supabase-js";
 import ThemeToggle from "@/components/ThemeToggle";
 import SEO from "@/components/SEO";
 import { HoloFoil, FoilBadge, shouldFoil } from "@/components/HoloFoil";
+import EmptyState from "@/components/EmptyState";
+import { useLongPress } from "@/hooks/use-long-press";
+import { Inbox, SearchX } from "lucide-react";
 
 interface Card {
   id: string;
@@ -698,20 +701,30 @@ const Collection = () => {
             ))}
           </div>
         ) : cards.length === 0 ? (
-          <div className="text-center py-16">
-            <Camera className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-            <p className="text-muted-foreground mb-6">No items in your collection yet</p>
-            <Link to="/scan"><Button className="gradient-primary">Scan Your First Item</Button></Link>
-          </div>
+          <EmptyState
+            icon={Inbox}
+            eyebrow="Your Collection"
+            title="No cards yet"
+            description="Scan your first card to start tracking grades, prices, and the value of your entire collection."
+            action={
+              <Link to="/scan">
+                <Button className="gradient-primary">
+                  <Camera className="w-4 h-4 mr-2" /> Scan Your First Card
+                </Button>
+              </Link>
+            }
+          />
         ) : filtered.length === 0 ? (
-          <div className="text-center py-16">
-            <Search className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-            <p className="text-muted-foreground mb-2">No items match your search</p>
-            <p className="text-xs text-muted-foreground mb-3">Try a broader term or different spelling</p>
-            <button onClick={clearFilters} className="text-primary text-sm hover:underline">
-              Clear filters
-            </button>
-          </div>
+          <EmptyState
+            icon={SearchX}
+            title="No matches"
+            description="No cards match these filters. Try a broader search term or clear filters to start over."
+            action={
+              <Button variant="outline" size="sm" onClick={clearFilters}>
+                Clear filters
+              </Button>
+            }
+          />
         ) : viewMode === "list" ? (
           /* ---- LIST / TABLE VIEW ---- */
           <div className="border border-border rounded-xl overflow-hidden bg-card">
