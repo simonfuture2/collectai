@@ -78,9 +78,11 @@ export default function CardDetailHero({
   gradedLabel = "Graded",
   priceHistory,
   comps,
+  conditionGrade,
 }: CardDetailHeroProps) {
   const [timeframe, setTimeframe] = useState<Timeframe>("1M");
   const [mode, setMode] = useState<Mode>("RAW");
+  const foilOn = shouldFoil({ isGraded: !!conditionGrade, value: rawValue, threshold: 50 });
 
   const displayedValue =
     mode === "GRADED" && gradedValue != null ? gradedValue : rawValue;
