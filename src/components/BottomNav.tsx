@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Home, Layers, Trophy, Store, Camera } from "lucide-react";
 import { motion } from "framer-motion";
