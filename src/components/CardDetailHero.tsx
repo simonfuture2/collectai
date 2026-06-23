@@ -114,7 +114,11 @@ export default function CardDetailHero({
           <div className="relative aspect-[5/7] mx-auto">
             <div
               aria-hidden
-              className="absolute -inset-8 bg-gradient-radial from-primary/15 via-transparent to-transparent blur-2xl"
+              className="absolute -inset-8 blur-2xl opacity-70"
+              style={{
+                background:
+                  "radial-gradient(closest-side, hsl(var(--primary) / 0.18), transparent 70%)",
+              }}
             />
             <img
               src={imageUrl}
