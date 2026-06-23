@@ -12,6 +12,7 @@ import { GlassCard } from "@/components/ui/glass-card";
 import { Value } from "@/components/ui/value";
 import { FadeUp } from "@/components/ui/motion";
 import { cn } from "@/lib/utils";
+import { HoloFoil, FoilBadge, shouldFoil } from "@/components/HoloFoil";
 
 type Timeframe = "1D" | "1W" | "1M" | "1Y" | "ALL";
 type Mode = "RAW" | "GRADED";
