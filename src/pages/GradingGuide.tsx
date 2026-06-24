@@ -239,37 +239,6 @@ const TagGuide = () => (
       before submitting. Pre-grade estimates from MyCollectAi are informational only and do not
       guarantee a final grade or sale price.
     </LegalDisclaimer>
-              <p className="text-xs text-muted-foreground leading-relaxed">{r.description}</p>
-            </a>
-          </li>
-        ))}
-      </ul>
-    </Section>
-
-    {/* 6 — Swappable CTA */}
-    <GradingCTA partner={false} company="TAG" officialUrl={TAG_OFFICIAL} />
-
-    {/* 7 — Disclaimer */}
-    <div className="rounded-xl border border-border-subtle bg-muted/30 p-4 flex gap-3">
-      <AlertCircle className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />
-      <p className="text-xs text-muted-foreground leading-relaxed">
-        <strong className="text-foreground">Disclaimer:</strong> MyCollectAi is not affiliated
-        with, endorsed by, or sponsored by TAG Grading. All trademarks and product names belong to
-        their respective owners. Pricing, service tiers, turnaround times, submission requirements,
-        and shipping instructions are set by TAG and change frequently — always confirm the
-        current details on{" "}
-        <a
-          href={TAG_OFFICIAL}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="underline hover:text-foreground"
-        >
-          taggrading.com
-        </a>{" "}
-        before submitting. Pre-grade estimates from MyCollectAi are informational only and do not
-        guarantee a final grade or sale price.
-      </p>
-    </div>
   </article>
 );
 
