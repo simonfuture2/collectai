@@ -6,6 +6,7 @@ import Footer from "@/components/Footer";
 import ThemeToggle from "@/components/ThemeToggle";
 import SEO from "@/components/SEO";
 import GradingCTA from "@/components/GradingCTA";
+import GradingStub from "@/components/GradingStub";
 import OutboundLink from "@/components/OutboundLink";
 import LegalDisclaimer from "@/components/LegalDisclaimer";
 import { getGuideBySlug } from "@/lib/gradingGuides";
