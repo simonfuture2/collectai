@@ -5,6 +5,7 @@ import { GlassCard } from "@/components/ui/glass-card";
 import Footer from "@/components/Footer";
 import ThemeToggle from "@/components/ThemeToggle";
 import SEO from "@/components/SEO";
+import LegalDisclaimer from "@/components/LegalDisclaimer";
 import { GRADING_GUIDES } from "@/lib/gradingGuides";
 
 const GradingGuides = () => {
