@@ -194,34 +194,51 @@ const TagGuide = () => (
         scale with published subgrades for centering, corners, edges, and surface, all visible on
         the cert page for any buyer or collector to verify.
       </p>
-      <a
-        href={TAG_OFFICIAL}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline"
-      >
+      <OutboundLink href={TAG_OFFICIAL} className="text-sm font-semibold no-underline hover:underline">
         See the full list of what TAG grades
-        <ExternalLink className="w-3.5 h-3.5" />
-      </a>
+      </OutboundLink>
     </Section>
 
     {/* 5 — Helpful resources */}
     <Section title="Helpful TAG resources">
       <ul className="grid sm:grid-cols-2 gap-3">
         {RESOURCES.map((r) => (
-          <li key={r.href}>
-            <a
+          <li
+            key={r.href}
+            className="rounded-xl border border-border-subtle bg-card/40 p-4 hover:border-primary/40 hover:bg-card/60 transition-colors"
+          >
+            <OutboundLink
               href={r.href}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="group block rounded-xl border border-border-subtle bg-card/40 p-4 hover:border-primary/40 hover:bg-card/60 transition-colors"
+              className="font-display font-semibold no-underline hover:underline"
             >
-              <div className="flex items-center justify-between gap-2 mb-1">
-                <span className="font-display font-semibold text-foreground group-hover:text-primary transition-colors">
-                  {r.label}
-                </span>
-                <ExternalLink className="w-3.5 h-3.5 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
-              </div>
+              {r.label}
+            </OutboundLink>
+            <p className="text-xs text-muted-foreground leading-relaxed mt-1">{r.description}</p>
+          </li>
+        ))}
+      </ul>
+    </Section>
+
+    {/* 6 — Swappable CTA */}
+    <GradingCTA partner={false} company="TAG" officialUrl={TAG_OFFICIAL} />
+
+    {/* 7 — Disclaimer */}
+    <LegalDisclaimer>
+      <strong className="text-foreground">Disclaimer:</strong> MyCollectAi is not affiliated
+      with, endorsed by, or sponsored by TAG Grading. All trademarks and product names belong to
+      their respective owners. Pricing, service tiers, turnaround times, submission requirements,
+      and shipping instructions are set by TAG and change frequently — always confirm the current
+      details on{" "}
+      <OutboundLink href={TAG_OFFICIAL} className="text-xs">
+        taggrading.com
+      </OutboundLink>{" "}
+      or{" "}
+      <OutboundLink href="https://help.taggrading.com" className="text-xs">
+        help.taggrading.com
+      </OutboundLink>{" "}
+      before submitting. Pre-grade estimates from MyCollectAi are informational only and do not
+      guarantee a final grade or sale price.
+    </LegalDisclaimer>
               <p className="text-xs text-muted-foreground leading-relaxed">{r.description}</p>
             </a>
           </li>
