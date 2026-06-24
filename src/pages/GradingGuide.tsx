@@ -1,11 +1,13 @@
 import { Link, useParams, Navigate } from "react-router-dom";
-import { ArrowLeft, ArrowRight, Clock, Sparkles, ExternalLink, AlertCircle } from "lucide-react";
+import { ArrowLeft, ArrowRight, Clock, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { GlassCard } from "@/components/ui/glass-card";
 import Footer from "@/components/Footer";
 import ThemeToggle from "@/components/ThemeToggle";
 import SEO from "@/components/SEO";
 import GradingCTA from "@/components/GradingCTA";
+import OutboundLink from "@/components/OutboundLink";
+import LegalDisclaimer from "@/components/LegalDisclaimer";
 import { getGuideBySlug } from "@/lib/gradingGuides";
 
 const GradingGuide = () => {
@@ -192,36 +194,26 @@ const TagGuide = () => (
         scale with published subgrades for centering, corners, edges, and surface, all visible on
         the cert page for any buyer or collector to verify.
       </p>
-      <a
-        href={TAG_OFFICIAL}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline"
-      >
+      <OutboundLink href={TAG_OFFICIAL} className="text-sm font-semibold no-underline hover:underline">
         See the full list of what TAG grades
-        <ExternalLink className="w-3.5 h-3.5" />
-      </a>
+      </OutboundLink>
     </Section>
 
     {/* 5 — Helpful resources */}
     <Section title="Helpful TAG resources">
       <ul className="grid sm:grid-cols-2 gap-3">
         {RESOURCES.map((r) => (
-          <li key={r.href}>
-            <a
+          <li
+            key={r.href}
+            className="rounded-xl border border-border-subtle bg-card/40 p-4 hover:border-primary/40 hover:bg-card/60 transition-colors"
+          >
+            <OutboundLink
               href={r.href}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="group block rounded-xl border border-border-subtle bg-card/40 p-4 hover:border-primary/40 hover:bg-card/60 transition-colors"
+              className="font-display font-semibold no-underline hover:underline"
             >
-              <div className="flex items-center justify-between gap-2 mb-1">
-                <span className="font-display font-semibold text-foreground group-hover:text-primary transition-colors">
-                  {r.label}
-                </span>
-                <ExternalLink className="w-3.5 h-3.5 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
-              </div>
-              <p className="text-xs text-muted-foreground leading-relaxed">{r.description}</p>
-            </a>
+              {r.label}
+            </OutboundLink>
+            <p className="text-xs text-muted-foreground leading-relaxed mt-1">{r.description}</p>
           </li>
         ))}
       </ul>
@@ -231,26 +223,22 @@ const TagGuide = () => (
     <GradingCTA partner={false} company="TAG" officialUrl={TAG_OFFICIAL} />
 
     {/* 7 — Disclaimer */}
-    <div className="rounded-xl border border-border-subtle bg-muted/30 p-4 flex gap-3">
-      <AlertCircle className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />
-      <p className="text-xs text-muted-foreground leading-relaxed">
-        <strong className="text-foreground">Disclaimer:</strong> MyCollectAi is not affiliated
-        with, endorsed by, or sponsored by TAG Grading. All trademarks and product names belong to
-        their respective owners. Pricing, service tiers, turnaround times, submission requirements,
-        and shipping instructions are set by TAG and change frequently — always confirm the
-        current details on{" "}
-        <a
-          href={TAG_OFFICIAL}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="underline hover:text-foreground"
-        >
-          taggrading.com
-        </a>{" "}
-        before submitting. Pre-grade estimates from MyCollectAi are informational only and do not
-        guarantee a final grade or sale price.
-      </p>
-    </div>
+    <LegalDisclaimer>
+      <strong className="text-foreground">Disclaimer:</strong> MyCollectAi is not affiliated
+      with, endorsed by, or sponsored by TAG Grading. All trademarks and product names belong to
+      their respective owners. Pricing, service tiers, turnaround times, submission requirements,
+      and shipping instructions are set by TAG and change frequently — always confirm the current
+      details on{" "}
+      <OutboundLink href={TAG_OFFICIAL} className="text-xs">
+        taggrading.com
+      </OutboundLink>{" "}
+      or{" "}
+      <OutboundLink href="https://help.taggrading.com" className="text-xs">
+        help.taggrading.com
+      </OutboundLink>{" "}
+      before submitting. Pre-grade estimates from MyCollectAi are informational only and do not
+      guarantee a final grade or sale price.
+    </LegalDisclaimer>
   </article>
 );
 
@@ -264,22 +252,25 @@ const Section = ({ title, children }: { title: string; children: React.ReactNode
 /* ───────────────────────── Coming soon stub ───────────────────────── */
 
 const ComingSoonStub = ({ name }: { name: string }) => (
-  <GlassCard className="text-center py-12">
-    <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-primary/10 border border-primary/20 mb-5">
-      <Clock className="w-6 h-6 text-primary" />
-    </div>
-    <h3 className="text-2xl font-display font-bold mb-2">Our {name} guide is in the works</h3>
-    <p className="text-muted-foreground max-w-md mx-auto mb-6">
-      We're putting together a deep, plain-English breakdown of how {name} grades cards, what their
-      scale really means, and how to submit smarter. Check back soon.
-    </p>
-    <Link to="/grading">
-      <Button variant="outline">
-        <ArrowLeft className="w-4 h-4" />
-        Back to all guides
-      </Button>
-    </Link>
-  </GlassCard>
+  <div className="space-y-10">
+    <GlassCard className="text-center py-12">
+      <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-primary/10 border border-primary/20 mb-5">
+        <Clock className="w-6 h-6 text-primary" />
+      </div>
+      <h3 className="text-2xl font-display font-bold mb-2">Our {name} guide is in the works</h3>
+      <p className="text-muted-foreground max-w-md mx-auto mb-6">
+        We're putting together a deep, plain-English breakdown of how {name} grades cards, what
+        their scale really means, and how to submit smarter. Check back soon.
+      </p>
+      <Link to="/grading">
+        <Button variant="outline">
+          <ArrowLeft className="w-4 h-4" />
+          Back to all guides
+        </Button>
+      </Link>
+    </GlassCard>
+    <LegalDisclaimer />
+  </div>
 );
 
 export default GradingGuide;
