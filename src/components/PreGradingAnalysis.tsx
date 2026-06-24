@@ -1,4 +1,5 @@
-import { CheckCircle, XCircle, AlertCircle, Target, Square, Layers, Sparkles } from "lucide-react";
+import { Link } from "react-router-dom";
+import { CheckCircle, XCircle, AlertCircle, Target, Square, Layers, Sparkles, ArrowRight } from "lucide-react";
 
 interface CenteringData {
   score?: number;
@@ -381,6 +382,13 @@ export default function PreGradingAnalysis({ data }: PreGradingAnalysisProps) {
         <div className="p-4 bg-gradient-to-r from-primary/10 to-secondary/10 border border-primary/20 rounded-xl">
           <p className="text-sm font-medium text-primary mb-2">Expert Recommendation</p>
           <p className="text-sm text-foreground">{data.gradingRecommendation}</p>
+          <Link
+            to="/grading"
+            className="inline-flex items-center gap-1.5 mt-3 text-sm font-semibold text-primary hover:text-primary/80 transition-colors"
+          >
+            Ready to grade? See our grading guides
+            <ArrowRight className="w-4 h-4" />
+          </Link>
         </div>
       )}
     </div>
