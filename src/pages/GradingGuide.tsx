@@ -252,22 +252,25 @@ const Section = ({ title, children }: { title: string; children: React.ReactNode
 /* ───────────────────────── Coming soon stub ───────────────────────── */
 
 const ComingSoonStub = ({ name }: { name: string }) => (
-  <GlassCard className="text-center py-12">
-    <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-primary/10 border border-primary/20 mb-5">
-      <Clock className="w-6 h-6 text-primary" />
-    </div>
-    <h3 className="text-2xl font-display font-bold mb-2">Our {name} guide is in the works</h3>
-    <p className="text-muted-foreground max-w-md mx-auto mb-6">
-      We're putting together a deep, plain-English breakdown of how {name} grades cards, what their
-      scale really means, and how to submit smarter. Check back soon.
-    </p>
-    <Link to="/grading">
-      <Button variant="outline">
-        <ArrowLeft className="w-4 h-4" />
-        Back to all guides
-      </Button>
-    </Link>
-  </GlassCard>
+  <div className="space-y-10">
+    <GlassCard className="text-center py-12">
+      <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-primary/10 border border-primary/20 mb-5">
+        <Clock className="w-6 h-6 text-primary" />
+      </div>
+      <h3 className="text-2xl font-display font-bold mb-2">Our {name} guide is in the works</h3>
+      <p className="text-muted-foreground max-w-md mx-auto mb-6">
+        We're putting together a deep, plain-English breakdown of how {name} grades cards, what
+        their scale really means, and how to submit smarter. Check back soon.
+      </p>
+      <Link to="/grading">
+        <Button variant="outline">
+          <ArrowLeft className="w-4 h-4" />
+          Back to all guides
+        </Button>
+      </Link>
+    </GlassCard>
+    <LegalDisclaimer />
+  </div>
 );
 
 export default GradingGuide;
