@@ -62,9 +62,17 @@ const GradingGuide = () => {
             )}
           </div>
           <h2 className="text-4xl md:text-5xl font-display font-bold mb-3">
-            <span className="text-gradient-primary">{guide.name}</span>
+            {guide.slug === "tag" ? (
+              <span className="text-gradient-primary">How to Grade Your Cards with TAG</span>
+            ) : (
+              <span className="text-gradient-primary">{guide.name}</span>
+            )}
           </h2>
-          <p className="text-lg text-muted-foreground leading-relaxed">{guide.blurb}</p>
+          <p className="text-lg text-muted-foreground leading-relaxed">
+            {guide.slug === "tag"
+              ? "TAG (Technical Authentication & Grading) uses computer vision to grade every card on a transparent 1,000-point scale, with per-attribute subgrades you can verify online. This guide walks you through deciding whether your card is worth grading and how to submit it the right way."
+              : guide.blurb}
+          </p>
         </div>
 
         {guide.status === "live" && guide.slug === "tag" ? (
