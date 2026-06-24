@@ -88,7 +88,12 @@ const GradingGuides = () => {
             );
           })}
         </div>
+
+        <div className="mt-12">
+          <LegalDisclaimer />
+        </div>
       </main>
+
 
       <Footer />
     </div>
