@@ -41,6 +41,8 @@ const CreateListing = lazy(() => import("./pages/CreateListing"));
 const WalletSettings = lazy(() => import("./pages/WalletSettings"));
 const DesignDemo = lazy(() => import("./pages/DesignDemo"));
 const ScanReveal = lazy(() => import("./pages/ScanReveal"));
+const GradingGuides = lazy(() => import("./pages/GradingGuides"));
+const GradingGuide = lazy(() => import("./pages/GradingGuide"));
 
 const queryClient = new QueryClient();
 
@@ -143,6 +145,8 @@ const App = () => (
               <Route path="/delete-account" element={<DeleteAccount />} />
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/design-demo" element={<DesignDemo />} />
+              <Route path="/grading" element={<GradingGuides />} />
+              <Route path="/grading/:slug" element={<GradingGuide />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>

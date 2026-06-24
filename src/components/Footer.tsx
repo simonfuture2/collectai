@@ -5,7 +5,7 @@ const Footer = () => {
   return (
     <footer className="border-t border-border bg-card/50 mt-auto">
       <div className="container mx-auto px-4 py-10">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-8 mb-8">
           <div>
             <div className="flex items-center gap-2 mb-3">
               <img src={collectaiLogo} alt="MyCollectAI Logo" className="w-8 h-8 rounded-lg" />
@@ -23,6 +23,15 @@ const Footer = () => {
               <li><Link to="/scan" className="hover:text-foreground transition-colors">Scan</Link></li>
               <li><Link to="/dashboard" className="hover:text-foreground transition-colors">Dashboard</Link></li>
               <li><Link to="/marketplace" className="hover:text-foreground transition-colors">Marketplace</Link></li>
+              <li><Link to="/how-it-works" className="hover:text-foreground transition-colors">How It Works</Link></li>
+            </ul>
+          </div>
+
+          <div>
+            <h4 className="font-display font-semibold text-sm mb-3">Learn</h4>
+            <ul className="space-y-2 text-sm text-muted-foreground">
+              <li><Link to="/grading" className="hover:text-foreground transition-colors">Grading Guides</Link></li>
+              <li><Link to="/grading/tag" className="hover:text-foreground transition-colors">TAG Grading Guide</Link></li>
               <li><Link to="/how-it-works" className="hover:text-foreground transition-colors">How It Works</Link></li>
             </ul>
           </div>

@@ -2,9 +2,10 @@ import SEO from "@/components/SEO";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Camera, Sparkles, TrendingUp, Wallet, Crown, Check, Shield, Menu } from "lucide-react";
+import { Camera, Sparkles, TrendingUp, Wallet, Crown, Check, Shield, Menu, ChevronDown } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
 import Footer from "@/components/Footer";
 import HeroBackground from "@/components/HeroBackground";
 import ScanDemo from "@/components/ScanDemo";
@@ -44,9 +45,24 @@ const Landing = () => {
           <span className="text-2xl font-display font-bold text-gradient-primary">MyCollectAI</span>
         </Link>
         <div className="flex items-center gap-2 sm:gap-4">
-          <Link to="/how-it-works" className="text-sm text-muted-foreground hover:text-foreground transition-colors hidden sm:inline">How It Works</Link>
+          <DropdownMenu>
+            <DropdownMenuTrigger className="hidden sm:inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors focus:outline-none">
+              Resources <ChevronDown className="w-3.5 h-3.5" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuLabel className="text-xs text-muted-foreground">Learn</DropdownMenuLabel>
+              <DropdownMenuItem asChild>
+                <Link to="/grading">Grading Guides</Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link to="/how-it-works">How It Works</Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link to="/faq">FAQ</Link>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Link to="/partners" className="text-sm text-muted-foreground hover:text-foreground transition-colors hidden sm:inline">Partners</Link>
-          <Link to="/faq" className="text-sm text-muted-foreground hover:text-foreground transition-colors hidden sm:inline">FAQ</Link>
           <Link to="/pricing" className="text-sm text-muted-foreground hover:text-foreground transition-colors hidden sm:inline">Pricing</Link>
           <Link to="/marketplace" className="text-sm text-muted-foreground hover:text-foreground transition-colors hidden sm:inline">Marketplace</Link>
           <ThemeToggle />
@@ -61,6 +77,7 @@ const Landing = () => {
             <SheetContent side="right" className="w-64">
               <SheetTitle className="text-lg font-display font-bold text-gradient-primary">Menu</SheetTitle>
               <nav className="flex flex-col gap-4 mt-6">
+                <Link to="/grading" className="text-base text-foreground hover:text-primary transition-colors">Grading Guides</Link>
                 <Link to="/how-it-works" className="text-base text-foreground hover:text-primary transition-colors">How It Works</Link>
                 <Link to="/partners" className="text-base text-foreground hover:text-primary transition-colors">Partners</Link>
                 <Link to="/faq" className="text-base text-foreground hover:text-primary transition-colors">FAQ</Link>
