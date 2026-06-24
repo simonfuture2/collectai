@@ -89,8 +89,7 @@ const GradingGuide = () => {
 
 /* ───────────────────────── TAG guide ───────────────────────── */
 
-const TagGuide = () => (
-  <article className="space-y-10 text-foreground">
+
 const TAG_OFFICIAL = "https://taggrading.com";
 const TAG_SUBMIT = "https://taggrading.com/submit";
 const TAG_PRICING = "https://taggrading.com/pricing";
