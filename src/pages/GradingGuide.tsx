@@ -1,11 +1,13 @@
 import { Link, useParams, Navigate } from "react-router-dom";
-import { ArrowLeft, ArrowRight, Clock, Sparkles, ExternalLink, AlertCircle } from "lucide-react";
+import { ArrowLeft, ArrowRight, Clock, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { GlassCard } from "@/components/ui/glass-card";
 import Footer from "@/components/Footer";
 import ThemeToggle from "@/components/ThemeToggle";
 import SEO from "@/components/SEO";
 import GradingCTA from "@/components/GradingCTA";
+import OutboundLink from "@/components/OutboundLink";
+import LegalDisclaimer from "@/components/LegalDisclaimer";
 import { getGuideBySlug } from "@/lib/gradingGuides";
 
 const GradingGuide = () => {
