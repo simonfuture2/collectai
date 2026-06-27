@@ -93,15 +93,15 @@ Return ONLY valid JSON:
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-5",
+        model: "claude-sonnet-4-6",
         max_tokens: 2048,
-        thinking: { type: "enabled", budget_tokens: 1024 },
         messages: [{ role: "user", content: prompt }],
       }),
     });
 
     if (!response.ok) {
-      console.error("Claude verification failed:", response.status);
+      const verifyErr = await response.text().catch(() => "");
+      console.error("Claude verification failed:", response.status, verifyErr);
       return null;
     }
 
@@ -380,7 +380,7 @@ GRADE-CEILING RULE (MANDATORY):
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "claude-sonnet-4-5",
+      model: "claude-sonnet-4-6",
       max_tokens: 8192,
       system: systemPrompt,
       messages: [
@@ -401,11 +401,11 @@ GRADE-CEILING RULE (MANDATORY):
   if (!response.ok) {
     const errorText = await response.text();
     console.error("Claude API error:", response.status, errorText);
-    throw new Error(`Claude API error: ${response.status}`);
+    throw new Error(`Claude API error: ${response.status} — ${errorText}`);
   }
 
   const data = await response.json();
-  const content = data.content?.[0]?.text;
+  const content = (data.content || []).find((b: any) => b?.type === "text")?.text || data.content?.[0]?.text;
   if (!content) throw new Error("No response from AI");
 
   console.log("AI response received");
