@@ -93,15 +93,15 @@ Return ONLY valid JSON:
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-5",
+        model: "claude-sonnet-4-6",
         max_tokens: 2048,
-        thinking: { type: "enabled", budget_tokens: 1024 },
         messages: [{ role: "user", content: prompt }],
       }),
     });
 
     if (!response.ok) {
-      console.error("Claude verification failed:", response.status);
+      const verifyErr = await response.text().catch(() => "");
+      console.error("Claude verification failed:", response.status, verifyErr);
       return null;
     }
 
