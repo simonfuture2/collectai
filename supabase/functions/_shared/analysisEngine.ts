@@ -382,7 +382,13 @@ GRADE-CEILING RULE (MANDATORY):
     body: JSON.stringify({
       model: "claude-sonnet-4-6",
       max_tokens: 8192,
-      system: systemPrompt,
+      system: [
+        {
+          type: "text",
+          text: systemPrompt,
+          cache_control: { type: "ephemeral" },
+        },
+      ],
       messages: [
         {
           role: "user",

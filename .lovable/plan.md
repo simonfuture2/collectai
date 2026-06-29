@@ -1,48 +1,22 @@
-## Grading Guides Section
+In `supabase/functions/_shared/analysisEngine.ts`, change only the Step 3 Claude request body so its `system` field becomes a cached array.
 
-Add a new marketing/content section under `/grading/*` that explains card grading companies. Uses existing stack, design tokens, `GlassCard`, and `Landing` header patterns.
+Exact change on line 385:
+- From: `system: systemPrompt,`
+- To:
+  ```typescript
+  system: [
+    {
+      type: "text",
+      text: systemPrompt,
+      cache_control: { type: "ephemeral" },
+    },
+  ],
+  ```
 
-### Routes
-- `/grading` — hub index
-- `/grading/tag` — live TAG guide
-- `/grading/psa`, `/grading/bgs`, `/grading/cgc`, `/grading/sgc` — stub pages
+Constraints respected:
+- No change to the `systemPrompt` variable or its content.
+- No change to `model`, `max_tokens`, headers, `messages`, or image handling.
+- `verifyWithClaude` and `verifyWithGemini` are left untouched.
+- Response parsing already reads `data.content`, not `data.usage`, so the new `cache_*_input_tokens` fields have no impact.
 
-### Data model
-Create `src/lib/gradingGuides.ts` with:
-```ts
-interface GradingGuide {
-  slug: string;
-  name: string;
-  blurb: string;
-  status: 'live' | 'coming_soon';
-  partnerBadge: boolean;
-}
-```
-Five entries: TAG (live), PSA/BGS/CGC/SGC (coming_soon), all `partnerBadge: false`.
-
-### Pages
-1. **Hub (`src/pages/GradingGuides.tsx`)**
-   - Marketing-style header with back button + theme toggle.
-   - Heading "Grading Guides".
-   - Editable intro paragraph (placeholder copy).
-   - Responsive grid of `GlassCard` entries, one per company.
-   - Card content: company name, blurb, status badge, optional "MyCollectAi × {name}" partner badge.
-   - Live cards link to their guide; coming-soon cards link to stub and show "Guide coming soon".
-
-2. **Guide (`src/pages/GradingGuide.tsx`)**
-   - Reads `:slug` from URL, looks up in data.
-   - Live TAG guide: clean article layout with sections (overview, scale, what they grade, submission tips, why TAG).
-   - Coming-soon stubs: friendly placeholder with link back to hub.
-
-### Navigation
-- In `src/pages/Landing.tsx`, replace the inline "How It Works" link with a **Resources** dropdown containing:
-  - Grading Guides → `/grading`
-  - How It Works → `/how-it-works`
-- Mirror the same links in the mobile sheet menu.
-- Add a "Learn" column in `Footer.tsx` with Grading Guides + How It Works links.
-
-### Routing
-- Register all six routes in `src/App.tsx` with `React.lazy()` + `Suspense`.
-
-### No changes to
-Scan flow, pricing, Supabase, Stripe, or business logic.
+After the edit, I will redeploy the `analyze-card` and `enrich-card` edge functions so the change is live.
