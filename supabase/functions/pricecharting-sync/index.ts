@@ -153,6 +153,19 @@ Deno.serve(async (req) => {
     return new Response("ok", { headers: corsHeaders });
   }
 
+  // Require shared-secret header — this endpoint is invoked only by cron/service callers.
+  const expectedSecret = Deno.env.get("PRICECHARTING_SYNC_SECRET");
+  const providedSecret =
+    req.headers.get("x-internal-key") ??
+    req.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
+  if (!expectedSecret || providedSecret !== expectedSecret) {
+    return new Response(
+      JSON.stringify({ ok: false, error: "Unauthorized" }),
+      { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  }
+
+
   try {
     const apiKey = Deno.env.get("PRICECHARTING_API_KEY");
     if (!apiKey) {
