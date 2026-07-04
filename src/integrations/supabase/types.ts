@@ -62,6 +62,13 @@ export type Database = {
             referencedRelation: "cards"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "bakeoff_truth_card_id_fkey"
+            columns: ["card_id"]
+            isOneToOne: true
+            referencedRelation: "cards_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       campaign_templates: {
@@ -122,6 +129,13 @@ export type Database = {
             columns: ["card_id"]
             isOneToOne: false
             referencedRelation: "cards"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "card_folders_card_id_fkey"
+            columns: ["card_id"]
+            isOneToOne: false
+            referencedRelation: "cards_public"
             referencedColumns: ["id"]
           },
           {
@@ -898,6 +912,13 @@ export type Database = {
             referencedRelation: "cards"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "price_history_card_id_fkey"
+            columns: ["card_id"]
+            isOneToOne: false
+            referencedRelation: "cards_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       pricecharting_catalog: {
@@ -1217,6 +1238,24 @@ export type Database = {
       }
     }
     Views: {
+      cards_public: {
+        Row: {
+          card_name: string | null
+          card_set: string | null
+          card_year: string | null
+          category: string | null
+          condition_grade: string | null
+          created_at: string | null
+          estimated_value_high: number | null
+          estimated_value_low: number | null
+          id: string | null
+          image_url: string | null
+          is_public: boolean | null
+          rarity: string | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
       public_profiles: {
         Row: {
           avatar_url: string | null
