@@ -123,7 +123,7 @@ function TabButton({ tab, active }: { tab: Tab; active: boolean }) {
         aria-current={active ? "page" : undefined}
         className={cn(
           "flex flex-col items-center justify-center gap-0.5 rounded-xl py-1.5 transition-colors",
-          active ? "text-primary" : "text-muted-foreground hover:text-foreground"
+          active ? "text-primary" : "text-white/70 hover:text-white"
         )}
       >
         <Icon className={cn("h-5 w-5", active && "drop-shadow-[0_0_6px_hsl(var(--primary)/0.6)]")} />
