@@ -39,9 +39,12 @@ export default function AuthenticatedProfile({ card, onUpdated }: Props) {
   const [company, setCompany] = useState<Grader>("PSA");
   const [certNumber, setCertNumber] = useState("");
   const [saving, setSaving] = useState(false);
+  const [scanning, setScanning] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const hasSlab = !!card.grading_cert_number && !!card.grading_company;
   const hasAuthentiSeal = !!card.authentiseal_serial;
+  const verifiedFromPhoto = card.authentication_data?.source === "slab_scan";
 
   if (!hasSlab && !hasAuthentiSeal && !showAdd) {
     return (
