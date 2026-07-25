@@ -81,6 +81,7 @@ const Dashboard = () => {
         const { data, error } = await supabase.from("cards")
           .select("id, card_name, card_set, rarity, estimated_value_low, estimated_value_high, created_at, special_features")
           .eq("user_id", user.id)
+          .is("superseded_by_card_id", null)
           .order("created_at", { ascending: false })
           .abortSignal(controller.signal);
 
