@@ -384,7 +384,11 @@ GRADE-CEILING RULE (MANDATORY):
     ? `I'm providing ${images.length} images of this collectible item (${images.map((i) => i.label).join(", ")}). Please analyze all views together for a comprehensive identification, condition assessment, and value estimate.`
     : "Please analyze this trading card image and provide a complete identification, condition assessment, and value estimate.";
 
-  const fullUserMessage = userMessage + marketData.summary;
+  const knownGradeHint = knownGrade
+    ? `\n\nCONFIRMED SLAB GRADE — DO NOT PREDICT:\nThis card has been professionally graded. The authoritative grade on the slab is ${knownGrade.company} ${knownGrade.label ?? knownGrade.numeric} (cert ${knownGrade.cert_number ?? "unknown"}).\n- Set conditionGrade to "${knownGrade.company} ${knownGrade.label ?? knownGrade.numeric}".\n- Value estimates MUST reflect graded market comps for exactly ${knownGrade.company} ${knownGrade.numeric} — not raw prices.\n- In gradedValueEstimates.currentGradeEstimate, restate the confirmed grade.\n- Skip the "should I grade this" reasoning; the card is already graded.\n`
+    : "";
+
+  const fullUserMessage = userMessage + marketData.summary + knownGradeHint;
 
   console.log("Step 3: Full analysis with Claude,", marketData.hasData ? "real market data" : "AI-only estimates");
 
