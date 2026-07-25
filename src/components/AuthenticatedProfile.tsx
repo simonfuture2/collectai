@@ -218,12 +218,16 @@ export default function AuthenticatedProfile({ card, onUpdated }: Props) {
             </div>
             <div className="text-right">
               <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Cert #</p>
-              <div className="flex items-center gap-1 mt-1">
-                <p className="font-mono text-sm font-medium">{card.grading_cert_number}</p>
-                <button onClick={() => copy(card.grading_cert_number!)} className="text-muted-foreground hover:text-foreground">
-                  <Copy className="w-3.5 h-3.5" />
-                </button>
-              </div>
+              {card.grading_cert_number ? (
+                <div className="flex items-center gap-1 mt-1">
+                  <p className="font-mono text-sm font-medium">{card.grading_cert_number}</p>
+                  <button onClick={() => copy(card.grading_cert_number!)} className="text-muted-foreground hover:text-foreground">
+                    <Copy className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <p className="font-mono text-sm text-muted-foreground mt-1">Not on file</p>
+              )}
             </div>
           </div>
 
