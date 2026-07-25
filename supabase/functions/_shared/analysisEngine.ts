@@ -42,6 +42,15 @@ export interface RunAnalysisInput {
   images: { label: string; url: string }[];
   category?: string;
   fastScan?: boolean;
+  // When provided, the pipeline treats the card as already-graded: search terms
+  // are biased toward graded comps and the AI is instructed to price the
+  // confirmed slab grade instead of predicting one.
+  knownGrade?: {
+    company: string;
+    numeric: number;
+    label?: string;
+    cert_number?: string | null;
+  };
 }
 
 export interface RunAnalysisResult {
