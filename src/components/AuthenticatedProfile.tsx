@@ -180,12 +180,30 @@ export default function AuthenticatedProfile({ card, onUpdated }: Props) {
       <div className="flex items-center gap-2">
         <BadgeCheck className="w-5 h-5 text-amber-400" />
         <h3 className="font-display font-bold">Authenticated Profile</h3>
-        {hasAuthentiSeal && (
+        {verifiedFromPhoto && (
+          <span className="ml-auto text-[10px] font-semibold uppercase tracking-wider text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded-full flex items-center gap-1">
+            <Sparkles className="w-3 h-3" /> Verified from slab photo
+          </span>
+        )}
+        {hasAuthentiSeal && !verifiedFromPhoto && (
           <span className="ml-auto text-[10px] font-semibold uppercase tracking-wider text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded-full">
             AuthentiSeal
           </span>
         )}
       </div>
+
+      <div className="flex flex-wrap gap-2">
+        <Button size="sm" onClick={openSlabPicker} disabled={scanning} className="gradient-primary">
+          {scanning ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <Camera className="w-4 h-4 mr-1.5" />}
+          {hasSlab ? "Re-scan slab photo" : "Scan slab photo"}
+        </Button>
+        {!hasSlab && (
+          <Button size="sm" variant="outline" onClick={() => setShowAdd(true)}>
+            <Plus className="w-4 h-4 mr-1.5" /> Enter cert manually
+          </Button>
+        )}
+      </div>
+      {hiddenInput}
 
       {/* Slab grade block */}
       {hasSlab ? (
