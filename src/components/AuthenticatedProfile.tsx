@@ -231,19 +231,21 @@ export default function AuthenticatedProfile({ card, onUpdated }: Props) {
             </div>
           </div>
 
-          <div className="flex gap-2 mt-4">
-            <Button size="sm" onClick={verifyCert} disabled={verifying} className="gradient-primary">
-              {verifying ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Shield className="w-3.5 h-3.5 mr-1.5" />}
-              Verify slab cert
-            </Button>
-            {verifyUrl && (
-              <a href={verifyUrl} target="_blank" rel="noopener noreferrer">
-                <Button size="sm" variant="outline">
-                  Open on {card.grading_company} <ExternalLink className="w-3.5 h-3.5 ml-1.5" />
-                </Button>
-              </a>
-            )}
-          </div>
+          {card.grading_cert_number && (
+            <div className="flex gap-2 mt-4">
+              <Button size="sm" onClick={verifyCert} disabled={verifying} className="gradient-primary">
+                {verifying ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Shield className="w-3.5 h-3.5 mr-1.5" />}
+                Verify slab cert
+              </Button>
+              {verifyUrl && (
+                <a href={verifyUrl} target="_blank" rel="noopener noreferrer">
+                  <Button size="sm" variant="outline">
+                    Open on {card.grading_company} <ExternalLink className="w-3.5 h-3.5 ml-1.5" />
+                  </Button>
+                </a>
+              )}
+            </div>
+          )}
 
           {reachable === true && (
             <p className="text-xs text-emerald-400 mt-2">✓ Cert page resolved — click to inspect on {card.grading_company}.</p>
