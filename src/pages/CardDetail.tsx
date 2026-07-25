@@ -766,6 +766,16 @@ export default function CardDetail() {
 
         <div className="mb-8 space-y-4">
           <AuthenticatedProfile card={card as any} onUpdated={() => window.location.reload()} />
+          {(analysis as any)?.gradeAccuracy && (
+            <AIAccuracyCard
+              accuracy={(analysis as any).gradeAccuracy}
+              actualValueMid={
+                card.estimated_value_low != null && card.estimated_value_high != null
+                  ? (Number(card.estimated_value_low) + Number(card.estimated_value_high)) / 2
+                  : null
+              }
+            />
+          )}
           <CardPairing card={card as any} onChanged={() => window.location.reload()} />
         </div>
 
