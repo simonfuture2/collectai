@@ -991,6 +991,7 @@ export default function CardDetail() {
                 confidenceBand={analysis.confidenceBand ?? analysis.confidence}
                 confidenceExplanation={analysis.confidenceExplanation}
                 confidenceReason={analysis.confidenceReason}
+                confirmedGrade={(analysis as any).confirmedGrade ?? (card as any).grading_company ? { company: (card as any).grading_company, label: card.condition_grade, numeric: (card as any).grade_numeric } : null}
               />
             )}
 
