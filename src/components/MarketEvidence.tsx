@@ -59,6 +59,7 @@ interface MarketEvidenceProps {
   confidenceBand?: "high" | "medium" | "low" | string;
   confidenceExplanation?: string;
   confidenceReason?: string;
+  confirmedGrade?: { company?: string | null; label?: string | null; numeric?: number | null } | null;
 }
 
 const SOURCE_LABEL: Record<string, string> = {
@@ -104,6 +105,7 @@ const MarketEvidence = ({
   confidenceBand,
   confidenceExplanation,
   confidenceReason,
+  confirmedGrade,
 }: MarketEvidenceProps) => {
   const ebaySold = sources.find((s) => s.source === "ebay_sold");
   const pc = sources.find((s) => s.source === "pricecharting");
@@ -141,6 +143,15 @@ const MarketEvidence = ({
       <p className="text-xs text-muted-foreground -mt-2">
         Where this pricing comes from — independent sources kept separate and cross-checked.
       </p>
+
+      {confirmedGrade?.company && (confirmedGrade.label || confirmedGrade.numeric != null) && (
+        <div className="flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/5 px-3 py-2">
+          <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+          <p className="text-xs text-emerald-600 dark:text-emerald-400">
+            Comps below reflect the <span className="font-semibold">confirmed {confirmedGrade.company} {confirmedGrade.label ?? confirmedGrade.numeric}</span> grade from the slab — not a raw estimate.
+          </p>
+        </div>
+      )}
 
       {/* Recommendation headline */}
       {rec?.action && (

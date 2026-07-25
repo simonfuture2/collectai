@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Shield, BadgeCheck, Copy, ExternalLink, Loader2, Plus } from "lucide-react";
+import { useRef, useState } from "react";
+import { Shield, BadgeCheck, Copy, ExternalLink, Loader2, Plus, Camera, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { GlassCard } from "@/components/ui/glass-card";
@@ -39,9 +39,74 @@ export default function AuthenticatedProfile({ card, onUpdated }: Props) {
   const [company, setCompany] = useState<Grader>("PSA");
   const [certNumber, setCertNumber] = useState("");
   const [saving, setSaving] = useState(false);
+  const [scanning, setScanning] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const hasSlab = !!card.grading_cert_number && !!card.grading_company;
   const hasAuthentiSeal = !!card.authentiseal_serial;
+  const verifiedFromPhoto = card.authentication_data?.source === "slab_scan";
+
+  async function handleSlabFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+    e.target.value = "";
+    setScanning(true);
+    try {
+      const { data: userRes } = await supabase.auth.getUser();
+      const userId = userRes?.user?.id;
+      if (!userId) throw new Error("You must be signed in.");
+      const images: { label: string; url: string }[] = [];
+      for (let i = 0; i < Math.min(files.length, 2); i++) {
+        const f = files[i];
+        const label = i === 0 ? "slab-front" : "slab-back";
+        const filePath = `${userId}/${card.id}/slab-${Date.now()}-${i}-${f.name}`;
+        const { error: upErr } = await supabase.storage.from("card-images").upload(filePath, f);
+        if (upErr) throw upErr;
+        const { data: signed, error: urlErr } = await supabase.storage
+          .from("card-images")
+          .createSignedUrl(filePath, 3600);
+        if (urlErr) throw urlErr;
+        images.push({ label, url: signed.signedUrl });
+      }
+      const { data, error } = await supabase.functions.invoke("scan-slab", {
+        body: { cardId: card.id, images },
+      });
+      if (error) throw error;
+      if (data?.confirmedGrade) {
+        toast({
+          title: "Verified from slab photo",
+          description: `${data.confirmedGrade.company} ${data.confirmedGrade.label ?? data.confirmedGrade.numeric} · refreshing market comps…`,
+        });
+      } else {
+        toast({ title: "Slab scanned" });
+      }
+      onUpdated?.();
+    } catch (err: any) {
+      toast({
+        title: "Slab scan failed",
+        description: err?.message || "Try again with a clearer photo of the entire label.",
+        variant: "destructive",
+      });
+    } finally {
+      setScanning(false);
+    }
+  }
+
+  function openSlabPicker() {
+    fileInputRef.current?.click();
+  }
+
+  const hiddenInput = (
+    <input
+      ref={fileInputRef}
+      type="file"
+      accept="image/*"
+      capture="environment"
+      multiple
+      className="hidden"
+      onChange={handleSlabFileChange}
+    />
+  );
 
   if (!hasSlab && !hasAuthentiSeal && !showAdd) {
     return (
@@ -51,11 +116,18 @@ export default function AuthenticatedProfile({ card, onUpdated }: Props) {
           <h3 className="font-display font-bold">Authenticated Profile</h3>
         </div>
         <p className="text-sm text-muted-foreground mb-3">
-          Got this card graded? Add the slab cert number to attach the official grade and enable verification.
+          Got this card graded? Scan a photo of the slab and we'll read the real grade off the label, refresh market comps for that grade, and score how close the AI pre-grade was.
         </p>
-        <Button size="sm" variant="outline" onClick={() => setShowAdd(true)}>
-          <Plus className="w-4 h-4 mr-1.5" /> Add slab cert
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button size="sm" onClick={openSlabPicker} disabled={scanning} className="gradient-primary">
+            {scanning ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <Camera className="w-4 h-4 mr-1.5" />}
+            Scan slab photo
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => setShowAdd(true)}>
+            <Plus className="w-4 h-4 mr-1.5" /> Enter cert manually
+          </Button>
+        </div>
+        {hiddenInput}
       </GlassCard>
     );
   }
@@ -108,12 +180,30 @@ export default function AuthenticatedProfile({ card, onUpdated }: Props) {
       <div className="flex items-center gap-2">
         <BadgeCheck className="w-5 h-5 text-amber-400" />
         <h3 className="font-display font-bold">Authenticated Profile</h3>
-        {hasAuthentiSeal && (
+        {verifiedFromPhoto && (
+          <span className="ml-auto text-[10px] font-semibold uppercase tracking-wider text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded-full flex items-center gap-1">
+            <Sparkles className="w-3 h-3" /> Verified from slab photo
+          </span>
+        )}
+        {hasAuthentiSeal && !verifiedFromPhoto && (
           <span className="ml-auto text-[10px] font-semibold uppercase tracking-wider text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded-full">
             AuthentiSeal
           </span>
         )}
       </div>
+
+      <div className="flex flex-wrap gap-2">
+        <Button size="sm" onClick={openSlabPicker} disabled={scanning} className="gradient-primary">
+          {scanning ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <Camera className="w-4 h-4 mr-1.5" />}
+          {hasSlab ? "Re-scan slab photo" : "Scan slab photo"}
+        </Button>
+        {!hasSlab && (
+          <Button size="sm" variant="outline" onClick={() => setShowAdd(true)}>
+            <Plus className="w-4 h-4 mr-1.5" /> Enter cert manually
+          </Button>
+        )}
+      </div>
+      {hiddenInput}
 
       {/* Slab grade block */}
       {hasSlab ? (

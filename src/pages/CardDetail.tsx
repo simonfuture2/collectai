@@ -58,6 +58,7 @@ import CardDetailHero from "@/components/CardDetailHero";
 import GradeLadder from "@/components/GradeLadder";
 import { AIAnalysisCard } from "@/components/AIAnalysisCard";
 import AuthenticatedProfile from "@/components/AuthenticatedProfile";
+import AIAccuracyCard from "@/components/AIAccuracyCard";
 import CardPairing from "@/components/CardPairing";
 
 type Card = Tables<"cards">;
@@ -765,6 +766,16 @@ export default function CardDetail() {
 
         <div className="mb-8 space-y-4">
           <AuthenticatedProfile card={card as any} onUpdated={() => window.location.reload()} />
+          {(analysis as any)?.gradeAccuracy && (
+            <AIAccuracyCard
+              accuracy={(analysis as any).gradeAccuracy}
+              actualValueMid={
+                card.estimated_value_low != null && card.estimated_value_high != null
+                  ? (Number(card.estimated_value_low) + Number(card.estimated_value_high)) / 2
+                  : null
+              }
+            />
+          )}
           <CardPairing card={card as any} onChanged={() => window.location.reload()} />
         </div>
 
@@ -980,6 +991,12 @@ export default function CardDetail() {
                 confidenceBand={analysis.confidenceBand ?? analysis.confidence}
                 confidenceExplanation={analysis.confidenceExplanation}
                 confidenceReason={analysis.confidenceReason}
+                confirmedGrade={
+                  (analysis as any).confirmedGrade
+                    ?? ((card as any).grading_company
+                      ? { company: (card as any).grading_company, label: card.condition_grade, numeric: (card as any).grade_numeric }
+                      : null)
+                }
               />
             )}
 

@@ -42,6 +42,15 @@ export interface RunAnalysisInput {
   images: { label: string; url: string }[];
   category?: string;
   fastScan?: boolean;
+  // When provided, the pipeline treats the card as already-graded: search terms
+  // are biased toward graded comps and the AI is instructed to price the
+  // confirmed slab grade instead of predicting one.
+  knownGrade?: {
+    company: string;
+    numeric: number;
+    label?: string;
+    cert_number?: string | null;
+  };
 }
 
 export interface RunAnalysisResult {
@@ -189,7 +198,7 @@ Return ONLY valid JSON: {"verified_low": number, "verified_high": number, "verif
 // ---------- main entry ----------
 
 export async function runAnalysis(input: RunAnalysisInput): Promise<RunAnalysisResult> {
-  const { images, category, fastScan = false } = input;
+  const { images, category, fastScan = false, knownGrade } = input;
   const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
   if (!ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY is not configured");
 
@@ -200,6 +209,13 @@ export async function runAnalysis(input: RunAnalysisInput): Promise<RunAnalysisR
   const t0 = Date.now();
   const cardId = (await identifyWithGemini(images[0].url, IDENTIFY_MODEL)) as CardIdentification | null;
   console.log(`Card identified by ${IDENTIFY_MODEL} in ${Date.now() - t0}ms:`, JSON.stringify(cardId));
+
+  // If the caller passed a confirmed slab grade, bias comp search toward
+  // graded comps by appending the grade to the variant string used for search.
+  if (cardId && knownGrade?.company && knownGrade?.numeric != null) {
+    const gradeTag = `${knownGrade.company} ${knownGrade.numeric}`;
+    cardId.variant = cardId.variant ? `${cardId.variant} ${gradeTag}` : gradeTag;
+  }
 
   // ===== STEP 2: Tiered cross-referenced market data =====
   let aggregated: AggregatedMarketData = {
@@ -368,7 +384,11 @@ GRADE-CEILING RULE (MANDATORY):
     ? `I'm providing ${images.length} images of this collectible item (${images.map((i) => i.label).join(", ")}). Please analyze all views together for a comprehensive identification, condition assessment, and value estimate.`
     : "Please analyze this trading card image and provide a complete identification, condition assessment, and value estimate.";
 
-  const fullUserMessage = userMessage + marketData.summary;
+  const knownGradeHint = knownGrade
+    ? `\n\nCONFIRMED SLAB GRADE — DO NOT PREDICT:\nThis card has been professionally graded. The authoritative grade on the slab is ${knownGrade.company} ${knownGrade.label ?? knownGrade.numeric} (cert ${knownGrade.cert_number ?? "unknown"}).\n- Set conditionGrade to "${knownGrade.company} ${knownGrade.label ?? knownGrade.numeric}".\n- Value estimates MUST reflect graded market comps for exactly ${knownGrade.company} ${knownGrade.numeric} — not raw prices.\n- In gradedValueEstimates.currentGradeEstimate, restate the confirmed grade.\n- Skip the "should I grade this" reasoning; the card is already graded.\n`
+    : "";
+
+  const fullUserMessage = userMessage + marketData.summary + knownGradeHint;
 
   console.log("Step 3: Full analysis with Claude,", marketData.hasData ? "real market data" : "AI-only estimates");
 
@@ -450,6 +470,19 @@ GRADE-CEILING RULE (MANDATORY):
     analysis.dataSource = marketData.hasData
       ? "Real eBay + TCGPlayer data + AI analysis"
       : "AI estimate only - no live market data available";
+  }
+
+  // Force confirmed slab grade to override anything the model tried to predict.
+  if (knownGrade) {
+    const gradeStr = `${knownGrade.company} ${knownGrade.label ?? knownGrade.numeric}`;
+    analysis.conditionGrade = gradeStr;
+    analysis.knownGrade = knownGrade;
+    analysis.isGraded = true;
+    analysis.gradedValueEstimates = {
+      ...(analysis.gradedValueEstimates || {}),
+      currentGradeEstimate: gradeStr,
+    };
+    analysis.dataSource = `${analysis.dataSource} (confirmed slab grade)`;
   }
 
   // ===== NO-MARKET-DATA GUARDRAILS =====
