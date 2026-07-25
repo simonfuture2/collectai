@@ -141,14 +141,65 @@ async function runEnrichment(params: {
 
   console.log(`[enrich-card] start card=${cardId} fastScan=${fastScan} knownGrade=${knownGrade ? `${knownGrade.company} ${knownGrade.numeric}` : "no"}`);
 
+  const looksUnknown = (n: unknown) =>
+    !n || /^unknown\b/i.test(String(n).trim());
+
+  // Load current row so we can (a) prefer paired-raw identity when the graded
+  // card was saved as "Unknown", and (b) avoid clobbering good values on retry.
+  const { data: currentCard } = await supabaseAdmin
+    .from("cards")
+    .select("id, card_name, card_set, card_year, edition, rarity, estimated_value_low, estimated_value_high, ai_analysis, paired_raw_card_id")
+    .eq("id", cardId)
+    .single();
+
+  // If this card is paired to a raw scan (typically after slab scan), pull the
+  // raw card's identity so the engine can ID off the front-of-card image we
+  // already have — not the back of the slab.
+  let identityHint: any = undefined;
+  let pairedImageUrl: string | null = null;
+  if ((currentCard as any)?.paired_raw_card_id) {
+    const { data: raw } = await supabaseAdmin
+      .from("cards")
+      .select("card_name, card_set, card_year, edition, rarity, image_url")
+      .eq("id", (currentCard as any).paired_raw_card_id)
+      .maybeSingle();
+    if (raw?.card_name && !looksUnknown(raw.card_name)) {
+      identityHint = {
+        card_name: raw.card_name,
+        card_set: raw.card_set,
+        card_year: raw.card_year,
+        variant: raw.edition,
+        rarity: raw.rarity,
+      };
+      pairedImageUrl = (raw as any).image_url ?? null;
+    }
+  }
+
+  // If the paired raw has a real card image, add it to the input images so the
+  // engine has a front-of-card view even when we only got slab-back photos.
+  let engineImages = images;
+  if (pairedImageUrl) {
+    try {
+      const url = pairedImageUrl.startsWith("http")
+        ? pairedImageUrl
+        : (await supabaseAdmin.storage.from("card-images").createSignedUrl(pairedImageUrl, 3600)).data?.signedUrl;
+      if (url) {
+        engineImages = [{ label: "paired-raw-front", url }, ...images];
+      }
+    } catch (err) {
+      console.warn("[enrich-card] paired image resolve failed:", (err as Error)?.message);
+    }
+  }
+
   // Stage: pricing — engine handles identification + market + Claude + verification.
   await supabaseAdmin.from("cards").update({ analysis_status: "pricing" }).eq("id", cardId);
 
   const { analysis, identification, marketData: aggregated } = await runAnalysis({
-    images,
+    images: engineImages,
     category,
     fastScan,
     knownGrade,
+    identityHint,
   });
 
   if (!identification?.card_name) {
@@ -158,33 +209,54 @@ async function runEnrichment(params: {
   // When re-enriching a confirmed-graded card, preserve the slab-scan snapshot
   // fields on ai_analysis so the AI vs Reality card and confirmed-grade badge
   // survive the refresh.
+  const prevAnalysis = (currentCard?.ai_analysis as any) || {};
   if (knownGrade) {
-    try {
-      const { data: prev } = await supabaseAdmin
-        .from("cards")
-        .select("ai_analysis")
-        .eq("id", cardId)
-        .single();
-      const prevAnalysis = (prev?.ai_analysis as any) || {};
-      if (prevAnalysis.preGradePrediction) analysis.preGradePrediction = prevAnalysis.preGradePrediction;
-      if (prevAnalysis.gradeAccuracy) analysis.gradeAccuracy = prevAnalysis.gradeAccuracy;
-      if (prevAnalysis.confirmedGrade) analysis.confirmedGrade = prevAnalysis.confirmedGrade;
-    } catch (err) {
-      console.warn("[enrich-card] snapshot merge failed:", (err as Error)?.message);
-    }
+    if (prevAnalysis.preGradePrediction) analysis.preGradePrediction = prevAnalysis.preGradePrediction;
+    if (prevAnalysis.gradeAccuracy) analysis.gradeAccuracy = prevAnalysis.gradeAccuracy;
+    if (prevAnalysis.confirmedGrade) analysis.confirmedGrade = prevAnalysis.confirmedGrade;
+  }
+
+  // Never overwrite a known identity with "Unknown …". If the engine came back
+  // with a placeholder name but we already had something real, keep it.
+  const newName = identification.card_name || (analysis as any).cardName || null;
+  const existingName = (currentCard as any)?.card_name ?? null;
+  const keepExistingIdentity = looksUnknown(newName) && !looksUnknown(existingName);
+
+  // Guard: for a confirmed graded card, don't let a tiny AI-only fallback range
+  // overwrite an already-persisted graded value. If the previous scan produced a
+  // meaningful estimate and the new one collapses to the ~$0-20 fallback, keep
+  // the previous range and surface a soft warning instead.
+  const newLow = Number((analysis as any).estimatedValueLow ?? 0) || 0;
+  const newHigh = Number((analysis as any).estimatedValueHigh ?? 0) || 0;
+  const prevLow = Number((currentCard as any)?.estimated_value_low ?? 0) || 0;
+  const prevHigh = Number((currentCard as any)?.estimated_value_high ?? 0) || 0;
+  const gradedFallbackCollapse = !!knownGrade && newHigh > 0 && newHigh < 20 && prevHigh >= 50;
+  if (gradedFallbackCollapse) {
+    console.log(`[enrich-card] guarding graded value: new $${newLow}-$${newHigh} < prev $${prevLow}-$${prevHigh}`);
+    (analysis as any).estimatedValueLow = prevLow;
+    (analysis as any).estimatedValueHigh = prevHigh;
+    (analysis as any).softWarning = "Kept prior graded value — new comp lookup returned insufficient graded sales.";
   }
 
   // Persist card row
   const persistFields: Record<string, unknown> = {
     category: analysis.category || "Trading Card",
-    card_name: identification.card_name || analysis.cardName || null,
-    card_set: identification.card_set || analysis.cardSet || null,
-    card_year: identification.card_year || analysis.cardYear || null,
-    edition: analysis.edition || identification.variant || null,
-    rarity: analysis.rarity || identification.rarity || null,
+    card_name: keepExistingIdentity ? existingName : newName,
+    card_set: keepExistingIdentity
+      ? ((currentCard as any)?.card_set ?? null)
+      : (identification.card_set || (analysis as any).cardSet || null),
+    card_year: keepExistingIdentity
+      ? ((currentCard as any)?.card_year ?? null)
+      : (identification.card_year || (analysis as any).cardYear || null),
+    edition: keepExistingIdentity
+      ? ((currentCard as any)?.edition ?? null)
+      : (analysis.edition || identification.variant || null),
+    rarity: keepExistingIdentity
+      ? ((currentCard as any)?.rarity ?? null)
+      : (analysis.rarity || identification.rarity || null),
     special_features: analysis.specialFeatures || [],
-    estimated_value_low: analysis.estimatedValueLow ?? null,
-    estimated_value_high: analysis.estimatedValueHigh ?? null,
+    estimated_value_low: (analysis as any).estimatedValueLow ?? null,
+    estimated_value_high: (analysis as any).estimatedValueHigh ?? null,
     ebay_recent_sales: analysis.ebayRecentSales || null,
     tcgplayer_price: analysis.tcgplayerPrice || null,
     psa_population_data: analysis.psaPopulation || null,
@@ -206,6 +278,7 @@ async function runEnrichment(params: {
     .eq("id", cardId);
 
   if (updateError) throw updateError;
+
 
   // Price history
   const priceRows = buildPriceHistoryRows(aggregated, cardId, userId);
