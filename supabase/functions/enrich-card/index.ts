@@ -268,7 +268,7 @@ serve(async (req) => {
     });
   }
 
-  const { cardId, images, category, fastScan } = body || {};
+  const { cardId, images, category, fastScan, knownGrade } = body || {};
   let identification: IdentifyResult | undefined = body?.identification;
 
   if (!cardId || !Array.isArray(images) || images.length === 0) {
