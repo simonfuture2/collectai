@@ -155,29 +155,54 @@ async function runEnrichment(params: {
     throw new Error("Could not identify the card. Please try a clearer image.");
   }
 
+  // When re-enriching a confirmed-graded card, preserve the slab-scan snapshot
+  // fields on ai_analysis so the AI vs Reality card and confirmed-grade badge
+  // survive the refresh.
+  if (knownGrade) {
+    try {
+      const { data: prev } = await supabaseAdmin
+        .from("cards")
+        .select("ai_analysis")
+        .eq("id", cardId)
+        .single();
+      const prevAnalysis = (prev?.ai_analysis as any) || {};
+      if (prevAnalysis.preGradePrediction) analysis.preGradePrediction = prevAnalysis.preGradePrediction;
+      if (prevAnalysis.gradeAccuracy) analysis.gradeAccuracy = prevAnalysis.gradeAccuracy;
+      if (prevAnalysis.confirmedGrade) analysis.confirmedGrade = prevAnalysis.confirmedGrade;
+    } catch (err) {
+      console.warn("[enrich-card] snapshot merge failed:", (err as Error)?.message);
+    }
+  }
+
   // Persist card row
+  const persistFields: Record<string, unknown> = {
+    category: analysis.category || "Trading Card",
+    card_name: identification.card_name || analysis.cardName || null,
+    card_set: identification.card_set || analysis.cardSet || null,
+    card_year: identification.card_year || analysis.cardYear || null,
+    edition: analysis.edition || identification.variant || null,
+    rarity: analysis.rarity || identification.rarity || null,
+    special_features: analysis.specialFeatures || [],
+    estimated_value_low: analysis.estimatedValueLow ?? null,
+    estimated_value_high: analysis.estimatedValueHigh ?? null,
+    ebay_recent_sales: analysis.ebayRecentSales || null,
+    tcgplayer_price: analysis.tcgplayerPrice || null,
+    psa_population_data: analysis.psaPopulation || null,
+    ai_analysis: analysis,
+    last_scanned_at: new Date().toISOString(),
+    analysis_status: "complete",
+    analysis_error: null,
+    analysis_completed_at: new Date().toISOString(),
+  };
+  // Preserve the authoritative slab grade — never let a re-enrichment
+  // overwrite condition_grade or grading fields when we already trust the slab.
+  if (!knownGrade) {
+    persistFields.condition_grade = analysis.conditionGrade || null;
+  }
+
   const { error: updateError } = await supabaseAdmin
     .from("cards")
-    .update({
-      category: analysis.category || "Trading Card",
-      card_name: identification.card_name || analysis.cardName || null,
-      card_set: identification.card_set || analysis.cardSet || null,
-      card_year: identification.card_year || analysis.cardYear || null,
-      edition: analysis.edition || identification.variant || null,
-      rarity: analysis.rarity || identification.rarity || null,
-      condition_grade: analysis.conditionGrade || null,
-      special_features: analysis.specialFeatures || [],
-      estimated_value_low: analysis.estimatedValueLow ?? null,
-      estimated_value_high: analysis.estimatedValueHigh ?? null,
-      ebay_recent_sales: analysis.ebayRecentSales || null,
-      tcgplayer_price: analysis.tcgplayerPrice || null,
-      psa_population_data: analysis.psaPopulation || null,
-      ai_analysis: analysis,
-      last_scanned_at: new Date().toISOString(),
-      analysis_status: "complete",
-      analysis_error: null,
-      analysis_completed_at: new Date().toISOString(),
-    })
+    .update(persistFields)
     .eq("id", cardId);
 
   if (updateError) throw updateError;
