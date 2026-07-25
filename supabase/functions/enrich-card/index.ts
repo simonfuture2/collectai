@@ -332,6 +332,7 @@ serve(async (req) => {
         images,
         category: resolvedCategory,
         fastScan: fastScan === true,
+        knownGrade: knownGrade || undefined,
         supabaseAdmin,
       });
     } catch (err: any) {
