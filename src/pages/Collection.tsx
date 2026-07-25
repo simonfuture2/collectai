@@ -125,8 +125,9 @@ const Collection = () => {
     if (user) {
       supabase
         .from("cards")
-        .select("id, image_url, card_name, card_set, card_year, rarity, category, condition_grade, estimated_value_low, estimated_value_high, authentiseal_serial")
+        .select("id, image_url, card_name, card_set, card_year, rarity, category, condition_grade, estimated_value_low, estimated_value_high, authentiseal_serial, is_authenticated, grading_company, grading_cert_number")
         .eq("user_id", user.id)
+        .is("superseded_by_card_id", null)
         .order("created_at", { ascending: false })
         .then(async ({ data }) => {
           if (!data) { setCards([]); setLoading(false); return; }
