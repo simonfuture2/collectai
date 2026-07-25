@@ -763,6 +763,12 @@ export default function CardDetail() {
           );
         })()}
 
+        <div className="mb-8 space-y-4">
+          <AuthenticatedProfile card={card as any} onUpdated={() => window.location.reload()} />
+          <CardPairing card={card as any} onChanged={() => window.location.reload()} />
+        </div>
+
+
         {analysis && (
           <div className="mb-8">
             <AIAnalysisCard analysis={analysis as any} />
