@@ -14,7 +14,7 @@ function verifyUrl(company: Provider, cert: string): string | null {
     case "PSA":
       return `https://www.psacard.com/cert/${c}`;
     case "BGS":
-      return `https://www.beckett.com/grading/card-lookup?certNumber=${c}`;
+      return `https://www.beckett.com/grading/card-lookup?item_id=${c}&item_type=BGS`;
     case "CGC":
       return `https://www.cgccards.com/certlookup/${c}/`;
     case "SGC":
