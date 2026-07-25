@@ -218,8 +218,26 @@ export async function runAnalysis(input: RunAnalysisInput): Promise<RunAnalysisR
   // ===== STEP 1: Detailed identification with Gemini =====
   console.log(`Step 1: Identifying card with ${IDENTIFY_MODEL}...`);
   const t0 = Date.now();
-  const cardId = (await identifyWithGemini(images[0].url, IDENTIFY_MODEL)) as CardIdentification | null;
+  const { identityHint } = input;
+  let cardId = (await identifyWithGemini(images[0].url, IDENTIFY_MODEL)) as CardIdentification | null;
   console.log(`Card identified by ${IDENTIFY_MODEL} in ${Date.now() - t0}ms:`, JSON.stringify(cardId));
+
+  // Fallback: if Gemini couldn't ID it (or returned an "Unknown …" placeholder)
+  // and the caller supplied a hint (e.g. from a paired raw scan), use the hint.
+  const looksUnknown = (n: unknown) =>
+    !n || /^unknown\b/i.test(String(n).trim());
+  if (identityHint?.card_name && looksUnknown(cardId?.card_name)) {
+    console.log("[analysisEngine] using identityHint fallback:", identityHint.card_name);
+    cardId = {
+      card_name: String(identityHint.card_name),
+      card_number: String(identityHint.card_number ?? ""),
+      card_set: String(identityHint.card_set ?? ""),
+      card_year: String(identityHint.card_year ?? ""),
+      variant: String(identityHint.variant ?? ""),
+      rarity: String(identityHint.rarity ?? ""),
+      variant_confidence: "medium",
+    };
+  }
 
   // If the caller passed a confirmed slab grade, bias comp search toward
   // graded comps by appending the grade to the variant string used for search.
@@ -242,6 +260,7 @@ export async function runAnalysis(input: RunAnalysisInput): Promise<RunAnalysisR
       aggregated.sources.map((s) => s.source).join(","),
     );
   }
+
 
   // ===== ID ↔ comp cross-check + variant uncertainty =====
   const idCheck = cardId
