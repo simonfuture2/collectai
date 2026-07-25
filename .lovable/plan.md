@@ -1,54 +1,66 @@
+# Slab-scan verification & AI accuracy scorecard
 
-## Goal
+Today the "Authenticated Profile" block only appears when a slab cert or AuthentiSeal serial is entered manually. The condition grade shown on the card still comes from the pre-grade AI scan (e.g. "Graded 8 NM-MT" that isn't real), and Market Evidence still shows raw comps. When the user uploads a photo of the graded slab, MyCollectAI should:
 
-When a card comes back from grading, the collection should reflect the real, authoritative data instead of the AI's raw-scan guess: show the slab grade, the grading company + cert number (with a way to verify it), the AuthentiSeal certificate (with verify link), and merge it with the original raw scan so the pre-grade history is preserved without double-counting value.
+1. Read the actual grade + grader + cert number off the slab label with vision AI.
+2. Overwrite the card's grade with the authoritative slab result and mark it verified.
+3. Refresh Market Evidence so comps are for the confirmed grade, not the raw guess.
+4. Snapshot the original pre-grade AI prediction and score how close the AI was.
 
-## Schema changes (single migration on `public.cards`)
+## User flow
 
-Add columns:
-- `is_authenticated boolean default false` — true once an AuthentiSeal cert is attached.
-- `authentication_data jsonb` — full payload from the AuthentiSeal webhook (issuer, issued_at, status, item snapshot).
-- `authenticated_at timestamptz`
-- `grading_company text` — 'PSA' | 'BGS' | 'CGC' | 'SGC' | 'TAG' | 'AuthentiSeal' | null (from the slab).
-- `grading_cert_number text` — the cert printed on the slab.
-- `grade_numeric numeric` — parsed grade (e.g. 9, 9.5, 10) for math/sorting; `condition_grade` stays as the display string.
-- `paired_raw_card_id uuid references public.cards(id) on delete set null` — on a graded card, points at the raw scan it superseded.
-- `superseded_by_card_id uuid references public.cards(id) on delete set null` — on the raw card, points at the graded card that replaced it.
-- Index on `(user_id, card_name, card_set, edition)` to speed pairing suggestions.
+On any card detail, add a **"I got this graded — scan the slab"** action inside `AuthenticatedProfile`:
+- Opens the existing camera/upload flow, expects 1–2 photos of the slab (front required, back optional for cert).
+- Uploads to `card-images` storage under the same card id.
+- Calls a new edge function `scan-slab` which runs vision, updates the row, refreshes pricing for the graded tier, and returns an accuracy scorecard.
+- UI swaps in the Authenticated Profile with a green "Verified from slab photo" badge; Market Evidence re-renders with graded comps; a new **"AI vs Reality"** card appears showing the scorecard.
 
-Backfill: any existing card with a non-null `authentiseal_serial` gets `is_authenticated = true`.
+Manual cert entry stays as a fallback.
 
-## Backend changes
+## Backend
 
-1. **`authentiseal-webhook`** — extend the webhook payload contract to accept the full certificate (grade, grader, issued_at, issuer, item snapshot, status). Persist to `authentication_data`, set `is_authenticated=true`, `authenticated_at=now()`, and, when present in the payload, `grading_company` / `grading_cert_number` / `grade_numeric` / `condition_grade`. Keep the existing serial-only update path working.
-2. **New edge function `verify-slab-cert`** — thin proxy that calls the grader's public lookup endpoint by `(company, cert_number)` and returns `{ verified, grade, subject, url }`. First-cut providers: PSA (`https://www.psacard.com/cert/{n}`), BGS, CGC, SGC as link-outs when no public API; return a `verify_url` in that case so the UI can still deep-link.
-3. **New edge function `suggest-card-pair`** — given a graded card id, returns the top raw candidates from the same `user_id` scored by exact match on `card_name` + `card_set` + `edition/number`, then image-similarity as a soft tiebreak (reuse the identify pipeline's existing embedding if available, otherwise skip). Returns 0–5 candidates with a confidence.
-4. **New edge function `pair-cards`** — authenticated action that sets `graded.paired_raw_card_id = raw.id` and `raw.superseded_by_card_id = graded.id` in a single transaction; validates both cards belong to `auth.uid()`.
+**New edge function `supabase/functions/scan-slab/index.ts`**
+- Auth: user JWT; verifies `cards.user_id = auth.uid()`.
+- Input: `{ cardId, images: [{label,url}] }`.
+- Step A — vision extract via Lovable AI Gateway (`google/gemini-3.5-flash`, JSON mode). Prompt asks for: `grading_company` (PSA/BGS/CGC/SGC/TAG/AuthentiSeal/Other), `grade_label` (raw string on the slab, e.g. "NM-MT 8"), `grade_numeric`, `subgrades` (centering/corners/edges/surface if BGS), `cert_number`, `card_name`, `card_year`, `card_set`, `confidence` (0–1). Reject with a soft warning if `confidence < 0.5` or no grade found.
+- Step B — snapshot the pre-grade AI prediction *before* overwriting. Read the current `cards` row and copy `condition_grade`, `grade_numeric`, `ai_analysis.gradingEdge`, `estimated_value_low/high` into `ai_analysis.preGradePrediction` (only if not already set — first-scan wins so re-scans don't clobber history).
+- Step C — persist authoritative fields on `cards`: `grading_company`, `grading_cert_number`, `grade_numeric`, `condition_grade` (= slab `grade_label`), `is_authenticated=true`, `authenticated_at=now()`, `authentication_data = { source: 'slab_scan', extracted, images, scanned_at }`.
+- Step D — refresh market evidence for the confirmed grade by re-running the shared engine narrowed to the graded tier. Reuse `runAnalysis` from `_shared/analysisEngine.ts` with `category` and a new optional `knownGrade: { company, numeric }` hint so pricing/comps target the graded tier (analysisEngine already produces graded comps; we only need to pass the hint through and prefer graded results for the summary values when present).
+- Step E — compute accuracy scorecard and store under `ai_analysis.gradeAccuracy`:
+  - `predictedGrade` (from snapshot), `actualGrade` (from slab), `deltaGrades = actual - predicted`, `withinHalf` / `withinOne`, and a 0–100 `accuracyScore` (100 if exact, −20 per half-grade off, floor 0).
+  - `predictedValueMid` vs `actualValueMid` and `valueDeltaPct`.
+  - `verdict`: "Spot on" | "Very close" | "Off by a grade" | "Way off".
+- Response: `{ ok, extracted, accuracy, refreshedAnalysis }`.
 
-## Frontend changes (presentation + wiring, scan pipeline untouched)
+**Edge function config**: no change to `supabase/config.toml` needed (default verify_jwt).
 
-1. **`src/components/AuthenticatedProfile.tsx`** (new) — premium GlassCard rendered at the top of `CardDetail` when `is_authenticated` OR `grading_cert_number` is set. Sections:
-   - Grade block: big grade (from `condition_grade`/`grade_numeric`), grading company, cert number (mono, copy button).
-   - "Verify slab cert" button → calls `verify-slab-cert`; on success shows a green check and the grader's public cert URL; on link-only providers, opens the URL in a new tab.
-   - AuthentiSeal block: serial, issuer, issued date, status, "View certificate on AuthentiSeal" outbound link (reuses `AuthentiSealVerify` in `verifyOnly` mode with `defaultSerial`).
-   - Replaces the AI "Should I grade this?" ladder with a "Graded value" summary using graded comps for the actual grade.
-2. **Manual entry** — inside `AuthenticatedProfile`, an "Add slab cert" form (grader dropdown + cert number) writes `grading_company` / `grading_cert_number` and triggers `verify-slab-cert`. Available even when the card was scanned raw so the user can attach after the fact.
-3. **Pairing UI on the graded card's detail page**:
-   - Banner "This looks like a graded version of a card you already own" with the top suggestion from `suggest-card-pair` and a **Pair** button.
-   - "Pick another" opens a searchable list of the user's raw cards.
-   - After pairing, a "Before grading" timeline block appears on the graded card showing the raw scan's image, AI estimated grade, AI value range, and scan date — read-only view of the raw entry.
-4. **Raw card behavior when superseded**:
-   - Hidden from the default Collection grid and portfolio totals (filter `superseded_by_card_id is null`).
-   - Still reachable from the graded card's "Before grading" block; its own detail page shows an "Upgraded to graded version →" banner linking back to the graded card, with an **Unpair** action.
-5. **Scan reveal** — after identification, if the new card has a slab cert or authentiseal serial, kick off `suggest-card-pair` in the background and surface the pairing banner in `ScanReveal` before "Add to Collection".
-6. **Portfolio math** — `PortfolioHero`, Dashboard stats, and `Collection` queries filter out superseded raw cards so the graded value is the single source of truth and nothing is double-counted.
+**No schema migration required** — reuses existing columns (`is_authenticated`, `authentication_data`, `grading_company`, `grading_cert_number`, `grade_numeric`, `condition_grade`, `ai_analysis` jsonb).
 
-## Verification steps
+## Frontend
 
-- Snorlax example: open the graded Snorlax → Authenticated Profile renders with slab cert + AuthentiSeal serial, "Verify" returns a green check, pairing banner suggests the original raw Snorlax, tapping **Pair** hides raw from the grid, and the graded card shows the raw scan as pre-grade history.
-- Portfolio total before pairing == after pairing minus the raw estimate plus the graded value (no double-count).
-- Manually attaching a PSA cert to a raw card flips it to the authenticated profile without needing an AuthentiSeal webhook.
+**`src/components/AuthenticatedProfile.tsx`**
+- Add primary button **"Scan slab photo"** (camera icon) alongside "Add slab cert". Opens a lightweight upload sheet (reuse the pattern from `Scan.tsx` — file input + camera capture, upload to `card-images/{userId}/{cardId}/slab-*`).
+- On success, show `reachable`-style green confirmation "Verified from slab photo · {company} {grade}" and call `onUpdated()`.
+- When `authentication_data.source === 'slab_scan'`, show a small "Verified from photo" chip instead of the manual-entry look.
+
+**New `src/components/AIAccuracyCard.tsx`**
+- Rendered on `CardDetail` only when `ai_analysis.gradeAccuracy` exists.
+- Two-column comparison: "AI predicted" vs "Actual slab". Big number for each grade, colored delta pill, one-line verdict, and a horizontal accuracy bar (0–100).
+- If value delta available, second row: "AI value estimate" vs "Graded market value" with % delta.
+
+**`src/components/MarketEvidence.tsx`**
+- No structural change — it already reads from `ai_analysis`. Because `scan-slab` refreshes analysis with the known-grade hint, graded comps naturally take priority. Add a subtle "Confirmed grade: {company} {grade}" badge at the top of the section when `is_authenticated && grading_company` are set, so the user knows the evidence reflects the real grade.
+
+**`src/pages/CardDetail.tsx`**
+- Mount `<AIAccuracyCard />` below `<AuthenticatedProfile />`.
+- Hide/soft-mute the pre-grade "Should I grade this?" ladder (`GradeLadder` / `PreGradingAnalysis`) once `is_authenticated` is true (that question is answered).
+
+## Verification
+
+- On the Snorlax card currently on screen: tap "Scan slab photo", upload a slab image → Authenticated Profile flips to "Verified from photo · PSA 8", Market Evidence header shows the confirmed-grade badge and comps update to graded sales, and the "AI vs Reality" card shows predicted vs actual with an accuracy score.
+- Re-scanning the same slab does not overwrite `preGradePrediction` (first snapshot is preserved).
+- Manual cert entry still works and does not require a slab photo.
 
 ## Out of scope
 
-Scan pipeline, `analysisEngine.ts`, pricing logic, Stripe, and Supabase auth stay untouched.
+`analysisEngine.ts` pricing internals, Stripe, auth, and the scan pipeline for raw cards. The only engine change is threading an optional `knownGrade` hint through so refreshed comps target the confirmed tier.
