@@ -140,6 +140,8 @@ export type Database = {
           analysis_error: string | null
           analysis_started_at: string | null
           analysis_status: string
+          authenticated_at: string | null
+          authentication_data: Json | null
           authentiseal_serial: string | null
           card_name: string | null
           card_set: string | null
@@ -151,15 +153,21 @@ export type Database = {
           edition: string | null
           estimated_value_high: number | null
           estimated_value_low: number | null
+          grade_numeric: number | null
+          grading_cert_number: string | null
+          grading_company: string | null
           id: string
           image_url: string
+          is_authenticated: boolean
           is_listed: boolean
           is_public: boolean
           last_scanned_at: string | null
           notes: string | null
+          paired_raw_card_id: string | null
           psa_population_data: Json | null
           rarity: string | null
           special_features: string[] | null
+          superseded_by_card_id: string | null
           tcgplayer_price: Json | null
           updated_at: string
           user_id: string
@@ -170,6 +178,8 @@ export type Database = {
           analysis_error?: string | null
           analysis_started_at?: string | null
           analysis_status?: string
+          authenticated_at?: string | null
+          authentication_data?: Json | null
           authentiseal_serial?: string | null
           card_name?: string | null
           card_set?: string | null
@@ -181,15 +191,21 @@ export type Database = {
           edition?: string | null
           estimated_value_high?: number | null
           estimated_value_low?: number | null
+          grade_numeric?: number | null
+          grading_cert_number?: string | null
+          grading_company?: string | null
           id?: string
           image_url: string
+          is_authenticated?: boolean
           is_listed?: boolean
           is_public?: boolean
           last_scanned_at?: string | null
           notes?: string | null
+          paired_raw_card_id?: string | null
           psa_population_data?: Json | null
           rarity?: string | null
           special_features?: string[] | null
+          superseded_by_card_id?: string | null
           tcgplayer_price?: Json | null
           updated_at?: string
           user_id: string
@@ -200,6 +216,8 @@ export type Database = {
           analysis_error?: string | null
           analysis_started_at?: string | null
           analysis_status?: string
+          authenticated_at?: string | null
+          authentication_data?: Json | null
           authentiseal_serial?: string | null
           card_name?: string | null
           card_set?: string | null
@@ -211,20 +229,41 @@ export type Database = {
           edition?: string | null
           estimated_value_high?: number | null
           estimated_value_low?: number | null
+          grade_numeric?: number | null
+          grading_cert_number?: string | null
+          grading_company?: string | null
           id?: string
           image_url?: string
+          is_authenticated?: boolean
           is_listed?: boolean
           is_public?: boolean
           last_scanned_at?: string | null
           notes?: string | null
+          paired_raw_card_id?: string | null
           psa_population_data?: Json | null
           rarity?: string | null
           special_features?: string[] | null
+          superseded_by_card_id?: string | null
           tcgplayer_price?: Json | null
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "cards_paired_raw_card_id_fkey"
+            columns: ["paired_raw_card_id"]
+            isOneToOne: false
+            referencedRelation: "cards"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cards_superseded_by_card_id_fkey"
+            columns: ["superseded_by_card_id"]
+            isOneToOne: false
+            referencedRelation: "cards"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       credit_transactions: {
         Row: {
