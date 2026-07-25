@@ -322,6 +322,67 @@ export default function CardDetail() {
   const [rescanning, setRescanning] = useState(false);
   const [reanalyzing, setReanalyzing] = useState(false);
   const notifiedCompleteRef = useRef(false);
+  const [pairedRawAccuracy, setPairedRawAccuracy] = useState<any | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const pairedId = (card as any)?.paired_raw_card_id;
+    const actualNumeric = (card as any)?.grade_numeric != null ? Number((card as any).grade_numeric) : null;
+    const actualCompany = (card as any)?.grading_company ?? null;
+    if (!pairedId || actualNumeric == null) { setPairedRawAccuracy(null); return; }
+    (async () => {
+      const { data: raw } = await supabase
+        .from("cards")
+        .select("id, condition_grade, estimated_value_low, estimated_value_high, ai_analysis")
+        .eq("id", pairedId)
+        .maybeSingle();
+      if (cancelled || !raw) return;
+      const ai: any = raw.ai_analysis || {};
+      const predictedGrade =
+        (typeof ai?.preGradingAnalysis?.gradeCeiling?.grade === "number" ? ai.preGradingAnalysis.gradeCeiling.grade : null) ??
+        (typeof ai?.preGradingAnalysis?.predictedGrades?.psa === "number" ? ai.preGradingAnalysis.predictedGrades.psa : null) ??
+        (() => {
+          const m = String(raw.condition_grade ?? "").match(/(\d+(?:\.\d+)?)/);
+          return m ? Number(m[1]) : null;
+        })();
+      const low = raw.estimated_value_low != null ? Number(raw.estimated_value_low) : null;
+      const high = raw.estimated_value_high != null ? Number(raw.estimated_value_high) : null;
+      const predictedValueMid = low != null && high != null ? (low + high) / 2 : null;
+      if (predictedGrade == null) {
+        setPairedRawAccuracy({
+          hasComparison: false,
+          predictedGrade: null,
+          actualGrade: actualNumeric,
+          actualCompany,
+          predictedValueMid,
+          verdict: "Paired raw scan has no AI grade to compare",
+          accuracyScore: null,
+        });
+        return;
+      }
+      const delta = actualNumeric - predictedGrade;
+      const absDelta = Math.abs(delta);
+      const accuracyScore = Math.max(0, Math.round(100 - (absDelta / 0.5) * 20));
+      const verdict =
+        absDelta === 0 ? "Spot on" :
+        absDelta <= 0.5 ? "Very close" :
+        absDelta <= 1 ? "Off by a grade" : "Way off";
+      setPairedRawAccuracy({
+        hasComparison: true,
+        predictedGrade,
+        actualGrade: actualNumeric,
+        actualCompany,
+        deltaGrades: Math.round(delta * 10) / 10,
+        withinHalf: absDelta <= 0.5,
+        withinOne: absDelta <= 1,
+        accuracyScore,
+        verdict,
+        predictedValueMid,
+      });
+    })();
+    return () => { cancelled = true; };
+  }, [(card as any)?.paired_raw_card_id, (card as any)?.grade_numeric, (card as any)?.grading_company]);
+
 
   const loadPriceHistory = useCallback(async (cardId: string, low: number | null, high: number | null) => {
     const { data: priceData } = await supabase
@@ -766,9 +827,9 @@ export default function CardDetail() {
 
         <div className="mb-8 space-y-4">
           <AuthenticatedProfile card={card as any} onUpdated={() => window.location.reload()} />
-          {(analysis as any)?.gradeAccuracy && (
+          {(pairedRawAccuracy || (analysis as any)?.gradeAccuracy) && (
             <AIAccuracyCard
-              accuracy={(analysis as any).gradeAccuracy}
+              accuracy={pairedRawAccuracy || (analysis as any).gradeAccuracy}
               actualValueMid={
                 card.estimated_value_low != null && card.estimated_value_high != null
                   ? (Number(card.estimated_value_low) + Number(card.estimated_value_high)) / 2
@@ -776,6 +837,7 @@ export default function CardDetail() {
               }
             />
           )}
+
           <CardPairing card={card as any} onChanged={() => window.location.reload()} />
         </div>
 
