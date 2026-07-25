@@ -51,7 +51,18 @@ export interface RunAnalysisInput {
     label?: string;
     cert_number?: string | null;
   };
+  // When provided, used as a fallback identity if Gemini can't ID the card
+  // (e.g. slab back-only photos). Typically pulled from a paired raw scan.
+  identityHint?: {
+    card_name?: string | null;
+    card_set?: string | null;
+    card_year?: string | null;
+    card_number?: string | null;
+    variant?: string | null;
+    rarity?: string | null;
+  };
 }
+
 
 export interface RunAnalysisResult {
   analysis: any;
