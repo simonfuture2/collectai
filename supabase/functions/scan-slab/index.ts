@@ -174,12 +174,13 @@ serve(async (req) => {
   const company = extracted?.grading_company && extracted.grading_company !== "Other" ? String(extracted.grading_company) : null;
   const label = extracted?.grade_label ? String(extracted.grade_label) : (numeric != null && company ? `${company} ${numeric}` : null);
 
-  if (!company || numeric == null || confidence < 0.5) {
+  if (!company || numeric == null) {
     return json(422, {
-      error: "Slab grade could not be read confidently. Retake the photo with the entire label visible and in focus.",
+      error: "Couldn't read the grader or grade number from the label. Retake with the top of the label (grader logo + grade) clearly visible and in focus.",
       extracted,
     });
   }
+  const lowConfidence = confidence < 0.5;
 
   // Step B — snapshot pre-grade prediction (first-scan wins)
   const currentAnalysis = (card.ai_analysis as any) || {};

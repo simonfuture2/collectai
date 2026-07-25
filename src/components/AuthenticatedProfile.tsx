@@ -42,9 +42,9 @@ export default function AuthenticatedProfile({ card, onUpdated }: Props) {
   const [scanning, setScanning] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const hasSlab = !!card.grading_cert_number && !!card.grading_company;
-  const hasAuthentiSeal = !!card.authentiseal_serial;
   const verifiedFromPhoto = card.authentication_data?.source === "slab_scan";
+  const hasSlab = !!card.grading_company && (!!card.grading_cert_number || verifiedFromPhoto || !!card.is_authenticated);
+  const hasAuthentiSeal = !!card.authentiseal_serial;
 
   async function handleSlabFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files || []);
@@ -218,28 +218,34 @@ export default function AuthenticatedProfile({ card, onUpdated }: Props) {
             </div>
             <div className="text-right">
               <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Cert #</p>
-              <div className="flex items-center gap-1 mt-1">
-                <p className="font-mono text-sm font-medium">{card.grading_cert_number}</p>
-                <button onClick={() => copy(card.grading_cert_number!)} className="text-muted-foreground hover:text-foreground">
-                  <Copy className="w-3.5 h-3.5" />
-                </button>
-              </div>
+              {card.grading_cert_number ? (
+                <div className="flex items-center gap-1 mt-1">
+                  <p className="font-mono text-sm font-medium">{card.grading_cert_number}</p>
+                  <button onClick={() => copy(card.grading_cert_number!)} className="text-muted-foreground hover:text-foreground">
+                    <Copy className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <p className="font-mono text-sm text-muted-foreground mt-1">Not on file</p>
+              )}
             </div>
           </div>
 
-          <div className="flex gap-2 mt-4">
-            <Button size="sm" onClick={verifyCert} disabled={verifying} className="gradient-primary">
-              {verifying ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Shield className="w-3.5 h-3.5 mr-1.5" />}
-              Verify slab cert
-            </Button>
-            {verifyUrl && (
-              <a href={verifyUrl} target="_blank" rel="noopener noreferrer">
-                <Button size="sm" variant="outline">
-                  Open on {card.grading_company} <ExternalLink className="w-3.5 h-3.5 ml-1.5" />
-                </Button>
-              </a>
-            )}
-          </div>
+          {card.grading_cert_number && (
+            <div className="flex gap-2 mt-4">
+              <Button size="sm" onClick={verifyCert} disabled={verifying} className="gradient-primary">
+                {verifying ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Shield className="w-3.5 h-3.5 mr-1.5" />}
+                Verify slab cert
+              </Button>
+              {verifyUrl && (
+                <a href={verifyUrl} target="_blank" rel="noopener noreferrer">
+                  <Button size="sm" variant="outline">
+                    Open on {card.grading_company} <ExternalLink className="w-3.5 h-3.5 ml-1.5" />
+                  </Button>
+                </a>
+              )}
+            </div>
+          )}
 
           {reachable === true && (
             <p className="text-xs text-emerald-400 mt-2">✓ Cert page resolved — click to inspect on {card.grading_company}.</p>

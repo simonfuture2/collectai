@@ -1,66 +1,37 @@
-# Slab-scan verification & AI accuracy scorecard
+## Problem
 
-Today the "Authenticated Profile" block only appears when a slab cert or AuthentiSeal serial is entered manually. The condition grade shown on the card still comes from the pre-grade AI scan (e.g. "Graded 8 NM-MT" that isn't real), and Market Evidence still shows raw comps. When the user uploads a photo of the graded slab, MyCollectAI should:
+Snorlax card (`28954004-…`) has `is_authenticated: false`, no `grading_company`, and no `scan-slab` invocations in edge-function logs. You expect that tapping **Scan slab photo** and uploading a slab image populates the Authenticated Profile, AI Accuracy card, and confirmed-grade market comps — but nothing appears.
 
-1. Read the actual grade + grader + cert number off the slab label with vision AI.
-2. Overwrite the card's grade with the authoritative slab result and mark it verified.
-3. Refresh Market Evidence so comps are for the confirmed grade, not the raw guess.
-4. Snapshot the original pre-grade AI prediction and score how close the AI was.
+Because zero calls have reached `scan-slab` yet, the failure is upstream of the AI pipeline. The fix has to start with an end-to-end reproduction to find where the flow breaks (button → storage upload → `supabase.functions.invoke("scan-slab")` → DB update → UI refresh).
 
-## User flow
+## Investigation (first, no code changes)
 
-On any card detail, add a **"I got this graded — scan the slab"** action inside `AuthenticatedProfile`:
-- Opens the existing camera/upload flow, expects 1–2 photos of the slab (front required, back optional for cert).
-- Uploads to `card-images` storage under the same card id.
-- Calls a new edge function `scan-slab` which runs vision, updates the row, refreshes pricing for the graded tier, and returns an accuracy scorecard.
-- UI swaps in the Authenticated Profile with a green "Verified from slab photo" badge; Market Evidence re-renders with graded comps; a new **"AI vs Reality"** card appears showing the scorecard.
+1. Repro in the live preview using Playwright: open this card, tap **Scan slab photo**, upload a fixture slab image, capture console + network + screenshots.
+2. Confirm which step fails:
+   - Storage upload to `card-images` succeeds?
+   - `scan-slab` invocation returns 2xx / 4xx / 5xx?
+   - `scan-slab` logs show extract confidence, grade, cert?
+   - Card row is updated (`is_authenticated`, `grading_company`, `ai_analysis.confirmedGrade`, `ai_analysis.gradeAccuracy`)?
+   - `enrich-card` re-run kicks off with `knownGrade`?
+   - UI reloads and renders `AuthenticatedProfile` + `AIAccuracyCard`?
 
-Manual cert entry stays as a fallback.
+## Likely root causes (to be confirmed by the repro above)
 
-## Backend
+- `scan-slab` was never deployed after being added — invoke returns "function not found".
+- Vision extract returns `confidence < 0.5` on real slab photos, so the function 422s and nothing is written — thresholds too strict.
+- `window.location.reload()` fires before the fire-and-forget `enrich-card` finishes, so the UI shows the grade but not refreshed market comps for the graded tier.
+- `AIAccuracyCard` only renders when `analysis.gradeAccuracy` exists — if this is the first scan there is no snapshot to compare against and we currently only show a "no prior AI grade to compare" verdict, which may look empty.
+- Frontend gates on `hasSlab = grading_cert_number && grading_company`, so if the slab has no visible cert number the profile keeps showing the empty state even after a successful scan.
 
-**New edge function `supabase/functions/scan-slab/index.ts`**
-- Auth: user JWT; verifies `cards.user_id = auth.uid()`.
-- Input: `{ cardId, images: [{label,url}] }`.
-- Step A — vision extract via Lovable AI Gateway (`google/gemini-3.5-flash`, JSON mode). Prompt asks for: `grading_company` (PSA/BGS/CGC/SGC/TAG/AuthentiSeal/Other), `grade_label` (raw string on the slab, e.g. "NM-MT 8"), `grade_numeric`, `subgrades` (centering/corners/edges/surface if BGS), `cert_number`, `card_name`, `card_year`, `card_set`, `confidence` (0–1). Reject with a soft warning if `confidence < 0.5` or no grade found.
-- Step B — snapshot the pre-grade AI prediction *before* overwriting. Read the current `cards` row and copy `condition_grade`, `grade_numeric`, `ai_analysis.gradingEdge`, `estimated_value_low/high` into `ai_analysis.preGradePrediction` (only if not already set — first-scan wins so re-scans don't clobber history).
-- Step C — persist authoritative fields on `cards`: `grading_company`, `grading_cert_number`, `grade_numeric`, `condition_grade` (= slab `grade_label`), `is_authenticated=true`, `authenticated_at=now()`, `authentication_data = { source: 'slab_scan', extracted, images, scanned_at }`.
-- Step D — refresh market evidence for the confirmed grade by re-running the shared engine narrowed to the graded tier. Reuse `runAnalysis` from `_shared/analysisEngine.ts` with `category` and a new optional `knownGrade: { company, numeric }` hint so pricing/comps target the graded tier (analysisEngine already produces graded comps; we only need to pass the hint through and prefer graded results for the summary values when present).
-- Step E — compute accuracy scorecard and store under `ai_analysis.gradeAccuracy`:
-  - `predictedGrade` (from snapshot), `actualGrade` (from slab), `deltaGrades = actual - predicted`, `withinHalf` / `withinOne`, and a 0–100 `accuracyScore` (100 if exact, −20 per half-grade off, floor 0).
-  - `predictedValueMid` vs `actualValueMid` and `valueDeltaPct`.
-  - `verdict`: "Spot on" | "Very close" | "Off by a grade" | "Way off".
-- Response: `{ ok, extracted, accuracy, refreshedAnalysis }`.
+## Fix plan (executed in build mode after the repro pins the cause)
 
-**Edge function config**: no change to `supabase/config.toml` needed (default verify_jwt).
-
-**No schema migration required** — reuses existing columns (`is_authenticated`, `authentication_data`, `grading_company`, `grading_cert_number`, `grade_numeric`, `condition_grade`, `ai_analysis` jsonb).
-
-## Frontend
-
-**`src/components/AuthenticatedProfile.tsx`**
-- Add primary button **"Scan slab photo"** (camera icon) alongside "Add slab cert". Opens a lightweight upload sheet (reuse the pattern from `Scan.tsx` — file input + camera capture, upload to `card-images/{userId}/{cardId}/slab-*`).
-- On success, show `reachable`-style green confirmation "Verified from slab photo · {company} {grade}" and call `onUpdated()`.
-- When `authentication_data.source === 'slab_scan'`, show a small "Verified from photo" chip instead of the manual-entry look.
-
-**New `src/components/AIAccuracyCard.tsx`**
-- Rendered on `CardDetail` only when `ai_analysis.gradeAccuracy` exists.
-- Two-column comparison: "AI predicted" vs "Actual slab". Big number for each grade, colored delta pill, one-line verdict, and a horizontal accuracy bar (0–100).
-- If value delta available, second row: "AI value estimate" vs "Graded market value" with % delta.
-
-**`src/components/MarketEvidence.tsx`**
-- No structural change — it already reads from `ai_analysis`. Because `scan-slab` refreshes analysis with the known-grade hint, graded comps naturally take priority. Add a subtle "Confirmed grade: {company} {grade}" badge at the top of the section when `is_authenticated && grading_company` are set, so the user knows the evidence reflects the real grade.
-
-**`src/pages/CardDetail.tsx`**
-- Mount `<AIAccuracyCard />` below `<AuthenticatedProfile />`.
-- Hide/soft-mute the pre-grade "Should I grade this?" ladder (`GradeLadder` / `PreGradingAnalysis`) once `is_authenticated` is true (that question is answered).
-
-## Verification
-
-- On the Snorlax card currently on screen: tap "Scan slab photo", upload a slab image → Authenticated Profile flips to "Verified from photo · PSA 8", Market Evidence header shows the confirmed-grade badge and comps update to graded sales, and the "AI vs Reality" card shows predicted vs actual with an accuracy score.
-- Re-scanning the same slab does not overwrite `preGradePrediction` (first snapshot is preserved).
-- Manual cert entry still works and does not require a slab photo.
+1. **Deploy check**: ensure `scan-slab` is live; if not, redeploy.
+2. **Loosen the reject bar** in `supabase/functions/scan-slab/index.ts`: accept when `company` + `numeric` are present even if `cert_number` is missing or confidence is 0.4–0.5, and return a soft-warning payload instead of a 422 so the user sees *something*.
+3. **Fix the profile gate** in `src/components/AuthenticatedProfile.tsx`: treat `is_authenticated || grading_company` as "has slab", not `grading_cert_number && grading_company`.
+4. **Show the scorecard on first scan** in `src/components/AIAccuracyCard.tsx`: render a "First graded scan — baseline saved" state when `hasComparison=false` so the card is visible instead of hidden.
+5. **Refresh UX**: replace the hard `window.location.reload()` in `AuthenticatedProfile` with a query re-fetch + a toast when `enrich-card` completes (poll `cards.updated_at` or subscribe), so graded comps appear without a page flash.
+6. **Verify** with Playwright: repeat the slab upload, screenshot the card detail page, confirm Authenticated Profile, AI Accuracy card, and the "confirmed grade" badge on Market Evidence all render.
 
 ## Out of scope
 
-`analysisEngine.ts` pricing internals, Stripe, auth, and the scan pipeline for raw cards. The only engine change is threading an optional `knownGrade` hint through so refreshed comps target the confirmed tier.
+Analysis engine (`analysisEngine.ts`), pricing logic, Stripe, unrelated pages.
