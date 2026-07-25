@@ -42,9 +42,9 @@ export default function AuthenticatedProfile({ card, onUpdated }: Props) {
   const [scanning, setScanning] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const hasSlab = !!card.grading_cert_number && !!card.grading_company;
-  const hasAuthentiSeal = !!card.authentiseal_serial;
   const verifiedFromPhoto = card.authentication_data?.source === "slab_scan";
+  const hasSlab = !!card.grading_company && (!!card.grading_cert_number || verifiedFromPhoto || !!card.is_authenticated);
+  const hasAuthentiSeal = !!card.authentiseal_serial;
 
   async function handleSlabFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files || []);
