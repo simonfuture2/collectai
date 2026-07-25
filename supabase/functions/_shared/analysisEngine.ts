@@ -198,7 +198,7 @@ Return ONLY valid JSON: {"verified_low": number, "verified_high": number, "verif
 // ---------- main entry ----------
 
 export async function runAnalysis(input: RunAnalysisInput): Promise<RunAnalysisResult> {
-  const { images, category, fastScan = false } = input;
+  const { images, category, fastScan = false, knownGrade } = input;
   const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
   if (!ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY is not configured");
 
@@ -209,6 +209,13 @@ export async function runAnalysis(input: RunAnalysisInput): Promise<RunAnalysisR
   const t0 = Date.now();
   const cardId = (await identifyWithGemini(images[0].url, IDENTIFY_MODEL)) as CardIdentification | null;
   console.log(`Card identified by ${IDENTIFY_MODEL} in ${Date.now() - t0}ms:`, JSON.stringify(cardId));
+
+  // If the caller passed a confirmed slab grade, bias comp search toward
+  // graded comps by appending the grade to the variant string used for search.
+  if (cardId && knownGrade?.company && knownGrade?.numeric != null) {
+    const gradeTag = `${knownGrade.company} ${knownGrade.numeric}`;
+    cardId.variant = cardId.variant ? `${cardId.variant} ${gradeTag}` : gradeTag;
+  }
 
   // ===== STEP 2: Tiered cross-referenced market data =====
   let aggregated: AggregatedMarketData = {
