@@ -58,6 +58,7 @@ import CardDetailHero from "@/components/CardDetailHero";
 import GradeLadder from "@/components/GradeLadder";
 import { AIAnalysisCard } from "@/components/AIAnalysisCard";
 import AuthenticatedProfile from "@/components/AuthenticatedProfile";
+import AIAccuracyCard from "@/components/AIAccuracyCard";
 import CardPairing from "@/components/CardPairing";
 
 type Card = Tables<"cards">;
