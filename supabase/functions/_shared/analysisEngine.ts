@@ -472,6 +472,19 @@ GRADE-CEILING RULE (MANDATORY):
       : "AI estimate only - no live market data available";
   }
 
+  // Force confirmed slab grade to override anything the model tried to predict.
+  if (knownGrade) {
+    const gradeStr = `${knownGrade.company} ${knownGrade.label ?? knownGrade.numeric}`;
+    analysis.conditionGrade = gradeStr;
+    analysis.knownGrade = knownGrade;
+    analysis.isGraded = true;
+    analysis.gradedValueEstimates = {
+      ...(analysis.gradedValueEstimates || {}),
+      currentGradeEstimate: gradeStr,
+    };
+    analysis.dataSource = `${analysis.dataSource} (confirmed slab grade)`;
+  }
+
   // ===== NO-MARKET-DATA GUARDRAILS =====
   if (!marketData.hasData) {
     analysis.confidence = "low";
