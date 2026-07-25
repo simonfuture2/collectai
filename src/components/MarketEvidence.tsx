@@ -105,6 +105,7 @@ const MarketEvidence = ({
   confidenceBand,
   confidenceExplanation,
   confidenceReason,
+  confirmedGrade,
 }: MarketEvidenceProps) => {
   const ebaySold = sources.find((s) => s.source === "ebay_sold");
   const pc = sources.find((s) => s.source === "pricecharting");
