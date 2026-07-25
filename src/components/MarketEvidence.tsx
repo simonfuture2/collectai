@@ -59,6 +59,7 @@ interface MarketEvidenceProps {
   confidenceBand?: "high" | "medium" | "low" | string;
   confidenceExplanation?: string;
   confidenceReason?: string;
+  confirmedGrade?: { company?: string | null; label?: string | null; numeric?: number | null } | null;
 }
 
 const SOURCE_LABEL: Record<string, string> = {
