@@ -134,11 +134,12 @@ async function runEnrichment(params: {
   images: { label: string; url: string }[];
   category?: string;
   fastScan: boolean;
+  knownGrade?: { company: string; numeric: number; label?: string; cert_number?: string | null };
   supabaseAdmin: ReturnType<typeof createClient>;
 }) {
-  const { cardId, userId, images, category, fastScan, supabaseAdmin } = params;
+  const { cardId, userId, images, category, fastScan, knownGrade, supabaseAdmin } = params;
 
-  console.log(`[enrich-card] start card=${cardId} fastScan=${fastScan}`);
+  console.log(`[enrich-card] start card=${cardId} fastScan=${fastScan} knownGrade=${knownGrade ? `${knownGrade.company} ${knownGrade.numeric}` : "no"}`);
 
   // Stage: pricing — engine handles identification + market + Claude + verification.
   await supabaseAdmin.from("cards").update({ analysis_status: "pricing" }).eq("id", cardId);
@@ -147,6 +148,7 @@ async function runEnrichment(params: {
     images,
     category,
     fastScan,
+    knownGrade,
   });
 
   if (!identification?.card_name) {
