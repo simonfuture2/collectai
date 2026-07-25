@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Shield, BadgeCheck, Copy, ExternalLink, Loader2, Plus } from "lucide-react";
+import { useRef, useState } from "react";
+import { Shield, BadgeCheck, Copy, ExternalLink, Loader2, Plus, Camera, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { GlassCard } from "@/components/ui/glass-card";
