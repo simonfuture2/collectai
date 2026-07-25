@@ -101,12 +101,12 @@ export default function AuthenticatedProfile({ card, onUpdated }: Props) {
       ref={fileInputRef}
       type="file"
       accept="image/*"
-      capture="environment"
       multiple
       className="hidden"
       onChange={handleSlabFileChange}
     />
   );
+
 
   if (!hasSlab && !hasAuthentiSeal && !showAdd) {
     return (
