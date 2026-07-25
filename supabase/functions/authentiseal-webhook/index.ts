@@ -7,7 +7,6 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-// Verify HMAC-SHA256 JWT
 async function verifyJWT(
   token: string,
   secret: string
@@ -26,7 +25,6 @@ async function verifyJWT(
     ["verify"]
   );
 
-  // Decode signature
   const sigStr = sigB64.replace(/-/g, "+").replace(/_/g, "/");
   const padded = sigStr + "=".repeat((4 - (sigStr.length % 4)) % 4);
   const sigBytes = Uint8Array.from(atob(padded), (c) => c.charCodeAt(0));
@@ -34,17 +32,19 @@ async function verifyJWT(
   const valid = await crypto.subtle.verify("HMAC", key, sigBytes, new TextEncoder().encode(data));
   if (!valid) return null;
 
-  // Decode payload
   const payloadStr = payloadB64.replace(/-/g, "+").replace(/_/g, "/");
   const payloadPadded = payloadStr + "=".repeat((4 - (payloadStr.length % 4)) % 4);
   const payload = JSON.parse(atob(payloadPadded));
 
-  // Check expiration
-  if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) {
-    return null;
-  }
+  if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) return null;
 
   return payload;
+}
+
+function parseGradeNumeric(g: unknown): number | null {
+  if (g == null) return null;
+  const m = String(g).match(/(\d+(?:\.\d+)?)/);
+  return m ? Number(m[1]) : null;
 }
 
 serve(async (req) => {
@@ -55,14 +55,13 @@ serve(async (req) => {
   try {
     const sharedSecret = Deno.env.get("AUTHENTISEAL_SHARED_SECRET");
     if (!sharedSecret) {
-      return new Response(
-        JSON.stringify({ error: "Server misconfigured" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ error: "Server misconfigured" }), {
+        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     const body = await req.json();
-    const { token, card_id, serial_number } = body;
+    const { token, card_id, serial_number, certificate } = body;
 
     if (!token || !card_id || !serial_number) {
       return new Response(
@@ -71,49 +70,55 @@ serve(async (req) => {
       );
     }
 
-    // Verify the callback token signed by AuthentiSeal with the shared secret
     const payload = await verifyJWT(token, sharedSecret);
     if (!payload) {
-      return new Response(
-        JSON.stringify({ error: "Invalid or expired token" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ error: "Invalid or expired token" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    // Validate source
     if (payload.source !== "authentiseal") {
-      return new Response(
-        JSON.stringify({ error: "Invalid token source" }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ error: "Invalid token source" }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    // Cross-check: the card_id in the verified JWT must match the request body's card_id.
-    // Prevents a valid token from being replayed against an unrelated card.
     if (!payload.card_id || payload.card_id !== card_id) {
-      return new Response(
-        JSON.stringify({ error: "card_id does not match token" }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ error: "card_id does not match token" }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    // Use service role to update the card
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-    // Update the card's authentiseal_serial
-    const { error } = await supabase
-      .from("cards")
-      .update({ authentiseal_serial: serial_number })
-      .eq("id", card_id);
+    const update: Record<string, unknown> = {
+      authentiseal_serial: serial_number,
+      is_authenticated: true,
+      authenticated_at: new Date().toISOString(),
+    };
+
+    if (certificate && typeof certificate === "object") {
+      update.authentication_data = certificate;
+      const c = certificate as Record<string, any>;
+      if (c.grading_company || c.grader) update.grading_company = c.grading_company ?? c.grader;
+      if (c.cert_number || c.grading_cert_number) update.grading_cert_number = c.cert_number ?? c.grading_cert_number;
+      const grade = c.grade ?? c.condition_grade;
+      if (grade != null) {
+        update.condition_grade = String(grade);
+        const gn = parseGradeNumeric(grade);
+        if (gn != null) update.grade_numeric = gn;
+      }
+    }
+
+    const { error } = await supabase.from("cards").update(update).eq("id", card_id);
 
     if (error) {
       console.error("[authentiseal-webhook] update failed:", error);
-      return new Response(
-        JSON.stringify({ error: "Failed to update card" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ error: "Failed to update card" }), {
+        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     return new Response(
@@ -122,9 +127,8 @@ serve(async (req) => {
     );
   } catch (err) {
     console.error("[authentiseal-webhook] error:", err);
-    return new Response(
-      JSON.stringify({ error: "Internal server error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return new Response(JSON.stringify({ error: "Internal server error" }), {
+      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 });

@@ -57,6 +57,8 @@ import MarketEvidence from "@/components/MarketEvidence";
 import CardDetailHero from "@/components/CardDetailHero";
 import GradeLadder from "@/components/GradeLadder";
 import { AIAnalysisCard } from "@/components/AIAnalysisCard";
+import AuthenticatedProfile from "@/components/AuthenticatedProfile";
+import CardPairing from "@/components/CardPairing";
 
 type Card = Tables<"cards">;
 
@@ -760,6 +762,12 @@ export default function CardDetail() {
             </div>
           );
         })()}
+
+        <div className="mb-8 space-y-4">
+          <AuthenticatedProfile card={card as any} onUpdated={() => window.location.reload()} />
+          <CardPairing card={card as any} onChanged={() => window.location.reload()} />
+        </div>
+
 
         {analysis && (
           <div className="mb-8">
