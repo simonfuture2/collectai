@@ -88,19 +88,21 @@ serve(async (req) => {
     }
     logStep("Customer lookup", { customerId: customerId || "new" });
 
-    const origin = req.headers.get("origin") || "https://collectai.lovable.app";
+    const origin = req.headers.get("origin") || "https://mycollectai.com";
 
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       customer_email: customerId ? undefined : user.email,
       line_items: [{ price: priceId, quantity: 1 }],
       mode,
+      ...(betaCoupon ? { discounts: [{ coupon: betaCoupon }] } : {}),
       success_url: `${origin}/checkout/success`,
       cancel_url: `${origin}/checkout/cancel`,
       metadata: {
         user_id: user.id,
         price_id: priceId,
         product_id: allowed.product_id,
+        beta_founder: betaCoupon ? "true" : "false",
       },
     });
 
