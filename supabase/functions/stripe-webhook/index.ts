@@ -158,9 +158,15 @@ serve(async (req) => {
         .single();
 
       if (userCredits) {
+        // Cancelling forfeits the beta founder price lock permanently.
         await supabaseClient
           .from("user_credits")
-          .update({ plan: "free", stripe_subscription_id: null })
+          .update({
+            plan: "free",
+            stripe_subscription_id: null,
+            beta_eligible: false,
+            beta_price_locked_at: null,
+          })
           .eq("user_id", userCredits.user_id);
 
         logStep("Subscription cancelled, downgraded to free", { userId: userCredits.user_id });
