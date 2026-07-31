@@ -234,7 +234,9 @@ const Admin = () => {
             <TabsTrigger value="campaigns">Campaigns</TabsTrigger>
             <TabsTrigger value="push">Push</TabsTrigger>
             <TabsTrigger value="beta">Beta</TabsTrigger>
+            <TabsTrigger value="beta-audit">Beta Audit</TabsTrigger>
             <TabsTrigger value="admins">Admins</TabsTrigger>
+
           </TabsList>
 
 
