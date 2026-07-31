@@ -12,6 +12,7 @@ import ScanDemo from "@/components/ScanDemo";
 import QuickScanChallenge from "@/components/QuickScanChallenge";
 import AuthentiSealVerify from "@/components/AuthentiSealVerify";
 import LeadMagnet from "@/components/LeadMagnet";
+import BetaPromoBanner from "@/components/BetaPromoBanner";
 import collectaiLogo from "@/assets/collectai-logo.png";
 
 const fadeUp = {
