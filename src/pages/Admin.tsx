@@ -448,6 +448,12 @@ const Admin = () => {
             />
           </TabsContent>
 
+          {/* Beta Audit Tab */}
+          <TabsContent value="beta-audit">
+            <BetaAuditTab />
+          </TabsContent>
+
+
           {/* Admins Tab */}
           <TabsContent value="admins">
             <AdminsTab />
