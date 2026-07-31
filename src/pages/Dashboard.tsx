@@ -132,7 +132,7 @@ const Dashboard = () => {
             <span className="hidden sm:inline text-2xl font-display font-bold text-gradient-primary truncate">MyCollectAI</span>
           </Link>
           <div className="flex items-center gap-1.5 sm:gap-4 flex-wrap justify-end">
-            <CreditBalance credits={credits} isPro={isPro} loading={creditsLoading} compact />
+            <CreditBalance credits={credits} isPro={isPro} loading={creditsLoading} compact betaActive={betaActive} betaDaysLeft={betaDaysLeft} />
             {isAdmin && (
               <Link to="/admin">
                 <Button variant="outline" size="sm" className="gap-1 px-2 sm:px-3">
