@@ -44,19 +44,20 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Check admin role using service role client
-    const { data: roleData } = await adminClient
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userId)
-      .single();
+    // Check admin role via the security-definer is_admin() function.
+    // Fails closed on any error and is robust to users holding multiple roles.
+    const { data: isAdmin, error: roleError } = await adminClient.rpc("is_admin", {
+      _user_id: userId,
+    });
 
-    if (!roleData || roleData.role !== "admin") {
+    if (roleError || isAdmin !== true) {
+      console.warn("[admin-data] denied for user", userId, roleError?.message ?? "not admin");
       return new Response(JSON.stringify({ error: "Forbidden" }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
 
     // Parse body once
     const body = await req.json();
