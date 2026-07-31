@@ -66,6 +66,12 @@ serve(async (req) => {
     let credits = creditsData?.credits ?? 3;
     let plan = creditsData?.plan ?? "free";
 
+    // Beta founder program
+    const betaEndsAt: string | null = (creditsData as any)?.beta_access_until ?? null;
+    const betaActive = !!betaEndsAt && new Date(betaEndsAt).getTime() > Date.now();
+    const betaEligible = !!(creditsData as any)?.beta_eligible;
+    const betaPriceLocked = !!(creditsData as any)?.beta_price_locked_at;
+
     // Check Stripe for active subscription
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
     const customers = await stripe.customers.list({ email: user.email, limit: 1 });
