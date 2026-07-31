@@ -23,6 +23,7 @@ import LeadsTab from "@/components/admin/LeadsTab";
 import CampaignsTab from "@/components/admin/CampaignsTab";
 import PushNotificationsTab from "@/components/admin/PushNotificationsTab";
 import AdminsTab from "@/components/admin/AdminsTab";
+import BetaTab from "@/components/admin/BetaTab";
 import { toast } from "sonner";
 
 interface UserCredit {
