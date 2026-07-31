@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Check, Crown, Coins, Sparkles, Loader2, Settings } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { STRIPE_CONFIG } from "@/lib/stripe-config";
+import { STRIPE_CONFIG, BETA_OFFER } from "@/lib/stripe-config";
 import { useCredits } from "@/hooks/use-credits";
 import CreditBalance from "@/components/CreditBalance";
 import Footer from "@/components/Footer";
@@ -13,7 +13,7 @@ import SEO from "@/components/SEO";
 
 const Pricing = () => {
   const [loading, setLoading] = useState<string | null>(null);
-  const { credits, isPro, loading: creditsLoading } = useCredits();
+  const { credits, isPro, betaActive, betaDaysLeft, betaEligible, loading: creditsLoading } = useCredits();
   const { toast } = useToast();
 
   const handleCheckout = async (priceId: string, mode: string) => {
