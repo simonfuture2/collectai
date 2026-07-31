@@ -141,8 +141,17 @@ const Pricing = () => {
             <h3 className="text-xl font-display font-bold mb-1 flex items-center gap-2">
               <Crown className="w-5 h-5 text-primary" /> Pro
             </h3>
-            <p className="text-3xl font-display font-bold mb-1">$14.99<span className="text-base font-normal text-muted-foreground">/mo</span></p>
-            <p className="text-sm text-muted-foreground mb-6">Unlimited everything</p>
+            {betaEligible || betaActive ? (
+              <p className="text-3xl font-display font-bold mb-1">
+                <span className="text-lg font-normal text-muted-foreground line-through mr-2">$14.99</span>
+                ${BETA_OFFER.price}<span className="text-base font-normal text-muted-foreground">/mo</span>
+              </p>
+            ) : (
+              <p className="text-3xl font-display font-bold mb-1">$14.99<span className="text-base font-normal text-muted-foreground">/mo</span></p>
+            )}
+            <p className="text-sm text-muted-foreground mb-6">
+              {betaEligible || betaActive ? BETA_OFFER.note : "Unlimited everything"}
+            </p>
             <ul className="space-y-3 mb-8 flex-1">
               {proFeatures.map((f) => (
                 <li key={f} className="flex items-center gap-2 text-sm">
@@ -151,7 +160,7 @@ const Pricing = () => {
                 </li>
               ))}
             </ul>
-            {isPro ? (
+            {subscribed ? (
               <Button variant="outline" onClick={handleManageSubscription} disabled={loading === "portal"} className="w-full">
                 {loading === "portal" ? <Loader2 className="mr-2 w-4 h-4 animate-spin" /> : <Settings className="mr-2 w-4 h-4" />}
                 Manage Subscription
@@ -167,7 +176,7 @@ const Pricing = () => {
                 ) : (
                   <Sparkles className="mr-2 w-4 h-4" />
                 )}
-                Subscribe to Pro
+                {betaEligible || betaActive ? "Lock in $6.99/mo" : "Subscribe to Pro"}
               </Button>
             )}
           </div>
