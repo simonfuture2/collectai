@@ -3,7 +3,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button";
 import { Crown, Coins, Sparkles, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { STRIPE_CONFIG } from "@/lib/stripe-config";
+import { STRIPE_CONFIG, BETA_OFFER } from "@/lib/stripe-config";
+import { useCredits } from "@/hooks/use-credits";
 import { useToast } from "@/hooks/use-toast";
 
 interface UpgradeModalProps {
@@ -14,6 +15,7 @@ interface UpgradeModalProps {
 
 export default function UpgradeModal({ open, onOpenChange, feature = "this feature" }: UpgradeModalProps) {
   const [loading, setLoading] = useState<string | null>(null);
+  const { betaEligible } = useCredits();
   const { toast } = useToast();
 
   const handleCheckout = async (priceId: string, mode: string) => {
@@ -55,14 +57,27 @@ export default function UpgradeModal({ open, onOpenChange, feature = "this featu
           >
             <div className="flex items-center gap-2">
               <Crown className="w-4 h-4" />
-              <span>Go Pro — Unlimited Everything</span>
+              <span>{betaEligible ? "Lock in Beta Founder price" : "Go Pro — Unlimited Everything"}</span>
             </div>
             <span className="font-bold">
-              {loading === STRIPE_CONFIG.pro.price_id ? <Loader2 className="w-4 h-4 animate-spin" /> : "$14.99/mo"}
+              {loading === STRIPE_CONFIG.pro.price_id ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : betaEligible ? (
+                <>
+                  <span className="line-through opacity-60 mr-1 font-normal">${BETA_OFFER.standard_price}</span>
+                  ${BETA_OFFER.price}/mo
+                </>
+              ) : (
+                "$14.99/mo"
+              )}
             </span>
           </Button>
+          {betaEligible && (
+            <p className="text-[11px] text-center text-muted-foreground -mt-1">{BETA_OFFER.note}</p>
+          )}
 
           <div className="text-center text-xs text-muted-foreground">or buy credits</div>
+
 
           {/* Credit packs */}
           {[STRIPE_CONFIG.credits_10, STRIPE_CONFIG.credits_50, STRIPE_CONFIG.credits_100].map((pack) => (
