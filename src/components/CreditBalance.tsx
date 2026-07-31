@@ -1,4 +1,4 @@
-import { Coins, Crown, Loader2 } from "lucide-react";
+import { Coins, Crown, Loader2, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 
@@ -7,14 +7,27 @@ interface CreditBalanceProps {
   isPro: boolean;
   loading: boolean;
   compact?: boolean;
+  betaActive?: boolean;
+  betaDaysLeft?: number;
 }
 
-export default function CreditBalance({ credits, isPro, loading, compact = false }: CreditBalanceProps) {
+export default function CreditBalance({ credits, isPro, loading, compact = false, betaActive = false, betaDaysLeft = 0 }: CreditBalanceProps) {
   if (loading) {
     return (
       <div className="flex items-center gap-1.5 text-muted-foreground">
         <Loader2 className="w-3.5 h-3.5 animate-spin" />
       </div>
+    );
+  }
+
+  if (betaActive) {
+    return (
+      <Link to="/pricing">
+        <Badge className="bg-gradient-to-r from-amber-400 to-amber-600 text-black border-0 gap-1">
+          <Sparkles className="w-3 h-3" />
+          {compact ? `Beta ${betaDaysLeft}d` : `Beta • ${betaDaysLeft} days left`}
+        </Badge>
+      </Link>
     );
   }
 

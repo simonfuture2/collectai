@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Check, Crown, Coins, Sparkles, Loader2, Settings } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { STRIPE_CONFIG } from "@/lib/stripe-config";
+import { STRIPE_CONFIG, BETA_OFFER } from "@/lib/stripe-config";
 import { useCredits } from "@/hooks/use-credits";
 import CreditBalance from "@/components/CreditBalance";
 import Footer from "@/components/Footer";
@@ -13,7 +13,7 @@ import SEO from "@/components/SEO";
 
 const Pricing = () => {
   const [loading, setLoading] = useState<string | null>(null);
-  const { credits, isPro, loading: creditsLoading } = useCredits();
+  const { credits, isPro, subscribed, betaActive, betaDaysLeft, betaEligible, loading: creditsLoading } = useCredits();
   const { toast } = useToast();
 
   const handleCheckout = async (priceId: string, mode: string) => {
@@ -75,7 +75,7 @@ const Pricing = () => {
             </Link>
             <h1 className="text-xl font-display font-bold">Pricing</h1>
           </div>
-          <CreditBalance credits={credits} isPro={isPro} loading={creditsLoading} />
+          <CreditBalance credits={credits} isPro={isPro} loading={creditsLoading} betaActive={betaActive} betaDaysLeft={betaDaysLeft} />
           <ThemeToggle />
         </div>
       </header>
@@ -89,6 +89,30 @@ const Pricing = () => {
             Start free with 3 scans, buy credits as you go, or go Pro for unlimited access.
           </p>
         </div>
+
+        {(betaActive || betaEligible) && !isPro && (
+          <div className="mb-10 rounded-2xl border border-amber-500/40 bg-amber-500/10 p-5 text-center">
+            <p className="font-display font-bold text-lg flex items-center justify-center gap-2">
+              <Sparkles className="w-4 h-4 text-amber-500" />
+              Beta Founder offer
+            </p>
+            <p className="text-sm text-muted-foreground mt-1">
+              {betaActive
+                ? `You have full Pro access for ${betaDaysLeft} more day${betaDaysLeft === 1 ? "" : "s"}. `
+                : "Your beta trial has ended. "}
+              Lock in <span className="font-semibold text-foreground">${BETA_OFFER.price}/mo</span> (50% off) for your first {BETA_OFFER.months} months — as long as you keep Pro active.
+            </p>
+          </div>
+        )}
+        {betaActive && isPro && (
+          <div className="mb-10 rounded-2xl border border-amber-500/40 bg-amber-500/10 p-5 text-center">
+            <p className="text-sm">
+              <span className="font-semibold">Beta access:</span> {betaDaysLeft} day{betaDaysLeft === 1 ? "" : "s"} of full Pro remaining.
+            </p>
+          </div>
+        )}
+
+
 
         <div className="grid md:grid-cols-3 gap-6 mb-12">
           {/* Free Tier */}
@@ -117,8 +141,17 @@ const Pricing = () => {
             <h3 className="text-xl font-display font-bold mb-1 flex items-center gap-2">
               <Crown className="w-5 h-5 text-primary" /> Pro
             </h3>
-            <p className="text-3xl font-display font-bold mb-1">$14.99<span className="text-base font-normal text-muted-foreground">/mo</span></p>
-            <p className="text-sm text-muted-foreground mb-6">Unlimited everything</p>
+            {betaEligible || betaActive ? (
+              <p className="text-3xl font-display font-bold mb-1">
+                <span className="text-lg font-normal text-muted-foreground line-through mr-2">$14.99</span>
+                ${BETA_OFFER.price}<span className="text-base font-normal text-muted-foreground">/mo</span>
+              </p>
+            ) : (
+              <p className="text-3xl font-display font-bold mb-1">$14.99<span className="text-base font-normal text-muted-foreground">/mo</span></p>
+            )}
+            <p className="text-sm text-muted-foreground mb-6">
+              {betaEligible || betaActive ? BETA_OFFER.note : "Unlimited everything"}
+            </p>
             <ul className="space-y-3 mb-8 flex-1">
               {proFeatures.map((f) => (
                 <li key={f} className="flex items-center gap-2 text-sm">
@@ -127,7 +160,7 @@ const Pricing = () => {
                 </li>
               ))}
             </ul>
-            {isPro ? (
+            {subscribed ? (
               <Button variant="outline" onClick={handleManageSubscription} disabled={loading === "portal"} className="w-full">
                 {loading === "portal" ? <Loader2 className="mr-2 w-4 h-4 animate-spin" /> : <Settings className="mr-2 w-4 h-4" />}
                 Manage Subscription
@@ -143,7 +176,7 @@ const Pricing = () => {
                 ) : (
                   <Sparkles className="mr-2 w-4 h-4" />
                 )}
-                Subscribe to Pro
+                {betaEligible || betaActive ? "Lock in $6.99/mo" : "Subscribe to Pro"}
               </Button>
             )}
           </div>

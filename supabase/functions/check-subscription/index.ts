@@ -66,6 +66,12 @@ serve(async (req) => {
     let credits = creditsData?.credits ?? 3;
     let plan = creditsData?.plan ?? "free";
 
+    // Beta founder program
+    const betaEndsAt: string | null = (creditsData as any)?.beta_access_until ?? null;
+    const betaActive = !!betaEndsAt && new Date(betaEndsAt).getTime() > Date.now();
+    const betaEligible = !!(creditsData as any)?.beta_eligible;
+    const betaPriceLocked = !!(creditsData as any)?.beta_price_locked_at;
+
     // Check Stripe for active subscription
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
     const customers = await stripe.customers.list({ email: user.email, limit: 1 });
@@ -132,13 +138,22 @@ serve(async (req) => {
       plan = "free";
     }
 
-    logStep("Returning status", { plan, credits, subscribed });
+    // Beta window grants Pro-equivalent access without a Stripe subscription
+    if (!subscribed && betaActive) {
+      plan = "beta";
+    }
+
+    logStep("Returning status", { plan, credits, subscribed, betaActive });
 
     return new Response(JSON.stringify({
       subscribed,
       plan,
       credits,
       subscription_end: subscriptionEnd,
+      beta_active: betaActive,
+      beta_ends_at: betaEndsAt,
+      beta_eligible: betaEligible && !subscribed,
+      beta_price_locked: betaPriceLocked,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,

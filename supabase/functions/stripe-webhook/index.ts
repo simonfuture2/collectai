@@ -90,6 +90,7 @@ serve(async (req) => {
       if (session.mode === "subscription") {
         // Activate Pro subscription
         const subscriptionId = session.subscription as string;
+        const isBetaFounder = session.metadata?.beta_founder === "true";
         await supabaseClient
           .from("user_credits")
           .upsert({
@@ -97,9 +98,10 @@ serve(async (req) => {
             plan: "pro",
             stripe_customer_id: customerId,
             stripe_subscription_id: subscriptionId,
+            ...(isBetaFounder ? { beta_price_locked_at: new Date().toISOString() } : {}),
           }, { onConflict: "user_id" });
 
-        logStep("Pro subscription activated", { userId, subscriptionId });
+        logStep("Pro subscription activated", { userId, subscriptionId, isBetaFounder });
 
         // Log transaction
         await supabaseClient.from("credit_transactions").insert({
@@ -156,9 +158,15 @@ serve(async (req) => {
         .single();
 
       if (userCredits) {
+        // Cancelling forfeits the beta founder price lock permanently.
         await supabaseClient
           .from("user_credits")
-          .update({ plan: "free", stripe_subscription_id: null })
+          .update({
+            plan: "free",
+            stripe_subscription_id: null,
+            beta_eligible: false,
+            beta_price_locked_at: null,
+          })
           .eq("user_id", userCredits.user_id);
 
         logStep("Subscription cancelled, downgraded to free", { userId: userCredits.user_id });

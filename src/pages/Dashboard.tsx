@@ -43,7 +43,7 @@ const Dashboard = () => {
   const [showAnalytics, setShowAnalytics] = useState(false);
   const [showUpgrade, setShowUpgrade] = useState(false);
   const navigate = useNavigate();
-  const { credits, isPro, loading: creditsLoading } = useCredits();
+  const { credits, isPro, subscribed, betaActive, betaDaysLeft, betaEligible, loading: creditsLoading } = useCredits();
   const { isAdmin } = useAdmin();
   usePushNotifications();
 
@@ -132,7 +132,7 @@ const Dashboard = () => {
             <span className="hidden sm:inline text-2xl font-display font-bold text-gradient-primary truncate">MyCollectAI</span>
           </Link>
           <div className="flex items-center gap-1.5 sm:gap-4 flex-wrap justify-end">
-            <CreditBalance credits={credits} isPro={isPro} loading={creditsLoading} compact />
+            <CreditBalance credits={credits} isPro={isPro} loading={creditsLoading} compact betaActive={betaActive} betaDaysLeft={betaDaysLeft} />
             {isAdmin && (
               <Link to="/admin">
                 <Button variant="outline" size="sm" className="gap-1 px-2 sm:px-3">
@@ -148,6 +148,25 @@ const Dashboard = () => {
       </header>
 
       <main className="container mx-auto px-3 sm:px-4 py-6 sm:py-8">
+        {(betaActive || betaEligible) && !subscribed && (
+          <Link
+            to="/pricing"
+            className="mb-6 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 hover:bg-amber-500/15 transition-colors"
+          >
+            <span className="text-sm">
+              {betaActive ? (
+                <>
+                  <span className="font-semibold">Beta access:</span> {betaDaysLeft} day{betaDaysLeft === 1 ? "" : "s"} of full Pro left.
+                </>
+              ) : (
+                <span className="font-semibold">Your beta trial has ended.</span>
+              )}{" "}
+              Lock in $6.99/mo — 50% off for 12 months.
+            </span>
+            <span className="text-sm font-semibold text-amber-600 dark:text-amber-400">Claim offer →</span>
+          </Link>
+        )}
+
         <div className="flex items-center justify-between gap-2 mb-6 sm:mb-8">
           <h1 className="text-2xl sm:text-3xl font-display font-bold">Your Collection</h1>
           {cards.length > 0 && (
