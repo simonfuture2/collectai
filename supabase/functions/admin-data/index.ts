@@ -368,8 +368,8 @@ Deno.serve(async (req) => {
     // ─── SET BETA WINDOW (grant / extend / revoke) ───
     if (action === "set_beta_window") {
       const { targetUserId, endsAt } = body as { targetUserId?: string; endsAt?: string | null };
-      if (!targetUserId) {
-        return new Response(JSON.stringify({ error: "targetUserId required" }), {
+      if (!isUuid(targetUserId)) {
+        return new Response(JSON.stringify({ error: "Valid targetUserId (uuid) required" }), {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
@@ -377,6 +377,12 @@ Deno.serve(async (req) => {
 
       let endsAtIso: string | null = null;
       if (endsAt !== null && endsAt !== undefined) {
+        if (typeof endsAt !== "string") {
+          return new Response(JSON.stringify({ error: "endsAt must be an ISO date string or null" }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
         const d = new Date(endsAt);
         if (Number.isNaN(d.getTime())) {
           return new Response(JSON.stringify({ error: "endsAt must be a valid date or null" }), {
@@ -384,29 +390,43 @@ Deno.serve(async (req) => {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
+        const now = Date.now();
+        if (d.getTime() <= now || d.getTime() > now + MAX_BETA_WINDOW_MS) {
+          return new Response(
+            JSON.stringify({ error: "endsAt must be in the future and within 365 days" }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          );
+        }
         endsAtIso = d.toISOString();
       }
 
       const revoking = endsAtIso === null;
 
-      const { error: betaErr } = await adminClient
+      const { data: updated, error: betaErr } = await adminClient
         .from("user_credits")
         .update({
           beta_access_until: endsAtIso,
           beta_eligible: !revoking,
           updated_at: new Date().toISOString(),
         })
-        .eq("user_id", targetUserId);
+        .eq("user_id", targetUserId)
+        .select("user_id");
 
       if (betaErr) throw betaErr;
+      if (!updated || updated.length === 0) {
+        return new Response(JSON.stringify({ error: "Target user not found" }), {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
 
       await adminClient.from("credit_transactions").insert({
         user_id: targetUserId,
         amount: 0,
         type: revoking ? "admin_beta_revoke" : "admin_beta_grant",
         description: revoking
-          ? "Admin revoked beta eligibility"
-          : `Admin set beta window ending ${endsAtIso}`,
+          ? `Admin ${userId} revoked beta eligibility`
+          : `Admin ${userId} set beta window ending ${endsAtIso}`,
       });
 
       return new Response(JSON.stringify({ success: true, beta_access_until: endsAtIso }), {
@@ -417,30 +437,38 @@ Deno.serve(async (req) => {
     // ─── SET FOUNDER PRICE LOCK ───
     if (action === "set_price_lock") {
       const { targetUserId, locked } = body as { targetUserId?: string; locked?: boolean };
-      if (!targetUserId || typeof locked !== "boolean") {
-        return new Response(JSON.stringify({ error: "targetUserId and boolean locked required" }), {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+      if (!isUuid(targetUserId) || typeof locked !== "boolean") {
+        return new Response(
+          JSON.stringify({ error: "Valid targetUserId (uuid) and boolean locked required" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
       }
 
       const lockedAt = locked ? new Date().toISOString() : null;
 
-      const { error: lockErr } = await adminClient
+      const { data: lockUpdated, error: lockErr } = await adminClient
         .from("user_credits")
         .update({ beta_price_locked_at: lockedAt, updated_at: new Date().toISOString() })
-        .eq("user_id", targetUserId);
+        .eq("user_id", targetUserId)
+        .select("user_id");
 
       if (lockErr) throw lockErr;
+      if (!lockUpdated || lockUpdated.length === 0) {
+        return new Response(JSON.stringify({ error: "Target user not found" }), {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
 
       await adminClient.from("credit_transactions").insert({
         user_id: targetUserId,
         amount: 0,
         type: locked ? "admin_price_lock" : "admin_price_unlock",
         description: locked
-          ? "Admin locked founder pricing ($6.99/mo)"
-          : "Admin removed founder price lock",
+          ? `Admin ${userId} locked founder pricing ($6.99/mo)`
+          : `Admin ${userId} removed founder price lock`,
       });
+
 
       return new Response(JSON.stringify({ success: true, beta_price_locked_at: lockedAt }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
