@@ -1175,6 +1175,9 @@ export type Database = {
       }
       user_credits: {
         Row: {
+          beta_access_until: string | null
+          beta_eligible: boolean
+          beta_price_locked_at: string | null
           created_at: string
           credits: number
           id: string
@@ -1185,6 +1188,9 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          beta_access_until?: string | null
+          beta_eligible?: boolean
+          beta_price_locked_at?: string | null
           created_at?: string
           credits?: number
           id?: string
@@ -1195,6 +1201,9 @@ export type Database = {
           user_id: string
         }
         Update: {
+          beta_access_until?: string | null
+          beta_eligible?: boolean
+          beta_price_locked_at?: string | null
           created_at?: string
           credits?: number
           id?: string
