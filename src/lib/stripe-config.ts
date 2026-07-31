@@ -1,3 +1,11 @@
+export const BETA_OFFER = {
+  price: 6.99,
+  standard_price: 14.99,
+  months: 12,
+  label: "Beta Founder price",
+  note: "First 12 months, then $14.99/mo. Keep Pro active to keep the discount.",
+} as const;
+
 export const STRIPE_CONFIG = {
   pro: {
     price_id: "price_1T5Ept1sHqLtRhMjmjQKR2mY",
