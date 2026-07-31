@@ -1,62 +1,43 @@
-## Problem
+## Goal
 
-The card at `/card/28954004…bacf65` shows:
-- Name: "Unknown Pokémon Card (Back Shown)"
-- Market Value: $7.83 – $12.38
+Anyone who signs up before a cutoff date gets 30 days of full (Pro-level) access. When it ends they drop to free, and they're offered Pro at **$6.99/mo for 12 months** (instead of $14.99), after which it renews at standard price. The discount is forfeited if they cancel or let Pro lapse.
 
-But the row is authenticated as **BGS 8**, cert **0020586708**, and is paired to a raw scan that already knows it's a **1999 Jungle Snorlax**. The paired raw card even stored the correct pre-grade estimate ($257 – $348) on `preGradePrediction`.
+## How it works
 
-### Root cause (verified from the DB)
+```text
+signup (before cutoff)  ->  beta_until = signup + 30 days   [full access]
+        |
+   day 30 expiry        ->  plan back to free + banner: "Lock in $6.99/mo"
+        |
+   checkout w/ beta     ->  Stripe Pro subscription + 12-month repeating coupon
+        |
+   month 13             ->  renews at $14.99 automatically
+```
 
-1. The graded card was originally scanned from a back-only photo, so identification failed and it was saved as "Unknown Pokémon Card (Back Shown)" with a fallback $7–$12 range.
-2. When the slab was scanned, `scan-slab` kicked off `enrich-card` with the two **slab** photos (front-of-slab + back-of-slab). `enrich-card` re-ran identification on those slab images, still couldn't ID it, and re-persisted `card_name = "Unknown …"` plus the low fallback estimate — clobbering any chance of graded pricing.
-3. Because `card_name` is unknown, market-data lookup returns nothing, so the "Market Value" ignores the graded BGS 8 eBay comps that the AI stack would otherwise pull.
+### 1. Data
+Add to `user_credits` (migration):
+- `beta_access_until` (timestamptz, null) — end of the 30-day full-access window
+- `beta_eligible` (boolean, default false) — earned the $6.99 lock-in offer
+- `beta_price_locked_at` (timestamptz, null) — set when they actually subscribe on the beta deal
 
-`pair-cards` today only sets the pointers; it does not copy the raw card's identity onto the graded card and does not re-price.
+A signup trigger (extends the existing new-user credits trigger) sets both fields when `now() < BETA_CUTOFF`. Cutoff stored as a single constant so it's easy to change.
 
-## Fix
+### 2. Pricing / Stripe
+- Create a Stripe coupon: 53.37% off, `duration: repeating`, `duration_in_months: 12`, applied to the existing Pro price (`price_1T5Ept…`) so the effective price is $6.99/mo for a year, then $14.99. No second product needed, so upgrades/cancellations keep working as-is.
+- `create-checkout` accepts an optional `beta: true` flag; it re-verifies eligibility server-side from `user_credits` (never trusts the client) and only then attaches the coupon.
+- `stripe-webhook` stamps `beta_price_locked_at` on activation. On `customer.subscription.deleted` it clears beta eligibility, so a cancelled user cannot re-claim the discount.
 
-### 1. Use the paired raw card as the identity source for graded cards
+### 3. Access gating
+- `check-subscription` returns `beta_active`, `beta_ends_at`, `beta_eligible`. If `beta_access_until > now()` it reports the user as Pro-equivalent (`plan: "beta"`, treated as Pro) without touching Stripe.
+- `useCredits` exposes `isPro` true during beta, plus `betaEndsAt` / `betaEligible` — so every existing Pro gate works untouched.
 
-In `supabase/functions/enrich-card/index.ts`:
-- Before calling `runAnalysis`, load the target card. If it has `paired_raw_card_id`, fetch the paired raw's `card_name`, `card_set`, `card_year`, `edition`, `rarity`, `image_url`.
-- Pass those identity fields into `runAnalysis` as a new optional `identityHint` so the engine can skip / override Gemini identification when the slab photos don't show the front.
-- Persist the hinted identity onto the graded row instead of "Unknown …".
+### 4. UI
+- `CreditBalance`: gold "Beta • N days left" badge during the window.
+- Dashboard banner: countdown during beta; after expiry, a "Lock in $6.99/mo" card.
+- `UpgradeModal` + `/pricing`: for eligible users show $14.99 struck through, $6.99/mo highlighted with "first 12 months, then $14.99" fine print.
+- Non-eligible users see the current pricing unchanged.
 
-In `supabase/functions/_shared/analysisEngine.ts`:
-- Accept `identityHint`. If Gemini returns no name (or a generic "Unknown …" name) and a hint is present, use the hint as `identification` for downstream market lookup and Claude analysis.
-- When `knownGrade` is present, also append the raw card's front image URL to the images passed to Claude so it has something to reason about beyond the slab back.
-
-### 2. Never let re-enrichment overwrite a known identity with "Unknown"
-
-In `enrich-card` persist step: if the new `identification.card_name` starts with "Unknown" (case-insensitive) and the existing row already has a non-Unknown `card_name`, keep the existing name/set/year/edition/rarity.
-
-### 3. Make pair-cards propagate identity + trigger re-pricing
-
-In `supabase/functions/pair-cards/index.ts`:
-- When pairing a graded card to a raw card, if the graded card's `card_name` is missing or starts with "Unknown", copy `card_name`, `card_set`, `card_year`, `edition`, `rarity` from the raw card onto the graded card.
-- Fire-and-forget an `enrich-card` call for the graded card with `knownGrade` (from its existing `grading_company` + `grade_numeric`) so the market value refreshes to graded BGS/PSA/CGC comps.
-- On `unpair` do not touch identity.
-
-### 4. Market value shows the graded comp
-
-Once (1)–(3) are in place, `runAnalysis` already biases comps to the confirmed grade (it appends "BGS 8" to the search variant when `knownGrade` is set) and the persisted `estimated_value_low/high` will be the graded eBay range. No new pricing logic is invented — this is the same path `analyze-card` uses.
-
-As a safety net in `enrich-card`: when `knownGrade` is present and the new `estimatedValueLow/High` come back as the tiny AI-only fallback (< $20 for a card that had a much higher `preGradePrediction`), keep the previous value range and mark `softWarning` instead of persisting the fallback. This preserves the collector's number and matches the "never hard-fail a scan" rule already established in the engine.
-
-### 5. Backfill the affected card
-
-Run `enrich-card` once for `28954004-993f-4010-ad7c-721f35bacf65` after the code fix so its `card_name` becomes "Snorlax", `card_set` "Jungle", `card_year` "1999", and `estimated_value_low/high` reflect BGS 8 comps. No SQL data patch — the same code path that runs for future users runs for this row.
-
-## Out of scope
-
-- No changes to `scan-slab` extraction, `AIAccuracyCard`, `CardPairing` UI, Stripe, or any presentation-layer components.
-- No new pricing/heuristic logic beyond the safety net in step 4.
-- No schema changes.
-
-## Files touched
-
-- `supabase/functions/_shared/analysisEngine.ts` — accept + honor `identityHint`, allow raw image to be added to Claude context when `knownGrade` is set.
-- `supabase/functions/enrich-card/index.ts` — load paired raw, pass `identityHint`, guard against "Unknown" overwrite, guard against graded fallback overwrite.
-- `supabase/functions/pair-cards/index.ts` — copy identity from raw to graded when graded is Unknown, kick off `enrich-card` with `knownGrade`.
-- One-shot `enrich-card` invocation to backfill the current card.
+## Notes
+- No beta-user cap (unlimited before the cutoff date), as left unspecified — easy to add later.
+- Credits are untouched; beta users simply bypass the credit check while active.
+- No changes to the scan pipeline, analysis engine, or pricing logic.
