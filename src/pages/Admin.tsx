@@ -35,6 +35,9 @@ interface UserCredit {
   stripe_subscription_id: string | null;
   created_at: string;
   updated_at: string;
+  beta_access_until?: string | null;
+  beta_eligible?: boolean | null;
+  beta_price_locked_at?: string | null;
 }
 
 interface Profile {
