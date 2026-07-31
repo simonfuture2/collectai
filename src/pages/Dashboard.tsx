@@ -43,7 +43,7 @@ const Dashboard = () => {
   const [showAnalytics, setShowAnalytics] = useState(false);
   const [showUpgrade, setShowUpgrade] = useState(false);
   const navigate = useNavigate();
-  const { credits, isPro, loading: creditsLoading } = useCredits();
+  const { credits, isPro, subscribed, betaActive, betaDaysLeft, betaEligible, loading: creditsLoading } = useCredits();
   const { isAdmin } = useAdmin();
   usePushNotifications();
 
