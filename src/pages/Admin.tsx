@@ -428,10 +428,27 @@ const Admin = () => {
             <PushNotificationsTab />
           </TabsContent>
 
+          {/* Beta Tab */}
+          <TabsContent value="beta">
+            <BetaTab
+              users={users.map((u) => ({
+                user_id: u.user_id,
+                plan: u.plan,
+                stripe_subscription_id: u.stripe_subscription_id,
+                beta_access_until: u.beta_access_until ?? null,
+                beta_eligible: u.beta_eligible ?? false,
+                beta_price_locked_at: u.beta_price_locked_at ?? null,
+              }))}
+              getProfile={(id) => getProfile(id)}
+              onRefresh={fetchData}
+            />
+          </TabsContent>
+
           {/* Admins Tab */}
           <TabsContent value="admins">
             <AdminsTab />
           </TabsContent>
+
         </Tabs>
       </main>
 
