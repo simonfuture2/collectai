@@ -90,6 +90,30 @@ const Pricing = () => {
           </p>
         </div>
 
+        {(betaActive || betaEligible) && !isPro && (
+          <div className="mb-10 rounded-2xl border border-amber-500/40 bg-amber-500/10 p-5 text-center">
+            <p className="font-display font-bold text-lg flex items-center justify-center gap-2">
+              <Sparkles className="w-4 h-4 text-amber-500" />
+              Beta Founder offer
+            </p>
+            <p className="text-sm text-muted-foreground mt-1">
+              {betaActive
+                ? `You have full Pro access for ${betaDaysLeft} more day${betaDaysLeft === 1 ? "" : "s"}. `
+                : "Your beta trial has ended. "}
+              Lock in <span className="font-semibold text-foreground">${BETA_OFFER.price}/mo</span> (50% off) for your first {BETA_OFFER.months} months — as long as you keep Pro active.
+            </p>
+          </div>
+        )}
+        {betaActive && isPro && (
+          <div className="mb-10 rounded-2xl border border-amber-500/40 bg-amber-500/10 p-5 text-center">
+            <p className="text-sm">
+              <span className="font-semibold">Beta access:</span> {betaDaysLeft} day{betaDaysLeft === 1 ? "" : "s"} of full Pro remaining.
+            </p>
+          </div>
+        )}
+
+
+
         <div className="grid md:grid-cols-3 gap-6 mb-12">
           {/* Free Tier */}
           <div className="rounded-2xl border border-border bg-card p-6 flex flex-col">
