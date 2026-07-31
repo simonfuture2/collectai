@@ -56,6 +56,27 @@ serve(async (req) => {
     const mode = allowed.mode; // derived server-side; client value ignored
     logStep("Checkout request", { priceId, mode, product: allowed.name });
 
+    // Beta founder discount: $8 off/mo for 12 months on the Pro subscription.
+    // Eligibility is re-verified server-side; the client flag is never trusted.
+    const BETA_COUPON_ID = "BETA_FOUNDER_12MO";
+    let betaCoupon: string | undefined;
+    if (mode === "subscription") {
+      const admin = createClient(
+        Deno.env.get("SUPABASE_URL") ?? "",
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+        { auth: { persistSession: false } }
+      );
+      const { data: uc } = await admin
+        .from("user_credits")
+        .select("beta_eligible, beta_price_locked_at")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (uc?.beta_eligible) {
+        betaCoupon = BETA_COUPON_ID;
+        logStep("Beta founder discount applied", { userId: user.id });
+      }
+    }
+
     const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
       apiVersion: "2025-08-27.basil",
     });
