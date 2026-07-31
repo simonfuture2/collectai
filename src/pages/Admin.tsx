@@ -24,6 +24,8 @@ import CampaignsTab from "@/components/admin/CampaignsTab";
 import PushNotificationsTab from "@/components/admin/PushNotificationsTab";
 import AdminsTab from "@/components/admin/AdminsTab";
 import BetaTab from "@/components/admin/BetaTab";
+import BetaAuditTab from "@/components/admin/BetaAuditTab";
+
 import { toast } from "sonner";
 
 interface UserCredit {
@@ -232,7 +234,9 @@ const Admin = () => {
             <TabsTrigger value="campaigns">Campaigns</TabsTrigger>
             <TabsTrigger value="push">Push</TabsTrigger>
             <TabsTrigger value="beta">Beta</TabsTrigger>
+            <TabsTrigger value="beta-audit">Beta Audit</TabsTrigger>
             <TabsTrigger value="admins">Admins</TabsTrigger>
+
           </TabsList>
 
 
@@ -443,6 +447,12 @@ const Admin = () => {
               onRefresh={fetchData}
             />
           </TabsContent>
+
+          {/* Beta Audit Tab */}
+          <TabsContent value="beta-audit">
+            <BetaAuditTab />
+          </TabsContent>
+
 
           {/* Admins Tab */}
           <TabsContent value="admins">
