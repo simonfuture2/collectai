@@ -138,13 +138,22 @@ serve(async (req) => {
       plan = "free";
     }
 
-    logStep("Returning status", { plan, credits, subscribed });
+    // Beta window grants Pro-equivalent access without a Stripe subscription
+    if (!subscribed && betaActive) {
+      plan = "beta";
+    }
+
+    logStep("Returning status", { plan, credits, subscribed, betaActive });
 
     return new Response(JSON.stringify({
       subscribed,
       plan,
       credits,
       subscription_end: subscriptionEnd,
+      beta_active: betaActive,
+      beta_ends_at: betaEndsAt,
+      beta_eligible: betaEligible && !subscribed,
+      beta_price_locked: betaPriceLocked,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
