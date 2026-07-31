@@ -13,7 +13,7 @@ import SEO from "@/components/SEO";
 
 const Pricing = () => {
   const [loading, setLoading] = useState<string | null>(null);
-  const { credits, isPro, betaActive, betaDaysLeft, betaEligible, loading: creditsLoading } = useCredits();
+  const { credits, isPro, subscribed, betaActive, betaDaysLeft, betaEligible, loading: creditsLoading } = useCredits();
   const { toast } = useToast();
 
   const handleCheckout = async (priceId: string, mode: string) => {
