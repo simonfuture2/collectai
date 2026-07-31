@@ -3,26 +3,34 @@ import { supabase } from "@/integrations/supabase/client";
 
 interface CreditState {
   credits: number;
-  plan: "free" | "pro";
+  plan: "free" | "pro" | "beta";
   subscribed: boolean;
   subscriptionEnd: string | null;
+  betaActive: boolean;
+  betaEndsAt: string | null;
+  betaEligible: boolean;
   loading: boolean;
 }
 
+const EMPTY: CreditState = {
+  credits: 0,
+  plan: "free",
+  subscribed: false,
+  subscriptionEnd: null,
+  betaActive: false,
+  betaEndsAt: null,
+  betaEligible: false,
+  loading: false,
+};
+
 export function useCredits() {
-  const [state, setState] = useState<CreditState>({
-    credits: 0,
-    plan: "free",
-    subscribed: false,
-    subscriptionEnd: null,
-    loading: true,
-  });
+  const [state, setState] = useState<CreditState>({ ...EMPTY, loading: true });
 
   const refresh = useCallback(async () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
-        setState({ credits: 0, plan: "free", subscribed: false, subscriptionEnd: null, loading: false });
+        setState({ ...EMPTY });
         return;
       }
       const { data, error } = await supabase.functions.invoke("check-subscription");
@@ -32,6 +40,9 @@ export function useCredits() {
         plan: data.plan ?? "free",
         subscribed: data.subscribed ?? false,
         subscriptionEnd: data.subscription_end ?? null,
+        betaActive: data.beta_active ?? false,
+        betaEndsAt: data.beta_ends_at ?? null,
+        betaEligible: data.beta_eligible ?? false,
         loading: false,
       });
     } catch (err) {
@@ -54,8 +65,11 @@ export function useCredits() {
     };
   }, [refresh]);
 
-  const isPro = state.plan === "pro" || state.subscribed;
+  const isPro = state.plan === "pro" || state.subscribed || state.betaActive;
   const canScan = isPro || state.credits > 0;
+  const betaDaysLeft = state.betaEndsAt
+    ? Math.max(0, Math.ceil((new Date(state.betaEndsAt).getTime() - Date.now()) / 86400000))
+    : 0;
 
-  return { ...state, isPro, canScan, refresh };
+  return { ...state, isPro, canScan, betaDaysLeft, refresh };
 }
