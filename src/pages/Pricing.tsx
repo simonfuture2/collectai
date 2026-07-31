@@ -75,7 +75,7 @@ const Pricing = () => {
             </Link>
             <h1 className="text-xl font-display font-bold">Pricing</h1>
           </div>
-          <CreditBalance credits={credits} isPro={isPro} loading={creditsLoading} />
+          <CreditBalance credits={credits} isPro={isPro} loading={creditsLoading} betaActive={betaActive} betaDaysLeft={betaDaysLeft} />
           <ThemeToggle />
         </div>
       </header>
