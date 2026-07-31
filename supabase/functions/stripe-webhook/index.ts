@@ -90,6 +90,7 @@ serve(async (req) => {
       if (session.mode === "subscription") {
         // Activate Pro subscription
         const subscriptionId = session.subscription as string;
+        const isBetaFounder = session.metadata?.beta_founder === "true";
         await supabaseClient
           .from("user_credits")
           .upsert({
@@ -97,9 +98,10 @@ serve(async (req) => {
             plan: "pro",
             stripe_customer_id: customerId,
             stripe_subscription_id: subscriptionId,
+            ...(isBetaFounder ? { beta_price_locked_at: new Date().toISOString() } : {}),
           }, { onConflict: "user_id" });
 
-        logStep("Pro subscription activated", { userId, subscriptionId });
+        logStep("Pro subscription activated", { userId, subscriptionId, isBetaFounder });
 
         // Log transaction
         await supabaseClient.from("credit_transactions").insert({
