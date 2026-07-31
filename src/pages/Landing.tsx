@@ -12,6 +12,7 @@ import ScanDemo from "@/components/ScanDemo";
 import QuickScanChallenge from "@/components/QuickScanChallenge";
 import AuthentiSealVerify from "@/components/AuthentiSealVerify";
 import LeadMagnet from "@/components/LeadMagnet";
+import BetaPromoBanner from "@/components/BetaPromoBanner";
 import collectaiLogo from "@/assets/collectai-logo.png";
 
 const fadeUp = {
@@ -39,6 +40,8 @@ const Landing = () => {
         }}
       />
       {/* Header */}
+      <BetaPromoBanner />
+
       <header className="container mx-auto px-4 py-6 flex justify-between items-center relative z-10">
         <Link to="/" className="flex items-center gap-2">
           <img src={collectaiLogo} alt="MyCollectAI Logo" width={40} height={40} className="w-10 h-10 rounded-lg" />

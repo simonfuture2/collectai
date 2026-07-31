@@ -23,6 +23,7 @@ import LeadsTab from "@/components/admin/LeadsTab";
 import CampaignsTab from "@/components/admin/CampaignsTab";
 import PushNotificationsTab from "@/components/admin/PushNotificationsTab";
 import AdminsTab from "@/components/admin/AdminsTab";
+import BetaTab from "@/components/admin/BetaTab";
 import { toast } from "sonner";
 
 interface UserCredit {
@@ -34,6 +35,9 @@ interface UserCredit {
   stripe_subscription_id: string | null;
   created_at: string;
   updated_at: string;
+  beta_access_until?: string | null;
+  beta_eligible?: boolean | null;
+  beta_price_locked_at?: string | null;
 }
 
 interface Profile {
@@ -227,8 +231,10 @@ const Admin = () => {
             <TabsTrigger value="leads">Leads</TabsTrigger>
             <TabsTrigger value="campaigns">Campaigns</TabsTrigger>
             <TabsTrigger value="push">Push</TabsTrigger>
+            <TabsTrigger value="beta">Beta</TabsTrigger>
             <TabsTrigger value="admins">Admins</TabsTrigger>
           </TabsList>
+
 
           {/* Users Tab */}
           <TabsContent value="users">
@@ -422,10 +428,27 @@ const Admin = () => {
             <PushNotificationsTab />
           </TabsContent>
 
+          {/* Beta Tab */}
+          <TabsContent value="beta">
+            <BetaTab
+              users={users.map((u) => ({
+                user_id: u.user_id,
+                plan: u.plan,
+                stripe_subscription_id: u.stripe_subscription_id,
+                beta_access_until: u.beta_access_until ?? null,
+                beta_eligible: u.beta_eligible ?? false,
+                beta_price_locked_at: u.beta_price_locked_at ?? null,
+              }))}
+              getProfile={(id) => getProfile(id)}
+              onRefresh={fetchData}
+            />
+          </TabsContent>
+
           {/* Admins Tab */}
           <TabsContent value="admins">
             <AdminsTab />
           </TabsContent>
+
         </Tabs>
       </main>
 
