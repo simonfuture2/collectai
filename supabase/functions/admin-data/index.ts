@@ -480,7 +480,49 @@ Deno.serve(async (req) => {
       });
     }
 
+    // ─── BETA AUDIT LOG ───
+    if (action === "get_beta_audit") {
+      const BETA_TYPES = [
+        "admin_beta_grant",
+        "admin_beta_revoke",
+        "admin_price_lock",
+        "admin_price_unlock",
+      ];
 
+      const { data: rows, error: auditErr } = await adminClient
+        .from("credit_transactions")
+        .select("id, user_id, type, description, created_at")
+        .in("type", BETA_TYPES)
+        .order("created_at", { ascending: false })
+        .limit(1000);
+
+      if (auditErr) throw auditErr;
+
+      const { data: authList } = await adminClient.auth.admin.listUsers({ perPage: 1000 });
+      const emails: Record<string, string> = {};
+      for (const u of authList?.users || []) {
+        if (u.id && u.email) emails[u.id] = u.email;
+      }
+
+      const actorRe = /Admin ([0-9a-f-]{36})/i;
+      const entries = (rows || []).map((r: any) => {
+        const actorId = actorRe.exec(r.description || "")?.[1] ?? null;
+        return {
+          id: r.id,
+          created_at: r.created_at,
+          action: r.type,
+          actor_id: actorId,
+          actor_email: actorId ? emails[actorId] ?? null : null,
+          target_id: r.user_id,
+          target_email: emails[r.user_id] ?? null,
+          description: r.description ?? "",
+        };
+      });
+
+      return new Response(JSON.stringify({ entries }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
 
     return new Response(JSON.stringify({ error: "Unknown action" }), {
