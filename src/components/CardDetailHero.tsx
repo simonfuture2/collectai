@@ -269,7 +269,8 @@ export default function CardDetailHero({
                 Price History
               </p>
               <p className="text-sm font-semibold text-foreground mt-0.5">
-                {mode === "GRADED" ? gradedLabel : "Raw"} · {timeframe}
+                {mode === "GRADED" ? topLabel : baseLabel} · {timeframe}
+                {isSlab && mode === "GRADED" ? " · projection" : ""}
               </p>
             </div>
             <div className="inline-flex rounded-full border border-border-subtle bg-background/40 p-0.5">
