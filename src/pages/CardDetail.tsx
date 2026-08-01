@@ -908,11 +908,16 @@ export default function CardDetail() {
             <AIAccuracyCard
               accuracy={pairedRawAccuracy || (analysis as any).gradeAccuracy}
               actualValueMid={
-                card.estimated_value_low != null && card.estimated_value_high != null
-                  ? (Number(card.estimated_value_low) + Number(card.estimated_value_high)) / 2
-                  : null
+                slabInfo
+                  ? slabInfo.value
+                  : card.estimated_value_low != null && card.estimated_value_high != null
+                    ? (Number(card.estimated_value_low) + Number(card.estimated_value_high)) / 2
+                    : null
               }
+              gradeLabel={slabInfo?.label ?? null}
+              valueSource={slabInfo?.source ?? null}
             />
+
           )}
 
           <CardPairing card={card as any} onChanged={() => window.location.reload()} />
