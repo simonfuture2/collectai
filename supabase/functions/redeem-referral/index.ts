@@ -122,18 +122,13 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Award 3 credits to referrer
-    const { data: currentCredits } = await supabaseAdmin
-      .from("user_credits")
-      .select("credits")
-      .eq("user_id", referrer.user_id)
-      .maybeSingle();
-
-    if (currentCredits) {
-      await supabaseAdmin
-        .from("user_credits")
-        .update({ credits: currentCredits.credits + 3 })
-        .eq("user_id", referrer.user_id);
+    // Award 3 credits to referrer atomically
+    const { error: creditError } = await supabaseAdmin.rpc("add_credits", {
+      _user_id: referrer.user_id,
+      _amount: 3,
+    });
+    if (creditError) {
+      console.error("Award referral credits error:", creditError);
     }
 
     // Log the transaction
