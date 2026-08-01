@@ -110,7 +110,12 @@ const MarketEvidence = ({
   confidenceExplanation,
   confidenceReason,
   confirmedGrade,
+  idCompMatchPct,
+  valuationSource,
 }: MarketEvidenceProps) => {
+  const compsMismatched =
+    !!confirmedGrade?.company &&
+    ((idCompMatchPct != null && idCompMatchPct < 50) || valuationSource === "graded_anchor");
   const ebaySold = sources.find((s) => s.source === "ebay_sold");
   const pc = sources.find((s) => s.source === "pricecharting");
   const tcg = sources.find((s) => s.source === "tcgplayer");
