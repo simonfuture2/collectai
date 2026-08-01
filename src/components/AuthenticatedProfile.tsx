@@ -215,20 +215,28 @@ export default function AuthenticatedProfile({ card, onUpdated }: Props) {
 
   return (
     <GlassCard className="p-5 space-y-4 border-amber-500/30">
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 flex-wrap">
         <BadgeCheck className="w-5 h-5 text-amber-400" />
         <h3 className="font-display font-bold">Authenticated Profile</h3>
-        {verifiedFromPhoto && (
-          <span className="ml-auto text-[10px] font-semibold uppercase tracking-wider text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded-full flex items-center gap-1">
-            <Sparkles className="w-3 h-3" /> Verified from slab photo
-          </span>
-        )}
-        {hasAuthentiSeal && !verifiedFromPhoto && (
-          <span className="ml-auto text-[10px] font-semibold uppercase tracking-wider text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded-full">
-            AuthentiSeal
-          </span>
-        )}
+        <div className="ml-auto flex items-center gap-1.5">
+          {alreadyVerified && (
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded-full flex items-center gap-1">
+              <BadgeCheck className="w-3 h-3" /> Cert verified
+            </span>
+          )}
+          {verifiedFromPhoto && (
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded-full flex items-center gap-1">
+              <Sparkles className="w-3 h-3" /> Verified from slab photo
+            </span>
+          )}
+          {hasAuthentiSeal && !verifiedFromPhoto && (
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded-full">
+              AuthentiSeal
+            </span>
+          )}
+        </div>
       </div>
+
 
       <div className="flex flex-wrap gap-2">
         <Button size="sm" onClick={openSlabPicker} disabled={scanning} className="gradient-primary">
