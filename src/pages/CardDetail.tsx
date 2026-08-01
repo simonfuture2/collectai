@@ -716,6 +716,50 @@ export default function CardDetail() {
   const analysis = card.ai_analysis as AIAnalysis | null;
   const avgValue = ((card.estimated_value_low || 0) + (card.estimated_value_high || 0)) / 2;
 
+  // Single source of truth for the confirmed-slab market value so the hero and
+  // the AI vs Reality card never disagree.
+  const slabInfo = (() => {
+    const a = analysis as any;
+    const company: string | null = a?.confirmedGrade?.company ?? (card as any).grading_company ?? null;
+    const numeric: number | null =
+      a?.confirmedGrade?.grade_numeric ??
+      ((card as any).grade_numeric != null ? Number((card as any).grade_numeric) : null);
+    if (!company || numeric == null) return null;
+    const key = String(company).toLowerCase();
+    const tier = (analysis?.gradedValueEstimates as any)?.[key] || {};
+    const atGrade = Number(tier?.valueAtGrade);
+    const ebayAvg = Number(analysis?.ebayRecentSales?.averagePrice);
+    const ebayLow = Number(analysis?.ebayRecentSales?.lowPrice);
+    const ebayHigh = Number(analysis?.ebayRecentSales?.highPrice);
+    const ebayMid =
+      Number.isFinite(ebayLow) && Number.isFinite(ebayHigh) && ebayLow > 0 && ebayHigh > 0
+        ? (ebayLow + ebayHigh) / 2
+        : NaN;
+    const value =
+      Number.isFinite(atGrade) && atGrade > 0
+        ? atGrade
+        : Number.isFinite(ebayAvg) && ebayAvg > 0
+          ? ebayAvg
+          : Number.isFinite(ebayMid) && ebayMid > 0
+            ? ebayMid
+            : avgValue;
+    const source =
+      Number.isFinite(atGrade) && atGrade > 0
+        ? "graded comps"
+        : (Number.isFinite(ebayAvg) && ebayAvg > 0) || (Number.isFinite(ebayMid) && ebayMid > 0)
+          ? "recent eBay sold comps"
+          : "stored estimate";
+    return {
+      company,
+      numeric,
+      key,
+      value,
+      source,
+      label: `${String(company).toUpperCase()} ${(card.condition_grade as any) ? String(card.condition_grade).replace(/^.*?\s/, "") || numeric : numeric}`,
+    };
+  })();
+
+
   return (
     <div className="min-h-screen bg-background">
       <SEO
