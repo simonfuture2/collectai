@@ -576,7 +576,14 @@ GRADE-CEILING RULE (MANDATORY):
   }
 
   // ===== STEP 4: Dual price verification (Claude + Gemini in parallel) — skipped in Fast Scan =====
-  if (!fastScan && marketData.hasData && analysis.estimatedValueLow != null && cardId) {
+  // For a confirmed slab whose comps clearly don't match the card, skip the
+  // override entirely: re-anchoring to mismatched comps is what collapses a
+  // $200 graded card to $10.
+  const skipVerifierOverride = compsUntrustworthyForSlab && !!gradedAnchor;
+  if (skipVerifierOverride) {
+    console.log("[graded-anchor] skipping verifier override — comps don't match this slab");
+  }
+  if (!skipVerifierOverride && !fastScan && marketData.hasData && analysis.estimatedValueLow != null && cardId) {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 
     const [claudeVerification, geminiVerification] = await Promise.all([
