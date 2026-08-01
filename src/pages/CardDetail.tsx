@@ -829,16 +829,10 @@ export default function CardDetail() {
           const gradedValue = topTierValue ?? graderVals?.valueAtGrade ?? null;
           const gradedLabel = recGrader.toUpperCase() + " 10";
 
-          // For verified slabs, the headline is the value at the confirmed grade:
-          // grader-tier value → eBay graded average → stored DB range.
-          const ebayAvg = Number(a?.ebayRecentSales?.averagePrice);
-          const valueAtConfirmedGrade = isSlab
-            ? (Number(graderVals?.valueAtGrade) > 0
-                ? Number(graderVals!.valueAtGrade)
-                : Number.isFinite(ebayAvg) && ebayAvg > 0
-                  ? ebayAvg
-                  : avgValue)
-            : null;
+          // For verified slabs, the headline is the shared resolved slab value
+          // (grader-tier value → eBay graded average → midpoint → stored range).
+          const valueAtConfirmedGrade = isSlab ? (slabInfo?.value ?? avgValue) : null;
+
 
           // Build comps from extracted market sources + notable eBay sales
           const compRows: Array<{ price: number; source: string; date?: string; title?: string }> = [];
