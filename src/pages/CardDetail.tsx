@@ -755,7 +755,7 @@ export default function CardDetail() {
       key,
       value,
       source,
-      label: `${String(company).toUpperCase()} ${(card.condition_grade as any) ? String(card.condition_grade).replace(/^.*?\s/, "") || numeric : numeric}`,
+      label: `${String(company).toUpperCase()} ${numeric}`,
     };
   })();
 
