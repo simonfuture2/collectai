@@ -44,6 +44,16 @@ interface CardDetailHeroProps {
   priceHistory: PricePoint[];
   comps: Comp[];
   conditionGrade?: string | null;
+  /** Present only for scanned, verified slabs — switches the value UI to graded-only tiers. */
+  confirmedGrade?: {
+    company?: string | null;
+    numeric?: number | null;
+    label?: string | null;
+    /** Market value at the confirmed grade */
+    valueAtGrade?: number | null;
+    /** Projected value at the grader's top tier (e.g. BGS 10) */
+    valueAtTop?: number | null;
+  } | null;
 }
 
 const TIMEFRAMES: Timeframe[] = ["1D", "1W", "1M", "1Y", "ALL"];
@@ -80,13 +90,30 @@ export default function CardDetailHero({
   priceHistory,
   comps,
   conditionGrade,
+  confirmedGrade,
 }: CardDetailHeroProps) {
   const [timeframe, setTimeframe] = useState<Timeframe>("1M");
   const [mode, setMode] = useState<Mode>("RAW");
-  const foilOn = shouldFoil({ isGraded: !!conditionGrade, value: rawValue, threshold: 50 });
 
-  const displayedValue =
-    mode === "GRADED" && gradedValue != null ? gradedValue : rawValue;
+  const isSlab = !!confirmedGrade?.company && confirmedGrade?.numeric != null;
+  const graderName = String(confirmedGrade?.company ?? "").toUpperCase();
+  const gradeNum = confirmedGrade?.numeric;
+  const isTopGrade = isSlab && Number(gradeNum) >= 10;
+
+  // Base tier = the confirmed grade for slabs, raw otherwise.
+  const baseValue = isSlab && confirmedGrade?.valueAtGrade != null
+    ? Number(confirmedGrade.valueAtGrade)
+    : rawValue;
+  const topValue = isSlab
+    ? (confirmedGrade?.valueAtTop != null ? Number(confirmedGrade.valueAtTop) : gradedValue)
+    : gradedValue;
+  const baseLabel = isSlab ? `${graderName} ${gradeNum}` : "Raw";
+  const topLabel = isSlab ? `${graderName} 10` : gradedLabel;
+  const showTopTier = !isTopGrade && topValue != null;
+
+  const foilOn = shouldFoil({ isGraded: !!conditionGrade, value: baseValue, threshold: 50 });
+
+  const displayedValue = mode === "GRADED" && topValue != null ? topValue : baseValue;
 
   const chartData = useMemo(() => {
     const base =
@@ -94,11 +121,11 @@ export default function CardDetailHero({
         ? priceHistory.slice(-TF_POINTS[timeframe])
         : [];
     const multiplier =
-      mode === "GRADED" && gradedValue && rawValue
-        ? gradedValue / Math.max(rawValue, 0.01)
+      mode === "GRADED" && topValue && baseValue
+        ? topValue / Math.max(baseValue, 0.01)
         : 1;
     return base.map((p) => ({ ...p, price: p.price * multiplier }));
-  }, [priceHistory, timeframe, mode, gradedValue, rawValue]);
+  }, [priceHistory, timeframe, mode, topValue, baseValue]);
 
   const change = useMemo(() => {
     if (chartData.length < 2) return { dollars: 0, pct: 0 };
@@ -129,7 +156,7 @@ export default function CardDetailHero({
               active={foilOn}
               radiusClassName="rounded-xl"
               className="relative w-full h-full"
-              badge={conditionGrade ? <FoilBadge label="GRADED" /> : (foilOn ? <FoilBadge label={`$${Math.round(rawValue)}+`} /> : undefined)}
+              badge={isSlab ? <FoilBadge label={`${graderName} ${gradeNum}`} /> : (conditionGrade ? <FoilBadge label="GRADED" /> : (foilOn ? <FoilBadge label={`$${Math.round(baseValue)}+`} /> : undefined))}
             >
               <img
                 src={imageUrl}
@@ -167,12 +194,14 @@ export default function CardDetailHero({
         </GlassCard>
       </FadeUp>
 
-      {/* Value + Raw/Graded toggle */}
+      {/* Value + tier toggle */}
       <FadeUp delay={0.1}>
         <GlassCard padding="md" className="space-y-5">
           <div className="space-y-2">
             <p className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-medium">
-              Market Value · {mode === "GRADED" ? gradedLabel : "Raw"}
+              Market Value · {mode === "GRADED" ? topLabel : baseLabel}
+              {isSlab && mode !== "GRADED" ? " · Verified slab" : ""}
+              {isSlab && mode === "GRADED" ? " · Projected" : ""}
             </p>
             <Value
               key={`${mode}-${displayedValue}`}
@@ -202,31 +231,34 @@ export default function CardDetailHero({
             </div>
           </div>
 
-          {/* Raw / Graded segmented control */}
-          <div className="inline-flex w-full sm:w-auto rounded-full border border-border-subtle bg-background/40 p-1">
-            {(["RAW", "GRADED"] as Mode[]).map((m) => {
-              const disabled = m === "GRADED" && gradedValue == null;
-              return (
-                <button
-                  key={m}
-                  type="button"
-                  disabled={disabled}
-                  onClick={() => setMode(m)}
-                  className={cn(
-                    "flex-1 sm:flex-none px-5 py-1.5 text-xs font-semibold uppercase tracking-wider rounded-full transition-all",
-                    mode === m
-                      ? "bg-gradient-gold text-black shadow-sm"
-                      : "text-muted-foreground hover:text-foreground",
-                    disabled && "opacity-40 cursor-not-allowed hover:text-muted-foreground"
-                  )}
-                >
-                  {m === "GRADED" ? gradedLabel : "Raw"}
-                </button>
-              );
-            })}
-          </div>
+          {/* Tier segmented control — graded tiers only for verified slabs */}
+          {(showTopTier || !isSlab) && (
+            <div className="inline-flex w-full sm:w-auto rounded-full border border-border-subtle bg-background/40 p-1">
+              {(["RAW", "GRADED"] as Mode[]).map((m) => {
+                const disabled = m === "GRADED" && topValue == null;
+                return (
+                  <button
+                    key={m}
+                    type="button"
+                    disabled={disabled}
+                    onClick={() => setMode(m)}
+                    className={cn(
+                      "flex-1 sm:flex-none px-5 py-1.5 text-xs font-semibold uppercase tracking-wider rounded-full transition-all",
+                      mode === m
+                        ? "bg-gradient-gold text-black shadow-sm"
+                        : "text-muted-foreground hover:text-foreground",
+                      disabled && "opacity-40 cursor-not-allowed hover:text-muted-foreground"
+                    )}
+                  >
+                    {m === "GRADED" ? topLabel : baseLabel}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </GlassCard>
       </FadeUp>
+
 
       {/* Price history chart */}
       <FadeUp delay={0.15}>
@@ -237,7 +269,8 @@ export default function CardDetailHero({
                 Price History
               </p>
               <p className="text-sm font-semibold text-foreground mt-0.5">
-                {mode === "GRADED" ? gradedLabel : "Raw"} · {timeframe}
+                {mode === "GRADED" ? topLabel : baseLabel} · {timeframe}
+                {isSlab && mode === "GRADED" ? " · projection" : ""}
               </p>
             </div>
             <div className="inline-flex rounded-full border border-border-subtle bg-background/40 p-0.5">

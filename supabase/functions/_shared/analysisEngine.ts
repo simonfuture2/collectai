@@ -515,6 +515,32 @@ GRADE-CEILING RULE (MANDATORY):
     analysis.dataSource = `${analysis.dataSource} (confirmed slab grade)`;
   }
 
+  // ===== Graded anchor: the value we trust for a confirmed slab =====
+  // Order: grader-tier value at the confirmed grade → eBay graded average →
+  // midpoint of the eBay graded low/high range.
+  let gradedAnchor: number | null = null;
+  if (knownGrade?.company) {
+    const tierKey = String(knownGrade.company).toLowerCase();
+    const tier = (analysis.gradedValueEstimates || {})[tierKey] || {};
+    const num = Number(knownGrade.numeric);
+    const atGrade =
+      Number(tier?.[`valueAt${String(knownGrade.company).toUpperCase()}${String(num).replace(".", "_")}`]) ||
+      Number(tier?.valueAtGrade);
+    const ebayAvg = Number(analysis.ebayRecentSales?.averagePrice);
+    const ebayLow = Number(analysis.ebayRecentSales?.lowPrice);
+    const ebayHigh = Number(analysis.ebayRecentSales?.highPrice);
+    const ebayMid = Number.isFinite(ebayLow) && Number.isFinite(ebayHigh) ? (ebayLow + ebayHigh) / 2 : NaN;
+    gradedAnchor =
+      (Number.isFinite(atGrade) && atGrade > 0 ? atGrade : null) ??
+      (Number.isFinite(ebayAvg) && ebayAvg > 0 ? ebayAvg : null) ??
+      (Number.isFinite(ebayMid) && ebayMid > 0 ? ebayMid : null);
+    if (gradedAnchor) console.log(`[graded-anchor] ${knownGrade.company} ${knownGrade.numeric} anchor=$${gradedAnchor}`);
+  }
+  // Comps are untrustworthy for this slab when the identified card barely
+  // matches the comp titles we pulled.
+  const compsUntrustworthyForSlab =
+    !!knownGrade && (idCheck.identificationUncertain || idCheck.matchPct < 50);
+
   // ===== NO-MARKET-DATA GUARDRAILS =====
   if (!marketData.hasData) {
     analysis.confidence = "low";
@@ -550,7 +576,14 @@ GRADE-CEILING RULE (MANDATORY):
   }
 
   // ===== STEP 4: Dual price verification (Claude + Gemini in parallel) — skipped in Fast Scan =====
-  if (!fastScan && marketData.hasData && analysis.estimatedValueLow != null && cardId) {
+  // For a confirmed slab whose comps clearly don't match the card, skip the
+  // override entirely: re-anchoring to mismatched comps is what collapses a
+  // $200 graded card to $10.
+  const skipVerifierOverride = compsUntrustworthyForSlab && !!gradedAnchor;
+  if (skipVerifierOverride) {
+    console.log("[graded-anchor] skipping verifier override — comps don't match this slab");
+  }
+  if (!skipVerifierOverride && !fastScan && marketData.hasData && analysis.estimatedValueLow != null && cardId) {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 
     const [claudeVerification, geminiVerification] = await Promise.all([
@@ -614,7 +647,9 @@ GRADE-CEILING RULE (MANDATORY):
         `eBay comp titles largely don't match the identified card (${idCheck.matchedCount}/${idCheck.total} matched, ${idCheck.matchPct}%). Treat the value range as a rough estimate and re-scan with a clearer photo.`,
       );
     }
-    if (widenFactor > 1 && analysis.estimatedValueLow != null && analysis.estimatedValueHigh != null) {
+    // Confirmed slabs: the grade is known, so variant-uncertainty widening
+    // only adds noise to an already-authoritative valuation.
+    if (!knownGrade && widenFactor > 1 && analysis.estimatedValueLow != null && analysis.estimatedValueHigh != null) {
       const lo = Number(analysis.estimatedValueLow) || 0;
       const hi = Number(analysis.estimatedValueHigh) || 0;
       const mid = (lo + hi) / 2;
@@ -628,6 +663,22 @@ GRADE-CEILING RULE (MANDATORY):
       analysis.confidenceReason = `${analysis.confidenceReason || ""} ${notes.join(" ")}`.trim();
       analysis.identificationNote = notes.join(" ");
       if (analysis.confidence === "high") analysis.confidence = "medium";
+    }
+  }
+
+  // ===== STEP 4.55: Restore the graded anchor if the range collapsed =====
+  if (knownGrade && gradedAnchor && gradedAnchor > 0) {
+    const lo = Number(analysis.estimatedValueLow) || 0;
+    const hi = Number(analysis.estimatedValueHigh) || 0;
+    const mid = (lo + hi) / 2;
+    if (!(mid > 0) || mid < gradedAnchor * 0.4) {
+      analysis.estimatedValueLow = Math.round(gradedAnchor * 0.85 * 100) / 100;
+      analysis.estimatedValueHigh = Math.round(gradedAnchor * 1.15 * 100) / 100;
+      analysis.valuationSource = "graded_anchor";
+      const gradeStr = `${knownGrade.company} ${knownGrade.label ?? knownGrade.numeric}`;
+      analysis.valuationNote = `The comps pulled didn't match this slab, so the value is anchored to graded sales for ${gradeStr}.`;
+      analysis.softWarning = analysis.valuationNote;
+      console.log(`[graded-anchor] restored value to $${analysis.estimatedValueLow}-$${analysis.estimatedValueHigh} (was mid $${mid})`);
     }
   }
 

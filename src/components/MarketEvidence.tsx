@@ -60,6 +60,10 @@ interface MarketEvidenceProps {
   confidenceExplanation?: string;
   confidenceReason?: string;
   confirmedGrade?: { company?: string | null; label?: string | null; numeric?: number | null } | null;
+  /** % of comp titles that matched the identified card (0-100) */
+  idCompMatchPct?: number | null;
+  /** Set when the value was anchored to graded comps instead of the aggregate rows */
+  valuationSource?: string | null;
 }
 
 const SOURCE_LABEL: Record<string, string> = {
@@ -106,7 +110,12 @@ const MarketEvidence = ({
   confidenceExplanation,
   confidenceReason,
   confirmedGrade,
+  idCompMatchPct,
+  valuationSource,
 }: MarketEvidenceProps) => {
+  const compsMismatched =
+    !!confirmedGrade?.company &&
+    ((idCompMatchPct != null && idCompMatchPct < 50) || valuationSource === "graded_anchor");
   const ebaySold = sources.find((s) => s.source === "ebay_sold");
   const pc = sources.find((s) => s.source === "pricecharting");
   const tcg = sources.find((s) => s.source === "tcgplayer");
@@ -149,6 +158,18 @@ const MarketEvidence = ({
           <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
           <p className="text-xs text-emerald-600 dark:text-emerald-400">
             Comps below reflect the <span className="font-semibold">confirmed {confirmedGrade.company} {confirmedGrade.label ?? confirmedGrade.numeric}</span> grade from the slab — not a raw estimate.
+          </p>
+        </div>
+      )}
+
+      {compsMismatched && (
+        <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2">
+          <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+          <p className="text-xs text-amber-600 dark:text-amber-400">
+            Some aggregate rows below came back with listings that don't match this card. The headline value is anchored to the
+            {" "}
+            <span className="font-semibold">{confirmedGrade?.company} {confirmedGrade?.label ?? confirmedGrade?.numeric}</span>{" "}
+            graded sales instead.
           </p>
         </div>
       )}
