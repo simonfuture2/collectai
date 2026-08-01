@@ -119,7 +119,9 @@ export default function AIAccuracyCard({ accuracy, actualValueMid, gradeLabel, v
                 </p>
               </div>
               <div className="text-right">
-                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Graded market</p>
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                  Graded market{gradeLabel ? ` · ${gradeLabel}` : ""}
+                </p>
                 <p className="text-lg font-display font-bold tabular-nums">
                   ${Math.round(actualValueMid).toLocaleString()}
                 </p>
@@ -128,7 +130,11 @@ export default function AIAccuracyCard({ accuracy, actualValueMid, gradeLabel, v
                     {valueDeltaPct >= 0 ? "+" : ""}{valueDeltaPct.toFixed(0)}% vs AI
                   </p>
                 )}
+                {valueSource && (
+                  <p className="text-[10px] text-muted-foreground mt-0.5">Based on {valueSource}</p>
+                )}
               </div>
+
             </div>
           )}
         </>
