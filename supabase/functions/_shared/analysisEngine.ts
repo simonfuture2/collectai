@@ -647,7 +647,9 @@ GRADE-CEILING RULE (MANDATORY):
         `eBay comp titles largely don't match the identified card (${idCheck.matchedCount}/${idCheck.total} matched, ${idCheck.matchPct}%). Treat the value range as a rough estimate and re-scan with a clearer photo.`,
       );
     }
-    if (widenFactor > 1 && analysis.estimatedValueLow != null && analysis.estimatedValueHigh != null) {
+    // Confirmed slabs: the grade is known, so variant-uncertainty widening
+    // only adds noise to an already-authoritative valuation.
+    if (!knownGrade && widenFactor > 1 && analysis.estimatedValueLow != null && analysis.estimatedValueHigh != null) {
       const lo = Number(analysis.estimatedValueLow) || 0;
       const hi = Number(analysis.estimatedValueHigh) || 0;
       const mid = (lo + hi) / 2;
@@ -661,6 +663,22 @@ GRADE-CEILING RULE (MANDATORY):
       analysis.confidenceReason = `${analysis.confidenceReason || ""} ${notes.join(" ")}`.trim();
       analysis.identificationNote = notes.join(" ");
       if (analysis.confidence === "high") analysis.confidence = "medium";
+    }
+  }
+
+  // ===== STEP 4.55: Restore the graded anchor if the range collapsed =====
+  if (knownGrade && gradedAnchor && gradedAnchor > 0) {
+    const lo = Number(analysis.estimatedValueLow) || 0;
+    const hi = Number(analysis.estimatedValueHigh) || 0;
+    const mid = (lo + hi) / 2;
+    if (!(mid > 0) || mid < gradedAnchor * 0.4) {
+      analysis.estimatedValueLow = Math.round(gradedAnchor * 0.85 * 100) / 100;
+      analysis.estimatedValueHigh = Math.round(gradedAnchor * 1.15 * 100) / 100;
+      analysis.valuationSource = "graded_anchor";
+      const gradeStr = `${knownGrade.company} ${knownGrade.label ?? knownGrade.numeric}`;
+      analysis.valuationNote = `The comps pulled didn't match this slab, so the value is anchored to graded sales for ${gradeStr}.`;
+      analysis.softWarning = analysis.valuationNote;
+      console.log(`[graded-anchor] restored value to $${analysis.estimatedValueLow}-$${analysis.estimatedValueHigh} (was mid $${mid})`);
     }
   }
 
