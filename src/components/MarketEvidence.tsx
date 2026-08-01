@@ -162,6 +162,18 @@ const MarketEvidence = ({
         </div>
       )}
 
+      {compsMismatched && (
+        <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2">
+          <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+          <p className="text-xs text-amber-600 dark:text-amber-400">
+            Some aggregate rows below came back with listings that don't match this card. The headline value is anchored to the
+            {" "}
+            <span className="font-semibold">{confirmedGrade?.company} {confirmedGrade?.label ?? confirmedGrade?.numeric}</span>{" "}
+            graded sales instead.
+          </p>
+        </div>
+      )}
+
       {/* Recommendation headline */}
       {rec?.action && (
         <div className={`flex items-start gap-3 p-4 rounded-xl border ${recStyle.cls}`}>
