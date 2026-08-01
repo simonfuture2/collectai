@@ -515,6 +515,32 @@ GRADE-CEILING RULE (MANDATORY):
     analysis.dataSource = `${analysis.dataSource} (confirmed slab grade)`;
   }
 
+  // ===== Graded anchor: the value we trust for a confirmed slab =====
+  // Order: grader-tier value at the confirmed grade → eBay graded average →
+  // midpoint of the eBay graded low/high range.
+  let gradedAnchor: number | null = null;
+  if (knownGrade?.company) {
+    const tierKey = String(knownGrade.company).toLowerCase();
+    const tier = (analysis.gradedValueEstimates || {})[tierKey] || {};
+    const num = Number(knownGrade.numeric);
+    const atGrade =
+      Number(tier?.[`valueAt${String(knownGrade.company).toUpperCase()}${String(num).replace(".", "_")}`]) ||
+      Number(tier?.valueAtGrade);
+    const ebayAvg = Number(analysis.ebayRecentSales?.averagePrice);
+    const ebayLow = Number(analysis.ebayRecentSales?.lowPrice);
+    const ebayHigh = Number(analysis.ebayRecentSales?.highPrice);
+    const ebayMid = Number.isFinite(ebayLow) && Number.isFinite(ebayHigh) ? (ebayLow + ebayHigh) / 2 : NaN;
+    gradedAnchor =
+      (Number.isFinite(atGrade) && atGrade > 0 ? atGrade : null) ??
+      (Number.isFinite(ebayAvg) && ebayAvg > 0 ? ebayAvg : null) ??
+      (Number.isFinite(ebayMid) && ebayMid > 0 ? ebayMid : null);
+    if (gradedAnchor) console.log(`[graded-anchor] ${knownGrade.company} ${knownGrade.numeric} anchor=$${gradedAnchor}`);
+  }
+  // Comps are untrustworthy for this slab when the identified card barely
+  // matches the comp titles we pulled.
+  const compsUntrustworthyForSlab =
+    !!knownGrade && (idCheck.identificationUncertain || idCheck.matchPct < 50);
+
   // ===== NO-MARKET-DATA GUARDRAILS =====
   if (!marketData.hasData) {
     analysis.confidence = "low";
