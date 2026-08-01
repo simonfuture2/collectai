@@ -73,20 +73,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Check if already redeemed
-    const { data: existing } = await supabaseAdmin
-      .from("referrals")
-      .select("id")
-      .eq("referred_id", referredUserId)
-      .maybeSingle();
-
-    if (existing) {
-      return new Response(JSON.stringify({ error: "Referral already redeemed" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
     // Cap referrals per referrer to prevent farming (max 20 referrals)
     const { count: referralCount } = await supabaseAdmin
       .from("referrals")
@@ -100,18 +86,38 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Create referral record
-    const { error: insertError } = await supabaseAdmin.from("referrals").insert({
-      referrer_id: referrer.user_id,
-      referred_id: referredUserId,
-      referral_code: referral_code.toUpperCase(),
-      credited: true,
-    });
+    // Atomic claim: the unique index on referrals.referred_id makes this the
+    // single source of truth for one-time redemption, so concurrent requests
+    // can't both be credited.
+    const { data: inserted, error: insertError } = await supabaseAdmin
+      .from("referrals")
+      .insert({
+        referrer_id: referrer.user_id,
+        referred_id: referredUserId,
+        referral_code: referral_code.toUpperCase(),
+        credited: true,
+      })
+      .select("id")
+      .maybeSingle();
 
     if (insertError) {
+      // 23505 = unique violation => already redeemed by a concurrent/earlier request
+      if ((insertError as { code?: string }).code === "23505") {
+        return new Response(JSON.stringify({ error: "Referral already redeemed" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
       console.error("Insert referral error:", insertError);
       return new Response(JSON.stringify({ error: "Failed to create referral" }), {
         status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (!inserted) {
+      return new Response(JSON.stringify({ error: "Referral already redeemed" }), {
+        status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
