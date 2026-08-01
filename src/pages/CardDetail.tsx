@@ -1098,6 +1098,8 @@ export default function CardDetail() {
                       ? { company: (card as any).grading_company, label: card.condition_grade, numeric: (card as any).grade_numeric }
                       : null)
                 }
+                idCompMatchPct={(analysis as any).idCompMatchPct ?? null}
+                valuationSource={(analysis as any).valuationSource ?? null}
               />
             )}
 
