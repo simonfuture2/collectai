@@ -44,6 +44,16 @@ interface CardDetailHeroProps {
   priceHistory: PricePoint[];
   comps: Comp[];
   conditionGrade?: string | null;
+  /** Present only for scanned, verified slabs — switches the value UI to graded-only tiers. */
+  confirmedGrade?: {
+    company?: string | null;
+    numeric?: number | null;
+    label?: string | null;
+    /** Market value at the confirmed grade */
+    valueAtGrade?: number | null;
+    /** Projected value at the grader's top tier (e.g. BGS 10) */
+    valueAtTop?: number | null;
+  } | null;
 }
 
 const TIMEFRAMES: Timeframe[] = ["1D", "1W", "1M", "1Y", "ALL"];
