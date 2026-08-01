@@ -230,12 +230,33 @@ async function runEnrichment(params: {
   const newHigh = Number((analysis as any).estimatedValueHigh ?? 0) || 0;
   const prevLow = Number((currentCard as any)?.estimated_value_low ?? 0) || 0;
   const prevHigh = Number((currentCard as any)?.estimated_value_high ?? 0) || 0;
-  const gradedFallbackCollapse = !!knownGrade && newHigh > 0 && newHigh < 20 && prevHigh >= 50;
+  // Graded anchor from this run's analysis (grader-tier value / eBay graded avg).
+  const gradedAnchor = (() => {
+    if (!knownGrade?.company) return 0;
+    const tier = ((analysis as any).gradedValueEstimates || {})[String(knownGrade.company).toLowerCase()] || {};
+    const atGrade = Number(tier?.valueAtGrade);
+    const ebayAvg = Number((analysis as any).ebayRecentSales?.averagePrice);
+    if (Number.isFinite(atGrade) && atGrade > 0) return atGrade;
+    if (Number.isFinite(ebayAvg) && ebayAvg > 0) return ebayAvg;
+    return 0;
+  })();
+  const newMid = (newLow + newHigh) / 2;
+  const gradedFallbackCollapse =
+    !!knownGrade &&
+    newHigh > 0 &&
+    ((newHigh < 20 && prevHigh >= 50) ||
+      (gradedAnchor > 0 && newMid > 0 && newMid < gradedAnchor * 0.4));
   if (gradedFallbackCollapse) {
-    console.log(`[enrich-card] guarding graded value: new $${newLow}-$${newHigh} < prev $${prevLow}-$${prevHigh}`);
-    (analysis as any).estimatedValueLow = prevLow;
-    (analysis as any).estimatedValueHigh = prevHigh;
-    (analysis as any).softWarning = "Kept prior graded value — new comp lookup returned insufficient graded sales.";
+    console.log(`[enrich-card] guarding graded value: new $${newLow}-$${newHigh} vs anchor $${gradedAnchor} / prev $${prevLow}-$${prevHigh}`);
+    const anchorLow = gradedAnchor > 0 ? Math.round(gradedAnchor * 0.85 * 100) / 100 : prevLow;
+    const anchorHigh = gradedAnchor > 0 ? Math.round(gradedAnchor * 1.15 * 100) / 100 : prevHigh;
+    (analysis as any).estimatedValueLow = anchorLow;
+    (analysis as any).estimatedValueHigh = anchorHigh;
+    (analysis as any).valuationSource = "graded_anchor";
+    (analysis as any).softWarning =
+      gradedAnchor > 0
+        ? `Value anchored to graded comps for ${knownGrade!.company} ${knownGrade!.label ?? knownGrade!.numeric} — the general comp lookup returned unrelated listings.`
+        : "Kept prior graded value — new comp lookup returned insufficient graded sales.";
   }
 
   // Persist card row
