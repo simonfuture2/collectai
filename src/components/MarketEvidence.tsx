@@ -60,6 +60,10 @@ interface MarketEvidenceProps {
   confidenceExplanation?: string;
   confidenceReason?: string;
   confirmedGrade?: { company?: string | null; label?: string | null; numeric?: number | null } | null;
+  /** % of comp titles that matched the identified card (0-100) */
+  idCompMatchPct?: number | null;
+  /** Set when the value was anchored to graded comps instead of the aggregate rows */
+  valuationSource?: string | null;
 }
 
 const SOURCE_LABEL: Record<string, string> = {
