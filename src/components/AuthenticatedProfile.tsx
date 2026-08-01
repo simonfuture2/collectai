@@ -278,14 +278,20 @@ export default function AuthenticatedProfile({ card, onUpdated }: Props) {
           </div>
 
           {card.grading_cert_number && (
-            <div className="flex gap-2 mt-4">
-              <Button size="sm" onClick={verifyCert} disabled={verifying} className="gradient-primary">
+            <div className="flex flex-wrap gap-2 mt-4">
+              <Button
+                size="sm"
+                onClick={verifyCert}
+                disabled={verifying}
+                variant={alreadyVerified ? "outline" : "default"}
+                className={alreadyVerified ? "" : "gradient-primary"}
+              >
                 {verifying ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Shield className="w-3.5 h-3.5 mr-1.5" />}
-                Verify slab cert
+                {alreadyVerified ? "Re-verify cert" : "Verify slab cert"}
               </Button>
-              {verifyUrl && (
-                <a href={verifyUrl} target="_blank" rel="noopener noreferrer">
-                  <Button size="sm" variant="outline">
+              {effectiveVerifyUrl && (
+                <a href={effectiveVerifyUrl} target="_blank" rel="noopener noreferrer">
+                  <Button size="sm" variant={alreadyVerified ? "default" : "outline"} className={alreadyVerified ? "gradient-primary" : ""}>
                     Open on {card.grading_company} <ExternalLink className="w-3.5 h-3.5 ml-1.5" />
                   </Button>
                 </a>
@@ -293,12 +299,18 @@ export default function AuthenticatedProfile({ card, onUpdated }: Props) {
             </div>
           )}
 
-          {reachable === true && (
+          {alreadyVerified && verifiedAt && reachable !== false && (
+            <p className="text-xs text-emerald-400 mt-2">
+              ✓ Already verified on {new Date(verifiedAt).toLocaleDateString()} — cert page resolved on {card.grading_company}.
+            </p>
+          )}
+          {!alreadyVerified && reachable === true && (
             <p className="text-xs text-emerald-400 mt-2">✓ Cert page resolved — click to inspect on {card.grading_company}.</p>
           )}
-          {reachable === false && verifyUrl && (
+          {reachable === false && effectiveVerifyUrl && (
             <p className="text-xs text-amber-400 mt-2">Couldn't auto-verify — open the link to check manually.</p>
           )}
+
         </div>
       ) : (
         <Button size="sm" variant="outline" onClick={() => setShowAdd(true)}>
