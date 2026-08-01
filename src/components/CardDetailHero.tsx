@@ -156,7 +156,7 @@ export default function CardDetailHero({
               active={foilOn}
               radiusClassName="rounded-xl"
               className="relative w-full h-full"
-              badge={conditionGrade ? <FoilBadge label="GRADED" /> : (foilOn ? <FoilBadge label={`$${Math.round(rawValue)}+`} /> : undefined)}
+              badge={isSlab ? <FoilBadge label={`${graderName} ${gradeNum}`} /> : (conditionGrade ? <FoilBadge label="GRADED" /> : (foilOn ? <FoilBadge label={`$${Math.round(baseValue)}+`} /> : undefined))}
             >
               <img
                 src={imageUrl}
