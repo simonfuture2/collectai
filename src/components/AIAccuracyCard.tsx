@@ -31,7 +31,7 @@ function verdictTone(score: number | null | undefined) {
   return { bar: "bg-red-500", chip: "bg-red-500/15 text-red-500" };
 }
 
-export default function AIAccuracyCard({ accuracy, actualValueMid }: Props) {
+export default function AIAccuracyCard({ accuracy, actualValueMid, gradeLabel, valueSource }: Props) {
   if (!accuracy) return null;
   const {
     predictedGrade,
