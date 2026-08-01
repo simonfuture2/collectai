@@ -90,13 +90,30 @@ export default function CardDetailHero({
   priceHistory,
   comps,
   conditionGrade,
+  confirmedGrade,
 }: CardDetailHeroProps) {
   const [timeframe, setTimeframe] = useState<Timeframe>("1M");
   const [mode, setMode] = useState<Mode>("RAW");
-  const foilOn = shouldFoil({ isGraded: !!conditionGrade, value: rawValue, threshold: 50 });
 
-  const displayedValue =
-    mode === "GRADED" && gradedValue != null ? gradedValue : rawValue;
+  const isSlab = !!confirmedGrade?.company && confirmedGrade?.numeric != null;
+  const graderName = String(confirmedGrade?.company ?? "").toUpperCase();
+  const gradeNum = confirmedGrade?.numeric;
+  const isTopGrade = isSlab && Number(gradeNum) >= 10;
+
+  // Base tier = the confirmed grade for slabs, raw otherwise.
+  const baseValue = isSlab && confirmedGrade?.valueAtGrade != null
+    ? Number(confirmedGrade.valueAtGrade)
+    : rawValue;
+  const topValue = isSlab
+    ? (confirmedGrade?.valueAtTop != null ? Number(confirmedGrade.valueAtTop) : gradedValue)
+    : gradedValue;
+  const baseLabel = isSlab ? `${graderName} ${gradeNum}` : "Raw";
+  const topLabel = isSlab ? `${graderName} 10` : gradedLabel;
+  const showTopTier = !isTopGrade && topValue != null;
+
+  const foilOn = shouldFoil({ isGraded: !!conditionGrade, value: baseValue, threshold: 50 });
+
+  const displayedValue = mode === "GRADED" && topValue != null ? topValue : baseValue;
 
   const chartData = useMemo(() => {
     const base =
@@ -104,11 +121,11 @@ export default function CardDetailHero({
         ? priceHistory.slice(-TF_POINTS[timeframe])
         : [];
     const multiplier =
-      mode === "GRADED" && gradedValue && rawValue
-        ? gradedValue / Math.max(rawValue, 0.01)
+      mode === "GRADED" && topValue && baseValue
+        ? topValue / Math.max(baseValue, 0.01)
         : 1;
     return base.map((p) => ({ ...p, price: p.price * multiplier }));
-  }, [priceHistory, timeframe, mode, gradedValue, rawValue]);
+  }, [priceHistory, timeframe, mode, topValue, baseValue]);
 
   const change = useMemo(() => {
     if (chartData.length < 2) return { dollars: 0, pct: 0 };
