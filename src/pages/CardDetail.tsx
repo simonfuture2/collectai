@@ -761,39 +761,67 @@ export default function CardDetail() {
         {/* Premium hero: image, metadata, value + raw/graded toggle, chart, comps */}
         {(() => {
           const a = analysis || null;
-          const recGrader = (a?.gradedValueEstimates?.recommendedGrader || "psa").toLowerCase() as
+          const slabCompany: string | null =
+            (a as any)?.confirmedGrade?.company ?? (card as any).grading_company ?? null;
+          const slabNumeric: number | null =
+            (a as any)?.confirmedGrade?.grade_numeric ??
+            ((card as any).grade_numeric != null ? Number((card as any).grade_numeric) : null);
+          const isSlab = !!slabCompany && slabNumeric != null;
+
+          const slabKey = (slabCompany || "").toLowerCase() as
             | "psa" | "bgs" | "cgc" | "sgc" | "tag";
+          const recGrader = isSlab
+            ? slabKey
+            : ((a?.gradedValueEstimates?.recommendedGrader || "psa").toLowerCase() as
+                | "psa" | "bgs" | "cgc" | "sgc" | "tag");
           const graderVals = a?.gradedValueEstimates?.[recGrader];
-          const gradedValue =
+          const topTierValue =
             graderVals?.valueAtPSA10 ??
             graderVals?.valueAtBGS10 ??
             graderVals?.valueAtCGC10 ??
             graderVals?.valueAtSGC10 ??
             graderVals?.valueAtTAG10 ??
-            graderVals?.valueAtGrade ??
             null;
+          const gradedValue = topTierValue ?? graderVals?.valueAtGrade ?? null;
           const gradedLabel = recGrader.toUpperCase() + " 10";
+
+          // For verified slabs, the headline is the value at the confirmed grade:
+          // grader-tier value → eBay graded average → stored DB range.
+          const ebayAvg = Number(a?.ebayRecentSales?.averagePrice);
+          const valueAtConfirmedGrade = isSlab
+            ? (Number(graderVals?.valueAtGrade) > 0
+                ? Number(graderVals!.valueAtGrade)
+                : Number.isFinite(ebayAvg) && ebayAvg > 0
+                  ? ebayAvg
+                  : avgValue)
+            : null;
 
           // Build comps from extracted market sources + notable eBay sales
           const compRows: Array<{ price: number; source: string; date?: string; title?: string }> = [];
           const sources = a?.extractedMarketData?.sources || [];
-          sources.forEach((s) => {
-            if (s?.median != null) {
-              compRows.push({
-                price: Number(s.median),
-                source: s.source || "Market",
-                date: s.recencyDays != null ? `${s.recencyDays}d ago` : undefined,
-                title: `${s.source || "Source"} median${s.count ? ` (${s.count} sales)` : ""}`,
-              });
-            }
-            (s?.prices || []).slice(0, 3).forEach((p) => {
-              compRows.push({
-                price: Number(p),
-                source: s.source || "Market",
-                title: "Sold listing",
+          // For a verified slab whose generic comp lookup didn't match the card,
+          // those aggregate rows are misleading — rely on the graded sales instead.
+          const compsMismatched =
+            isSlab && (((a as any)?.idCompMatchPct ?? 100) < 50 || (a as any)?.valuationSource === "graded_anchor");
+          if (!compsMismatched) {
+            sources.forEach((s) => {
+              if (s?.median != null) {
+                compRows.push({
+                  price: Number(s.median),
+                  source: s.source || "Market",
+                  date: s.recencyDays != null ? `${s.recencyDays}d ago` : undefined,
+                  title: `${s.source || "Source"} median${s.count ? ` (${s.count} sales)` : ""}`,
+                });
+              }
+              (s?.prices || []).slice(0, 3).forEach((p) => {
+                compRows.push({
+                  price: Number(p),
+                  source: s.source || "Market",
+                  title: "Sold listing",
+                });
               });
             });
-          });
+          }
           (a?.ebayRecentSales?.notableSales || []).forEach((sale) => {
             const m = String(sale).match(/\$([\d,]+(?:\.\d+)?)/);
             if (m) {
@@ -820,6 +848,17 @@ export default function CardDetail() {
                 priceHistory={priceHistory}
                 comps={compRows}
                 conditionGrade={card.condition_grade as any}
+                confirmedGrade={
+                  isSlab
+                    ? {
+                        company: slabCompany,
+                        numeric: slabNumeric,
+                        label: card.condition_grade,
+                        valueAtGrade: valueAtConfirmedGrade,
+                        valueAtTop: topTierValue,
+                      }
+                    : null
+                }
               />
             </div>
           );
