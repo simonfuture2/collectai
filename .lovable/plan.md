@@ -1,50 +1,48 @@
-## 1. Admin "Beta" tab
+## What's wrong (verified against this card)
 
-New tab in the admin portal (`/admin`) alongside Users, Transactions, Leads, Campaigns, Push, Admins.
+Snorlax, BGS NM-MT 8, cert 0020586708, paired to a raw scan.
 
-**What it shows** — one row per user with:
-- Email / display name
-- Beta window status: Active (with days left), Expired, or None
-- Window end date
-- Founder price locked (yes/no + date locked)
-- Current plan and whether they have a live subscription
+- Stored `estimated_value_low/high` = **$7.83 – $12.38**.
+- Yet the same saved analysis holds: eBay sold comps **$175 – $290 (avg $220)**, and `gradedValueEstimates.bgs.valueAtGrade = 220`.
+- The analysis text itself says the market rows that were pulled ("$22–30 active, blended ~$10") were **generic BGS 8 listings for unrelated cards**, not this card.
 
-Filters: All / Active beta / Expired / Price-locked. Plus the same search box style used on the Users tab.
+So the headline is showing a number produced by mismatched comps, while the correct graded value already exists in the record. Two separate defects:
 
-**What an admin can do per user**
-- **Grant / extend a beta window** — pick a duration (30 / 60 / 90 days or a custom end date). Sets the eligibility flag and the access-until date.
-- **Revoke beta window** — clears the access-until date and the eligibility flag immediately, so the user drops back to free/credits on their next status refresh.
-- **Lock founder pricing** — marks the user as price-locked manually (for support/goodwill cases).
-- **Unlock founder pricing** — clears the lock, so their next checkout pays the standard $14.99.
+1. **Pipeline**: in `_shared/analysisEngine.ts`, Step 4 (Claude × Gemini price verification) and the Step 4.5 uncertainty-widening re-anchor the final value to the blended comp set even when those comps clearly don't match the identified card (low `idCompMatchPct`) and even when a confirmed slab grade is present. The `enrich-card` collapse guard only fires when `newHigh < 20 && prevHigh >= 50`, and the paired raw value was low, so it didn't catch this.
+2. **Presentation**: `CardDetail.tsx` feeds `avgValue` (from the DB columns) as `rawValue` to `CardDetailHero`, which always renders a RAW / GRADED toggle — wrong for a card that is a confirmed slab.
 
-Each action writes an audit row into the existing transaction log (e.g. `admin_beta_grant`, `admin_beta_revoke`, `admin_price_lock`) so it shows up in the Transactions tab.
+## 1. Graded-value trust rule (pipeline)
 
-A small summary strip at the top of the tab: total in active beta, total expired-but-eligible, total price-locked.
+In `_shared/analysisEngine.ts`, when `knownGrade` is present:
 
-## 2. Backend
+- Compute a **graded anchor** = `gradedValueEstimates[company].valueAtGrade`, else `ebayRecentSales.averagePrice`, else the midpoint of `ebayRecentSales.lowPrice/highPrice`.
+- Skip the dual-verifier override (Step 4) when the comp set is untrustworthy for the slab — i.e. `idCompMatchPct` below threshold, or the verified midpoint is less than ~40% of the graded anchor. Keep the verifier note for transparency, but don't let it overwrite the value.
+- If the final range still lands far below the graded anchor, restore `estimatedValueLow/High` to `anchor × 0.85 / × 1.15`, and record `valuationSource: "graded_anchor"` plus a plain-language note ("comps pulled did not match this slab; value anchored to graded comps for BGS 8").
+- Skip the Step 4.5 uncertainty widening for confirmed slabs — the grade is known, so variant-uncertainty widening only adds noise.
 
-Extend the existing `admin-data` edge function with new actions — same admin-only auth guard the other actions already use:
-- `set_beta_window` — target user + end date (or `null` to revoke) + eligibility flag
-- `set_price_lock` — target user + lock/unlock
+In `enrich-card/index.ts`, broaden the collapse guard: for a `knownGrade` scan, reject a new value that is dramatically below the graded anchor rather than relying on the fixed `<20 / >=50` thresholds.
 
-Both validate input, are rejected for non-admins, and log an audit transaction. No schema change is needed — the `beta_access_until`, `beta_eligible`, and `beta_price_locked_at` fields already exist, and the dashboard query already returns them.
+## 2. Graded-only value UI (presentation)
 
-Note: revoking a window does **not** cancel an existing Stripe subscription or remove a discount already applied at checkout — Stripe controls the coupon once a subscription is live. Unlocking only affects future checkouts. This will be stated in the UI so it isn't misleading.
+`CardDetailHero.tsx` — add an optional `confirmedGrade` prop. When present:
 
-## 3. Home page promo banner
+- Remove the RAW / GRADED toggle. Replace with tiers for the confirmed grader only: **BGS 8** (confirmed, the default/headline) and **BGS 10** (ceiling), pulled from `gradedValueEstimates[company]` — labels generated from the actual grader and grade, so PSA/CGC/SGC/TAG work identically.
+- Headline "Market Value" label reads `BGS 8 · Verified slab` instead of "Raw".
+- Chart header uses the same tier labels; the BGS 10 series stays a scaled projection (labelled as a projection, not a comp).
+- Non-graded cards keep the existing Raw/Graded behaviour unchanged.
 
-A dismissible promo banner on the landing page (`/`), placed just above the hero:
+`CardDetail.tsx`:
 
-> **Beta Founder offer** — Join now for 30 days of full Pro access, then lock in $6.99/mo (50% off) for 12 months. Offer ends September 30, 2026.
-> [Claim your spot →]
+- Pass `confirmedGrade` (from `analysis.confirmedGrade` or the card's `grading_company` / `grade_numeric` / `condition_grade`) into the hero.
+- For graded cards, headline value = graded value resolved with the same precedence as the engine anchor (`valueAtGrade` → eBay average → DB columns), so the page shows $220-ish rather than $10 even before a re-scan.
+- Comps list: prefer graded notable sales; drop rows whose title/source is clearly the mismatched generic set when a confirmed grade exists.
 
-- Gold/amber styling matching the existing beta banners on the dashboard and pricing page.
-- CTA goes to `/auth` for signed-out visitors, `/pricing` for signed-in users.
-- Auto-hides after the cutoff date and for users who already have an active paid subscription.
-- Dismissal remembered in local storage so it doesn't nag on every visit.
+`MarketEvidence.tsx`: already shows the "confirmed grade" banner. Extend it so when a mismatch is detected (`idCompMatchPct` low), it shows a soft amber note that the aggregate rows came back for generic listings and the graded comps were used instead — no red failure.
 
-## Technical notes
+## 3. Repair this card
 
-- New files: `src/components/admin/BetaTab.tsx`, `src/components/BetaPromoBanner.tsx`.
-- Edited: `src/pages/Admin.tsx` (tab wiring), `src/pages/Landing.tsx` (banner), `supabase/functions/admin-data/index.ts` (two new actions), then redeploy that function.
-- No changes to the scan pipeline, pricing engine, or Stripe checkout logic.
+After the code changes, re-run the graded enrichment for card `28954004-…65` so the stored columns and the analysis agree. No schema change needed.
+
+## Not touched
+
+Stripe, auth, RLS, scan capture flow, PriceCharting catalog matching.
