@@ -92,6 +92,30 @@ serve(async (req) => {
     const body = await req.json();
     const { cardData, cardId } = body;
 
+    // Only allow minting a token for a card the caller actually owns.
+    if (cardId != null) {
+      if (typeof cardId !== "string" ||
+          !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cardId)) {
+        return new Response(JSON.stringify({ error: "Invalid cardId" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const { data: ownedCard, error: cardError } = await supabase
+        .from("cards")
+        .select("id, user_id")
+        .eq("id", cardId)
+        .maybeSingle();
+
+      if (cardError || !ownedCard || ownedCard.user_id !== user.id) {
+        return new Response(JSON.stringify({ error: "Card not found" }), {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
     const now = Math.floor(Date.now() / 1000);
     const payload: Record<string, unknown> = {
       sub: user.id,
