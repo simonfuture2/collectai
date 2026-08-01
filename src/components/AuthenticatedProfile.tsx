@@ -46,6 +46,21 @@ export default function AuthenticatedProfile({ card, onUpdated }: Props) {
   const hasSlab = !!card.grading_company && (!!card.grading_cert_number || verifiedFromPhoto || !!card.is_authenticated);
   const hasAuthentiSeal = !!card.authentiseal_serial;
 
+  // Persisted cert verification — only trusted when it matches the cert on file.
+  const authData = card.authentication_data || {};
+  const storedVerifiedAt: string | null = authData.cert_verified_at ?? null;
+  const certMatches =
+    !!storedVerifiedAt &&
+    String(authData.cert_verified_number ?? "") === String(card.grading_cert_number ?? "") &&
+    String(authData.cert_verified_company ?? "").toLowerCase() ===
+      String(card.grading_company ?? "").toLowerCase();
+  const [localVerifiedAt, setLocalVerifiedAt] = useState<string | null>(null);
+  const alreadyVerified = certMatches || !!localVerifiedAt;
+  const verifiedAt = localVerifiedAt ?? (certMatches ? storedVerifiedAt : null);
+  const storedVerifyUrl: string | null = certMatches ? (authData.cert_verify_url ?? null) : null;
+  const effectiveVerifyUrl = verifyUrl ?? storedVerifyUrl;
+
+
   async function handleSlabFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
@@ -142,6 +157,29 @@ export default function AuthenticatedProfile({ card, onUpdated }: Props) {
       if (error) throw error;
       setVerifyUrl(data?.verify_url ?? null);
       setReachable(!!data?.reachable);
+
+      if (data?.verify_url) {
+        const nowIso = new Date().toISOString();
+        setLocalVerifiedAt(nowIso);
+        try {
+          await supabase
+            .from("cards")
+            .update({
+              authentication_data: {
+                ...(card.authentication_data || {}),
+                cert_verified_at: nowIso,
+                cert_verify_url: data.verify_url,
+                cert_verified_company: card.grading_company,
+                cert_verified_number: card.grading_cert_number,
+                cert_verified_reachable: !!data?.reachable,
+              },
+            })
+            .eq("id", card.id);
+        } catch {
+          /* non-fatal: badge still shows for this session */
+        }
+      }
+
     } catch (e: any) {
       toast({ title: "Verification failed", description: e.message, variant: "destructive" });
     } finally {
@@ -177,20 +215,28 @@ export default function AuthenticatedProfile({ card, onUpdated }: Props) {
 
   return (
     <GlassCard className="p-5 space-y-4 border-amber-500/30">
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 flex-wrap">
         <BadgeCheck className="w-5 h-5 text-amber-400" />
         <h3 className="font-display font-bold">Authenticated Profile</h3>
-        {verifiedFromPhoto && (
-          <span className="ml-auto text-[10px] font-semibold uppercase tracking-wider text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded-full flex items-center gap-1">
-            <Sparkles className="w-3 h-3" /> Verified from slab photo
-          </span>
-        )}
-        {hasAuthentiSeal && !verifiedFromPhoto && (
-          <span className="ml-auto text-[10px] font-semibold uppercase tracking-wider text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded-full">
-            AuthentiSeal
-          </span>
-        )}
+        <div className="ml-auto flex items-center gap-1.5">
+          {alreadyVerified && (
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded-full flex items-center gap-1">
+              <BadgeCheck className="w-3 h-3" /> Cert verified
+            </span>
+          )}
+          {verifiedFromPhoto && (
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded-full flex items-center gap-1">
+              <Sparkles className="w-3 h-3" /> Verified from slab photo
+            </span>
+          )}
+          {hasAuthentiSeal && !verifiedFromPhoto && (
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded-full">
+              AuthentiSeal
+            </span>
+          )}
+        </div>
       </div>
+
 
       <div className="flex flex-wrap gap-2">
         <Button size="sm" onClick={openSlabPicker} disabled={scanning} className="gradient-primary">
@@ -232,14 +278,20 @@ export default function AuthenticatedProfile({ card, onUpdated }: Props) {
           </div>
 
           {card.grading_cert_number && (
-            <div className="flex gap-2 mt-4">
-              <Button size="sm" onClick={verifyCert} disabled={verifying} className="gradient-primary">
+            <div className="flex flex-wrap gap-2 mt-4">
+              <Button
+                size="sm"
+                onClick={verifyCert}
+                disabled={verifying}
+                variant={alreadyVerified ? "outline" : "default"}
+                className={alreadyVerified ? "" : "gradient-primary"}
+              >
                 {verifying ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Shield className="w-3.5 h-3.5 mr-1.5" />}
-                Verify slab cert
+                {alreadyVerified ? "Re-verify cert" : "Verify slab cert"}
               </Button>
-              {verifyUrl && (
-                <a href={verifyUrl} target="_blank" rel="noopener noreferrer">
-                  <Button size="sm" variant="outline">
+              {effectiveVerifyUrl && (
+                <a href={effectiveVerifyUrl} target="_blank" rel="noopener noreferrer">
+                  <Button size="sm" variant={alreadyVerified ? "default" : "outline"} className={alreadyVerified ? "gradient-primary" : ""}>
                     Open on {card.grading_company} <ExternalLink className="w-3.5 h-3.5 ml-1.5" />
                   </Button>
                 </a>
@@ -247,12 +299,18 @@ export default function AuthenticatedProfile({ card, onUpdated }: Props) {
             </div>
           )}
 
-          {reachable === true && (
+          {alreadyVerified && verifiedAt && reachable !== false && (
+            <p className="text-xs text-emerald-400 mt-2">
+              ✓ Already verified on {new Date(verifiedAt).toLocaleDateString()} — cert page resolved on {card.grading_company}.
+            </p>
+          )}
+          {!alreadyVerified && reachable === true && (
             <p className="text-xs text-emerald-400 mt-2">✓ Cert page resolved — click to inspect on {card.grading_company}.</p>
           )}
-          {reachable === false && verifyUrl && (
+          {reachable === false && effectiveVerifyUrl && (
             <p className="text-xs text-amber-400 mt-2">Couldn't auto-verify — open the link to check manually.</p>
           )}
+
         </div>
       ) : (
         <Button size="sm" variant="outline" onClick={() => setShowAdd(true)}>

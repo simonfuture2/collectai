@@ -17,7 +17,12 @@ interface GradeAccuracy {
 interface Props {
   accuracy: GradeAccuracy;
   actualValueMid?: number | null;
+  /** e.g. "BGS 8" — present when the card is a confirmed slab */
+  gradeLabel?: string | null;
+  /** e.g. "recent eBay sold comps" */
+  valueSource?: string | null;
 }
+
 
 function verdictTone(score: number | null | undefined) {
   if (score == null) return { bar: "bg-muted-foreground/40", chip: "bg-muted text-muted-foreground" };
@@ -26,7 +31,7 @@ function verdictTone(score: number | null | undefined) {
   return { bar: "bg-red-500", chip: "bg-red-500/15 text-red-500" };
 }
 
-export default function AIAccuracyCard({ accuracy, actualValueMid }: Props) {
+export default function AIAccuracyCard({ accuracy, actualValueMid, gradeLabel, valueSource }: Props) {
   if (!accuracy) return null;
   const {
     predictedGrade,
@@ -114,7 +119,9 @@ export default function AIAccuracyCard({ accuracy, actualValueMid }: Props) {
                 </p>
               </div>
               <div className="text-right">
-                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Graded market</p>
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                  Graded market{gradeLabel ? ` · ${gradeLabel}` : ""}
+                </p>
                 <p className="text-lg font-display font-bold tabular-nums">
                   ${Math.round(actualValueMid).toLocaleString()}
                 </p>
@@ -123,7 +130,11 @@ export default function AIAccuracyCard({ accuracy, actualValueMid }: Props) {
                     {valueDeltaPct >= 0 ? "+" : ""}{valueDeltaPct.toFixed(0)}% vs AI
                   </p>
                 )}
+                {valueSource && (
+                  <p className="text-[10px] text-muted-foreground mt-0.5">Based on {valueSource}</p>
+                )}
               </div>
+
             </div>
           )}
         </>
