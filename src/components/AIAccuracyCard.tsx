@@ -17,7 +17,12 @@ interface GradeAccuracy {
 interface Props {
   accuracy: GradeAccuracy;
   actualValueMid?: number | null;
+  /** e.g. "BGS 8" — present when the card is a confirmed slab */
+  gradeLabel?: string | null;
+  /** e.g. "recent eBay sold comps" */
+  valueSource?: string | null;
 }
+
 
 function verdictTone(score: number | null | undefined) {
   if (score == null) return { bar: "bg-muted-foreground/40", chip: "bg-muted text-muted-foreground" };
