@@ -46,6 +46,21 @@ export default function AuthenticatedProfile({ card, onUpdated }: Props) {
   const hasSlab = !!card.grading_company && (!!card.grading_cert_number || verifiedFromPhoto || !!card.is_authenticated);
   const hasAuthentiSeal = !!card.authentiseal_serial;
 
+  // Persisted cert verification — only trusted when it matches the cert on file.
+  const authData = card.authentication_data || {};
+  const storedVerifiedAt: string | null = authData.cert_verified_at ?? null;
+  const certMatches =
+    !!storedVerifiedAt &&
+    String(authData.cert_verified_number ?? "") === String(card.grading_cert_number ?? "") &&
+    String(authData.cert_verified_company ?? "").toLowerCase() ===
+      String(card.grading_company ?? "").toLowerCase();
+  const [localVerifiedAt, setLocalVerifiedAt] = useState<string | null>(null);
+  const alreadyVerified = certMatches || !!localVerifiedAt;
+  const verifiedAt = localVerifiedAt ?? (certMatches ? storedVerifiedAt : null);
+  const storedVerifyUrl: string | null = certMatches ? (authData.cert_verify_url ?? null) : null;
+  const effectiveVerifyUrl = verifyUrl ?? storedVerifyUrl;
+
+
   async function handleSlabFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
