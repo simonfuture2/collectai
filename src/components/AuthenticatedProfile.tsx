@@ -157,6 +157,29 @@ export default function AuthenticatedProfile({ card, onUpdated }: Props) {
       if (error) throw error;
       setVerifyUrl(data?.verify_url ?? null);
       setReachable(!!data?.reachable);
+
+      if (data?.verify_url) {
+        const nowIso = new Date().toISOString();
+        setLocalVerifiedAt(nowIso);
+        try {
+          await supabase
+            .from("cards")
+            .update({
+              authentication_data: {
+                ...(card.authentication_data || {}),
+                cert_verified_at: nowIso,
+                cert_verify_url: data.verify_url,
+                cert_verified_company: card.grading_company,
+                cert_verified_number: card.grading_cert_number,
+                cert_verified_reachable: !!data?.reachable,
+              },
+            })
+            .eq("id", card.id);
+        } catch {
+          /* non-fatal: badge still shows for this session */
+        }
+      }
+
     } catch (e: any) {
       toast({ title: "Verification failed", description: e.message, variant: "destructive" });
     } finally {
