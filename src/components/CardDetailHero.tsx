@@ -194,12 +194,14 @@ export default function CardDetailHero({
         </GlassCard>
       </FadeUp>
 
-      {/* Value + Raw/Graded toggle */}
+      {/* Value + tier toggle */}
       <FadeUp delay={0.1}>
         <GlassCard padding="md" className="space-y-5">
           <div className="space-y-2">
             <p className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-medium">
-              Market Value · {mode === "GRADED" ? gradedLabel : "Raw"}
+              Market Value · {mode === "GRADED" ? topLabel : baseLabel}
+              {isSlab && mode !== "GRADED" ? " · Verified slab" : ""}
+              {isSlab && mode === "GRADED" ? " · Projected" : ""}
             </p>
             <Value
               key={`${mode}-${displayedValue}`}
@@ -229,31 +231,34 @@ export default function CardDetailHero({
             </div>
           </div>
 
-          {/* Raw / Graded segmented control */}
-          <div className="inline-flex w-full sm:w-auto rounded-full border border-border-subtle bg-background/40 p-1">
-            {(["RAW", "GRADED"] as Mode[]).map((m) => {
-              const disabled = m === "GRADED" && gradedValue == null;
-              return (
-                <button
-                  key={m}
-                  type="button"
-                  disabled={disabled}
-                  onClick={() => setMode(m)}
-                  className={cn(
-                    "flex-1 sm:flex-none px-5 py-1.5 text-xs font-semibold uppercase tracking-wider rounded-full transition-all",
-                    mode === m
-                      ? "bg-gradient-gold text-black shadow-sm"
-                      : "text-muted-foreground hover:text-foreground",
-                    disabled && "opacity-40 cursor-not-allowed hover:text-muted-foreground"
-                  )}
-                >
-                  {m === "GRADED" ? gradedLabel : "Raw"}
-                </button>
-              );
-            })}
-          </div>
+          {/* Tier segmented control — graded tiers only for verified slabs */}
+          {(showTopTier || !isSlab) && (
+            <div className="inline-flex w-full sm:w-auto rounded-full border border-border-subtle bg-background/40 p-1">
+              {(["RAW", "GRADED"] as Mode[]).map((m) => {
+                const disabled = m === "GRADED" && topValue == null;
+                return (
+                  <button
+                    key={m}
+                    type="button"
+                    disabled={disabled}
+                    onClick={() => setMode(m)}
+                    className={cn(
+                      "flex-1 sm:flex-none px-5 py-1.5 text-xs font-semibold uppercase tracking-wider rounded-full transition-all",
+                      mode === m
+                        ? "bg-gradient-gold text-black shadow-sm"
+                        : "text-muted-foreground hover:text-foreground",
+                      disabled && "opacity-40 cursor-not-allowed hover:text-muted-foreground"
+                    )}
+                  >
+                    {m === "GRADED" ? topLabel : baseLabel}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </GlassCard>
       </FadeUp>
+
 
       {/* Price history chart */}
       <FadeUp delay={0.15}>
