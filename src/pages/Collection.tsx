@@ -30,6 +30,7 @@ import EmptyState from "@/components/EmptyState";
 import { useLongPress } from "@/hooks/use-long-press";
 import LongPressable from "@/components/LongPressable";
 import { Inbox, SearchX, Tag } from "lucide-react";
+import { resolveCardValue } from "@/lib/cardValue";
 
 interface Card {
   id: string;
@@ -43,7 +44,13 @@ interface Card {
   estimated_value_low: number | null;
   estimated_value_high: number | null;
   authentiseal_serial: string | null;
+  grading_company?: string | null;
+  grade_numeric?: number | string | null;
+  ebay_recent_sales?: unknown;
 }
+
+
+
 
 const CATEGORY_COLORS: Record<string, string> = {
   "Trading Card": "bg-primary/15 text-primary border-primary/30",
@@ -125,7 +132,7 @@ const Collection = () => {
     if (user) {
       supabase
         .from("cards")
-        .select("id, image_url, card_name, card_set, card_year, rarity, category, condition_grade, estimated_value_low, estimated_value_high, authentiseal_serial, is_authenticated, grading_company, grading_cert_number")
+        .select("id, image_url, card_name, card_set, card_year, rarity, category, condition_grade, estimated_value_low, estimated_value_high, authentiseal_serial, is_authenticated, grading_company, grading_cert_number, grade_numeric, ebay_recent_sales")
         .eq("user_id", user.id)
         .is("superseded_by_card_id", null)
         .order("created_at", { ascending: false })
@@ -218,7 +225,7 @@ const Collection = () => {
     const rows = filtered.filter((c) => selectedIds.size === 0 || selectedIds.has(c.id));
     const header = "Name,Set,Year,Category,Rarity,Grade,Est. Value\n";
     const csv = header + rows.map((c) =>
-      `"${c.card_name || ""}","${c.card_set || ""}","${c.card_year || ""}","${c.category || ""}","${c.rarity || ""}","${c.condition_grade || ""}","$${(((c.estimated_value_low || 0) + (c.estimated_value_high || 0)) / 2).toFixed(0)}"`
+      `"${c.card_name || ""}","${c.card_set || ""}","${c.card_year || ""}","${c.category || ""}","${c.rarity || ""}","${c.condition_grade || ""}","$${resolveCardValue(c).value.toFixed(0)}"`
     ).join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
@@ -299,10 +306,10 @@ const Collection = () => {
         list.reverse();
         break;
       case "value-high":
-        list.sort((a, b) => ((b.estimated_value_high || 0) - (a.estimated_value_high || 0)));
+        list.sort((a, b) => resolveCardValue(b).value - resolveCardValue(a).value);
         break;
       case "value-low":
-        list.sort((a, b) => ((a.estimated_value_low || 0) - (b.estimated_value_low || 0)));
+        list.sort((a, b) => resolveCardValue(a).value - resolveCardValue(b).value);
         break;
       case "name":
         list.sort((a, b) => (a.card_name || "").localeCompare(b.card_name || ""));
@@ -325,7 +332,7 @@ const Collection = () => {
   const hasMore = visibleCount < filtered.length;
 
   const totalValue = filtered.reduce(
-    (sum, c) => sum + ((c.estimated_value_low || 0) + (c.estimated_value_high || 0)) / 2,
+    (sum, c) => sum + resolveCardValue(c).value,
     0
   );
 
@@ -360,7 +367,8 @@ const Collection = () => {
     fetchFolders();
   };
 
-  const cardValue = (c: Card) => ((c.estimated_value_low || 0) + (c.estimated_value_high || 0)) / 2;
+  const cardValue = (c: Card) => resolveCardValue(c).value;
+  const cardGradeLabel = (c: Card) => resolveCardValue(c).gradeLabel ?? c.condition_grade;
 
   const rescanCard = async (card: Card, e?: React.MouseEvent) => {
     e?.stopPropagation();
@@ -776,8 +784,8 @@ const Collection = () => {
                     <TableCell className="hidden sm:table-cell text-muted-foreground">{card.card_set || "—"}</TableCell>
                     <TableCell className="hidden md:table-cell text-muted-foreground">{card.card_year || "—"}</TableCell>
                     <TableCell>
-                      {card.condition_grade ? (
-                        <Badge variant="secondary" className="text-[10px]">{card.condition_grade}</Badge>
+                      {cardGradeLabel(card) ? (
+                        <Badge variant="secondary" className="text-[10px]">{cardGradeLabel(card)}</Badge>
                       ) : "—"}
                     </TableCell>
                     <TableCell className="text-right font-medium">${cardValue(card).toFixed(0)}</TableCell>
@@ -836,7 +844,7 @@ const Collection = () => {
                     <div className="aspect-[3/4] bg-muted relative">
                       {(() => {
                         const val = cardValue(card);
-                        const foilOn = shouldFoil({ isGraded: !!card.condition_grade, value: val, threshold: 50 });
+                        const foilOn = shouldFoil({ isGraded: !!cardGradeLabel(card), value: val, threshold: 50 });
                         return (
                           <HoloFoil
                             active={foilOn}
@@ -858,9 +866,9 @@ const Collection = () => {
                       >
                         {card.category || "Trading Card"}
                       </span>
-                      {card.condition_grade ? (
+                      {cardGradeLabel(card) ? (
                         <div className="absolute bottom-1.5 left-1.5 z-10">
-                          <FoilBadge label={`${card.condition_grade}`} />
+                          <FoilBadge label={`${cardGradeLabel(card)}`} />
                         </div>
                       ) : cardValue(card) >= 50 ? (
                         <div className="absolute bottom-1.5 left-1.5 z-10">
