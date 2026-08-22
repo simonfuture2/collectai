@@ -46,6 +46,9 @@ interface Card {
   grading_company?: string | null;
   grade_numeric?: number | string | null;
   ebay_recent_sales?: unknown;
+}
+
+
 
 
 const CATEGORY_COLORS: Record<string, string> = {
