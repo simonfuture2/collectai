@@ -43,7 +43,10 @@ interface Card {
   estimated_value_low: number | null;
   estimated_value_high: number | null;
   authentiseal_serial: string | null;
-}
+  grading_company?: string | null;
+  grade_numeric?: number | string | null;
+  ebay_recent_sales?: unknown;
+
 
 const CATEGORY_COLORS: Record<string, string> = {
   "Trading Card": "bg-primary/15 text-primary border-primary/30",
