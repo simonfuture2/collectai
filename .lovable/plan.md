@@ -1,27 +1,26 @@
-## 1. Persistent "Already verified" indicator on slab cert
+# Fix: paired graded cards show raw value in Collection
 
-Today `AuthenticatedProfile.tsx` holds verification result only in local state (`verifyUrl`, `reachable`), so it disappears on reload and the button always reads "Verify slab cert".
+## What's actually wrong
 
-Changes (presentation + a small record write, no pipeline changes):
+For the BGS 8 Snorlax slab, the stored value columns on the card row are $7.83–$12.38, while its own recent eBay graded comps average $220. The card detail page hides this because it re-resolves the graded value at render time (graded tier value → eBay graded average → stored range). The Collection page does not: it reads the stored value columns directly, so the slab shows ~$10, and the portfolio total, sorting, and CSV export inherit the same wrong number.
 
-- On a successful `verify-slab-cert` call, persist the result on the card's `authentication_data` JSON: `cert_verified_at` (timestamp), `cert_verify_url`, `cert_verified_company`, `cert_verified_number`. Written with a normal authenticated update to `public.cards` (owner RLS already allows it). No schema change.
-- On render, if `authentication_data.cert_verified_at` exists **and** the stored company/cert match the current card values, show:
-  - a green "Verified" chip in the Authenticated Profile header (`BadgeCheck`, emerald), with the verified date on hover/subtext,
-  - the action button relabelled "Re-verify cert" (secondary style) instead of the primary "Verify slab cert",
-  - the "Open on {company}" link shown immediately from the stored `cert_verify_url`, without requiring a fresh verify call.
-- If the stored cert number no longer matches (cert edited or re-scanned), the badge is suppressed and the primary "Verify slab cert" button returns.
-- Keep the existing amber "couldn't auto-verify" copy for `reachable === false`.
+The Collection tile also labels grade from `condition_grade` only, so a scanned slab can show a text grade (or nothing) instead of a clear "BGS 8 / Graded" marker.
 
-## 2. Graded market value in AI vs Reality
+## Fix
 
-`AIAccuracyCard` receives `actualValueMid` from the raw `estimated_value_low/high` DB columns, which is the number that can disagree with the graded headline (the hero already resolves a separate `valueAtConfirmedGrade`).
+1. Persist the graded value, so every screen agrees
+   - When a slab is confirmed (scan-slab / pair-cards / enrich-card completion), write the resolved graded value into the card's stored value range instead of leaving the collapsed raw range.
+   - One-time backfill for existing confirmed slabs whose stored range is far below their graded comps (the Snorlax case), using the same precedence already used on the detail page.
 
-- Lift the graded-value resolution in `CardDetail.tsx` out of the hero IIFE (or compute it once above) so both the hero and `AIAccuracyCard` consume the same figure, using the existing precedence: `gradedValueEstimates[company].valueAtGrade` → eBay graded average (`ebayRecentSales.averagePrice`) → eBay graded low/high midpoint → stored DB range.
-- Pass that resolved value as `actualValueMid` for confirmed slabs; non-graded cards keep the current DB-column behaviour.
-- In `AIAccuracyCard.tsx`, label the figure with its source when a confirmed grade exists — e.g. "Graded market · BGS 8" plus a small caption "based on recent eBay sold comps" — so it visibly ties to the same comps as the rest of the page. The "% vs AI" delta recalculates from the corrected value automatically.
+2. Shared resolution helper
+   - Extract the detail page's slab-value precedence into a small shared helper and use it in both places, so there is one rule: grader-tier value at grade → eBay graded average → eBay low/high midpoint → stored range.
+
+3. Collection presentation
+   - Include the grading fields already needed and show a "Graded · BGS 8" badge on the tile/row for confirmed slabs (falling back to `condition_grade` for non-slabs).
+   - Value shown on the tile, in the list row, in the portfolio total, in value sorting, and in CSV export all use the resolved graded value.
 
 ## Technical notes
 
-- Files touched: `src/components/AuthenticatedProfile.tsx`, `src/components/AIAccuracyCard.tsx`, `src/pages/CardDetail.tsx`.
-- No changes to `analysisEngine.ts`, `enrich-card`, pricing logic, or Stripe.
-- The recent preview error ("failed to fetch dynamically imported module CardDetail.tsx") is a stale HMR chunk; it will be confirmed cleared after the edits.
+- Files: `src/pages/Collection.tsx`, `src/pages/CardDetail.tsx`, new `src/lib/cardValue.ts` (shared helper), `supabase/functions/pair-cards/index.ts` and `supabase/functions/enrich-card/index.ts` for the persisted write, plus one data backfill for existing confirmed slabs.
+- No changes to the identification pipeline, `analysisEngine.ts` scoring, pricing sources, or Stripe.
+- Backfill only raises values where a confirmed grade exists and graded comps clearly contradict the stored range; nothing else is touched.
