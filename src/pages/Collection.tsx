@@ -225,7 +225,7 @@ const Collection = () => {
     const rows = filtered.filter((c) => selectedIds.size === 0 || selectedIds.has(c.id));
     const header = "Name,Set,Year,Category,Rarity,Grade,Est. Value\n";
     const csv = header + rows.map((c) =>
-      `"${c.card_name || ""}","${c.card_set || ""}","${c.card_year || ""}","${c.category || ""}","${c.rarity || ""}","${c.condition_grade || ""}","$${(((c.estimated_value_low || 0) + (c.estimated_value_high || 0)) / 2).toFixed(0)}"`
+      `"${c.card_name || ""}","${c.card_set || ""}","${c.card_year || ""}","${c.category || ""}","${c.rarity || ""}","${c.condition_grade || ""}","$${resolveCardValue(c).value.toFixed(0)}"`
     ).join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
@@ -306,10 +306,10 @@ const Collection = () => {
         list.reverse();
         break;
       case "value-high":
-        list.sort((a, b) => ((b.estimated_value_high || 0) - (a.estimated_value_high || 0)));
+        list.sort((a, b) => resolveCardValue(b).value - resolveCardValue(a).value);
         break;
       case "value-low":
-        list.sort((a, b) => ((a.estimated_value_low || 0) - (b.estimated_value_low || 0)));
+        list.sort((a, b) => resolveCardValue(a).value - resolveCardValue(b).value);
         break;
       case "name":
         list.sort((a, b) => (a.card_name || "").localeCompare(b.card_name || ""));
@@ -332,7 +332,7 @@ const Collection = () => {
   const hasMore = visibleCount < filtered.length;
 
   const totalValue = filtered.reduce(
-    (sum, c) => sum + ((c.estimated_value_low || 0) + (c.estimated_value_high || 0)) / 2,
+    (sum, c) => sum + resolveCardValue(c).value,
     0
   );
 
