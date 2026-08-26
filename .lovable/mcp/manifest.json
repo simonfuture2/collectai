@@ -1,0 +1,131 @@
+{
+  "version": 1,
+  "sdk_version": "0.28.0",
+  "path": "/functions/v1/mcp",
+  "auth": {
+    "type": "oauth",
+    "issuer": "https://irncxwszrawrndsdaqel.supabase.co/auth/v1",
+    "accepted_audiences": [
+      "authenticated"
+    ]
+  },
+  "mcp": {
+    "server": {
+      "name": "collector-s-insight",
+      "version": "0.1.0",
+      "title": "Collector's Insight"
+    },
+    "tools": [
+      {
+        "name": "collection_summary",
+        "title": "Collection summary",
+        "description": "Summarize the signed-in collector's MyCollectAI portfolio: card count, estimated total value, graded/authenticated counts and a category breakdown.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {}
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_cards",
+        "title": "List collection cards",
+        "description": "List cards in the signed-in collector's MyCollectAI collection, optionally filtered by name/set text or category.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "search": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Text to match against card name or set."
+            },
+            "category": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Category filter, e.g. Pokémon or Sports."
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 25,
+              "description": "Maximum number of cards to return."
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "get_card",
+        "title": "Get card details",
+        "description": "Fetch full details for one card in the signed-in collector's collection, including AI analysis, grading info and market comps.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "card_id": {
+              "type": "string",
+              "format": "uuid",
+              "description": "The card's id."
+            }
+          },
+          "required": [
+            "card_id"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "update_card_notes",
+        "title": "Update card notes",
+        "description": "Set the personal notes on one card in the signed-in collector's collection.",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "card_id": {
+              "type": "string",
+              "format": "uuid",
+              "description": "The card's id."
+            },
+            "notes": {
+              "type": "string",
+              "maxLength": 2000,
+              "description": "New notes text. Pass an empty string to clear the notes."
+            }
+          },
+          "required": [
+            "card_id",
+            "notes"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      }
+    ]
+  }
+}

@@ -31,6 +31,10 @@ const Auth = () => {
     }
   }, [searchParams]);
 
+  // Where to land after auth: a validated same-origin relative path, else /dashboard.
+  const rawNext = searchParams.get("next");
+  const nextPath = rawNext && rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/dashboard";
+
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (session?.user) {
@@ -46,14 +50,14 @@ const Auth = () => {
             }, 0);
           }
         }
-        navigate("/dashboard");
+        navigate(nextPath);
       }
     });
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) navigate("/dashboard");
+      if (session?.user) navigate(nextPath);
     });
     return () => subscription.unsubscribe();
-  }, [navigate]);
+  }, [navigate, nextPath]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -74,7 +78,7 @@ const Auth = () => {
         const { error } = await supabase.auth.signUp({
           email,
           password,
-          options: { emailRedirectTo: `${window.location.origin}/dashboard` },
+          options: { emailRedirectTo: `${window.location.origin}${nextPath}` },
         });
         if (error) throw error;
         toast({ title: "Account created!", description: "Check your email to confirm your account." });
@@ -159,7 +163,7 @@ const Auth = () => {
                   onClick={async () => {
                     setLoading(true);
                     const { error } = await lovable.auth.signInWithOAuth("google", {
-                      redirect_uri: window.location.origin,
+                      redirect_uri: `${window.location.origin}/auth?next=${encodeURIComponent(nextPath)}`,
                     });
                     if (error) {
                       toast({ title: "Error", description: String(error), variant: "destructive" });

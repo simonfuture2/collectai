@@ -43,6 +43,7 @@ const DesignDemo = lazy(() => import("./pages/DesignDemo"));
 const ScanReveal = lazy(() => import("./pages/ScanReveal"));
 const GradingGuides = lazy(() => import("./pages/GradingGuides"));
 const GradingGuide = lazy(() => import("./pages/GradingGuide"));
+const OAuthConsent = lazy(() => import("./pages/OAuthConsent"));
 
 const queryClient = new QueryClient();
 
@@ -147,6 +148,7 @@ const App = () => (
               <Route path="/design-demo" element={<DesignDemo />} />
               <Route path="/grading" element={<GradingGuides />} />
               <Route path="/grading/:slug" element={<GradingGuide />} />
+              <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>
