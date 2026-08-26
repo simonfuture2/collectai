@@ -2,8 +2,9 @@ export const BETA_OFFER = {
   price: 6.99,
   standard_price: 14.99,
   months: 12,
+  trial_days: 90,
   label: "Beta Founder price",
-  note: "First 12 months, then $14.99/mo. Keep Pro active to keep the discount.",
+  note: "Free for 90 days, then $6.99/mo for 12 months (then $14.99/mo). Keep Pro active to keep the discount.",
 } as const;
 
 export const STRIPE_CONFIG = {
