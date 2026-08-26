@@ -98,8 +98,8 @@ const Pricing = () => {
             </p>
             <p className="text-sm text-muted-foreground mt-1">
               {betaActive
-                ? `You have full Pro access for ${betaDaysLeft} more day${betaDaysLeft === 1 ? "" : "s"}. `
-                : "Your beta trial has ended. "}
+                ? `You have full Pro access free for ${betaDaysLeft} more day${betaDaysLeft === 1 ? "" : "s"}. `
+                : `Your ${BETA_OFFER.trial_days}-day free trial has ended. `}
               Lock in <span className="font-semibold text-foreground">${BETA_OFFER.price}/mo</span> (50% off) for your first {BETA_OFFER.months} months — as long as you keep Pro active.
             </p>
           </div>
