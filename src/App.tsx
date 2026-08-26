@@ -148,6 +148,7 @@ const App = () => (
               <Route path="/design-demo" element={<DesignDemo />} />
               <Route path="/grading" element={<GradingGuides />} />
               <Route path="/grading/:slug" element={<GradingGuide />} />
+              <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>
