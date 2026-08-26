@@ -31,6 +31,10 @@ const Auth = () => {
     }
   }, [searchParams]);
 
+  // Where to land after auth: a validated same-origin relative path, else /dashboard.
+  const rawNext = searchParams.get("next");
+  const nextPath = rawNext && rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/dashboard";
+
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (session?.user) {
@@ -46,14 +50,14 @@ const Auth = () => {
             }, 0);
           }
         }
-        navigate("/dashboard");
+        navigate(nextPath);
       }
     });
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) navigate("/dashboard");
+      if (session?.user) navigate(nextPath);
     });
     return () => subscription.unsubscribe();
-  }, [navigate]);
+  }, [navigate, nextPath]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
