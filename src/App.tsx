@@ -43,6 +43,7 @@ const DesignDemo = lazy(() => import("./pages/DesignDemo"));
 const ScanReveal = lazy(() => import("./pages/ScanReveal"));
 const GradingGuides = lazy(() => import("./pages/GradingGuides"));
 const GradingGuide = lazy(() => import("./pages/GradingGuide"));
+const OAuthConsent = lazy(() => import("./pages/OAuthConsent"));
 
 const queryClient = new QueryClient();
 
