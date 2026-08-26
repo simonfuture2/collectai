@@ -44,7 +44,7 @@ export default function BetaPromoBanner() {
         <Sparkles className="w-4 h-4 text-amber-500 shrink-0" />
         <span className="font-semibold">Beta Founder offer</span>
         <span className="text-muted-foreground">
-          — 30 days of full Pro access, then lock in ${BETA_OFFER.price}/mo (50% off) for {BETA_OFFER.months} months.
+          — Free for {BETA_OFFER.trial_days} days of full Pro access, then lock in ${BETA_OFFER.price}/mo (50% off) for {BETA_OFFER.months} months.
           Offer ends September 30, 2026.
         </span>
         <Link
