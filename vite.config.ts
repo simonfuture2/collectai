@@ -2,6 +2,7 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
+import { mcpPlugin } from "@lovable.dev/mcp-js/stacks/supabase/vite";
 
 // Note: vite-plugin-pwa was removed. A previously generated app service worker
 // at /sw.js was caching old chunk hashes and producing "Importing a module
