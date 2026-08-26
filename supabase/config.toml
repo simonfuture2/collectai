@@ -65,3 +65,6 @@ verify_jwt = true
 
 [functions.pricecharting-sync]
 verify_jwt = false
+
+[functions.mcp]
+verify_jwt = false
