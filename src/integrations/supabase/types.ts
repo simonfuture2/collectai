@@ -140,6 +140,7 @@ export type Database = {
           analysis_error: string | null
           analysis_started_at: string | null
           analysis_status: string
+          asking_price: number | null
           authenticated_at: string | null
           authentication_data: Json | null
           authentiseal_serial: string | null
@@ -158,14 +159,17 @@ export type Database = {
           grading_company: string | null
           id: string
           image_url: string
+          insight_event: string | null
           is_authenticated: boolean
           is_listed: boolean
           is_public: boolean
           last_scanned_at: string | null
+          moved_to_collection_at: string | null
           notes: string | null
           paired_raw_card_id: string | null
           psa_population_data: Json | null
           rarity: string | null
+          scan_purpose: string
           special_features: string[] | null
           superseded_by_card_id: string | null
           tcgplayer_price: Json | null
@@ -178,6 +182,7 @@ export type Database = {
           analysis_error?: string | null
           analysis_started_at?: string | null
           analysis_status?: string
+          asking_price?: number | null
           authenticated_at?: string | null
           authentication_data?: Json | null
           authentiseal_serial?: string | null
@@ -196,14 +201,17 @@ export type Database = {
           grading_company?: string | null
           id?: string
           image_url: string
+          insight_event?: string | null
           is_authenticated?: boolean
           is_listed?: boolean
           is_public?: boolean
           last_scanned_at?: string | null
+          moved_to_collection_at?: string | null
           notes?: string | null
           paired_raw_card_id?: string | null
           psa_population_data?: Json | null
           rarity?: string | null
+          scan_purpose?: string
           special_features?: string[] | null
           superseded_by_card_id?: string | null
           tcgplayer_price?: Json | null
@@ -216,6 +224,7 @@ export type Database = {
           analysis_error?: string | null
           analysis_started_at?: string | null
           analysis_status?: string
+          asking_price?: number | null
           authenticated_at?: string | null
           authentication_data?: Json | null
           authentiseal_serial?: string | null
@@ -234,14 +243,17 @@ export type Database = {
           grading_company?: string | null
           id?: string
           image_url?: string
+          insight_event?: string | null
           is_authenticated?: boolean
           is_listed?: boolean
           is_public?: boolean
           last_scanned_at?: string | null
+          moved_to_collection_at?: string | null
           notes?: string | null
           paired_raw_card_id?: string | null
           psa_population_data?: Json | null
           rarity?: string | null
+          scan_purpose?: string
           special_features?: string[] | null
           superseded_by_card_id?: string | null
           tcgplayer_price?: Json | null
