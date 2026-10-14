@@ -64,21 +64,6 @@ async function checkDailyBudget(): Promise<{ allowed: boolean; remaining: number
 
 
 // Retry helper with exponential backoff for 429/529 errors
-async function fetchWithRetry(
-  url: string,
-  options: RequestInit,
-  maxRetries = 3
-): Promise<Response> {
-  for (let attempt = 0; attempt < maxRetries; attempt++) {
-    const response = await fetch(url, options);
-    if (response.status !== 429 && response.status !== 529) return response;
-    const delay = Math.pow(2, attempt + 1) * 1000; // 2s, 4s, 8s
-    console.warn(`API returned ${response.status}, retrying in ${delay}ms (attempt ${attempt + 1}/${maxRetries})`);
-    await new Promise((r) => setTimeout(r, delay));
-  }
-  // Final attempt without retry
-  return fetch(url, options);
-}
 
 // Helper: extract dollar amounts from text, filtering noise
 function extractPrices(text: string): number[] {
