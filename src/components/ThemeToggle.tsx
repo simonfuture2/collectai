@@ -4,21 +4,16 @@ import { useEffect, useState } from "react";
 
 const ThemeToggle = () => {
   const [dark, setDark] = useState(() => {
-    if (typeof window === "undefined") return true;
-    const stored = localStorage.getItem("theme");
-    if (stored) return stored === "dark";
-    // default to dark to preserve the premium look on first visit
-    return true;
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem("theme") === "dark";
   });
 
   useEffect(() => {
     const root = document.documentElement;
-    if (dark) {
-      root.classList.add("dark");
-    } else {
-      root.classList.remove("dark");
-    }
+    root.classList.toggle("dark", dark);
     localStorage.setItem("theme", dark ? "dark" : "light");
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute("content", dark ? "#0a0a0a" : "#ffffff");
   }, [dark]);
 
   return (

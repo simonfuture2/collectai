@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -41,12 +41,6 @@ const FreeGuide = () => {
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
 
-  useEffect(() => {
-    // Default to light theme if no preference stored
-    if (!localStorage.getItem("theme")) {
-      document.documentElement.classList.remove("dark");
-    }
-  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
