@@ -66,11 +66,12 @@ serve(async (req) => {
 
     const { data: creditsData } = await supabaseAdmin
       .from("user_credits")
-      .select("credits, plan")
+      .select("credits, plan, beta_access_until")
       .eq("user_id", user.id)
       .single();
 
-    const isPro = creditsData?.plan === "pro";
+    const betaUntil = (creditsData as any)?.beta_access_until;
+    const isPro = creditsData?.plan === "pro" || (!!betaUntil && new Date(betaUntil).getTime() > Date.now());
     const hasCredits = (creditsData?.credits ?? 0) > 0;
 
     if (!isPro && !hasCredits) {
