@@ -33,7 +33,10 @@ const PROMPT = `This is a photo of a sealed trading card product. Read the packa
   "product_kind": "booster pack"|"booster box"|"elite trainer box"|"booster bundle"|"collection box"|"tin"|"blister"|"hobby box"|"blaster box"|"mega box"|"case"|"other",
   "language": "english"|"japanese"|"other", "printed_name": string (the exact product name as printed), "confidence": "high"|"medium"|"low" }`;
 
-export const SEALED_RE = /booster|box|pack|elite trainer|bundle|collection|tin|blister|display|case|starter|deck|build & battle|sleeved|code card/i;
+const SEALED_WORDS = /\b(booster|box|pack|elite trainer|bundle|collection|tin|blister|display|case|starter|deck|build & battle|sleeved|code card)\b/i;
+// Single cards carry a card number ("#94", "OP01-025"); sealed products never do.
+const HAS_NUMBER = /#\s*[A-Za-z0-9]+|\b[A-Z]{2,4}\d{2}-\d{3}\b/;
+export const SEALED_RE = { test: (name: string) => !HAS_NUMBER.test(name) && SEALED_WORDS.test(name) };
 
 const CATEGORY: Record<string, string> = {
   pokemon: "pokemon-cards", "one-piece": "onepiece-cards", magic: "magic-cards", yugioh: "yugioh-cards",
@@ -121,6 +124,7 @@ export function kindScore(name: string, kind: string): number {
   if (kind === "booster pack" && /\bpack\b/.test(n) && !/box|bundle/.test(n)) s += 10;
   if (kind === "booster box" && /booster box|display/.test(n)) s += 10;
   if (kind === "elite trainer box" && /elite trainer/.test(n)) s += 20;
+  if (/\[/.test(n)) s -= 5; // prefer the standard product over bracketed variants ("[Blue Bottom]")
   return s;
 }
 
