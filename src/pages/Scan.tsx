@@ -169,8 +169,8 @@ const Scan = () => {
     setAnalyzing(true);
     setScanDone(false);
     try {
-      const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
-      if (refreshError) throw refreshError;
+      // A failed refresh shouldn't block the scan when the current token is still valid.
+      const { data: { session: refreshedSession } } = await supabase.auth.refreshSession().catch(() => ({ data: { session: null } } as any));
 
       const accessTokenFresh = refreshedSession?.access_token ?? session?.access_token;
       if (!accessTokenFresh) throw new Error("You must be logged in to analyze.");
