@@ -11,7 +11,7 @@ interface CollectAILinkProps {
 const config: Record<LinkAction, { icon: typeof Sparkles; label: string; desc: string; href: string }> = {
   grade: {
     icon: Sparkles,
-    label: "AI Grading",
+    label: "SI Grading",
     desc: "Get professional-level condition grading",
     href: "https://collectai.lovable.app/scan",
   },

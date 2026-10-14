@@ -72,7 +72,7 @@ const EcosystemBadge = ({ type, variant = "inline", className = "" }: EcosystemB
         <span className="text-sm font-semibold text-primary">CollectAI</span>
       </div>
       <p className="text-xs text-muted-foreground">
-        AI-powered card grading, identification, and market pricing
+        SI-powered card grading, identification, and market pricing
       </p>
     </a>
   );

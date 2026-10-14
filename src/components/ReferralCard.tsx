@@ -51,7 +51,7 @@ const ReferralCard = ({ userId }: ReferralCardProps) => {
       try {
         await navigator.share({
           title: "Join MyCollectAI",
-          text: "Scan and grade your trading cards with AI! Use my referral link to get started:",
+          text: "Scan and grade your trading cards with SI! Use my referral link to get started:",
           url: referralLink,
         });
       } catch {

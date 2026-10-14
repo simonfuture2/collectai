@@ -13,7 +13,7 @@ export const GRADING_GUIDES: GradingGuide[] = [
     slug: "tag",
     name: "TAG Grading",
     blurb:
-      "Fully automated, AI-driven grading with a 1,000-point precision scale and per-subgrade transparency.",
+      "Fully automated, SI-driven grading with a 1,000-point precision scale and per-subgrade transparency.",
     status: "live",
     partnerBadge: false,
   },

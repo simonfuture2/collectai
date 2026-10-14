@@ -6,7 +6,7 @@ export default defineTool({
   name: "get_card",
   title: "Get card details",
   description:
-    "Fetch full details for one card in the signed-in collector's collection, including AI analysis, grading info and market comps.",
+    "Fetch full details for one card in the signed-in collector's collection, including SI analysis, grading info and market comps.",
   inputSchema: {
     card_id: z.string().uuid().describe("The card's id."),
   },

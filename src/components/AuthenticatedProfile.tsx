@@ -131,7 +131,7 @@ export default function AuthenticatedProfile({ card, onUpdated }: Props) {
           <h3 className="font-display font-bold">Authenticated Profile</h3>
         </div>
         <p className="text-sm text-muted-foreground mb-3">
-          Got this card graded? Scan a photo of the slab and we'll read the real grade off the label, refresh market comps for that grade, and score how close the AI pre-grade was.
+          Got this card graded? Scan a photo of the slab and we'll read the real grade off the label, refresh market comps for that grade, and score how close the SI pre-grade was.
         </p>
         <div className="flex flex-wrap gap-2">
           <Button size="sm" onClick={openSlabPicker} disabled={scanning} className="gradient-primary">

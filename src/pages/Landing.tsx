@@ -32,7 +32,7 @@ const ALSO = ["Graded slabs (PSA · BGS · CGC · SGC · TAG)", "Sealed boxes & 
 const FAQS = [
   { q: "Which cards can I scan?", a: "Every major trading card game, including Pokémon, One Piece, Magic: The Gathering, Yu-Gi-Oh! and Lorcana, plus baseball, basketball, football, hockey and soccer cards. Graded slabs and most collectibles that sell online work too." },
   { q: "Where do the prices come from?", a: "Recent sold listings from eBay, plus TCGplayer and PriceCharting market data. We show how many comps were used and how confident the estimate is." },
-  { q: "Is the grade official?", a: "No. It's an AI pre-grade to help you decide whether to submit a card. Official grades come from PSA, BGS, CGC, SGC or TAG." },
+  { q: "Is the grade official?", a: "No. It's an SI pre-grade to help you decide whether to submit a card. Official grades come from PSA, BGS, CGC, SGC or TAG." },
   { q: "Do I need an account?", a: "Not to try it. The demo gives you 3 free scans a day. A free account saves your cards and gives you 3 full scans with graded values and trends." },
 ];
 
@@ -62,7 +62,7 @@ const Landing = () => {
   return (
     <div className="min-h-screen bg-background">
       <SEO
-        title="MyCollectAI – AI Card Scanner for Pokémon, One Piece, Sports Cards & More"
+        title="MyCollectAI – SI Card Scanner for Pokémon, One Piece, Sports Cards & More"
         description="Scan any trading card – Pokémon, One Piece, Magic, Yu-Gi-Oh!, Lorcana or sports – and get the card, condition and value from real sold comps in seconds. Try it free."
         path="/"
         jsonLd={[
@@ -195,7 +195,7 @@ const Landing = () => {
           <div className="grid md:grid-cols-3 gap-6">
             {[
               { icon: ScanLine, t: "Snap the front (and back)", d: "Raw card or slab. Phone photo is fine." },
-              { icon: Search, t: "AI identifies the exact card", d: "Set, number, year, parallel and variant – not just the name." },
+              { icon: Search, t: "SI identifies the exact card", d: "Set, number, year, parallel and variant – not just the name." },
               { icon: DollarSign, t: "Get the real price", d: "Priced from recent sold listings, with a raw value and graded values for PSA 9 and PSA 10." },
             ].map((s, i) => (
               <motion.div key={s.t} variants={fadeUp} className="p-6 rounded-2xl bg-card border border-border">
@@ -223,7 +223,7 @@ const Landing = () => {
               {[
                 { icon: TrendingUp, t: "Value from sold comps", d: "A price range with a confidence score, based on what the card actually sold for." },
                 { icon: Award, t: "Should you grade it?", d: "See what it's worth graded and whether grading fees pay off." },
-                { icon: Microscope, t: "Condition check", d: "AI pre-grade with centering, corners, edges and surface, and the flaws that limit the grade." },
+                { icon: Microscope, t: "Condition check", d: "SI pre-grade with centering, corners, edges and surface, and the flaws that limit the grade." },
                 { icon: LineChart, t: "Price trend", d: "30- and 90-day movement so you know when to sell or hold." },
               ].map((f) => (
                 <div key={f.t} className="p-5 rounded-2xl bg-card border border-border">
@@ -308,7 +308,7 @@ const Landing = () => {
               <h3 className="text-xl font-display font-bold mb-2">Free</h3>
               <p className="text-3xl font-display font-bold mb-4">$0</p>
               <ul className="space-y-2 mb-6 text-sm">
-                {["3 full AI scans", "Card ID, condition and value", "Collection tracking"].map((f) => (
+                {["3 full SI scans", "Card ID, condition and value", "Collection tracking"].map((f) => (
                   <li key={f} className="flex items-center gap-2"><Check className="w-4 h-4 text-primary" />{f}</li>
                 ))}
               </ul>
@@ -319,7 +319,7 @@ const Landing = () => {
               <h3 className="text-xl font-display font-bold mb-2 flex items-center gap-2"><Crown className="w-5 h-5 text-primary" /> Pro</h3>
               <p className="text-3xl font-display font-bold mb-4">$14.99<span className="text-base font-normal text-muted-foreground">/mo</span></p>
               <ul className="space-y-2 mb-6 text-sm">
-                {["Unlimited AI Scans", "Portfolio Analytics", "AuthentiSeal Certificates", "Pre-Grading Analysis"].map((f) => (
+                {["Unlimited SI Scans", "Portfolio Analytics", "AuthentiSeal Certificates", "Pre-Grading Analysis"].map((f) => (
                   <li key={f} className="flex items-center gap-2"><Check className="w-4 h-4 text-primary" />{f}</li>
                 ))}
               </ul>
@@ -339,9 +339,9 @@ const Landing = () => {
           </div>
         </motion.section>
 
-        {/* AI disclosure (compact) */}
+        {/* SI disclosure (compact) */}
         <div className="mt-12 max-w-2xl mx-auto text-center text-xs text-muted-foreground px-4">
-          <strong className="text-foreground">About AI estimates:</strong> MyCollectAI uses artificial intelligence to provide estimated card grades and valuations. These are <strong className="text-foreground">not professional appraisals, certified grades, or financial advice</strong>. AI features are continuously improving and currently in beta. For high-value cards, we recommend professional grading services.
+          <strong className="text-foreground">About SI estimates:</strong> MyCollectAI uses super intelligence to provide estimated card grades and valuations. These are <strong className="text-foreground">not professional appraisals, certified grades, or financial advice</strong>. SI features are continuously improving and currently in beta. For high-value cards, we recommend professional grading services.
         </div>
       </main>
 

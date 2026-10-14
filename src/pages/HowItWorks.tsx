@@ -77,7 +77,7 @@ const steps = [
   },
   {
     number: 3,
-    title: "AI Analyzes Your Card",
+    title: "SI Analyzes Your Card",
     icon: Brain,
     color: "from-secondary/40 to-secondary/10",
     iconBg: "bg-secondary text-secondary-foreground",
@@ -87,7 +87,7 @@ const steps = [
       <div className="rounded-xl border border-border bg-card p-5 space-y-3">
         <div className="flex items-center gap-2 mb-2">
           <Focus className="w-4 h-4 text-primary" />
-          <span className="text-xs font-semibold text-foreground">AI Analysis in Progress</span>
+          <span className="text-xs font-semibold text-foreground">SI Analysis in Progress</span>
         </div>
         {[
           { label: "Centering", value: 92 },
@@ -183,12 +183,12 @@ const tips = [
   {
     icon: Sun,
     title: "Use Good Lighting",
-    description: "Natural or bright diffused light reveals surface details the AI needs for an accurate grade.",
+    description: "Natural or bright diffused light reveals surface details the SI needs for an accurate grade.",
   },
   {
     icon: RotateCcw,
     title: "Try Multiple Angles",
-    description: "Capture both front and back. Different angles help the AI detect edge wear and corner softness.",
+    description: "Capture both front and back. Different angles help the SI detect edge wear and corner softness.",
   },
   {
     icon: Layers,
@@ -201,8 +201,8 @@ const HowItWorks = () => {
   return (
     <LegalPageLayout title="How It Works" lastUpdated="June 2025">
       <SEO
-        title="How MyCollectAI Works – AI Card Grading in 5 Steps"
-        description="From snap to seal in five steps: scan, AI grade, identify, value, and verify your trading cards with MyCollectAI."
+        title="How MyCollectAI Works – SI Card Grading in 5 Steps"
+        description="From snap to seal in five steps: scan, SI grade, identify, value, and verify your trading cards with MyCollectAI."
         path="/how-it-works"
       />
       <div className="text-center mb-12 -mt-2">
@@ -210,7 +210,7 @@ const HowItWorks = () => {
           How MyCollectAI Works
         </h2>
         <p className="text-muted-foreground max-w-xl mx-auto">
-          From snap to seal in five simple steps. Here's how our AI-powered platform helps you
+          From snap to seal in five simple steps. Here's how our SI-powered platform helps you
           identify, grade, and authenticate your cards.
         </p>
       </div>

@@ -196,7 +196,7 @@ const Scan = () => {
       refreshCredits();
       toast({
         title: data.duplicate ? "Card already in collection" : isInsight ? "Getting insights" : "Card uploaded!",
-        description: data.duplicate ? undefined : "AI is identifying and pricing in the background.",
+        description: data.duplicate ? undefined : "SI is identifying and pricing in the background.",
       });
       navigate(data.duplicate ? `/card/${data.cardId}` : `/scan/reveal/${data.cardId}`);
     } catch (error: any) {
@@ -209,8 +209,8 @@ const Scan = () => {
   return (
     <div className="min-h-screen bg-background">
       <SEO
-        title="Scan a Card – AI Grading & Value | MyCollectAI"
-        description="Upload card photos to get instant AI identification, condition grading, and live market value estimates."
+        title="Scan a Card – SI Grading & Value | MyCollectAI"
+        description="Upload card photos to get instant SI identification, condition grading, and live market value estimates."
         path="/scan"
         noIndex
       />
@@ -323,7 +323,7 @@ const Scan = () => {
                     <div>
                       <p className="text-sm font-semibold text-foreground">Front-only image detected</p>
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        Our AI can identify and price your card from the front alone. For the most accurate grading and condition analysis, add a back photo too.
+                        Our SI can identify and price your card from the front alone. For the most accurate grading and condition analysis, add a back photo too.
                       </p>
                     </div>
                   </div>
@@ -393,7 +393,7 @@ const Scan = () => {
           </div>
         )}
       </main>
-      <UpgradeModal open={showUpgrade} onOpenChange={setShowUpgrade} feature="AI card scanning" />
+      <UpgradeModal open={showUpgrade} onOpenChange={setShowUpgrade} feature="SI card scanning" />
       <Footer />
     </div>
   );

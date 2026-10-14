@@ -87,7 +87,7 @@ export function AIAnalysisCard({ analysis }: AIAnalysisCardProps) {
             />
           </span>
           <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-            AI Analysis
+            SI Analysis
           </span>
         </div>
         <span className="text-[10px] font-medium uppercase tracking-wider text-accent/80">

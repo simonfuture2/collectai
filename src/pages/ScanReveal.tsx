@@ -24,7 +24,7 @@ const PENDING_STATUSES = ["pending", "identifying", "pricing", "analyzing", "ver
 const ROTATING_MESSAGES = [
   "Pulling recent sales…",
   "Checking graded comps…",
-  "Running AI analysis…",
+  "Running SI analysis…",
   "Cross-referencing TCGPlayer…",
   "Scanning eBay sold listings…",
 ];
@@ -244,7 +244,7 @@ const ScanReveal = () => {
   const statusLabel =
     status === "identifying" ? "Identifying card…" :
     status === "pricing" ? "Pricing card…" :
-    status === "analyzing" ? "Running AI analysis…" :
+    status === "analyzing" ? "Running SI analysis…" :
     status === "verifying" ? "Verifying details…" :
     undefined;
 
@@ -440,7 +440,7 @@ const ScanReveal = () => {
                       Confidence Score
                     </div>
                     <p className="text-sm text-foreground/90 leading-snug">
-                      AI-verified match against set database, visual hash, and recent comps.
+                      SI-verified match against set database, visual hash, and recent comps.
                     </p>
                     <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
                       <BadgeCheck className="w-3.5 h-3.5 text-primary" />
@@ -533,7 +533,7 @@ const ScanReveal = () => {
           <GradeLadder estimates={card?.ai_analysis?.gradedValueEstimates} rawValue={rawValue} />
         </FadeUp>
 
-        {/* AI Analysis */}
+        {/* SI Analysis */}
         {card?.ai_analysis && (
           <FadeUp delay={0.14}>
             <AIAnalysisCard analysis={card.ai_analysis as any} />

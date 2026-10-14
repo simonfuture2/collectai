@@ -275,7 +275,7 @@ const FreeGuide = () => {
             Ready to Know Your Cards' <span className="text-gradient-primary">True Value</span>?
           </h2>
           <p className="text-muted-foreground mb-8">
-            MyCollectAI instantly identifies, grades, and prices any trading card with AI.
+            MyCollectAI instantly identifies, grades, and prices any trading card with SI.
           </p>
           <Link to="/auth">
             <Button size="lg" className="gradient-primary text-lg px-10 py-7 rounded-xl glow-purple hover-lift">

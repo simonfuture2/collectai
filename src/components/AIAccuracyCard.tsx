@@ -54,7 +54,7 @@ export default function AIAccuracyCard({ accuracy, actualValueMid, gradeLabel, v
     <GlassCard className="p-5 space-y-4 border-primary/20">
       <div className="flex items-center gap-2">
         <Target className="w-5 h-5 text-primary" />
-        <h3 className="font-display font-bold">AI vs Reality</h3>
+        <h3 className="font-display font-bold">SI vs Reality</h3>
         {hasComparison && accuracyScore != null && (
           <span className={`ml-auto text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full ${tone.chip}`}>
             {accuracyScore}% accurate
@@ -64,13 +64,13 @@ export default function AIAccuracyCard({ accuracy, actualValueMid, gradeLabel, v
 
       {!hasComparison ? (
         <p className="text-sm text-muted-foreground">
-          We saved the confirmed slab grade. There wasn't a prior AI pre-grade prediction to score against.
+          We saved the confirmed slab grade. There wasn't a prior SI pre-grade prediction to score against.
         </p>
       ) : (
         <>
           <div className="grid grid-cols-2 gap-3">
             <div className="rounded-xl border border-border/60 p-4">
-              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">AI predicted</p>
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">SI predicted</p>
               <p className="text-3xl font-display font-bold tabular-nums mt-1">
                 {predictedGrade ?? "—"}
               </p>
@@ -113,7 +113,7 @@ export default function AIAccuracyCard({ accuracy, actualValueMid, gradeLabel, v
           {predictedValueMid != null && actualValueMid != null && (
             <div className="grid grid-cols-2 gap-3 pt-2 border-t border-border/60">
               <div>
-                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">AI value estimate</p>
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">SI value estimate</p>
                 <p className="text-lg font-display font-bold tabular-nums">
                   ${Math.round(predictedValueMid).toLocaleString()}
                 </p>
@@ -127,7 +127,7 @@ export default function AIAccuracyCard({ accuracy, actualValueMid, gradeLabel, v
                 </p>
                 {valueDeltaPct != null && (
                   <p className={`text-xs mt-0.5 ${valueDeltaPct >= 0 ? "text-emerald-500" : "text-red-500"}`}>
-                    {valueDeltaPct >= 0 ? "+" : ""}{valueDeltaPct.toFixed(0)}% vs AI
+                    {valueDeltaPct >= 0 ? "+" : ""}{valueDeltaPct.toFixed(0)}% vs SI
                   </p>
                 )}
                 {valueSource && (

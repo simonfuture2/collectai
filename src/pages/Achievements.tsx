@@ -38,7 +38,7 @@ const HOW_TO_UNLOCK: Record<string, { tip: string; cta?: { label: string; to: st
     cta: { label: "Try Pack Rip", to: "/pack-rip" },
   },
   first_holo: {
-    tip: "Scan a card with a holo, foil, refractor, prizm, or reverse-holo finish. Our AI auto-detects the finish.",
+    tip: "Scan a card with a holo, foil, refractor, prizm, or reverse-holo finish. Our SI auto-detects the finish.",
     cta: { label: "Scan a Holo", to: "/scan" },
   },
   hundred_dollar: {
