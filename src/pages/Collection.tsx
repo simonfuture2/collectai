@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { useInsightCount } from "@/hooks/use-insight-count";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -101,6 +102,7 @@ const gradeRank = (g: string | null) => {
 };
 
 const Collection = () => {
+  const insightCount = useInsightCount();
   const [user, setUser] = useState<User | null>(null);
   const [cards, setCards] = useState<Card[]>([]);
   const [loading, setLoading] = useState(true);
@@ -433,7 +435,14 @@ const Collection = () => {
             <Link to="/dashboard">
               <Button variant="ghost" size="icon" aria-label="Go back"><ArrowLeft className="w-5 h-5" /></Button>
             </Link>
-            <h1 className="text-base sm:text-xl font-display font-bold truncate">My Collection</h1>
+            <h1 className="sr-only">My Collection</h1>
+            <div className="grid grid-cols-2 rounded-xl bg-muted p-1">
+              <span className="rounded-lg px-2.5 sm:px-3 py-1.5 text-xs sm:text-sm font-semibold gradient-primary text-white whitespace-nowrap">My Collection</span>
+              <Link to="/insights" className="rounded-lg px-2.5 sm:px-3 py-1.5 text-xs sm:text-sm font-semibold text-muted-foreground hover:text-foreground inline-flex items-center justify-center gap-1.5">
+                Insights
+                {insightCount > 0 && <span className="rounded-full bg-secondary text-secondary-foreground text-[10px] px-1.5 leading-4">{insightCount}</span>}
+              </Link>
+            </div>
           </div>
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             <div className="text-right">

@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from "react";
+import { moveInsightToCollection } from "@/lib/insights";
 
 const safeFixed = (val: unknown, digits = 2): string => {
   const num = typeof val === 'number' ? val : Number(val);
@@ -713,6 +714,7 @@ export default function CardDetail() {
 
   if (!card) return null;
 
+  const isInsight = (card as any).scan_purpose === "insight";
   const analysis = card.ai_analysis as AIAnalysis | null;
   const avgValue = ((card.estimated_value_low || 0) + (card.estimated_value_high || 0)) / 2;
 
@@ -776,7 +778,7 @@ export default function CardDetail() {
             <ArrowLeft className="w-5 h-5" />
           </Button>
           <h1 className="font-display font-bold text-xl truncate flex-1">{card.card_name || "Card Details"}</h1>
-          <Button
+          {!isInsight && <Button
             variant="outline"
             size="sm"
             onClick={async () => {
@@ -788,12 +790,29 @@ export default function CardDetail() {
             }}
           >
             <Share2 className="w-4 h-4 mr-1" /> Share
-          </Button>
+          </Button>}
           <ThemeToggle />
         </div>
       </header>
 
       <main className="container mx-auto px-4 py-8">
+        {isInsight && (
+          <div className="mb-6 flex flex-wrap items-center gap-3 rounded-xl border border-secondary/30 bg-secondary/10 p-4">
+            <p className="flex-1 min-w-[12rem] text-sm font-semibold text-secondary">Insight · not in your collection</p>
+            <Button
+              size="sm"
+              className="bg-secondary text-secondary-foreground hover:bg-secondary/90"
+              onClick={async () => {
+                const { error } = await moveInsightToCollection(card.id);
+                if (error) { toast.error("Couldn't add this card"); return; }
+                setCard((prev) => prev ? ({ ...prev, scan_purpose: "collection", asking_price: null } as any) : prev);
+                toast.success("Added to your collection");
+              }}
+            >
+              Add to Collection
+            </Button>
+          </div>
+        )}
         <AnalysisProgress
           status={(card as any).analysis_status}
           startedAt={(card as any).analysis_started_at}
@@ -920,7 +939,7 @@ export default function CardDetail() {
 
           )}
 
-          <CardPairing card={card as any} onChanged={() => window.location.reload()} />
+          {!isInsight && <CardPairing card={card as any} onChanged={() => window.location.reload()} />}
         </div>
 
 
@@ -1021,13 +1040,13 @@ export default function CardDetail() {
             </Button>
 
             {/* List on Marketplace */}
-            <Button
+            {!isInsight && <Button
               variant="outline"
               className="w-full"
               onClick={() => navigate(`/marketplace/list/${card.id}`)}
             >
               List on Marketplace
-            </Button>
+            </Button>}
 
 
             {/* No Market Data Warning */}
@@ -1324,7 +1343,7 @@ export default function CardDetail() {
               </div>
 
               {/* AuthentiSeal Verification + Create Certificate - Desktop */}
-              <AuthentiSealVerify cardData={{
+              {!isInsight && <AuthentiSealVerify cardData={{
                 name: card.card_name || undefined,
                 category: card.category || undefined,
                 set: card.card_set || undefined,
@@ -1332,7 +1351,7 @@ export default function CardDetail() {
                 condition: card.condition_grade || undefined,
                 valueLow: card.estimated_value_low || undefined,
                 valueHigh: card.estimated_value_high || undefined,
-              }} cardId={id} />
+              }} cardId={id} />}
 
               {/* Ecosystem Badge - Desktop */}
               <div className="flex justify-center">
@@ -1789,7 +1808,7 @@ export default function CardDetail() {
               </div>
 
               {/* AuthentiSeal Verification + Create Certificate - Mobile */}
-              <AuthentiSealVerify cardData={{
+              {!isInsight && <AuthentiSealVerify cardData={{
                 name: card.card_name || undefined,
                 category: card.category || undefined,
                 set: card.card_set || undefined,
@@ -1797,7 +1816,7 @@ export default function CardDetail() {
                 condition: card.condition_grade || undefined,
                 valueLow: card.estimated_value_low || undefined,
                 valueHigh: card.estimated_value_high || undefined,
-              }} cardId={id} />
+              }} cardId={id} />}
 
               {/* Ecosystem Badge - Mobile */}
               <div className="flex justify-center">

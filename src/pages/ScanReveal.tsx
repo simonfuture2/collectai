@@ -6,13 +6,17 @@ import { GlassCard } from "@/components/ui/glass-card";
 import { Value } from "@/components/ui/value";
 import { FadeUp, PressScale } from "@/components/ui/motion";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, ArrowRight, BadgeCheck, Plus, SearchX, ShieldCheck, Sparkles, TrendingUp } from "lucide-react";
+import { ArrowLeft, ArrowRight, BadgeCheck, Camera, ScanSearch, Trash2, SearchX, ShieldCheck, Sparkles, TrendingUp } from "lucide-react";
 import EmptyState from "@/components/EmptyState";
 import { toast } from "sonner";
 import SEO from "@/components/SEO";
 import Footer from "@/components/Footer";
 import GradeLadder from "@/components/GradeLadder";
 import { AIAnalysisCard } from "@/components/AIAnalysisCard";
+import { Input } from "@/components/ui/input";
+import { getSignedImageUrl, deleteCardAndImage } from "@/lib/cardImage";
+import { moveInsightToCollection } from "@/lib/insights";
+import { DealChip, InsightPill } from "@/components/DealChip";
 import { HoloFoil, FoilBadge, shouldFoil } from "@/components/HoloFoil";
 
 const PENDING_STATUSES = ["pending", "identifying", "pricing", "analyzing", "verifying"];
@@ -24,20 +28,6 @@ const ROTATING_MESSAGES = [
   "Cross-referencing TCGPlayer…",
   "Scanning eBay sold listings…",
 ];
-
-const getSignedImageUrl = async (imageUrlOrPath: string) => {
-  if (!imageUrlOrPath) return "";
-  if (!imageUrlOrPath.startsWith("http")) {
-    const { data } = await supabase.storage.from("card-images").createSignedUrl(imageUrlOrPath, 3600);
-    return data?.signedUrl || imageUrlOrPath;
-  }
-  const match = imageUrlOrPath.match(/card-images\/(.+?)(\?|$)/);
-  if (match?.[1]) {
-    const { data } = await supabase.storage.from("card-images").createSignedUrl(match[1], 3600);
-    return data?.signedUrl || imageUrlOrPath;
-  }
-  return imageUrlOrPath;
-};
 
 function confidenceToPct(card: any): { pct: number; label: string } {
   const a = card?.ai_analysis || {};
@@ -266,6 +256,35 @@ const ScanReveal = () => {
   const number = card?.ai_analysis?.cardNumber || card?.ai_analysis?.number;
 
   const topComp = comps[0];
+  const isInsight = card?.scan_purpose === "insight";
+  const [askDraft, setAskDraft] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const saveAsking = async () => {
+    const n = Number(askDraft.replace(/[^0-9.]/g, ""));
+    if (!askDraft.trim() || !Number.isFinite(n) || n < 0) { toast.error("Enter a price like 45 or 45.50"); return; }
+    setCard((c: any) => ({ ...c, asking_price: n }));
+    const { error } = await supabase.from("cards").update({ asking_price: n }).eq("id", cardId!);
+    if (error) toast.error("Couldn't save the asking price");
+  };
+
+  const addToCollection = async () => {
+    setBusy(true);
+    const { error } = await moveInsightToCollection(cardId!);
+    setBusy(false);
+    if (error) { toast.error("Couldn't add this card"); return; }
+    setCard((c: any) => ({ ...c, scan_purpose: "collection", asking_price: null }));
+    toast.success("Added to your collection");
+  };
+
+  const discard = async () => {
+    if (!card) return;
+    setBusy(true);
+    const { error } = await deleteCardAndImage(card);
+    setBusy(false);
+    if (error) { toast.error("Couldn't discard this scan"); return; }
+    navigate("/insights");
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -278,7 +297,7 @@ const ScanReveal = () => {
 
       <header className="border-b border-border-subtle/60 backdrop-blur-md sticky top-0 z-30 bg-background/70">
         <div className="container mx-auto px-4 py-3 flex items-center justify-between">
-          <Link to="/scan">
+          <Link to={isInsight ? "/insights" : "/scan"}>
             <Button variant="ghost" size="icon" aria-label="Back to scan">
               <ArrowLeft className="w-5 h-5" />
             </Button>
@@ -286,7 +305,7 @@ const ScanReveal = () => {
           <div className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
             Scan Result
           </div>
-          <Link to="/scan">
+          <Link to={`/scan?mode=${isInsight ? "insight" : "collection"}`}>
             <Button variant="ghost" size="sm">New Scan</Button>
           </Link>
         </div>
@@ -383,6 +402,7 @@ const ScanReveal = () => {
                   ) : isPending ? (
                     <Shimmer className="h-4 w-1/2" />
                   ) : null}
+                  {isInsight && <div className="pt-1"><InsightPill /></div>}
                 </div>
 
                 <div className="grid grid-cols-3 gap-2 text-[11px]">
@@ -477,6 +497,37 @@ const ScanReveal = () => {
           </GlassCard>
         </FadeUp>
 
+        {isInsight && (
+          <FadeUp delay={0.08}>
+            <GlassCard padding="lg" className="border-secondary/30">
+              <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-secondary mb-3">Deal Check</div>
+              {card?.asking_price != null ? (
+                <div className="flex flex-wrap items-end justify-between gap-4">
+                  <div>
+                    <div className="text-xs text-muted-foreground">Asking price</div>
+                    <div className="text-2xl font-numeric font-bold">${Number(card.asking_price).toFixed(2)}</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-xs text-muted-foreground">Estimated range</div>
+                    {lo > 0 && hi > 0 ? (
+                      <div className="text-lg font-numeric font-semibold">${lo.toFixed(0)} – ${hi.toFixed(0)}</div>
+                    ) : <Shimmer className="h-6 w-28 ml-auto" />}
+                  </div>
+                  {lo > 0 && hi > 0 && <DealChip asking={card.asking_price} low={lo} high={hi} className="text-xs px-3 py-1" />}
+                </div>
+              ) : (
+                <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); saveAsking(); }}>
+                  <div className="relative flex-1">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                    <Input inputMode="decimal" placeholder="Enter asking price" value={askDraft} onChange={(e) => setAskDraft(e.target.value)} className="pl-7" aria-label="Asking price" />
+                  </div>
+                  <Button type="submit" className="bg-secondary text-secondary-foreground hover:bg-secondary/90">Check</Button>
+                </form>
+              )}
+            </GlassCard>
+          </FadeUp>
+        )}
+
         {/* Grade Ladder */}
         <FadeUp delay={0.13}>
           <GradeLadder estimates={card?.ai_analysis?.gradedValueEstimates} rawValue={rawValue} />
@@ -551,20 +602,29 @@ const ScanReveal = () => {
 
         {/* Primary actions */}
         <FadeUp delay={0.2}>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pb-4">
-            <PressScale as="button" className="contents">
+          {isInsight ? (
+            <div className="space-y-3 pb-4">
               <Button
-                onClick={() => {
-                  toast.success("Added to your collection");
-                  navigate("/collection");
-                }}
-                className="w-full gradient-primary text-white font-semibold py-6 text-base rounded-xl shadow-[0_10px_30px_-8px_rgba(245,210,122,0.55)]"
+                onClick={() => navigate("/scan?mode=insight")}
+                className="w-full bg-secondary text-secondary-foreground hover:bg-secondary/90 font-semibold py-6 text-base rounded-xl"
               >
-                <Plus className="w-4 h-4 mr-2" />
+                <ScanSearch className="w-4 h-4 mr-2" /> Scan next card
+              </Button>
+              <Button variant="outline" disabled={busy} onClick={addToCollection} className="w-full py-6 text-base rounded-xl font-semibold">
                 Add to Collection
               </Button>
-            </PressScale>
-            <PressScale as="button" className="contents">
+              <button type="button" disabled={busy} onClick={discard} className="w-full inline-flex items-center justify-center gap-1.5 text-sm text-muted-foreground hover:text-destructive py-2">
+                <Trash2 className="w-4 h-4" /> Discard
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pb-4">
+              <Button
+                onClick={() => navigate("/scan?mode=collection")}
+                className="w-full gradient-primary text-white font-semibold py-6 text-base rounded-xl shadow-[0_10px_30px_-8px_rgba(245,210,122,0.55)]"
+              >
+                <Camera className="w-4 h-4 mr-2" /> Scan another
+              </Button>
               <Button
                 variant="outline"
                 onClick={() => cardId && navigate(`/card/${cardId}`)}
@@ -573,8 +633,8 @@ const ScanReveal = () => {
                 See Full Analysis
                 <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
-            </PressScale>
-          </div>
+            </div>
+          )}
         </FadeUp>
       </main>
 

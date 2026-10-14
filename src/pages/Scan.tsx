@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Upload, Loader2, Check, Sparkles, Plus, X, RotateCcw, Zap } from "lucide-react";
+import { ArrowLeft, Upload, Loader2, Sparkles, Plus, X, Zap, ScanSearch } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import AIDisclaimer from "@/components/AIDisclaimer";
 import ScanTimeline from "@/components/ScanTimeline";
 import Footer from "@/components/Footer";
 import type { Session, User } from "@supabase/supabase-js";
@@ -16,8 +16,12 @@ import UpgradeModal from "@/components/UpgradeModal";
 import ThemeToggle from "@/components/ThemeToggle";
 import SEO from "@/components/SEO";
 import CameraWarmup from "@/components/CameraWarmup";
+import { cn } from "@/lib/utils";
 
 const WARMUP_KEY = "mca-camera-warmup-seen";
+const EVENT_KEY = "mca-insight-event";
+
+type Mode = "collection" | "insight";
 
 interface ImageSlot {
   id: string;
@@ -32,16 +36,23 @@ const DEFAULT_SLOTS: ImageSlot[] = [
 ];
 
 const Scan = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const mode: Mode = searchParams.get("mode") === "insight" ? "insight" : "collection";
+  const isInsight = mode === "insight";
+  const setMode = (m: Mode) => setSearchParams({ mode: m }, { replace: true });
+
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [slots, setSlots] = useState<ImageSlot[]>(DEFAULT_SLOTS);
   const [analyzing, setAnalyzing] = useState(false);
   const [scanDone, setScanDone] = useState(false);
-  const [result, setResult] = useState<any>(null);
-  const [saving, setSaving] = useState(false);
-  const [uploadedFilePaths, setUploadedFilePaths] = useState<string[]>([]);
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [fastScan, setFastScan] = useState(false);
+  const [isSlab, setIsSlab] = useState(false);
+  const [askingPrice, setAskingPrice] = useState("");
+  const [eventName, setEventName] = useState(() => {
+    try { return sessionStorage.getItem(EVENT_KEY) || ""; } catch { return ""; }
+  });
   const [showWarmup, setShowWarmup] = useState(() => {
     if (typeof window === "undefined") return false;
     try { return !localStorage.getItem(WARMUP_KEY); } catch { return false; }
@@ -77,26 +88,18 @@ const Scan = () => {
     const f = e.target.files?.[0];
     if (f) {
       setSlots((prev) =>
-        prev.map((s) =>
-          s.id === slotId ? { ...s, file: f, preview: URL.createObjectURL(f) } : s
-        )
+        prev.map((s) => (s.id === slotId ? { ...s, file: f, preview: URL.createObjectURL(f) } : s))
       );
-      setResult(null);
     }
   };
 
   const removeImage = (slotId: string) => {
-    setSlots((prev) =>
-      prev.map((s) => (s.id === slotId ? { ...s, file: null, preview: null } : s))
-    );
+    setSlots((prev) => prev.map((s) => (s.id === slotId ? { ...s, file: null, preview: null } : s)));
   };
 
   const addSlot = () => {
     const num = slots.length + 1;
-    setSlots((prev) => [
-      ...prev,
-      { id: `extra-${Date.now()}`, label: `View ${num}`, file: null, preview: null },
-    ]);
+    setSlots((prev) => [...prev, { id: `extra-${Date.now()}`, label: `View ${num}`, file: null, preview: null }]);
   };
 
   const removeSlot = (slotId: string) => {
@@ -109,11 +112,9 @@ const Scan = () => {
   const analyzeCard = async () => {
     if (!hasImages) return;
 
-    // If credits state is still loading, refresh and re-check before gating
     let allowed = canScan;
     if (creditsLoading) {
       await refreshCredits();
-      // refreshCredits updates state async; re-derive from latest server call
       const { data: { session: s } } = await supabase.auth.getSession();
       if (s) {
         try {
@@ -128,13 +129,23 @@ const Scan = () => {
       return;
     }
 
+    let asking: number | null = null;
+    if (isInsight && askingPrice.trim()) {
+      const n = Number(askingPrice.replace(/[^0-9.]/g, ""));
+      if (!Number.isFinite(n) || n < 0) {
+        toast({ title: "Check the asking price", description: "Enter a number like 45 or 45.50.", variant: "destructive" });
+        return;
+      }
+      asking = n;
+    }
+    const eventTrimmed = eventName.trim().slice(0, 80);
+    if (isInsight) {
+      try { sessionStorage.setItem(EVENT_KEY, eventTrimmed); } catch {/* ignore */}
+    }
+
     const accessToken = session?.access_token;
     if (!accessToken || !user) {
-      toast({
-        title: "Please sign in",
-        description: "Your session isn't available. Sign in again to analyze cards.",
-        variant: "destructive",
-      });
+      toast({ title: "Please sign in", description: "Your session isn't available. Sign in again to analyze cards.", variant: "destructive" });
       navigate("/auth");
       return;
     }
@@ -148,133 +159,51 @@ const Scan = () => {
       const accessTokenFresh = refreshedSession?.access_token ?? session?.access_token;
       if (!accessTokenFresh) throw new Error("You must be logged in to analyze.");
 
-      // Upload all images and get signed URLs
       const imageEntries: { label: string; url: string; filePath: string }[] = [];
-
       for (const slot of filledSlots) {
         const filePath = `${user.id}/${Date.now()}-${slot.id}-${slot.file!.name}`;
         const { error: uploadError } = await supabase.storage.from("card-images").upload(filePath, slot.file!);
         if (uploadError) throw uploadError;
-
-        const { data: signedUrlData, error: urlError } = await supabase.storage
-          .from("card-images")
-          .createSignedUrl(filePath, 3600);
+        const { data: signedUrlData, error: urlError } = await supabase.storage.from("card-images").createSignedUrl(filePath, 3600);
         if (urlError) throw urlError;
-
-        imageEntries.push({
-          label: slot.label,
-          url: signedUrlData.signedUrl,
-          filePath,
-        });
+        imageEntries.push({ label: slot.label, url: signedUrlData.signedUrl, filePath });
       }
+      const images = imageEntries.map((e) => ({ label: e.label, url: e.url }));
 
-      setUploadedFilePaths(imageEntries.map((e) => e.filePath));
-
-      // Phase 1: identify + save (~5-15s). Full AI analysis runs in background.
       const { data, error } = await supabase.functions.invoke("identify-card", {
         body: {
-          images: imageEntries.map((e) => ({ label: e.label, url: e.url })),
+          images,
           imageUrl: imageEntries[0].url,
           fastScan,
+          scanPurpose: mode,
+          ...(isInsight ? { askingPrice: asking, insightEvent: eventTrimmed || null } : {}),
         },
         headers: { Authorization: `Bearer ${accessTokenFresh}` },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
+      if (!data?.cardId) throw new Error("Scan failed — no card id returned");
+
+      if (isInsight && isSlab && !data.duplicate) {
+        const { error: slabErr } = await supabase.functions.invoke("scan-slab", {
+          body: { cardId: data.cardId, images },
+          headers: { Authorization: `Bearer ${accessTokenFresh}` },
+        });
+        if (slabErr) toast({ title: "Couldn't read the slab label", description: "Showing raw-card pricing instead." });
+      }
 
       setScanDone(true);
       refreshCredits();
-
-      if (data?.cardId) {
-        toast({
-          title: data.duplicate ? "Card already in collection" : "Card uploaded!",
-          description: data.duplicate ? undefined : "Opening card — AI is identifying and pricing in the background.",
-        });
-        navigate(data.duplicate ? `/card/${data.cardId}` : `/scan/reveal/${data.cardId}`);
-        return;
-      }
-
-      throw new Error("Scan failed — no card id returned");
+      toast({
+        title: data.duplicate ? "Card already in collection" : isInsight ? "Getting insights" : "Card uploaded!",
+        description: data.duplicate ? undefined : "AI is identifying and pricing in the background.",
+      });
+      navigate(data.duplicate ? `/card/${data.cardId}` : `/scan/reveal/${data.cardId}`);
     } catch (error: any) {
       toast({ title: "Scan failed", description: error.message, variant: "destructive" });
     } finally {
       setAnalyzing(false);
     }
-  };
-
-  const saveToCollection = async () => {
-    if (!result || !user) return;
-    setSaving(true);
-    try {
-      const primaryPath = result.filePaths?.[0] || uploadedFilePaths[0];
-      const { data: insertedCard, error } = await supabase.from("cards").insert({
-        user_id: user.id,
-        image_url: primaryPath,
-        category: result.category || "Trading Card",
-        card_name: result.cardName,
-        card_set: result.cardSet,
-        card_year: result.cardYear,
-        edition: result.edition,
-        rarity: result.rarity,
-        condition_grade: result.conditionGrade,
-        special_features: result.specialFeatures || [],
-        estimated_value_low: result.estimatedValueLow,
-        estimated_value_high: result.estimatedValueHigh,
-        ebay_recent_sales: result.ebayRecentSales,
-        tcgplayer_price: result.tcgplayerPrice,
-        psa_population_data: result.psaPopulation,
-        ai_analysis: result,
-      }).select("id").single();
-      if (error) throw error;
-
-      // Persist price history from extracted market data
-      if (result.extractedMarketData && insertedCard?.id) {
-        const priceRows: any[] = [];
-        const emd = result.extractedMarketData;
-        if (emd.sources) {
-          for (const src of emd.sources) {
-            priceRows.push({
-              card_id: insertedCard.id,
-              user_id: user.id,
-              source: src.source,
-              median_price: src.median,
-              low_price: src.low,
-              high_price: src.high,
-              price_count: src.count,
-              raw_prices: src.prices,
-            });
-          }
-        }
-        if (emd.blended) {
-          priceRows.push({
-            card_id: insertedCard.id,
-            user_id: user.id,
-            source: "blended",
-            median_price: emd.blended.median,
-            low_price: emd.blended.low,
-            high_price: emd.blended.high,
-            price_count: 0,
-            raw_prices: [],
-          });
-        }
-        if (priceRows.length > 0) {
-          await supabase.from("price_history").insert(priceRows);
-        }
-      }
-
-      toast({ title: "Card saved!" });
-      navigate("/collection");
-    } catch (error: any) {
-      toast({ title: "Save failed", description: error.message, variant: "destructive" });
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const resetScan = () => {
-    setResult(null);
-    setSlots(DEFAULT_SLOTS.map((s) => ({ ...s, file: null, preview: null })));
-    setUploadedFilePaths([]);
   };
 
   return (
@@ -287,37 +216,66 @@ const Scan = () => {
       />
       <header className="border-b border-border">
         <div className="container mx-auto px-4 py-4 flex items-center gap-4">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 flex-1 min-w-0">
             <Link to="/dashboard">
               <Button variant="ghost" size="icon" aria-label="Go back"><ArrowLeft className="w-5 h-5" /></Button>
             </Link>
-            <h1 className="text-xl font-display font-bold">Scan Item</h1>
+            <div className="min-w-0">
+              <h1 className={cn("text-xl font-display font-bold truncate", isInsight && "text-secondary")}>
+                {isInsight ? "Insight Scan" : "Scan to Collection"}
+              </h1>
+              {isInsight && (
+                <p className="text-xs text-muted-foreground leading-snug">Won't be added to your collection. You can add it later.</p>
+              )}
+            </div>
           </div>
           <CreditBalance credits={credits} isPro={isPro} loading={creditsLoading} />
           <ThemeToggle />
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8 max-w-3xl">
+      <div className="sticky top-0 z-20 bg-background/90 backdrop-blur-md border-b border-border/60">
+        <div className="container mx-auto px-4 py-2 max-w-3xl">
+          <div role="tablist" aria-label="Scan mode" className="grid grid-cols-2 rounded-xl bg-muted p-1">
+            {(["collection", "insight"] as Mode[]).map((m) => {
+              const active = mode === m;
+              return (
+                <button
+                  key={m}
+                  role="tab"
+                  aria-selected={active}
+                  type="button"
+                  disabled={analyzing}
+                  onClick={() => setMode(m)}
+                  className={cn(
+                    "rounded-lg py-2 text-sm font-semibold transition-colors",
+                    active
+                      ? m === "collection" ? "gradient-primary text-white shadow" : "bg-secondary text-secondary-foreground shadow"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  {m === "collection" ? "Collection" : "Insights"}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      <main className="container mx-auto px-4 py-6 max-w-3xl">
         {showWarmup ? (
           <CameraWarmup onContinue={dismissWarmup} onSkip={dismissWarmup} />
-        ) : !result ? (
+        ) : (
           <div className="space-y-6">
             <p className="text-muted-foreground text-sm">
               Upload the front & back of a card, or multiple views of any collectible for the best analysis.
             </p>
 
-            {/* Image slots grid */}
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               {slots.map((slot) => (
                 <div key={slot.id} className="relative group">
-                  <label className="block border-2 border-dashed border-border rounded-xl aspect-[3/4] cursor-pointer hover:border-primary/50 transition-colors overflow-hidden">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => handleFileChange(slot.id, e)}
-                      className="hidden"
-                    />
+                  <label className={cn("block border-2 border-dashed border-border rounded-xl aspect-[3/4] cursor-pointer transition-colors overflow-hidden", isInsight ? "hover:border-secondary/50" : "hover:border-primary/50")}>
+                    <input type="file" accept="image/*" onChange={(e) => handleFileChange(slot.id, e)} className="hidden" />
                     {slot.preview ? (
                       <img src={slot.preview} alt={`Card ${slot.label} view`} className="w-full h-full object-cover" />
                     ) : (
@@ -327,39 +285,22 @@ const Scan = () => {
                       </div>
                     )}
                   </label>
-
-                  {/* Label badge */}
-                  <span className="absolute top-2 left-2 text-[10px] font-semibold bg-primary/90 text-primary-foreground px-2 py-0.5 rounded-full">
+                  <span className={cn("absolute top-2 left-2 text-[10px] font-semibold px-2 py-0.5 rounded-full", isInsight ? "bg-secondary/90 text-secondary-foreground" : "bg-primary/90 text-primary-foreground")}>
                     {slot.label}
                   </span>
-
-                  {/* Remove image button */}
                   {slot.preview && (
-                    <button
-                      onClick={() => removeImage(slot.id)}
-                      className="absolute top-2 right-2 bg-destructive text-destructive-foreground rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
+                    <button onClick={() => removeImage(slot.id)} aria-label="Remove photo" className="absolute top-2 right-2 bg-destructive text-destructive-foreground rounded-full p-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                       <X className="w-3 h-3" />
                     </button>
                   )}
-
-                  {/* Remove slot button (only for extra slots) */}
                   {slot.id !== "front" && slot.id !== "back" && !slot.preview && (
-                    <button
-                      onClick={() => removeSlot(slot.id)}
-                      className="absolute top-2 right-2 bg-muted text-muted-foreground rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
+                    <button onClick={() => removeSlot(slot.id)} aria-label="Remove view" className="absolute top-2 right-2 bg-muted text-muted-foreground rounded-full p-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                       <X className="w-3 h-3" />
                     </button>
                   )}
                 </div>
               ))}
-
-              {/* Add more slot */}
-              <button
-                onClick={addSlot}
-                className="border-2 border-dashed border-border rounded-xl aspect-[3/4] flex flex-col items-center justify-center gap-2 hover:border-primary/50 transition-colors text-muted-foreground hover:text-primary"
-              >
+              <button onClick={addSlot} className="border-2 border-dashed border-border rounded-xl aspect-[3/4] flex flex-col items-center justify-center gap-2 hover:border-primary/50 transition-colors text-muted-foreground hover:text-primary">
                 <Plus className="w-8 h-8" />
                 <span className="text-xs font-medium">Add View</span>
               </button>
@@ -367,8 +308,7 @@ const Scan = () => {
 
             {hasImages && !analyzing && (
               <div className="space-y-3">
-                {/* Front-only reassurance */}
-                {filledSlots.length === 1 && filledSlots[0].id === "front" && (
+                {filledSlots.length === 1 && filledSlots[0].id === "front" && !isSlab && (
                   <div className="flex items-start gap-3 rounded-xl border border-primary/25 bg-primary/5 p-4">
                     <Sparkles className="w-5 h-5 text-primary mt-0.5 shrink-0" />
                     <div>
@@ -380,13 +320,43 @@ const Scan = () => {
                   </div>
                 )}
 
+                {isInsight && (
+                  <div className="space-y-4 rounded-xl border border-secondary/30 bg-secondary/5 p-4">
+                    <div>
+                      <Label className="text-sm font-semibold">Card type</Label>
+                      <div className="mt-2 grid grid-cols-2 rounded-lg bg-muted p-1">
+                        {[{ v: false, l: "Raw" }, { v: true, l: "Graded slab" }].map((o) => (
+                          <button
+                            key={o.l}
+                            type="button"
+                            aria-pressed={isSlab === o.v}
+                            onClick={() => setIsSlab(o.v)}
+                            className={cn("rounded-md py-1.5 text-sm font-medium transition-colors", isSlab === o.v ? "bg-secondary text-secondary-foreground" : "text-muted-foreground")}
+                          >
+                            {o.l}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <Label htmlFor="asking-price" className="text-sm font-semibold">Asking price (optional)</Label>
+                      <div className="relative mt-1.5">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                        <Input id="asking-price" inputMode="decimal" placeholder="0.00" value={askingPrice} onChange={(e) => setAskingPrice(e.target.value)} className="pl-7" />
+                      </div>
+                    </div>
+                    <div>
+                      <Label htmlFor="insight-event" className="text-sm font-semibold">Where are you? (optional)</Label>
+                      <Input id="insight-event" maxLength={80} placeholder="e.g. Philly Card Show" value={eventName} onChange={(e) => setEventName(e.target.value)} className="mt-1.5" />
+                    </div>
+                  </div>
+                )}
+
                 <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card p-4">
                   <div className="flex items-start gap-3">
                     <Zap className={`w-5 h-5 mt-0.5 ${fastScan ? "text-primary" : "text-muted-foreground"}`} />
                     <div>
-                      <Label htmlFor="fast-scan" className="text-sm font-semibold cursor-pointer">
-                        Fast Scan
-                      </Label>
+                      <Label htmlFor="fast-scan" className="text-sm font-semibold cursor-pointer">Fast Scan</Label>
                       <p className="text-xs text-muted-foreground">
                         Skip cross-verification and extra market search rounds. Faster, slightly less precise pricing.
                       </p>
@@ -395,64 +365,22 @@ const Scan = () => {
                   <Switch id="fast-scan" checked={fastScan} onCheckedChange={setFastScan} />
                 </div>
 
-                <Button onClick={analyzeCard} disabled={analyzing || creditsLoading} className="w-full gradient-primary py-6 text-lg">
-                  {creditsLoading ? <Loader2 className="mr-2 w-5 h-5 animate-spin" /> : <Sparkles className="mr-2 w-5 h-5" />}
-                  {creditsLoading ? "Checking access…" : `Analyze (${filledSlots.length} image${filledSlots.length > 1 ? "s" : ""})`}
+                <Button
+                  onClick={analyzeCard}
+                  disabled={analyzing || creditsLoading}
+                  className={cn("w-full py-6 text-lg", isInsight ? "bg-secondary text-secondary-foreground hover:bg-secondary/90" : "gradient-primary")}
+                >
+                  {creditsLoading ? <Loader2 className="mr-2 w-5 h-5 animate-spin" /> : isInsight ? <ScanSearch className="mr-2 w-5 h-5" /> : <Sparkles className="mr-2 w-5 h-5" />}
+                  {creditsLoading
+                    ? "Checking access…"
+                    : isInsight
+                    ? "Get Insights"
+                    : `Analyze (${filledSlots.length} image${filledSlots.length > 1 ? "s" : ""})`}
                 </Button>
               </div>
             )}
 
             {analyzing && <ScanTimeline running={analyzing} done={scanDone} />}
-          </div>
-        ) : (
-          <div className="animate-celebrate space-y-6">
-            {/* Show uploaded images carousel */}
-            <div className="flex gap-3 overflow-x-auto pb-2">
-              {filledSlots.map((slot) => (
-                <div key={slot.id} className="flex-shrink-0 relative">
-                  <img
-                    src={slot.preview!}
-                    alt={`Card ${slot.label} view`}
-                    className="h-40 rounded-lg border border-border object-cover"
-                  />
-                  <span className="absolute bottom-1 left-1 text-[10px] font-semibold bg-primary/90 text-primary-foreground px-2 py-0.5 rounded-full">
-                    {slot.label}
-                  </span>
-                </div>
-              ))}
-            </div>
-
-            <div className="bg-card border border-border rounded-2xl overflow-hidden">
-              <div className="p-6 space-y-4">
-                <div>
-                  <h2 className="text-2xl font-display font-bold">{result.cardName}</h2>
-                  <p className="text-muted-foreground">{result.cardSet} • {result.cardYear}</p>
-                </div>
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div><span className="text-muted-foreground">Edition:</span> {result.edition}</div>
-                  <div><span className="text-muted-foreground">Rarity:</span> {result.rarity}</div>
-                  <div><span className="text-muted-foreground">Condition:</span> {result.conditionGrade}</div>
-                  <div><span className="text-muted-foreground">Trend:</span> {result.valueTrend}</div>
-                </div>
-                <div className="bg-muted/50 rounded-xl p-4">
-                  <p className="text-sm text-muted-foreground mb-1">Estimated Value</p>
-                  <p className="text-3xl font-display font-bold text-gradient-primary">
-                    ${result.estimatedValueLow?.toFixed(0)} - ${result.estimatedValueHigh?.toFixed(0)}
-                  </p>
-                </div>
-              </div>
-            </div>
-            <AIDisclaimer />
-
-            <div className="flex gap-4">
-              <Button onClick={saveToCollection} disabled={saving} className="flex-1 gradient-primary">
-                {saving ? <Loader2 className="mr-2 w-4 h-4 animate-spin" /> : <Check className="mr-2 w-4 h-4" />}
-                Save to Collection
-              </Button>
-              <Button variant="outline" onClick={resetScan}>
-                <RotateCcw className="mr-2 w-4 h-4" />Scan Another
-              </Button>
-            </div>
           </div>
         )}
       </main>
