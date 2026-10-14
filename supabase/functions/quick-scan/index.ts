@@ -268,6 +268,8 @@ async function quickMarketSearch(cardId: CardIdentification): Promise<string> {
 }
 
 
+import { callClaude } from "../_shared/claude.ts";
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -388,17 +390,10 @@ ${marketContext ? `CRITICAL: The SUGGESTED VALUE in the market data is the most 
 Return ONLY the JSON object, no other text.`;
 
     console.log("Quick scan Step 3: Sending to Claude for analysis...");
-    const claudeResponse = await fetchWithRetry("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-5-5",
-        max_tokens: 4000,
-        output_config: { effort: "low" },
+    let responseText = "";
+    try {
+      const r = await callClaude({
+        task: "QUICK_SCAN",
         messages: [
           {
             role: "user",
@@ -415,25 +410,15 @@ Return ONLY the JSON object, no other text.`;
             ],
           },
         ],
-      }),
-    });
-
-    if (!claudeResponse.ok) {
-      const status = claudeResponse.status;
-      const errText = await claudeResponse.text();
-      console.error("Claude API error:", status, errText);
+      });
+      responseText = r.text || "";
+    } catch (e) {
+      console.error("Claude API error:", e instanceof Error ? e.message : e);
       return new Response(
         JSON.stringify({ error: "Failed to analyze card. Please try again." }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-
-    const claudeData = await claudeResponse.json();
-    const responseText =
-      (Array.isArray(claudeData.content)
-        ? claudeData.content.find((b: any) => b?.type === "text")?.text
-        : "") || "";
-    if (claudeData.stop_reason === "max_tokens") console.error("quick-scan: Claude stopped at max_tokens");
     console.log("Claude raw response:", responseText.substring(0, 500));
 
     // Extract JSON from Claude's response

@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getMarketData } from "../_shared/marketData.ts";
+import { callClaude } from "../_shared/claude.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -32,8 +33,7 @@ serve(async (req) => {
   };
 
   try {
-    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
-    if (!ANTHROPIC_API_KEY) {
+    if (!Deno.env.get("ANTHROPIC_API_KEY")) {
       return new Response(JSON.stringify({ error: "AI service not configured" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -148,17 +148,10 @@ Respond ONLY with valid JSON in this exact shape:
 
 If the image is not a trading card, return {"error": "not_a_card"}.`;
 
-    const aiResp = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-5-5",
-        max_tokens: 4000,
-        output_config: { effort: "low" },
+    let text = "";
+    try {
+      const r = await callClaude({
+        task: "DEMO_SCAN",
         system: systemPrompt,
         messages: [
           {
@@ -172,25 +165,16 @@ If the image is not a trading card, return {"error": "not_a_card"}.`;
             ],
           },
         ],
-      }),
-    });
-
-    if (!aiResp.ok) {
-      const errText = await aiResp.text();
-      console.error("Anthropic error", aiResp.status, errText);
+      });
+      text = r.text ?? "";
+    } catch (e) {
+      console.error("Anthropic error", e instanceof Error ? e.message : e);
       await refund();
       return new Response(JSON.stringify({ error: "AI analysis failed" }), {
         status: 502,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-
-    const aiJson = await aiResp.json();
-    if (aiJson?.stop_reason === "max_tokens") console.error("[demo-scan] Claude stopped at max_tokens");
-    const textBlock = Array.isArray(aiJson?.content)
-      ? aiJson.content.find((b: any) => b?.type === "text")
-      : null;
-    const text: string = textBlock?.text ?? "";
     const match = text.match(/```json\n?([\s\S]*?)\n?```/) || text.match(/\{[\s\S]*\}/);
     const jsonStr = match ? (match[1] || match[0]) : text;
     let parsed: any;
