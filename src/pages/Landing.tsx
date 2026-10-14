@@ -184,6 +184,9 @@ const Landing = () => {
               <span key={t} className="shrink-0 rounded-full border border-border bg-muted/50 px-3 py-1.5 text-xs font-medium text-muted-foreground">{t}</span>
             ))}
           </ChipRow>
+          <div className="mt-4 flex justify-center">
+            <span className="rounded-full border border-secondary/40 bg-secondary/10 px-4 py-2 text-sm font-semibold text-secondary">Sealed packs &amp; boxes → see the top chase cards</span>
+          </div>
           <p className="text-center text-muted-foreground mt-6">If it sells on eBay or TCGplayer, we can price it.</p>
         </motion.section>
 
@@ -254,6 +257,8 @@ const Landing = () => {
               <span className="rounded-full border border-border bg-background px-3 py-1.5">Market $135–$160</span>
               <span className="rounded-full px-3 py-1.5 font-semibold bg-collectai-green/15 text-collectai-green border border-collectai-green/30">18% below market</span>
             </div>
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mt-4 mb-2">Example</p>
+            <span className="inline-block rounded-full border border-border bg-background px-3 py-1.5 text-sm">Scanned: One Piece booster box · Top chase shown</span>
           </div>
           <Link to={`/auth?mode=signup&next=${encodeURIComponent("/scan?mode=insight")}`}>
             <Button size="lg" className="rounded-xl text-primary-foreground hover:opacity-90" style={{ background: azure }}>

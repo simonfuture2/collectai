@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { moveInsightToCollection } from "@/lib/insights";
+import SealedResult from "@/components/sealed/SealedResult";
 
 const safeFixed = (val: unknown, digits = 2): string => {
   const num = typeof val === 'number' ? val : Number(val);
@@ -715,6 +716,36 @@ export default function CardDetail() {
   if (!card) return null;
 
   const isInsight = (card as any).scan_purpose === "insight";
+
+  if ((card as any).item_type === "sealed") {
+    const pendingSealed = ["pending", "identifying", "pricing", "analyzing", "verifying"].includes((card as any).analysis_status);
+    return (
+      <div className="min-h-screen bg-background">
+        <header className="border-b border-border">
+          <div className="container mx-auto px-4 py-3 flex items-center gap-2">
+            <Button variant="ghost" size="icon" aria-label="Go back" onClick={() => navigate(isInsight ? "/insights" : "/collection")}>
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+            <span className="text-sm font-semibold truncate">{card.card_name || "Sealed product"}</span>
+          </div>
+        </header>
+        <main className="container mx-auto px-4 py-6 max-w-3xl space-y-4">
+          {isInsight && (
+            <div className="flex flex-wrap items-center gap-3 rounded-xl border border-secondary/30 bg-secondary/10 p-4">
+              <p className="flex-1 text-sm">This is an insight scan — it isn't in your collection.</p>
+              <Button size="sm" className="bg-secondary text-secondary-foreground hover:bg-secondary/90" onClick={async () => {
+                const { error } = await moveInsightToCollection(card.id);
+                if (error) { toast.error("Couldn't add this item"); return; }
+                setCard({ ...(card as any), scan_purpose: "collection" } as any);
+                toast.success("Added to your collection");
+              }}>Add to Collection</Button>
+            </div>
+          )}
+          <SealedResult card={card} imgUrl={cardImageUrl} isPending={pendingSealed} onUpdated={(c) => setCard(c as any)} />
+        </main>
+      </div>
+    );
+  }
   const analysis = card.ai_analysis as AIAnalysis | null;
   const avgValue = ((card.estimated_value_low || 0) + (card.estimated_value_high || 0)) / 2;
 
