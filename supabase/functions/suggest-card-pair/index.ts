@@ -60,6 +60,7 @@ serve(async (req) => {
       .select("id, image_url, card_name, card_set, card_year, edition, rarity, condition_grade, estimated_value_low, estimated_value_high, created_at")
       .eq("user_id", user.id)
       .neq("id", graded_card_id)
+      .eq("scan_purpose", "collection")
       .is("is_authenticated", false)
       .is("superseded_by_card_id", null);
 

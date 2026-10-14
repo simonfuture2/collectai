@@ -23,7 +23,8 @@ export default defineTool({
     const supabase = supabaseForUser(ctx);
     const { data, error } = await supabase
       .from("cards")
-      .select("category, estimated_value_low, estimated_value_high, is_authenticated, grade_numeric");
+      .select("category, estimated_value_low, estimated_value_high, is_authenticated, grade_numeric")
+      .eq("scan_purpose", "collection");
 
     if (error) return { content: [{ type: "text", text: error.message }], isError: true };
 

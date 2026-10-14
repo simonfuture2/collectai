@@ -75,7 +75,7 @@ Deno.serve(async (req) => {
           adminClient.from("user_credits").select("*").order("created_at", { ascending: false }),
           adminClient.from("profiles").select("id, display_name, created_at"),
           adminClient.from("credit_transactions").select("*").order("created_at", { ascending: false }).limit(200),
-          adminClient.from("cards").select("id", { count: "exact", head: true }),
+          adminClient.from("cards").select("id", { count: "exact", head: true }).eq("scan_purpose", "collection"),
           adminClient.from("credit_transactions").select("id", { count: "exact", head: true }).eq("type", "scan_deduction"),
           adminClient.from("credit_transactions").select("amount").eq("type", "credit_purchase"),
           adminClient.auth.admin.listUsers({ perPage: 1000 }),
@@ -229,7 +229,7 @@ Deno.serve(async (req) => {
         adminClient.from("profiles").select("*").eq("id", targetUserId).single(),
         adminClient.from("user_credits").select("*").eq("user_id", targetUserId).single(),
         adminClient.from("credit_transactions").select("*").eq("user_id", targetUserId).order("created_at", { ascending: false }).limit(50),
-        adminClient.from("cards").select("id", { count: "exact", head: true }).eq("user_id", targetUserId),
+        adminClient.from("cards").select("id", { count: "exact", head: true }).eq("user_id", targetUserId).eq("scan_purpose", "collection"),
       ]);
 
       return new Response(

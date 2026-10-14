@@ -17,6 +17,7 @@ const ConnectedAccounts = () => {
         .from("cards")
         .select("id", { count: "exact", head: true })
         .eq("user_id", session.user.id)
+        .eq("scan_purpose", "collection")
         .not("authentiseal_serial", "is", null);
 
       setCertCount(count || 0);

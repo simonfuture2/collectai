@@ -40,6 +40,11 @@ export default function CreateListing() {
         navigate("/collection");
         return;
       }
+      if ((data as any).scan_purpose === "insight") {
+        toast({ title: "Add this card to your collection before listing it.", variant: "destructive" });
+        navigate(`/card/${data.id}`);
+        return;
+      }
       setCard(data);
       if (data.image_url) {
         if (data.image_url.startsWith("http")) setImgUrl(data.image_url);
