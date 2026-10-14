@@ -28,6 +28,7 @@ import { groundedPreGrade } from "./grading.ts";
 // Model used for Step 1 card identification (bake-off winner).
 // Change this single constant to swap identification models.
 export const IDENTIFY_MODEL = "gemini-3.5-flash";
+const VERIFY_GEMINI_MODEL = "google/gemini-3.5-flash";
 
 export interface CardIdentification {
   card_name: string;
@@ -159,7 +160,7 @@ Return ONLY valid JSON: {"verified_low": number, "verified_high": number, "verif
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-pro",
+        model: VERIFY_GEMINI_MODEL,
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" },
       }),
