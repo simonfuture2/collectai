@@ -17,6 +17,7 @@ interface DemoResult {
   estimatedValueHigh?: number;
   currency?: string;
   confidence?: string;
+  pricedFrom?: "market" | "estimate";
 }
 
 const MAX_BYTES = 6 * 1024 * 1024;
@@ -87,6 +88,12 @@ const ScanDemo = () => {
         // Try to surface server JSON error message
         const ctx = (error as any).context;
         let msg = error.message || "Scan failed";
+        const status = ctx?.status;
+        if (status === 500 || status === 502) {
+          setErrorMsg("Our scanner is busy. Try again in a moment. This didn't use one of your free scans.");
+          setStage("error");
+          return;
+        }
         try {
           const parsed = ctx && (await ctx.json?.());
           if (parsed?.error) msg = parsed.error;
@@ -204,6 +211,11 @@ const ScanDemo = () => {
                 <p className="text-xl font-display font-bold text-gradient-primary">
                   {valueLabel}
                 </p>
+                {result?.pricedFrom && (
+                  <p className="text-[10px] text-muted-foreground">
+                    {result.pricedFrom === "market" ? "Based on recent sold comps" : "AI estimate, sign up for live comps"}
+                  </p>
+                )}
                 <p className="text-xs text-muted-foreground mt-0.5 truncate">{subtitle}</p>
               </div>
             </div>

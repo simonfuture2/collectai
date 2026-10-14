@@ -98,7 +98,7 @@ serve(async (req) => {
       );
     }
 
-    consumedHash = ipHash; // per-IP slot used; budget refund is a floor-0 no-op if not consumed
+    consumedHash = ipHash;
     // Global daily budget — caps total public spend across all IPs,
     // since per-IP limit keys on a spoofable x-forwarded-for header.
     const DEMO_DAILY_BUDGET = Number(Deno.env.get("DEMO_SCAN_DAILY_BUDGET") ?? "300");
@@ -117,9 +117,6 @@ serve(async (req) => {
     const budgetRow = Array.isArray(budgetRows) ? budgetRows[0] : budgetRows;
     if (!budgetRow?.allowed) {
       console.warn(`[demo-scan] daily budget exhausted (used=${budgetRow?.used})`);
-      // Give back the per-IP slot only (budget wasn't incremented)
-      await admin.from("demo_scan_rate_limit").select("ip_hash").limit(0);
-      await admin.rpc("refund_demo_scan", { _ip_hash: ipHash });
       consumedHash = null;
       return new Response(
         JSON.stringify({
