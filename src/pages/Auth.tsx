@@ -14,7 +14,9 @@ import ThemeToggle from "@/components/ThemeToggle";
 import SEO from "@/components/SEO";
 
 const Auth = () => {
-  const [isLogin, setIsLogin] = useState(true);
+  const [isLogin, setIsLogin] = useState(
+    () => new URLSearchParams(window.location.search).get("mode") !== "signup"
+  );
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
