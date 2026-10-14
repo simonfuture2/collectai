@@ -201,8 +201,8 @@ export default function CardPairing({ card, onChanged }: Props) {
             <img src={rawSnapshot.image_url} alt="" className="w-16 h-22 object-cover rounded" />
             <div className="text-xs space-y-0.5">
               <p><span className="text-muted-foreground">Scanned:</span> {new Date(rawSnapshot.created_at).toLocaleDateString()}</p>
-              <p><span className="text-muted-foreground">AI grade:</span> {rawSnapshot.condition_grade ?? "—"}</p>
-              <p><span className="text-muted-foreground">AI value:</span> ${Math.round(rawSnapshot.estimated_value_low ?? 0)} – ${Math.round(rawSnapshot.estimated_value_high ?? 0)}</p>
+              <p><span className="text-muted-foreground">SI grade:</span> {rawSnapshot.condition_grade ?? "—"}</p>
+              <p><span className="text-muted-foreground">SI value:</span> ${Math.round(rawSnapshot.estimated_value_low ?? 0)} – ${Math.round(rawSnapshot.estimated_value_high ?? 0)}</p>
             </div>
           </div>
         </GlassCard>

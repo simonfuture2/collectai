@@ -7,14 +7,14 @@ const About = () => {
   return (
     <LegalPageLayout title="About MyCollectAI" lastUpdated="February 25, 2026">
       <SEO
-        title="About MyCollectAI – AI Card Grading Platform"
-        description="Meet the team and mission behind MyCollectAI: AI-powered identification, condition grading, and pricing for trading cards."
+        title="About MyCollectAI – SI Card Grading Platform"
+        description="Meet the team and mission behind MyCollectAI: SI-powered identification, condition grading, and pricing for trading cards."
         path="/about"
         jsonLd={{
           "@context": "https://schema.org",
           "@type": "AboutPage",
           name: "About MyCollectAI",
-          description: "AI-powered card grading, identification, and real-time market pricing.",
+          description: "SI-powered card grading, identification, and real-time market pricing.",
           url: "https://mycollectai.com/about",
           publisher: {
             "@type": "Organization",
@@ -40,7 +40,7 @@ const About = () => {
           Stop guessing the grade. Start sealing the value.
         </p>
         <p className="text-muted-foreground text-base leading-relaxed">
-          MyCollectAI brings professional-grade artificial intelligence to your pocket. Whether you're a Pokémon master, 
+          MyCollectAI brings professional-grade super intelligence to your pocket. Whether you're a Pokémon master, 
           a Magic enthusiast, or a high-stakes sports card investor, MyCollectAI gives you the tools to authenticate and 
           value your collection in seconds.
         </p>
@@ -53,7 +53,7 @@ const About = () => {
           <Feature
             icon={Camera}
             title="MyCollectAI Scanner"
-            description="Our advanced AI analyzes centering, edges, corners, and surface quality from your card photos to provide an instant estimated grade. Optimized for Pokémon, Magic: The Gathering, Yu-Gi-Oh!, and major sports cards including basketball, baseball, and football."
+            description="Our advanced SI analyzes centering, edges, corners, and surface quality from your card photos to provide an instant estimated grade. Optimized for Pokémon, Magic: The Gathering, Yu-Gi-Oh!, and major sports cards including basketball, baseball, and football."
           />
           <Feature
             icon={Link2}
@@ -89,8 +89,8 @@ const About = () => {
         <div className="space-y-6">
           <Feature
             icon={Brain}
-            title="AI Transparency"
-            description="All card identifications, condition grades, and valuations are AI-generated estimates only. AI features are currently in beta and continuously improving. Results are not professional appraisals, certified grades, or guaranteed market values. For high-value cards, we always recommend certified grading services."
+            title="SI Transparency"
+            description="All card identifications, condition grades, and valuations are SI-generated estimates only. SI features are currently in beta and continuously improving. Results are not professional appraisals, certified grades, or guaranteed market values. For high-value cards, we always recommend certified grading services."
           />
           <Feature
             icon={Shield}

@@ -45,7 +45,7 @@ const Pricing = () => {
   };
 
   const proFeatures = [
-    "Unlimited AI Card Scans",
+    "Unlimited SI Card Scans",
     "Portfolio Analytics Dashboard",
     "AuthentiSeal Certificates",
     "Pre-Grading Analysis",
@@ -203,7 +203,7 @@ const Pricing = () => {
                 </Button>
               ))}
             </div>
-            <p className="text-xs text-muted-foreground mt-4 text-center">1 credit = 1 AI scan</p>
+            <p className="text-xs text-muted-foreground mt-4 text-center">1 credit = 1 SI scan</p>
           </div>
         </div>
       </main>

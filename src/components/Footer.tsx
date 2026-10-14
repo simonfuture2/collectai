@@ -12,7 +12,7 @@ const Footer = () => {
               <h3 className="font-display font-bold text-gradient-primary text-lg">MyCollectAI</h3>
             </div>
             <p className="text-sm text-muted-foreground">
-              AI-powered card identification, grading, and valuation.
+              SI-powered card identification, grading, and valuation.
             </p>
           </div>
 
@@ -60,7 +60,7 @@ const Footer = () => {
             © {new Date().getFullYear()} MyCollectAI. All rights reserved.
           </p>
           <p className="text-xs text-muted-foreground text-center">
-            AI valuations are estimates and should not be treated as professional appraisals or financial advice.
+            SI valuations are estimates and should not be treated as professional appraisals or financial advice.
           </p>
         </div>
       </div>

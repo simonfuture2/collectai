@@ -27,7 +27,7 @@ const STEPS = [
   {
     key: "identifying",
     label: "Identifying",
-    desc: "AI is reading the card — name, set, year, number…",
+    desc: "SI is reading the card — name, set, year, number…",
   },
   {
     key: "pricing",
@@ -89,7 +89,7 @@ const AnalysisProgress = ({
       >
         <XCircle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
         <div className="flex-1 min-w-0">
-          <p className="font-display font-semibold text-sm">AI analysis failed</p>
+          <p className="font-display font-semibold text-sm">SI analysis failed</p>
           <p className="text-xs text-muted-foreground mt-0.5 break-words">
             {errorMessage ||
               "Something went wrong while analyzing this card. This is usually temporary — please try again."}

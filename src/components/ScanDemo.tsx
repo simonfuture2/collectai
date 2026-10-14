@@ -108,7 +108,7 @@ const ScanDemo = forwardRef<ScanDemoHandle>((_props, ref) => {
       }
 
       if (!data?.success || !data?.data) {
-        setErrorMsg(data?.error || "AI couldn't analyze that image.");
+        setErrorMsg(data?.error || "SI couldn't analyze that image.");
         setStage("error");
         return;
       }
@@ -217,7 +217,7 @@ const ScanDemo = forwardRef<ScanDemoHandle>((_props, ref) => {
                 </p>
                 {result?.pricedFrom && (
                   <p className="text-[10px] text-muted-foreground">
-                    {result.pricedFrom === "market" ? "Based on recent sold comps" : "AI estimate, sign up for live comps"}
+                    {result.pricedFrom === "market" ? "Based on recent sold comps" : "SI estimate, sign up for live comps"}
                   </p>
                 )}
                 <p className="text-xs text-muted-foreground mt-0.5 truncate">{subtitle}</p>

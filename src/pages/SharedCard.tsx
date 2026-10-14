@@ -96,9 +96,9 @@ export default function SharedCard() {
 
   const avgValue = ((card.estimated_value_low || 0) + (card.estimated_value_high || 0)) / 2;
   const cardLabel = card.card_name || "Trading Card";
-  const gradeLabel = card.condition_grade ? `Grade ${card.condition_grade}` : "AI Graded";
+  const gradeLabel = card.condition_grade ? `Grade ${card.condition_grade}` : "SI Graded";
   const seoTitle = `${cardLabel} – ${gradeLabel} | MyCollectAI`.slice(0, 60);
-  const seoDesc = `${cardLabel}${card.card_set ? ` (${card.card_set}${card.card_year ? ` ${card.card_year}` : ""})` : ""} — ${gradeLabel}. Estimated value $${avgValue.toFixed(2)}. AI-graded certificate from MyCollectAI.`.slice(0, 160);
+  const seoDesc = `${cardLabel}${card.card_set ? ` (${card.card_set}${card.card_year ? ` ${card.card_year}` : ""})` : ""} — ${gradeLabel}. Estimated value $${avgValue.toFixed(2)}. SI-graded certificate from MyCollectAI.`.slice(0, 160);
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "Product",
@@ -170,7 +170,7 @@ export default function SharedCard() {
             <p className="text-xs opacity-70">${card.estimated_value_low?.toFixed(2)} – ${card.estimated_value_high?.toFixed(2)}</p>
           </div>
           <div className="bg-card border border-border rounded-xl p-4">
-            <p className="text-sm text-muted-foreground">AI Grade</p>
+            <p className="text-sm text-muted-foreground">SI Grade</p>
             <p className="text-xl font-display font-bold">{card.condition_grade || "N/A"}</p>
             {card.rarity && <p className="text-xs text-muted-foreground">{card.rarity}</p>}
           </div>
@@ -182,7 +182,7 @@ export default function SharedCard() {
         <div className="text-center bg-card border border-border rounded-2xl p-8">
           <Star className="w-10 h-10 text-primary mx-auto mb-3" />
           <h2 className="text-xl font-display font-bold mb-2">Want to grade your cards?</h2>
-          <p className="text-muted-foreground mb-4">Get AI-powered grading and market values in seconds — free to start.</p>
+          <p className="text-muted-foreground mb-4">Get SI-powered grading and market values in seconds — free to start.</p>
           <Link to="/auth">
             <Button size="lg" className="gradient-primary">
               <Camera className="mr-2 w-5 h-5" /> Start Scanning Free

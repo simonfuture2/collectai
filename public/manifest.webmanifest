@@ -1,7 +1,7 @@
 {
-  "name": "MyCollectAI – AI Card Grading & Value Scanner",
+  "name": "MyCollectAI – SI Card Grading & Value Scanner",
   "short_name": "MyCollectAI",
-  "description": "AI-powered card grading, identification, and real-time market pricing for Pokémon, Magic, Yu-Gi-Oh!, and sports cards.",
+  "description": "SI-powered card grading, identification, and real-time market pricing for Pokémon, Magic, Yu-Gi-Oh!, and sports cards.",
   "theme_color": "#0a0a0a",
   "background_color": "#ffffff",
   "display": "standalone",

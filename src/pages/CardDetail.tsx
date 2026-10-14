@@ -356,7 +356,7 @@ export default function CardDetail() {
           actualGrade: actualNumeric,
           actualCompany,
           predictedValueMid,
-          verdict: "Paired raw scan has no AI grade to compare",
+          verdict: "Paired raw scan has no SI grade to compare",
           accuracyScore: null,
         });
         return;
@@ -485,7 +485,7 @@ export default function CardDetail() {
           );
         }
       } else if ((data as any).analysis_status === "failed") {
-        toast.error("AI analysis failed — you can retry from the re-scan button.");
+        toast.error("SI analysis failed — you can retry from the re-scan button.");
       }
     };
 
@@ -719,7 +719,7 @@ export default function CardDetail() {
   const avgValue = ((card.estimated_value_low || 0) + (card.estimated_value_high || 0)) / 2;
 
   // Single source of truth for the confirmed-slab market value so the hero and
-  // the AI vs Reality card never disagree.
+  // the SI vs Reality card never disagree.
   const slabInfo = (() => {
     const a = analysis as any;
     const company: string | null = a?.confirmedGrade?.company ?? (card as any).grading_company ?? null;
@@ -766,7 +766,7 @@ export default function CardDetail() {
     <div className="min-h-screen bg-background">
       <SEO
         title={`${card.card_name ?? "Card"} – Grade & Value | MyCollectAI`}
-        description={`${card.card_name ?? "This card"}${card.condition_grade ? ` graded ${card.condition_grade}` : ""}. View AI analysis, estimated market value, and grading breakdown on MyCollectAI.`}
+        description={`${card.card_name ?? "This card"}${card.condition_grade ? ` graded ${card.condition_grade}` : ""}. View SI analysis, estimated market value, and grading breakdown on MyCollectAI.`}
         path={`/card/${card.id}`}
         ogType="product"
         noIndex
@@ -985,7 +985,7 @@ export default function CardDetail() {
                 <p className="text-xl font-display font-bold text-foreground">
                   {card.condition_grade || "Unknown"}
                 </p>
-                <p className="text-xs text-muted-foreground">AI Assessed</p>
+                <p className="text-xs text-muted-foreground">SI Assessed</p>
                 {(card as any).last_scanned_at && (
                   <p className="text-xs text-muted-foreground mt-1">
                     <Calendar className="w-3 h-3 inline mr-1" />
@@ -1133,7 +1133,7 @@ export default function CardDetail() {
                   <div className="flex items-start gap-2 p-3 rounded-lg bg-green-500/10 border border-green-500/20">
                     <CheckCircle className="w-4 h-4 text-green-500 mt-0.5 shrink-0" />
                     <div>
-                      <p className="text-xs font-medium text-foreground">AI Verification</p>
+                      <p className="text-xs font-medium text-foreground">SI Verification</p>
                       <p className="text-xs text-muted-foreground mt-0.5">{analysis.verificationNote}</p>
                     </div>
                   </div>
@@ -1338,7 +1338,7 @@ export default function CardDetail() {
                 <p className="text-xs text-muted-foreground mt-2 text-center">
                   {hasRealPriceData
                     ? "Based on real eBay & TCGPlayer market data • Re-scan to add new data points"
-                    : "Based on AI market research • Scan again to build real price history"}
+                    : "Based on SI market research • Scan again to build real price history"}
                 </p>
               </div>
 
@@ -1379,16 +1379,16 @@ export default function CardDetail() {
 
           {/* Right: Details */}
           <div className="space-y-6">
-            {/* Pre-Grading Analysis - Like CardGrader.AI and Card Boss */}
+            {/* Pre-Grading Analysis - Like CardGrader.SI and Card Boss */}
             {analysis?.preGradingAnalysis && (
               <PreGradingAnalysis data={analysis.preGradingAnalysis} />
             )}
 
-            {/* AI Analysis Section */}
+            {/* SI Analysis Section */}
             <div className="bg-card border border-border rounded-2xl p-6">
               <div className="flex items-center gap-2 mb-4">
                 <Sparkles className="w-5 h-5 text-primary" />
-                <h2 className="font-display font-bold text-lg">AI Analysis</h2>
+                <h2 className="font-display font-bold text-lg">SI Analysis</h2>
               </div>
 
               <div className="space-y-4">
@@ -1470,7 +1470,7 @@ export default function CardDetail() {
                 {/* Confidence */}
                 {analysis?.confidence && (
                   <div className="flex items-center gap-2 text-sm">
-                    <span className="text-muted-foreground">AI Confidence:</span>
+                    <span className="text-muted-foreground">SI Confidence:</span>
                     <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
                       analysis.confidence === "high" ? "bg-green-500/20 text-green-500" :
                       analysis.confidence === "medium" ? "bg-yellow-500/20 text-yellow-500" :
@@ -1803,7 +1803,7 @@ export default function CardDetail() {
                 <p className="text-xs text-muted-foreground mt-2 text-center">
                   {hasRealPriceData
                     ? "Based on real eBay & TCGPlayer market data • Re-scan to add new data points"
-                    : "Based on AI market research • Scan again to build real price history"}
+                    : "Based on SI market research • Scan again to build real price history"}
                 </p>
               </div>
 
@@ -2270,7 +2270,7 @@ function GradingROICalculator({
 
       {/* Disclaimer */}
       <p className="text-xs text-muted-foreground mt-4 text-center">
-        * ROI estimates based on AI analysis. Actual grades and values may vary.
+        * ROI estimates based on SI analysis. Actual grades and values may vary.
       </p>
     </div>
   );

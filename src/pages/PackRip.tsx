@@ -206,7 +206,7 @@ const PackRip = () => {
     <div className="min-h-screen bg-background">
       <SEO
         title="Pack Rip – Log Your Pulls Instantly | MyCollectAI"
-        description="Capture every pack you open. AI identifies each pull, totals the value, and tracks your hit rate."
+        description="Capture every pack you open. SI identifies each pull, totals the value, and tracks your hit rate."
         path="/pack-rip"
         noIndex
       />
@@ -373,7 +373,7 @@ const PackRip = () => {
         </div>
       )}
 
-      <UpgradeModal open={showUpgrade} onOpenChange={setShowUpgrade} feature="AI card scanning" />
+      <UpgradeModal open={showUpgrade} onOpenChange={setShowUpgrade} feature="SI card scanning" />
       <Footer />
     </div>
   );

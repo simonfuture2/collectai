@@ -19,7 +19,7 @@ const HeroBackground = () => {
 
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none">
-      {/* AI-generated hero image layer */}
+      {/* SI-generated hero image layer */}
       {heroUrl && (
         <div
           className="absolute inset-0 bg-cover bg-center opacity-20 dark:opacity-15"

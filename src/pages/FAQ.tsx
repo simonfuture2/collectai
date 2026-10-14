@@ -9,19 +9,19 @@ import SEO from "@/components/SEO";
 const faqs = [
   {
     q: "What types of cards does MyCollectAI support?",
-    a: "MyCollectAI can identify and analyze trading cards across major categories including Pokémon, Magic: The Gathering, Yu-Gi-Oh!, sports cards (baseball, basketball, football, hockey), and other collectible cards. Our AI is continuously trained on new card sets and categories.",
+    a: "MyCollectAI can identify and analyze trading cards across major categories including Pokémon, Magic: The Gathering, Yu-Gi-Oh!, sports cards (baseball, basketball, football, hockey), and other collectible cards. Our SI is continuously trained on new card sets and categories.",
   },
   {
-    q: "How accurate is the AI grading?",
-    a: "Our AI provides condition estimates based on visual analysis of your card images. While our grading correlates well with professional graders, it is an estimate only and should not be considered a substitute for certified grading from PSA, BGS, CGC, or SGC. For high-value cards, we always recommend professional grading.",
+    q: "How accurate is the SI grading?",
+    a: "Our SI provides condition estimates based on visual analysis of your card images. While our grading correlates well with professional graders, it is an estimate only and should not be considered a substitute for certified grading from PSA, BGS, CGC, or SGC. For high-value cards, we always recommend professional grading.",
   },
   {
     q: "How are market values determined?",
-    a: "Our AI estimates market values based on recent comparable sales data, including eBay sold listings, TCGPlayer market prices, and PSA population data. Values are estimates and can fluctuate with market conditions. They should not be treated as guaranteed sale prices.",
+    a: "Our SI estimates market values based on recent comparable sales data, including eBay sold listings, TCGPlayer market prices, and PSA population data. Values are estimates and can fluctuate with market conditions. They should not be treated as guaranteed sale prices.",
   },
   {
     q: "What happens when I run out of credits?",
-    a: "When your credits reach zero, you won't be able to perform new AI scans until you purchase more credits or subscribe to Pro. Your existing collection and all previously scanned cards remain fully accessible. You can purchase credit packs starting at $9.99 for 10 credits.",
+    a: "When your credits reach zero, you won't be able to perform new SI scans until you purchase more credits or subscribe to Pro. Your existing collection and all previously scanned cards remain fully accessible. You can purchase credit packs starting at $9.99 for 10 credits.",
   },
   {
     q: "Can I cancel my Pro subscription?",
@@ -37,15 +37,15 @@ const faqs = [
   },
   {
     q: "What is AuthentiSeal?",
-    a: "AuthentiSeal is our digital authenticity certificate system, available to Pro subscribers. It uses blockchain technology (Solana) to create tamper-proof, publicly verifiable certificates of your card's AI analysis results, including the identification, condition assessment, and valuation at the time of scanning. These certificates are Non-Fungible Tokens (NFTs) used solely for authentication — MyCollectAI is not a cryptocurrency exchange.",
+    a: "AuthentiSeal is our digital authenticity certificate system, available to Pro subscribers. It uses blockchain technology (Solana) to create tamper-proof, publicly verifiable certificates of your card's SI analysis results, including the identification, condition assessment, and valuation at the time of scanning. These certificates are Non-Fungible Tokens (NFTs) used solely for authentication — MyCollectAI is not a cryptocurrency exchange.",
   },
   {
     q: "Does MyCollectAI access my camera?",
-    a: "Yes, MyCollectAI uses your device camera solely for the purpose of scanning collectible cards. Images captured are encrypted in transit and sent to our AI servers for analysis. We do not access your camera for any other purpose, and images are only stored in your personal collection. You can revoke camera access at any time through your device settings.",
+    a: "Yes, MyCollectAI uses your device camera solely for the purpose of scanning collectible cards. Images captured are encrypted in transit and sent to our SI servers for analysis. We do not access your camera for any other purpose, and images are only stored in your personal collection. You can revoke camera access at any time through your device settings.",
   },
   {
     q: "How many images should I upload per card?",
-    a: "For the best results, upload both the front and back of the card. You can also add additional views for cards with unique features (holo patterns, signatures, etc.). More angles give the AI more data to work with for accurate identification and grading.",
+    a: "For the best results, upload both the front and back of the card. You can also add additional views for cards with unique features (holo patterns, signatures, etc.). More angles give the SI more data to work with for accurate identification and grading.",
   },
   {
     q: "Do credits expire?",
@@ -57,8 +57,8 @@ const FAQ = () => {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <SEO
-        title="FAQ – Trading Card AI Grading Questions | MyCollectAI"
-        description="Answers about supported card types, AI grading accuracy, credit packs, Pro subscription, and how MyCollectAI valuations work."
+        title="FAQ – Trading Card SI Grading Questions | MyCollectAI"
+        description="Answers about supported card types, SI grading accuracy, credit packs, Pro subscription, and how MyCollectAI valuations work."
         path="/faq"
         jsonLd={{
           "@context": "https://schema.org",

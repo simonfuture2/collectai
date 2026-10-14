@@ -71,7 +71,7 @@ const PartnerSignup = () => {
               </div>
               <CardTitle className="text-2xl">Become a Partner</CardTitle>
               <CardDescription>
-                Join the MyCollectAI partner program and help grow the future of AI-powered collectibles.
+                Join the MyCollectAI partner program and help grow the future of SI-powered collectibles.
               </CardDescription>
             </CardHeader>
             <CardContent>

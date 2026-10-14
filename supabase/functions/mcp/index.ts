@@ -93,7 +93,7 @@ import { z as z2 } from "npm:zod@^3.25.76";
 var get_card_default = defineTool2({
   name: "get_card",
   title: "Get card details",
-  description: "Fetch full details for one card in the signed-in collector's collection, including AI analysis, grading info and market comps.",
+  description: "Fetch full details for one card in the signed-in collector's collection, including SI analysis, grading info and market comps.",
   inputSchema: {
     card_id: z2.string().uuid().describe("The card's id.")
   },
@@ -202,7 +202,7 @@ var mcp_default = defineMcp({
   name: "collector-s-insight",
   title: "Collector's Insight",
   version: "0.1.0",
-  instructions: "Tools for MyCollectAI, a trading card scanning, grading and valuation app. Use `collection_summary` for portfolio totals, `list_cards` to browse or search the collection, `get_card` for full details including AI grading and market comps, and `update_card_notes` to edit a card's notes. All tools act as the signed-in collector.",
+  instructions: "Tools for MyCollectAI, a trading card scanning, grading and valuation app. Use `collection_summary` for portfolio totals, `list_cards` to browse or search the collection, `get_card` for full details including SI grading and market comps, and `update_card_notes` to edit a card's notes. All tools act as the signed-in collector.",
   auth: auth.oauth.issuer({
     issuer: `https://${projectRef}.supabase.co/auth/v1`,
     acceptedAudiences: "authenticated"

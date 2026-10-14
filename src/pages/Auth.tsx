@@ -96,7 +96,7 @@ const Auth = () => {
     <div className="min-h-screen bg-background flex flex-col">
       <SEO
         title="Sign In or Create an Account – MyCollectAI"
-        description="Sign in to MyCollectAI or create a free account to scan, grade, and value your trading card collection with AI."
+        description="Sign in to MyCollectAI or create a free account to scan, grade, and value your trading card collection with SI."
         path="/auth"
       />
       <div className="absolute top-4 right-4 z-10">
