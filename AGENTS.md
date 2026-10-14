@@ -1,0 +1,1 @@
+- All Anthropic calls go through `supabase/functions/_shared/claude.ts` (`callClaude` + `MODELS`); never hard-code Claude model IDs elsewhere — one place to switch models via env.
