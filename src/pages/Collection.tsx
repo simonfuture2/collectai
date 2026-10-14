@@ -1,3 +1,4 @@
+import BetaEndedPrompt from "@/components/BetaEndedPrompt";
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useInsightCount } from "@/hooks/use-insight-count";
@@ -424,6 +425,7 @@ const Collection = () => {
         path="/collection"
         noIndex
       />
+      <BetaEndedPrompt showDialog={false} className="mx-3 mt-3 sm:mx-auto sm:max-w-5xl" />
       <header className="border-b border-border sticky top-0 z-20 bg-background/95 backdrop-blur-sm">
         <div className="container mx-auto px-3 sm:px-4 py-2 sm:py-4 flex items-center justify-between gap-2">
           <div className="flex items-center gap-1.5 sm:gap-3 min-w-0">
