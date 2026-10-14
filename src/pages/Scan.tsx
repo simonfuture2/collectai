@@ -119,7 +119,7 @@ const Scan = () => {
       if (s) {
         try {
           const { data } = await supabase.functions.invoke("check-subscription");
-          allowed = (data?.plan === "pro") || data?.subscribed || (data?.credits ?? 0) > 0;
+          allowed = (data?.plan === "pro") || data?.subscribed || !!data?.beta_active || (data?.credits ?? 0) > 0;
         } catch { /* fall back to existing flag */ }
       }
     }
