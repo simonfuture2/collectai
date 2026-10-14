@@ -47,16 +47,6 @@ serve(async (req) => {
       });
     }
 
-    const { data: creditsData } = await supabaseAdmin
-      .from("user_credits").select("credits, plan").eq("user_id", user.id).single();
-    const isPro = creditsData?.plan === "pro";
-    const hasCredits = (creditsData?.credits ?? 0) > 0;
-    if (!isPro && !hasCredits) {
-      return new Response(JSON.stringify({ error: "Insufficient credits." }), {
-        status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
     const body = await req.json();
 
     // Scan purpose: 'collection' (default) or 'insight' (card the user doesn't own)
@@ -93,6 +83,16 @@ serve(async (req) => {
         }
         insightEvent = t || null;
       }
+    }
+
+    const { data: creditsData } = await supabaseAdmin
+      .from("user_credits").select("credits, plan").eq("user_id", user.id).single();
+    const isPro = creditsData?.plan === "pro";
+    const hasCredits = (creditsData?.credits ?? 0) > 0;
+    if (!isPro && !hasCredits) {
+      return new Response(JSON.stringify({ error: "Insufficient credits." }), {
+        status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     const images: { label: string; url: string }[] = body.images || [];
