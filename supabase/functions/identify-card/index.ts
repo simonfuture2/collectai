@@ -79,8 +79,11 @@ serve(async (req) => {
     }
 
     const { data: creditsData } = await supabaseAdmin
-      .from("user_credits").select("credits, plan").eq("user_id", user.id).single();
-    const isPro = creditsData?.plan === "pro";
+      .from("user_credits").select("credits, plan, beta_access_until").eq("user_id", user.id).single();
+    // Active beta access = full (Pro-level) access, matching check-subscription.
+    const betaUntil = (creditsData as any)?.beta_access_until;
+    const betaActive = !!betaUntil && new Date(betaUntil).getTime() > Date.now();
+    const isPro = creditsData?.plan === "pro" || betaActive;
     const hasCredits = (creditsData?.credits ?? 0) > 0;
 
     // Rate limit (per plan)
