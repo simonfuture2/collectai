@@ -396,8 +396,9 @@ Return ONLY the JSON object, no other text.`;
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-5",
-        max_tokens: 1024,
+        model: "claude-sonnet-5-5",
+        max_tokens: 4000,
+        output_config: { effort: "low" },
         messages: [
           {
             role: "user",
@@ -428,7 +429,11 @@ Return ONLY the JSON object, no other text.`;
     }
 
     const claudeData = await claudeResponse.json();
-    const responseText = claudeData.content?.[0]?.text || "";
+    const responseText =
+      (Array.isArray(claudeData.content)
+        ? claudeData.content.find((b: any) => b?.type === "text")?.text
+        : "") || "";
+    if (claudeData.stop_reason === "max_tokens") console.error("quick-scan: Claude stopped at max_tokens");
     console.log("Claude raw response:", responseText.substring(0, 500));
 
     // Extract JSON from Claude's response
