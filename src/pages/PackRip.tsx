@@ -120,7 +120,7 @@ const PackRip = () => {
           .select("card_name, card_set, rarity, estimated_value_low, estimated_value_high, analysis_status, analysis_error")
           .eq("id", started.cardId)
           .maybeSingle();
-        if (row && (row.analysis_status === "complete" || row.analysis_status === "completed" || row.analysis_status === "failed" || row.analysis_status?.startsWith("completed"))) {
+        if (row && (row.analysis_status === "complete" || row.analysis_status === "failed")) {
           data = row;
           break;
         }
