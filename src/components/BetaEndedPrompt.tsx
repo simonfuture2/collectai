@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 /** Beta reminders (7 / 1 days left) and the "beta ended — subscribe to keep your collection" prompt. */
-const BetaEndedPrompt = ({ showDialog = true }: { showDialog?: boolean }) => {
+const BetaEndedPrompt = ({ showDialog = true, className = "" }: { showDialog?: boolean; className?: string }) => {
   const navigate = useNavigate();
   const { loading, subscribed, plan, betaEndsAt, betaActive, betaDaysLeft, betaEligible } = useCredits();
   const [userId, setUserId] = useState<string | null>(null);
@@ -44,7 +44,7 @@ const BetaEndedPrompt = ({ showDialog = true }: { showDialog?: boolean }) => {
   return (
     <>
       {expired && !bannerHidden && (
-        <div className="mb-3 flex items-center gap-2 rounded-xl border border-primary/30 bg-card p-3 text-sm">
+        <div className={`mb-3 flex items-center gap-2 rounded-xl border border-primary/30 bg-card p-3 text-sm ${className}`}>
           <Crown className="w-4 h-4 text-primary shrink-0" />
           <span className="flex-1">{title}. {body}</span>
           <Button size="sm" className="gradient-primary text-primary-foreground" onClick={go}>Subscribe</Button>

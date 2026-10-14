@@ -1,3 +1,4 @@
+import BetaEndedPrompt from "@/components/BetaEndedPrompt";
 import { useEffect, useState, lazy, Suspense } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import collectaiLogo from "@/assets/collectai-logo.png";
@@ -150,6 +151,7 @@ const Dashboard = () => {
       </header>
 
       <main className="container mx-auto px-3 sm:px-4 py-6 sm:py-8">
+        <BetaEndedPrompt />
         {(betaActive || betaEligible) && !subscribed && (
           <Link
             to="/pricing"
