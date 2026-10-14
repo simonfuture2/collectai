@@ -41,6 +41,7 @@ const CreateListing = lazy(() => import("./pages/CreateListing"));
 const WalletSettings = lazy(() => import("./pages/WalletSettings"));
 const DesignDemo = lazy(() => import("./pages/DesignDemo"));
 const ScanReveal = lazy(() => import("./pages/ScanReveal"));
+const Verify = lazy(() => import("./pages/Verify"));
 const Insights = lazy(() => import("./pages/Insights"));
 const GradingGuides = lazy(() => import("./pages/GradingGuides"));
 const GradingGuide = lazy(() => import("./pages/GradingGuide"));
@@ -135,6 +136,7 @@ const App = () => (
               <Route path="/privacy" element={<Privacy />} />
               <Route path="/refund" element={<Refund />} />
               <Route path="/faq" element={<FAQ />} />
+              <Route path="/verify" element={<Verify />} />
               <Route path="/about" element={<About />} />
               <Route path="/how-it-works" element={<HowItWorks />} />
               <Route path="/admin" element={<Admin />} />

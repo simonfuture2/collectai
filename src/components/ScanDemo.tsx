@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { Upload, Loader2, RotateCcw } from "lucide-react";
 import charizardCard from "@/assets/scan-demo-charizard.jpeg";
 import { supabase } from "@/integrations/supabase/client";
@@ -34,7 +34,9 @@ const fileToBase64 = (file: File) =>
     reader.readAsDataURL(file);
   });
 
-const ScanDemo = () => {
+export interface ScanDemoHandle { openPicker: () => void }
+
+const ScanDemo = forwardRef<ScanDemoHandle>((_props, ref) => {
   const { toast } = useToast();
   const fileRef = useRef<HTMLInputElement>(null);
   const [stage, setStage] = useState<Stage>("idle");
@@ -42,6 +44,8 @@ const ScanDemo = () => {
   const [usingDefault, setUsingDefault] = useState(true);
   const [result, setResult] = useState<DemoResult | null>(null);
   const [errorMsg, setErrorMsg] = useState<string>("");
+
+  useImperativeHandle(ref, () => ({ openPicker: () => fileRef.current?.click() }), []);
 
   // Cleanup object URLs
   useEffect(() => {
@@ -184,7 +188,7 @@ const ScanDemo = () => {
               Scan your card
             </span>
             <span className="mt-2 text-xs text-muted-foreground bg-card/80 backdrop-blur rounded-full px-3 py-1">
-              Free · Pokémon, Magic, Yu-Gi-Oh!, Sports
+              Free · Any TCG, sports cards & slabs
             </span>
           </button>
         )}
@@ -248,6 +252,8 @@ const ScanDemo = () => {
       </div>
     </div>
   );
-};
+});
+
+ScanDemo.displayName = "ScanDemo";
 
 export default ScanDemo;
