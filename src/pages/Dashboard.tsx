@@ -16,6 +16,7 @@ import PublicCollectionToggle from "@/components/PublicCollectionToggle";
 import { usePushNotifications } from "@/hooks/use-push-notifications";
 import AchievementsRow from "@/components/AchievementsRow";
 import PortfolioHero from "@/components/PortfolioHero";
+import InsightsPreview from "@/components/InsightsPreview";
 import SEO from "@/components/SEO";
 
 const PortfolioAnalytics = lazy(() => import("@/components/PortfolioAnalytics"));
@@ -205,6 +206,8 @@ const Dashboard = () => {
               <PortfolioHero cards={cards} />
             </div>
 
+
+            <InsightsPreview />
 
             {cards.length > 0 && <AchievementsRow cards={cards} />}
 

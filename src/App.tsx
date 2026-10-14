@@ -41,6 +41,7 @@ const CreateListing = lazy(() => import("./pages/CreateListing"));
 const WalletSettings = lazy(() => import("./pages/WalletSettings"));
 const DesignDemo = lazy(() => import("./pages/DesignDemo"));
 const ScanReveal = lazy(() => import("./pages/ScanReveal"));
+const Insights = lazy(() => import("./pages/Insights"));
 const GradingGuides = lazy(() => import("./pages/GradingGuides"));
 const GradingGuide = lazy(() => import("./pages/GradingGuide"));
 const OAuthConsent = lazy(() => import("./pages/OAuthConsent"));
@@ -118,6 +119,7 @@ const App = () => (
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/scan" element={<Scan />} />
               <Route path="/scan/reveal/:cardId" element={<ScanReveal />} />
+              <Route path="/insights" element={<Insights />} />
               <Route path="/collection" element={<Collection />} />
               <Route path="/pack-rip" element={<PackRip />} />
               <Route path="/card/:id" element={<CardDetail />} />
