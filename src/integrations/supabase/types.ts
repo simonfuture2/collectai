@@ -163,6 +163,7 @@ export type Database = {
           is_authenticated: boolean
           is_listed: boolean
           is_public: boolean
+          item_type: string
           last_scanned_at: string | null
           moved_to_collection_at: string | null
           notes: string | null
@@ -173,6 +174,7 @@ export type Database = {
           special_features: string[] | null
           superseded_by_card_id: string | null
           tcgplayer_price: Json | null
+          upc: string | null
           updated_at: string
           user_id: string
         }
@@ -205,6 +207,7 @@ export type Database = {
           is_authenticated?: boolean
           is_listed?: boolean
           is_public?: boolean
+          item_type?: string
           last_scanned_at?: string | null
           moved_to_collection_at?: string | null
           notes?: string | null
@@ -215,6 +218,7 @@ export type Database = {
           special_features?: string[] | null
           superseded_by_card_id?: string | null
           tcgplayer_price?: Json | null
+          upc?: string | null
           updated_at?: string
           user_id: string
         }
@@ -247,6 +251,7 @@ export type Database = {
           is_authenticated?: boolean
           is_listed?: boolean
           is_public?: boolean
+          item_type?: string
           last_scanned_at?: string | null
           moved_to_collection_at?: string | null
           notes?: string | null
@@ -257,6 +262,7 @@ export type Database = {
           special_features?: string[] | null
           superseded_by_card_id?: string | null
           tcgplayer_price?: Json | null
+          upc?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -1158,6 +1164,33 @@ export type Database = {
           referral_code?: string
           referred_id?: string
           referrer_id?: string
+        }
+        Relationships: []
+      }
+      sealed_chase_cache: {
+        Row: {
+          cache_key: string
+          category: string
+          payload: Json
+          refreshed_at: string
+          set_name: string
+          source: string
+        }
+        Insert: {
+          cache_key: string
+          category: string
+          payload: Json
+          refreshed_at?: string
+          set_name: string
+          source: string
+        }
+        Update: {
+          cache_key?: string
+          category?: string
+          payload?: Json
+          refreshed_at?: string
+          set_name?: string
+          source?: string
         }
         Relationships: []
       }

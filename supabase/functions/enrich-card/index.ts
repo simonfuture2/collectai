@@ -5,6 +5,7 @@ import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { runAnalysis } from "../_shared/analysisEngine.ts";
+import { runSealedEnrichment } from "./sealedFlow.ts";
 import { buildPriceHistoryRows } from "../_shared/marketData.ts";
 import { computePriceTrend } from "../_shared/priceTrend.ts";
 import { buildRecommendation } from "../_shared/recommendation.ts";
@@ -374,7 +375,7 @@ serve(async (req) => {
   // Validate card exists
   const { data: card, error: cardErr } = await supabaseAdmin
     .from("cards")
-    .select("id, user_id")
+    .select("id, user_id, item_type, upc")
     .eq("id", cardId)
     .single();
   if (cardErr || !card) {
@@ -385,6 +386,10 @@ serve(async (req) => {
 
   const work = (async () => {
     try {
+      if ((card as any).item_type === "sealed") {
+        await runSealedEnrichment({ cardId, imageUrl: images[0].url, upc: (card as any).upc ?? null, db: supabaseAdmin });
+        return;
+      }
       const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
       if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 

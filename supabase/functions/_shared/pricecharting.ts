@@ -51,8 +51,8 @@ export type PriceChartingResult = {
   via?: "local" | "api" | "sportscardspro";
 };
 
-const PC_BASE = "https://www.pricecharting.com";
-const SCP_BASE = "https://www.sportscardspro.com";
+export const PC_BASE = "https://www.pricecharting.com";
+export const SCP_BASE = "https://www.sportscardspro.com";
 const TIMEOUT_MS = 8000;
 
 const SPORTS_CATEGORIES = new Set([
@@ -100,7 +100,7 @@ function emptyResult(reason: string): PriceChartingResult {
   };
 }
 
-function tokensOf(s: string): Set<string> {
+export function tokensOf(s: string): Set<string> {
   return new Set(
     (s || "")
       .toLowerCase()
@@ -230,7 +230,7 @@ const SET_ALIASES: Array<[RegExp, string[]]> = [
   [/\be[\-\s]?reader\b/i, ["e-reader", "expedition", "aquapolis", "skyridge"]],
 ];
 
-function setAliasTokens(rawSet: string): string[] {
+export function setAliasTokens(rawSet: string): string[] {
   const tokens = new Set<string>();
   const s = (rawSet || "").toLowerCase();
   for (const [re, aliases] of SET_ALIASES) {
@@ -429,4 +429,42 @@ export async function getPriceChartingData(
     console.error("[pricecharting] unexpected error", (err as Error)?.message);
     return emptyResult("unexpected_error");
   }
+}
+
+
+/** Live multi-result search (/api/products). Returns raw API rows, or [] on failure. */
+export async function searchProducts(sports: boolean, query: string): Promise<Record<string, any>[]> {
+  const apiKey = Deno.env.get("PRICECHARTING_API_KEY");
+  if (!apiKey || !query.trim()) return [];
+  const base = sports ? SCP_BASE : PC_BASE;
+  const url = `${base}/api/products?t=${encodeURIComponent(apiKey)}&q=${encodeURIComponent(query)}`;
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
+  try {
+    const res = await fetch(url, { signal: ctrl.signal });
+    if (!res.ok) { console.error("[pricecharting] products HTTP", res.status, query); return []; }
+    const data = await res.json();
+    return Array.isArray(data?.products) ? data.products : [];
+  } catch (err) {
+    console.error("[pricecharting] products error", (err as Error)?.message);
+    return [];
+  } finally { clearTimeout(timer); }
+}
+
+/** Score a catalog/API set name against identified set words (with aliases). */
+export function scoreSetName(consoleName: string, setName: string, setCode: string | null, japanese: boolean): number {
+  const c = (consoleName || "").toLowerCase();
+  const cTok = tokensOf(c);
+  let score = 0;
+  for (const t of setAliasTokens(setName)) {
+    if (t.includes(" ") ? c.includes(t) : cTok.has(t)) score += t.includes(" ") ? 20 : 10;
+  }
+  if (setCode && c.includes(setCode.toLowerCase())) score += 15;
+  const isJp = c.includes("japanese");
+  if (japanese && isJp) score += 10;
+  if (!japanese && isJp) score -= 15;
+  // Penalise long console names with many unmatched words.
+  const want = tokensOf(setName);
+  for (const t of cTok) if (!want.has(t) && !["pokemon", "cards", "japanese", "magic", "yugioh", "one", "piece"].includes(t)) score -= 2;
+  return score;
 }

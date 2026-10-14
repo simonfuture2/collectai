@@ -50,6 +50,22 @@ serve(async (req) => {
       });
     }
     const scanPurpose: "collection" | "insight" = rawPurpose;
+    const itemType = body.itemType ?? "card";
+    if (!["card", "slab", "sealed"].includes(itemType)) {
+      return new Response(JSON.stringify({ error: "itemType must be 'card', 'slab' or 'sealed'" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    let upc: string | null = null;
+    if (body.upc !== undefined && body.upc !== null && body.upc !== "") {
+      const u = String(body.upc).trim();
+      if (!/^\d{8,14}$/.test(u)) {
+        return new Response(JSON.stringify({ error: "upc must be 8–14 digits" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      upc = u;
+    }
     let askingPrice: number | null = null;
     let insightEvent: string | null = null;
     if (scanPurpose === "insight") {
@@ -182,6 +198,8 @@ serve(async (req) => {
         scan_purpose: scanPurpose,
         asking_price: askingPrice,
         insight_event: insightEvent,
+        item_type: itemType,
+        upc,
       })
       .select("id").single();
 
@@ -211,7 +229,7 @@ serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        cardId: savedCard.id, scanPurpose,
+        cardId: savedCard.id, scanPurpose, itemType, upc,
         images,
         category,
         fastScan: body.fastScan === true,
