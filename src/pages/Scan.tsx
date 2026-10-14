@@ -225,7 +225,7 @@ const Scan = () => {
                 {isInsight ? "Insight Scan" : "Scan to Collection"}
               </h1>
               {isInsight && (
-                <p className="text-xs text-muted-foreground truncate">Won't be added to your collection. You can add it later.</p>
+                <p className="text-xs text-muted-foreground leading-snug">Won't be added to your collection. You can add it later.</p>
               )}
             </div>
           </div>
