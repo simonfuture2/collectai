@@ -15,6 +15,13 @@
       "when": 1791982240980,
       "tag": "0001_insights_scan_mode",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791989051548,
+      "tag": "0002_drop_open_storage_read_rules",
+      "breakpoints": true
     }
   ]
 }
