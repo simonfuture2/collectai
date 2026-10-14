@@ -58,6 +58,43 @@ serve(async (req) => {
     }
 
     const body = await req.json();
+
+    // Scan purpose: 'collection' (default) or 'insight' (card the user doesn't own)
+    const rawPurpose = body.scanPurpose ?? "collection";
+    if (rawPurpose !== "collection" && rawPurpose !== "insight") {
+      return new Response(JSON.stringify({ error: "scanPurpose must be 'collection' or 'insight'" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const scanPurpose: "collection" | "insight" = rawPurpose;
+    let askingPrice: number | null = null;
+    let insightEvent: string | null = null;
+    if (scanPurpose === "insight") {
+      if (body.askingPrice !== undefined && body.askingPrice !== null && body.askingPrice !== "") {
+        const n = Number(body.askingPrice);
+        if (!Number.isFinite(n) || n < 0) {
+          return new Response(JSON.stringify({ error: "askingPrice must be a number 0 or more" }), {
+            status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        askingPrice = Math.round(n * 100) / 100;
+      }
+      if (body.insightEvent !== undefined && body.insightEvent !== null) {
+        if (typeof body.insightEvent !== "string") {
+          return new Response(JSON.stringify({ error: "insightEvent must be a string" }), {
+            status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        const t = body.insightEvent.trim();
+        if (t.length > 80) {
+          return new Response(JSON.stringify({ error: "insightEvent max 80 characters" }), {
+            status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        insightEvent = t || null;
+      }
+    }
+
     const images: { label: string; url: string }[] = body.images || [];
     if (images.length === 0 && body.imageUrl) images.push({ label: "Front", url: body.imageUrl });
     if (images.length === 0) {
@@ -105,7 +142,7 @@ serve(async (req) => {
     const { data: existingCard } = await supabaseAdmin
       .from("cards").select("id").eq("user_id", user.id).eq("image_url", imagePath).maybeSingle();
     if (existingCard) {
-      return new Response(JSON.stringify({ cardId: existingCard.id, duplicate: true }), {
+      return new Response(JSON.stringify({ cardId: existingCard.id, duplicate: true, scanPurpose }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -123,6 +160,9 @@ serve(async (req) => {
         last_scanned_at: new Date().toISOString(),
         analysis_status: "identifying",
         analysis_started_at: new Date().toISOString(),
+        scan_purpose: scanPurpose,
+        asking_price: askingPrice,
+        insight_event: insightEvent,
       })
       .select("id").single();
 
