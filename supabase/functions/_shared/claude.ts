@@ -7,7 +7,8 @@ export type ClaudeTask =
   | "PRE_GRADE"
   | "QUICK_SCAN"
   | "DEMO_SCAN"
-  | "IDENTIFY_FALLBACK";
+  | "IDENTIFY_FALLBACK"
+  | "SEALED_SUMMARY";
 
 interface ModelConfig {
   model: string;
@@ -23,6 +24,7 @@ export const MODELS: Record<ClaudeTask, ModelConfig> = {
   PRE_GRADE: { model: env("CLAUDE_MODEL_GRADE") ?? "claude-sonnet-5-5", effort: "medium", max_tokens: 12000 },
   QUICK_SCAN: { model: env("CLAUDE_MODEL_QUICK") ?? "claude-sonnet-5-5", effort: "low", max_tokens: 4000 },
   DEMO_SCAN: { model: env("CLAUDE_MODEL_QUICK") ?? "claude-sonnet-5-5", effort: "low", max_tokens: 4000 },
+  SEALED_SUMMARY: { model: env("CLAUDE_MODEL_SEALED") ?? "claude-sonnet-5-5", effort: "low", max_tokens: 1500 },
   IDENTIFY_FALLBACK: { model: env("CLAUDE_MODEL_IDENTIFY") ?? "claude-sonnet-5-5", effort: "low", max_tokens: 6000 },
 };
 

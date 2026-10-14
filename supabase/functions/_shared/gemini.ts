@@ -161,3 +161,27 @@ export async function identifyWithGemini(
     return null;
   }
 }
+
+
+/** Generic vision → JSON call (same API, same default model). Returns parsed JSON or null. */
+export async function geminiVisionJson(imageInput: string, prompt: string, model: string = "gemini-3.5-flash"): Promise<any | null> {
+  const apiKey = Deno.env.get("GEMINI_API_KEY");
+  if (!apiKey) { console.error("[gemini] GEMINI_API_KEY not configured"); return null; }
+  const img = await normalizeImage(imageInput);
+  if (!img) return null;
+  try {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${apiKey}`;
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ role: "user", parts: [{ inline_data: { mime_type: img.mimeType, data: img.base64 } }, { text: prompt }] }],
+        generationConfig: { responseMimeType: "application/json", thinkingConfig: { thinkingLevel: "low" } },
+      }),
+    });
+    if (!res.ok) { console.error("[gemini] HTTP", res.status, (await res.text().catch(() => "")).slice(0, 300)); return null; }
+    const data = await res.json();
+    const text = (data?.candidates?.[0]?.content?.parts ?? []).map((p: any) => p?.text ?? "").join("").trim();
+    return parseJsonLoose(text);
+  } catch (err) { console.error("[gemini] vision error", err); return null; }
+}
