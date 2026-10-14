@@ -166,7 +166,7 @@ const Landing = () => {
           </h2>
           <ChipRow label="Trading card games">
             {TCGS.map((t) => (
-              <span key={t} className="shrink-0 relative rounded-full border-2 border-primary/60 bg-card px-5 py-2.5 text-base font-display font-semibold">
+              <span key={t} className="shrink-0 relative rounded-full border-2 border-primary/60 bg-card px-5 py-2.5 text-base font-display font-semibold text-collectai-purple">
                 {t}
                 {t === "One Piece" && (
                   <span className="ml-2 rounded-full gradient-primary text-primary-foreground text-[10px] px-2 py-0.5 align-middle">New</span>

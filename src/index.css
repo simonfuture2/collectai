@@ -83,6 +83,8 @@
     --border: 240 5% 16%;
     --input: 240 5% 16%;
     --ring: 46 65% 52%;
+    /* Lighter brand purple on dark surfaces so purple text stays legible */
+    --collectai-purple: 280 85% 68%;
     --sidebar-background: 240 5% 7%;
     --sidebar-foreground: 240 17% 97%;
     --sidebar-accent: 240 5% 14%;

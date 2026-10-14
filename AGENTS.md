@@ -1,1 +1,2 @@
 - All Anthropic calls go through `supabase/functions/_shared/claude.ts` (`callClaude` + `MODELS`); never hard-code Claude model IDs elsewhere — one place to switch models via env.
+- Never register a Tailwind colour whose name collides with a built-in utility (`base` generated `.text-base { color }` and silently repainted every 16px heading); name surface tokens so they can't form a `text-*` font-size class.
