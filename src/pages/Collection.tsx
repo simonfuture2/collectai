@@ -378,29 +378,24 @@ const Collection = () => {
     if (rescanningId) return;
     setRescanningId(card.id);
     try {
-      // Get the storage path from the image URL
-      const match = card.image_url.match(/card-images\/([^?]+)/);
-      const imagePath = match ? match[1] : card.image_url;
-
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error("Not authenticated");
-
-      // analyze-card requires a signed URL from the card-images bucket
-      const { data: signed, error: signErr } = await supabase
-        .storage.from("card-images").createSignedUrl(imagePath, 3600);
-      if (signErr || !signed?.signedUrl) throw signErr || new Error("Could not sign image URL");
-
-      const response = await supabase.functions.invoke("analyze-card", {
-        body: {
-          images: [{ label: "Front", url: signed.signedUrl }],
-          cardId: card.id,
-        },
-      });
-
+      // Same flow as Card Detail: reanalyze-card dispatches enrich-card in the background.
+      const response = await supabase.functions.invoke("reanalyze-card", { body: { cardId: card.id } });
       if (response.error) throw response.error;
 
-      const result = response.data;
-      // Update local state with new values
+      let result: any = null;
+      const deadline = Date.now() + 120_000;
+      while (Date.now() < deadline) {
+        await new Promise((r) => setTimeout(r, 2500));
+        const { data: row } = await supabase
+          .from("cards")
+          .select("card_name, card_set, card_year, rarity, category, condition_grade, estimated_value_low, estimated_value_high, analysis_status, analysis_error")
+          .eq("id", card.id)
+          .maybeSingle();
+        if (row && (row.analysis_status === "complete" || row.analysis_status === "failed")) { result = row; break; }
+      }
+      if (!result) throw new Error("Re-scan is still running — refresh in a minute.");
+      if (result.analysis_status === "failed") throw new Error(result.analysis_error || "Analysis failed");
+
       setCards(prev => prev.map(c => c.id === card.id ? {
         ...c,
         card_name: result.card_name || c.card_name,

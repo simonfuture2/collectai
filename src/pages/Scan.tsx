@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Upload, Loader2, Sparkles, Plus, X, Zap, ScanSearch } from "lucide-react";
+import { ArrowLeft, Upload, Camera, Loader2, Sparkles, Plus, X, Zap, ScanSearch } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import ScanTimeline from "@/components/ScanTimeline";
@@ -274,17 +274,26 @@ const Scan = () => {
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               {slots.map((slot) => (
                 <div key={slot.id} className="relative group">
-                  <label className={cn("block border-2 border-dashed border-border rounded-xl aspect-[3/4] cursor-pointer transition-colors overflow-hidden", isInsight ? "hover:border-secondary/50" : "hover:border-primary/50")}>
-                    <input type="file" accept="image/*" onChange={(e) => handleFileChange(slot.id, e)} className="hidden" />
+                  <div className={cn("block border-2 border-dashed border-border rounded-xl aspect-[3/4] transition-colors overflow-hidden", isInsight ? "hover:border-secondary/50" : "hover:border-primary/50")}>
                     {slot.preview ? (
-                      <img src={slot.preview} alt={`Card ${slot.label} view`} className="w-full h-full object-cover" />
+                      <label className="block w-full h-full cursor-pointer">
+                        <input type="file" accept="image/*" onChange={(e) => handleFileChange(slot.id, e)} className="hidden" />
+                        <img src={slot.preview} alt={`Card ${slot.label} view`} className="w-full h-full object-cover" />
+                      </label>
                     ) : (
-                      <div className="flex flex-col items-center justify-center h-full gap-2">
-                        <Upload className="w-8 h-8 text-muted-foreground" />
+                      <div className="flex flex-col items-center justify-center h-full gap-2 p-2">
                         <span className="text-xs text-muted-foreground font-medium">{slot.label}</span>
+                        <label className={cn("flex w-full items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold cursor-pointer", isInsight ? "bg-secondary text-secondary-foreground" : "bg-primary text-primary-foreground")}>
+                          <input type="file" accept="image/*" capture="environment" onChange={(e) => handleFileChange(slot.id, e)} className="hidden" />
+                          <Camera className="w-4 h-4" /> Take photo
+                        </label>
+                        <label className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-border py-2 text-xs font-medium text-muted-foreground cursor-pointer hover:bg-muted">
+                          <input type="file" accept="image/*" onChange={(e) => handleFileChange(slot.id, e)} className="hidden" />
+                          <Upload className="w-4 h-4" /> Upload
+                        </label>
                       </div>
                     )}
-                  </label>
+                  </div>
                   <span className={cn("absolute top-2 left-2 text-[10px] font-semibold px-2 py-0.5 rounded-full", isInsight ? "bg-secondary/90 text-secondary-foreground" : "bg-primary/90 text-primary-foreground")}>
                     {slot.label}
                   </span>

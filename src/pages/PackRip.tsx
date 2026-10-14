@@ -104,14 +104,35 @@ const PackRip = () => {
         .createSignedUrl(filePath, 3600);
       if (!signed) throw new Error("Could not create signed URL");
 
-      const { data, error } = await supabase.functions.invoke("analyze-card", {
-        body: {
-          images: [{ label: "Front", url: signed.signedUrl }],
-          imageUrl: signed.signedUrl,
-        },
+      const { data: started, error } = await supabase.functions.invoke("identify-card", {
+        body: { images: [{ label: "Front", url: signed.signedUrl }], scanPurpose: "collection" },
         headers: { Authorization: `Bearer ${token}` },
       });
       if (error) throw error;
+      if (!started?.cardId) throw new Error(started?.error || "Scan could not start");
+
+      // Wait for background analysis (polling — cards don't broadcast realtime changes).
+      let data: any = null;
+      const deadline = Date.now() + 120_000;
+      while (Date.now() < deadline) {
+        const { data: row } = await supabase
+          .from("cards")
+          .select("card_name, card_set, rarity, estimated_value_low, estimated_value_high, analysis_status, analysis_error")
+          .eq("id", started.cardId)
+          .maybeSingle();
+        if (row && (row.analysis_status === "complete" || row.analysis_status === "failed")) {
+          data = row;
+          break;
+        }
+        await new Promise((r) => setTimeout(r, 2500));
+      }
+      if (!data) throw new Error("Analysis is taking longer than usual — check your collection shortly.");
+      if (data.analysis_status === "failed") throw new Error(data.analysis_error || "Analysis failed");
+      data = {
+        cardName: data.card_name, cardSet: data.card_set, rarity: data.rarity,
+        estimatedValueLow: data.estimated_value_low, estimatedValueHigh: data.estimated_value_high,
+        cardId: started.cardId,
+      };
 
       const newPull: Pull = {
         cardName: data.cardName || "Unknown card",

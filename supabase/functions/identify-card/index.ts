@@ -5,6 +5,11 @@ import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+// Hourly scan caps. Every scan (Pro included) writes a credit_transactions
+// row with type 'scan', so these counters apply to everyone.
+const FREE_SCANS_PER_HOUR = 10;
+const PRO_SCANS_PER_HOUR = 60;
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -34,18 +39,6 @@ serve(async (req) => {
     }
 
     const supabaseAdmin = createClient(supabaseUrl, serviceKey);
-
-    // Rate limit: 10/hour
-    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-    const { count: recentScans } = await supabaseAdmin
-      .from("credit_transactions")
-      .select("*", { count: "exact", head: true })
-      .eq("user_id", user.id).eq("type", "scan").gte("created_at", oneHourAgo);
-    if ((recentScans ?? 0) >= 10) {
-      return new Response(JSON.stringify({ error: "Rate limit exceeded — max 10 scans per hour." }), {
-        status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
 
     const body = await req.json();
 
@@ -89,6 +82,19 @@ serve(async (req) => {
       .from("user_credits").select("credits, plan").eq("user_id", user.id).single();
     const isPro = creditsData?.plan === "pro";
     const hasCredits = (creditsData?.credits ?? 0) > 0;
+
+    // Rate limit (per plan)
+    const hourlyCap = isPro ? PRO_SCANS_PER_HOUR : FREE_SCANS_PER_HOUR;
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    const { count: recentScans } = await supabaseAdmin
+      .from("credit_transactions")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", user.id).eq("type", "scan").gte("created_at", oneHourAgo);
+    if ((recentScans ?? 0) >= hourlyCap) {
+      return new Response(JSON.stringify({ error: `Rate limit exceeded — max ${hourlyCap} scans per hour.` }), {
+        status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     if (!isPro && !hasCredits) {
       return new Response(JSON.stringify({ error: "Insufficient credits." }), {
         status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -149,6 +155,16 @@ serve(async (req) => {
 
     const category = body.category || "Trading Card";
 
+    // Deduct credit BEFORE creating anything, so a race can't produce a free scan.
+    if (!isPro) {
+      const { data: remaining, error: deductErr } = await supabaseAdmin.rpc("deduct_credit", { _user_id: user.id });
+      if (deductErr || remaining === -1) {
+        return new Response(JSON.stringify({ error: "Insufficient credits." }), {
+          status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
     // Insert placeholder row INSTANTLY — no AI calls here.
     const { data: savedCard, error: insertErr } = await supabaseAdmin
       .from("cards")
@@ -168,21 +184,20 @@ serve(async (req) => {
 
     if (insertErr || !savedCard) {
       console.error("[identify-card] insert failed:", insertErr);
+      if (!isPro) {
+        // Give the credit back — nothing was created.
+        await supabaseAdmin.rpc("add_credits", { _user_id: user.id, _amount: 1 });
+      }
       return new Response(JSON.stringify({ error: "Failed to create card" }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Deduct credit
-    if (!isPro) {
-      const { data: remaining } = await supabaseAdmin.rpc("deduct_credit", { _user_id: user.id });
-      if (remaining !== -1) {
-        await supabaseAdmin.from("credit_transactions").insert({
-          user_id: user.id, amount: -1, type: "scan",
-          description: `AI scan: card ${savedCard.id}`,
-        });
-      }
-    }
+    // Log the scan for everyone (amount 0 for Pro) so the hourly cap works.
+    await supabaseAdmin.from("credit_transactions").insert({
+      user_id: user.id, amount: isPro ? 0 : -1, type: "scan",
+      description: `AI scan: card ${savedCard.id}`,
+    });
 
     // Fire-and-forget enrichment — identify + pricing both run server-side.
     const enrichUrl = `${supabaseUrl}/functions/v1/enrich-card`;

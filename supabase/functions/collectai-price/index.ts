@@ -3,6 +3,10 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { getMarketData, type CardIdentification } from "../_shared/marketData.ts";
 import { computeMarketConfidence } from "../_shared/confidence.ts";
 
+// All Gemini calls share one generation.
+const PRICE_GEMINI_MODEL = "google/gemini-3.5-flash";
+const PRICE_GEMINI_LITE_MODEL = "google/gemini-3.5-flash";
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-api-key",
@@ -212,7 +216,7 @@ Respond in JSON format:
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-pro",
+        model: PRICE_GEMINI_MODEL,
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userContent },
@@ -265,7 +269,7 @@ If the estimate is wrong based on the data, correct it. Return ONLY JSON:
           method: "POST",
           headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
           body: JSON.stringify({
-            model: "google/gemini-2.5-flash-lite",
+            model: PRICE_GEMINI_LITE_MODEL,
             messages: [{ role: "user", content: verifyPrompt }],
             response_format: { type: "json_object" },
           }),

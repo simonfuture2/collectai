@@ -15,6 +15,7 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
+  console.warn("[analyze-card] deprecated caller");
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -271,7 +272,12 @@ serve(async (req) => {
     }
 
     // Deduct credit (only after card is saved)
-    if (!isPro) {
+    if (isPro) {
+      await supabaseAdmin.from("credit_transactions").insert({
+        user_id: user.id, amount: 0, type: "scan",
+        description: `AI scan: ${analysis.cardName || "Unknown card"}`,
+      });
+    } else {
       const { data: remaining, error: deductError } = await supabaseAdmin.rpc("deduct_credit", {
         _user_id: user.id,
       });
