@@ -70,7 +70,7 @@
       {
         "name": "get_card",
         "title": "Get card details",
-        "description": "Fetch full details for one card in the signed-in collector's collection, including AI analysis, grading info and market comps.",
+        "description": "Fetch full details for one card in the signed-in collector's collection, including SI analysis, grading info and market comps.",
         "annotations": {
           "readOnlyHint": true,
           "idempotentHint": true,
