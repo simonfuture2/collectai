@@ -222,7 +222,7 @@ const Insights = () => {
                                 {c.asking_price != null && lo > 0 && hi > 0 && <DealChip asking={c.asking_price} low={lo} high={hi} />}
                               </div>
                               {isSealedRow(c) && c.ai_analysis?.chase?.[0] && (
-                                <p className="mt-0.5 text-xs text-muted-foreground truncate">Top chase: {c.ai_analysis.chase[0].name} · ${Number(c.ai_analysis.chase[0].rawPrice ?? 0).toLocaleString()}</p>
+                                <p className="mt-0.5 text-xs text-muted-foreground truncate">Top chase: {c.ai_analysis.chase[0].name} · ${Math.round(Number(c.ai_analysis.chase[0].rawPrice ?? 0)).toLocaleString()}</p>
                               )}
                             </div>
                           </button>
