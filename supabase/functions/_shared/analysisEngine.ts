@@ -1,3 +1,4 @@
+import { callClaude } from "./claude.ts";
 // Shared analysis engine — single source of truth for the scan pipeline.
 //
 // Performs (in order):
@@ -105,29 +106,11 @@ TASK: Based ONLY on the real market data above, determine the correct value rang
 Return ONLY valid JSON:
 {"verified_low": number, "verified_high": number, "verification_note": "brief explanation"}`;
 
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-6",
-        max_tokens: 2048,
-        messages: [{ role: "user", content: prompt }],
-      }),
+    void ANTHROPIC_API_KEY;
+    const { text } = await callClaude({
+      task: "PRICE_VERIFY",
+      messages: [{ role: "user", content: prompt }],
     });
-
-    if (!response.ok) {
-      const verifyErr = await response.text().catch(() => "");
-      console.error("Claude verification failed:", response.status, verifyErr);
-      return null;
-    }
-
-    const data = await response.json();
-    const textBlock = (data.content || []).find((b: any) => b?.type === "text");
-    const text = textBlock?.text || data.content?.[0]?.text;
     if (!text) return null;
 
     const jsonMatch = text.match(/\{[\s\S]*\}/);
@@ -422,24 +405,12 @@ GRADE-CEILING RULE (MANDATORY):
 
   console.log("Step 3: Full analysis with Claude,", marketData.hasData ? "real market data" : "AI-only estimates");
 
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "x-api-key": ANTHROPIC_API_KEY,
-      "anthropic-version": "2023-06-01",
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "claude-sonnet-4-6",
-      max_tokens: 8192,
-      system: [
-        {
-          type: "text",
-          text: systemPrompt,
-          cache_control: { type: "ephemeral" },
-        },
-      ],
-      messages: [
+  void ANTHROPIC_API_KEY;
+  const { text: content } = await callClaude({
+    task: "PRICING_ANALYSIS",
+    system: systemPrompt,
+    cacheSystem: true,
+    messages: [
         {
           role: "user",
           content: [
@@ -451,17 +422,8 @@ GRADE-CEILING RULE (MANDATORY):
           ],
         },
       ],
-    }),
   });
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error("Claude API error:", response.status, errorText);
-    throw new Error(`Claude API error: ${response.status} — ${errorText}`);
-  }
-
-  const data = await response.json();
-  const content = (data.content || []).find((b: any) => b?.type === "text")?.text || data.content?.[0]?.text;
   if (!content) throw new Error("No response from AI");
 
   console.log("AI response received");

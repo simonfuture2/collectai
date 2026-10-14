@@ -64,21 +64,6 @@ async function checkDailyBudget(): Promise<{ allowed: boolean; remaining: number
 
 
 // Retry helper with exponential backoff for 429/529 errors
-async function fetchWithRetry(
-  url: string,
-  options: RequestInit,
-  maxRetries = 3
-): Promise<Response> {
-  for (let attempt = 0; attempt < maxRetries; attempt++) {
-    const response = await fetch(url, options);
-    if (response.status !== 429 && response.status !== 529) return response;
-    const delay = Math.pow(2, attempt + 1) * 1000; // 2s, 4s, 8s
-    console.warn(`API returned ${response.status}, retrying in ${delay}ms (attempt ${attempt + 1}/${maxRetries})`);
-    await new Promise((r) => setTimeout(r, delay));
-  }
-  // Final attempt without retry
-  return fetch(url, options);
-}
 
 // Helper: extract dollar amounts from text, filtering noise
 function extractPrices(text: string): number[] {
@@ -268,6 +253,8 @@ async function quickMarketSearch(cardId: CardIdentification): Promise<string> {
 }
 
 
+import { callClaude } from "../_shared/claude.ts";
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -388,17 +375,10 @@ ${marketContext ? `CRITICAL: The SUGGESTED VALUE in the market data is the most 
 Return ONLY the JSON object, no other text.`;
 
     console.log("Quick scan Step 3: Sending to Claude for analysis...");
-    const claudeResponse = await fetchWithRetry("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-5-5",
-        max_tokens: 4000,
-        output_config: { effort: "low" },
+    let responseText = "";
+    try {
+      const r = await callClaude({
+        task: "QUICK_SCAN",
         messages: [
           {
             role: "user",
@@ -415,25 +395,15 @@ Return ONLY the JSON object, no other text.`;
             ],
           },
         ],
-      }),
-    });
-
-    if (!claudeResponse.ok) {
-      const status = claudeResponse.status;
-      const errText = await claudeResponse.text();
-      console.error("Claude API error:", status, errText);
+      });
+      responseText = r.text || "";
+    } catch (e) {
+      console.error("Claude API error:", e instanceof Error ? e.message : e);
       return new Response(
         JSON.stringify({ error: "Failed to analyze card. Please try again." }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-
-    const claudeData = await claudeResponse.json();
-    const responseText =
-      (Array.isArray(claudeData.content)
-        ? claudeData.content.find((b: any) => b?.type === "text")?.text
-        : "") || "";
-    if (claudeData.stop_reason === "max_tokens") console.error("quick-scan: Claude stopped at max_tokens");
     console.log("Claude raw response:", responseText.substring(0, 500));
 
     // Extract JSON from Claude's response
