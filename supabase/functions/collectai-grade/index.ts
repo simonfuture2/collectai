@@ -7,6 +7,8 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-api-key",
 };
 
+import { callClaude, ClaudeError } from "../_shared/claude.ts";
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -62,18 +64,12 @@ Respond in JSON format:
   "confidence": "high" | "medium" | "low"
 }`;
 
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 4096,
+    let content: string;
+    try {
+      const r = await callClaude({
+        task: "PRE_GRADE",
         system: systemPrompt,
-        messages: [
+      messages: [
           {
             role: "user",
             content: [
@@ -88,20 +84,14 @@ Respond in JSON format:
             ],
           },
         ],
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("Anthropic API error:", response.status, errorText);
-      if (response.status === 429) {
+      });
+      content = r.text;
+    } catch (e) {
+      if (e instanceof ClaudeError && e.status === 429) {
         return new Response(JSON.stringify({ error: "Rate limit exceeded" }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
-      throw new Error(`Anthropic API error: ${response.status}`);
+      throw new Error(`Anthropic API error: ${e instanceof ClaudeError ? e.status : "unknown"}`);
     }
-
-    const data = await response.json();
-    const content = data.content?.[0]?.text;
 
     if (!content) throw new Error("No response from AI");
 
