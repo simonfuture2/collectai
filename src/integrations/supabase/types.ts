@@ -1350,6 +1350,7 @@ export type Database = {
           read_ct: number
         }[]
       }
+      refund_demo_scan: { Args: { _ip_hash: string }; Returns: undefined }
     }
     Enums: {
       activity_type:
