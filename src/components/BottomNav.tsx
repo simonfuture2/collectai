@@ -1,5 +1,6 @@
-import { useEffect } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import ScanModeDrawer from "@/components/ScanModeDrawer";
+import { Link, useLocation } from "react-router-dom";
 import { Home, Layers, Trophy, Store, Camera } from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -14,6 +15,7 @@ const APP_ROUTE_PREFIXES = [
   "/card/",
   "/wallets",
   "/pricing",
+  "/insights",
 ];
 
 const HIDDEN_PREFIXES = [
@@ -36,15 +38,15 @@ type Tab = {
 
 const TABS: Tab[] = [
   { to: "/dashboard", label: "Home", icon: Home, match: (p) => p === "/dashboard" },
-  { to: "/collection", label: "Collection", icon: Layers, match: (p) => p.startsWith("/collection") || p.startsWith("/card/") },
+  { to: "/collection", label: "Collection", icon: Layers, match: (p) => p.startsWith("/collection") || p.startsWith("/card/") || p.startsWith("/insights") },
   { to: "/achievements", label: "Awards", icon: Trophy, match: (p) => p.startsWith("/achievements") },
   { to: "/marketplace", label: "Market", icon: Store, match: (p) => p.startsWith("/marketplace") },
 ];
 
 export function BottomNav() {
   const location = useLocation();
-  const navigate = useNavigate();
 
+  const [chooserOpen, setChooserOpen] = useState(false);
   const visible = shouldShow(location.pathname);
 
   useEffect(() => {
@@ -82,7 +84,7 @@ export function BottomNav() {
           <div className="relative -mt-8 flex-1 flex justify-center">
             <motion.button
               type="button"
-              onClick={() => navigate("/scan")}
+              onClick={() => setChooserOpen(true)}
               whileTap={{ scale: 0.92 }}
               whileHover={{ scale: 1.04 }}
               transition={{ type: "spring", stiffness: 400, damping: 22 }}
@@ -110,6 +112,7 @@ export function BottomNav() {
           ))}
         </div>
       </div>
+      <div className="pointer-events-auto"><ScanModeDrawer open={chooserOpen} onOpenChange={setChooserOpen} /></div>
     </nav>
   );
 }
