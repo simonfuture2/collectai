@@ -7,7 +7,7 @@ export default function DesignDemo() {
   const [seed, setSeed] = useState(0);
 
   return (
-    <div className="min-h-screen bg-base text-text-primary">
+    <div className="min-h-screen bg-background text-text-primary">
       <div
         className="pointer-events-none fixed inset-0 opacity-60"
         style={{

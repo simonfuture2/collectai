@@ -31,7 +31,6 @@ export default {
         ring: "hsl(var(--ring))",
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
-        base: "hsl(var(--bg-base))",
         surface: "hsl(var(--bg-surface))",
         "text-primary": "hsl(var(--text-primary))",
         "text-muted": "hsl(var(--text-muted))",
