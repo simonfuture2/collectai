@@ -114,7 +114,7 @@ export async function resolveSetCatalog(db: SupabaseClient, category: string, id
 
 let sealedLogCount = 0;
 
-function kindScore(name: string, kind: string): number {
+export function kindScore(name: string, kind: string): number {
   const n = name.toLowerCase();
   let s = 0;
   for (const t of tokensOf(kind)) if (n.includes(t)) s += 10;
@@ -203,3 +203,9 @@ export async function writeCache(db: SupabaseClient, key: string, category: stri
 }
 
 export const cacheKey = (category: string, setName: string) => `${category}|${setName}`.toLowerCase();
+
+/** Pick the sealed product matching the scanned kind (cached lists are shared across kinds). */
+export function pickSealed(products: { name: string; price: number | null }[], kind: string) {
+  const best = products.filter((p) => p.price != null).map((p) => ({ p, s: kindScore(p.name, kind) })).sort((a, b) => b.s - a.s)[0];
+  return best && best.s > 0 ? best.p : null;
+}
