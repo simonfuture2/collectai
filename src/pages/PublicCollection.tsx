@@ -55,6 +55,7 @@ export default function PublicCollection() {
         .select("id, card_name, card_set, card_year, condition_grade, estimated_value_low, estimated_value_high, image_url")
         .eq("user_id", prof.id)
         .eq("is_public", true)
+        .eq("scan_purpose", "collection")
         .order("created_at", { ascending: false })
         .limit(60);
 

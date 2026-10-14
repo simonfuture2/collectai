@@ -64,6 +64,7 @@ export default function Showcase() {
           .from("cards")
           .select("id, card_name, card_set, card_year, condition_grade, estimated_value_low, estimated_value_high, image_url, is_public")
           .eq("user_id", user.id)
+          .eq("scan_purpose", "collection")
           .order("created_at", { ascending: false }),
       ]);
 
@@ -132,7 +133,7 @@ export default function Showcase() {
   const setAll = async (value: boolean) => {
     if (!userId) return;
     setCards((prev) => prev.map((c) => ({ ...c, is_public: value })));
-    const { error } = await supabase.from("cards").update({ is_public: value }).eq("user_id", userId);
+    const { error } = await supabase.from("cards").update({ is_public: value }).eq("user_id", userId).eq("scan_purpose", "collection");
     if (error) toast.error("Bulk update failed");
     else toast.success(value ? "All cards added" : "Showcase cleared");
   };

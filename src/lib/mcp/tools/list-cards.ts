@@ -24,6 +24,7 @@ export default defineTool({
     let query = supabase
       .from("cards")
       .select(COLUMNS)
+      .eq("scan_purpose", "collection")
       .order("created_at", { ascending: false })
       .limit(limit ?? 25);
 

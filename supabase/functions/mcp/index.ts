@@ -75,7 +75,7 @@ var list_cards_default = defineTool({
       return { content: [{ type: "text", text: "Not authenticated" }], isError: true };
     }
     const supabase = supabaseForUser(ctx);
-    let query = supabase.from("cards").select(COLUMNS).order("created_at", { ascending: false }).limit(limit ?? 25);
+    let query = supabase.from("cards").select(COLUMNS).eq("scan_purpose", "collection").order("created_at", { ascending: false }).limit(limit ?? 25);
     if (category) query = query.ilike("category", `%${category}%`);
     if (search) query = query.or(`card_name.ilike.%${search}%,card_set.ilike.%${search}%`);
     const { data, error } = await query;
@@ -136,7 +136,7 @@ var collection_summary_default = defineTool3({
       return { content: [{ type: "text", text: "Not authenticated" }], isError: true };
     }
     const supabase = supabaseForUser(ctx);
-    const { data, error } = await supabase.from("cards").select("category, estimated_value_low, estimated_value_high, is_authenticated, grade_numeric");
+    const { data, error } = await supabase.from("cards").select("category, estimated_value_low, estimated_value_high, is_authenticated, grade_numeric").eq("scan_purpose", "collection");
     if (error) return { content: [{ type: "text", text: error.message }], isError: true };
     const rows = data ?? [];
     const byCategory = {};

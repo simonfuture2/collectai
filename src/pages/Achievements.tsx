@@ -102,6 +102,7 @@ const Achievements = () => {
           "id, card_name, card_set, rarity, estimated_value_low, estimated_value_high, created_at, special_features"
         )
         .eq("user_id", user.id)
+        .eq("scan_purpose", "collection")
         .order("created_at", { ascending: false })
         .then(({ data }) => {
           if (data) setCards(data);
