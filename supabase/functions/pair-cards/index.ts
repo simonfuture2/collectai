@@ -42,9 +42,9 @@ serve(async (req) => {
 
     // Verify ownership of both
     const { data: graded } = await admin.from("cards")
-      .select("id, user_id, paired_raw_card_id, card_name, grading_company, grade_numeric, grading_cert_number, authentication_data")
+      .select("id, user_id, scan_purpose, paired_raw_card_id, card_name, grading_company, grade_numeric, grading_cert_number, authentication_data")
       .eq("id", graded_card_id).maybeSingle();
-    if (!graded || graded.user_id !== user.id) {
+    if (!graded || graded.user_id !== user.id || graded.scan_purpose !== "collection") {
       return new Response(JSON.stringify({ error: "Not found" }), {
         status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -73,9 +73,9 @@ serve(async (req) => {
     }
 
     const { data: raw } = await admin.from("cards")
-      .select("id, user_id, superseded_by_card_id, card_name, card_set, card_year, edition, rarity")
+      .select("id, user_id, scan_purpose, superseded_by_card_id, card_name, card_set, card_year, edition, rarity")
       .eq("id", raw_card_id).maybeSingle();
-    if (!raw || raw.user_id !== user.id) {
+    if (!raw || raw.user_id !== user.id || raw.scan_purpose !== "collection") {
       return new Response(JSON.stringify({ error: "Raw card not found" }), {
         status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });

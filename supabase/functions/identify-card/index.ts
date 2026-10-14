@@ -193,7 +193,7 @@ serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        cardId: savedCard.id,
+        cardId: savedCard.id, scanPurpose,
         images,
         category,
         fastScan: body.fastScan === true,
@@ -209,7 +209,7 @@ serve(async (req) => {
     console.log(`[identify-card] dispatched card=${savedCard.id} user=${user.id}`);
 
     return new Response(JSON.stringify({
-      cardId: savedCard.id,
+      cardId: savedCard.id, scanPurpose,
       analysisStatus: "identifying",
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
