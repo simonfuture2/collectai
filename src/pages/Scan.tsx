@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Upload, Camera, Loader2, Sparkles, Plus, X, Zap, ScanSearch } from "lucide-react";
+import { ArrowLeft, Upload, Camera, Loader2, Sparkles, Plus, X, Zap, ScanSearch, Barcode } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import ScanTimeline from "@/components/ScanTimeline";
@@ -18,11 +18,18 @@ import ThemeToggle from "@/components/ThemeToggle";
 import SEO from "@/components/SEO";
 import CameraWarmup from "@/components/CameraWarmup";
 import { cn } from "@/lib/utils";
+import BarcodeScanner from "@/components/sealed/BarcodeScanner";
 
 const WARMUP_KEY = "mca-camera-warmup-seen";
 const EVENT_KEY = "mca-insight-event";
 
 type Mode = "collection" | "insight";
+type ItemType = "card" | "slab" | "sealed";
+
+const SEALED_SLOTS: ImageSlot[] = [
+  { id: "front", label: "Front of package", file: null, preview: null },
+  { id: "barcode", label: "Barcode (optional)", file: null, preview: null },
+];
 
 interface ImageSlot {
   id: string;
@@ -49,7 +56,15 @@ const Scan = () => {
   const [scanDone, setScanDone] = useState(false);
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [fastScan, setFastScan] = useState(false);
-  const [isSlab, setIsSlab] = useState(false);
+  const [itemType, setItemTypeState] = useState<ItemType>("card");
+  const isSlab = itemType === "slab";
+  const isSealed = itemType === "sealed";
+  const [upc, setUpc] = useState("");
+  const [barcodeOpen, setBarcodeOpen] = useState(false);
+  const setItemType = (t: ItemType) => {
+    if ((t === "sealed") !== isSealed) setSlots(t === "sealed" ? SEALED_SLOTS : DEFAULT_SLOTS);
+    setItemTypeState(t);
+  };
   const [askingPrice, setAskingPrice] = useState("");
   const [eventName, setEventName] = useState(() => {
     try { return sessionStorage.getItem(EVENT_KEY) || ""; } catch { return ""; }
@@ -154,8 +169,8 @@ const Scan = () => {
     setAnalyzing(true);
     setScanDone(false);
     try {
-      const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
-      if (refreshError) throw refreshError;
+      // A failed refresh shouldn't block the scan when the current token is still valid.
+      const { data: { session: refreshedSession } } = await supabase.auth.refreshSession().catch(() => ({ data: { session: null } } as any));
 
       const accessTokenFresh = refreshedSession?.access_token ?? session?.access_token;
       if (!accessTokenFresh) throw new Error("You must be logged in to analyze.");
@@ -177,6 +192,8 @@ const Scan = () => {
           imageUrl: imageEntries[0].url,
           fastScan,
           scanPurpose: mode,
+          itemType,
+          ...(isSealed && upc.replace(/\D/g, "").length >= 8 ? { upc: upc.replace(/\D/g, "") } : {}),
           ...(isInsight ? { askingPrice: asking, insightEvent: eventTrimmed || null } : {}),
         },
         headers: { Authorization: `Bearer ${accessTokenFresh}` },
@@ -185,7 +202,7 @@ const Scan = () => {
       if (data?.error) throw new Error(data.error);
       if (!data?.cardId) throw new Error("Scan failed — no card id returned");
 
-      if (isInsight && isSlab && !data.duplicate) {
+      if (isSlab && !data.duplicate) {
         const { error: slabErr } = await supabase.functions.invoke("scan-slab", {
           body: { cardId: data.cardId, images },
           headers: { Authorization: `Bearer ${accessTokenFresh}` },
@@ -269,9 +286,51 @@ const Scan = () => {
           <CameraWarmup onContinue={dismissWarmup} onSkip={dismissWarmup} />
         ) : (
           <div className="space-y-6">
+            <div role="radiogroup" aria-label="What are you scanning?" className="grid grid-cols-3 rounded-xl bg-muted p-1">
+              {([["card", "Card"], ["slab", "Graded slab"], ["sealed", "Sealed pack/box"]] as [ItemType, string][]).map(([v, l]) => (
+                <button
+                  key={v}
+                  type="button"
+                  role="radio"
+                  aria-checked={itemType === v}
+                  disabled={analyzing}
+                  onClick={() => setItemType(v)}
+                  className={cn(
+                    "rounded-lg px-1 py-2 text-xs sm:text-sm font-semibold leading-tight transition-colors",
+                    itemType === v
+                      ? isInsight ? "bg-secondary text-secondary-foreground shadow" : "gradient-primary text-white shadow"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  {l}
+                </button>
+              ))}
+            </div>
+
             <p className="text-muted-foreground text-sm">
-              Upload the front & back of a card, or multiple views of any collectible for the best analysis.
+              {isSealed
+                ? "Photograph the front so the set logo is readable. Add the barcode for an exact match."
+                : "Upload the front & back of a card, or multiple views of any collectible for the best analysis."}
             </p>
+
+            {isSealed && (
+              <div className="space-y-2 rounded-xl border border-border bg-card p-4">
+                <Label htmlFor="upc" className="text-sm font-semibold">Barcode (optional)</Label>
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <Input id="upc" inputMode="numeric" maxLength={14} placeholder="Type the digits" value={upc} onChange={(e) => setUpc(e.target.value.replace(/\D/g, ""))} className="font-numeric pr-8" />
+                    {upc && (
+                      <button type="button" aria-label="Clear barcode" onClick={() => setUpc("")} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                        <X className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                  <Button type="button" variant="outline" onClick={() => setBarcodeOpen(true)}>
+                    <Barcode className="w-4 h-4 mr-1.5" /> Scan barcode
+                  </Button>
+                </div>
+              </div>
+            )}
 
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               {slots.map((slot) => (
@@ -304,22 +363,22 @@ const Scan = () => {
                       <X className="w-3 h-3" />
                     </button>
                   )}
-                  {slot.id !== "front" && slot.id !== "back" && !slot.preview && (
+                  {slot.id.startsWith("extra-") && !slot.preview && (
                     <button onClick={() => removeSlot(slot.id)} aria-label="Remove view" className="absolute top-2 right-2 bg-muted text-muted-foreground rounded-full p-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                       <X className="w-3 h-3" />
                     </button>
                   )}
                 </div>
               ))}
-              <button onClick={addSlot} className="border-2 border-dashed border-border rounded-xl aspect-[3/4] flex flex-col items-center justify-center gap-2 hover:border-primary/50 transition-colors text-muted-foreground hover:text-primary">
+              {!isSealed && <button onClick={addSlot} className="border-2 border-dashed border-border rounded-xl aspect-[3/4] flex flex-col items-center justify-center gap-2 hover:border-primary/50 transition-colors text-muted-foreground hover:text-primary">
                 <Plus className="w-8 h-8" />
                 <span className="text-xs font-medium">Add View</span>
-              </button>
+              </button>}
             </div>
 
             {hasImages && !analyzing && (
               <div className="space-y-3">
-                {filledSlots.length === 1 && filledSlots[0].id === "front" && !isSlab && (
+                {filledSlots.length === 1 && filledSlots[0].id === "front" && itemType === "card" && (
                   <div className="flex items-start gap-3 rounded-xl border border-primary/25 bg-primary/5 p-4">
                     <Sparkles className="w-5 h-5 text-primary mt-0.5 shrink-0" />
                     <div>
@@ -333,22 +392,6 @@ const Scan = () => {
 
                 {isInsight && (
                   <div className="space-y-4 rounded-xl border border-secondary/30 bg-secondary/5 p-4">
-                    <div>
-                      <Label className="text-sm font-semibold">Card type</Label>
-                      <div className="mt-2 grid grid-cols-2 rounded-lg bg-muted p-1">
-                        {[{ v: false, l: "Raw" }, { v: true, l: "Graded slab" }].map((o) => (
-                          <button
-                            key={o.l}
-                            type="button"
-                            aria-pressed={isSlab === o.v}
-                            onClick={() => setIsSlab(o.v)}
-                            className={cn("rounded-md py-1.5 text-sm font-medium transition-colors", isSlab === o.v ? "bg-secondary text-secondary-foreground" : "text-muted-foreground")}
-                          >
-                            {o.l}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
                     <div>
                       <Label htmlFor="asking-price" className="text-sm font-semibold">Asking price (optional)</Label>
                       <div className="relative mt-1.5">
@@ -384,6 +427,8 @@ const Scan = () => {
                   {creditsLoading ? <Loader2 className="mr-2 w-5 h-5 animate-spin" /> : isInsight ? <ScanSearch className="mr-2 w-5 h-5" /> : <Sparkles className="mr-2 w-5 h-5" />}
                   {creditsLoading
                     ? "Checking access…"
+                    : isSealed
+                    ? "Find chase cards"
                     : isInsight
                     ? "Get Insights"
                     : `Analyze (${filledSlots.length} image${filledSlots.length > 1 ? "s" : ""})`}
@@ -395,6 +440,7 @@ const Scan = () => {
           </div>
         )}
       </main>
+      <BarcodeScanner open={barcodeOpen} onOpenChange={setBarcodeOpen} onResult={setUpc} />
       <UpgradeModal open={showUpgrade} onOpenChange={setShowUpgrade} feature="SI card scanning" />
       <Footer />
     </div>

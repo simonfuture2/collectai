@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { ArrowLeft, MoreHorizontal, ScanSearch, CheckSquare, X, MapPin } from "lucide-react";
+import { ArrowLeft, MoreHorizontal, ScanSearch, CheckSquare, X, MapPin, Package } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -17,7 +17,8 @@ import { dealVerdict, moveInsightToCollection } from "@/lib/insights";
 import { cn } from "@/lib/utils";
 
 const PENDING = ["pending", "identifying", "pricing", "analyzing", "verifying"];
-type Filter = "all" | "raw" | "graded";
+type Filter = "all" | "raw" | "graded" | "sealed";
+const isSealedRow = (c: any) => c.item_type === "sealed";
 type Sort = "newest" | "value" | "deal";
 
 const isGraded = (c: any) => !!c.grading_company && c.grade_numeric != null;
@@ -48,7 +49,7 @@ const Insights = () => {
     if (!session?.user) { navigate("/auth?next=/insights"); return; }
     const { data } = await supabase
       .from("cards")
-      .select("id, card_name, card_set, card_year, condition_grade, grading_company, grade_numeric, estimated_value_low, estimated_value_high, asking_price, insight_event, analysis_status, image_url, created_at")
+      .select("id, card_name, card_set, card_year, condition_grade, grading_company, grade_numeric, estimated_value_low, estimated_value_high, asking_price, insight_event, analysis_status, image_url, created_at, item_type, ai_analysis")
       .eq("user_id", session.user.id)
       .eq("scan_purpose", "insight")
       .order("created_at", { ascending: false });
@@ -75,7 +76,7 @@ const Insights = () => {
   }, [cards, thumbs]);
 
   const visible = useMemo(() => {
-    let list = (cards || []).filter((c) => filter === "all" || (filter === "graded" ? isGraded(c) : !isGraded(c)));
+    let list = (cards || []).filter((c) => filter === "all" || (filter === "sealed" ? isSealedRow(c) : filter === "graded" ? isGraded(c) : !isGraded(c) && !isSealedRow(c)));
     if (sort === "value") list = [...list].sort((a, b) => mid(b) - mid(a));
     if (sort === "deal") list = [...list].sort((a, b) => {
       const da = dealVerdict(a.asking_price, a.estimated_value_low, a.estimated_value_high)?.diffPct ?? Infinity;
@@ -157,7 +158,7 @@ const Insights = () => {
           <>
             <div className="flex items-center justify-between gap-2 mb-4">
               <div className="flex rounded-lg bg-muted p-1">
-                {(["all", "raw", "graded"] as Filter[]).map((f) => (
+                {(["all", "raw", "graded", "sealed"] as Filter[]).map((f) => (
                   <button key={f} type="button" onClick={() => setFilter(f)}
                     className={cn("px-3 py-1 rounded-md text-xs font-semibold capitalize", filter === f ? "bg-background text-foreground shadow-sm" : "text-muted-foreground")}>
                     {f}
@@ -200,21 +201,29 @@ const Insights = () => {
                         <li key={c.id} className="flex items-center gap-3 rounded-xl border border-border bg-card p-2.5">
                           {selecting && <Checkbox checked={selected.has(c.id)} onCheckedChange={() => toggle(c.id)} aria-label="Select" />}
                           <button type="button" onClick={() => selecting ? toggle(c.id) : navigate(`/scan/reveal/${c.id}`)} className="flex flex-1 min-w-0 items-center gap-3 text-left">
-                            {thumbs[c.id] ? (
+                            {isSealedRow(c) && !thumbs[c.id] ? (
+                              <div className="h-16 w-12 rounded-md border border-border shrink-0 flex items-center justify-center bg-muted"><Package className="w-5 h-5 text-secondary" /></div>
+                            ) : thumbs[c.id] ? (
                               <img src={thumbs[c.id]} alt="" className="h-16 w-12 rounded-md object-cover border border-border shrink-0" />
                             ) : <Skeleton className="h-16 w-12 rounded-md shrink-0" />}
                             <div className="min-w-0 flex-1">
-                              <p className="font-semibold truncate">{c.card_name || (pending ? "Identifying…" : "Unknown card")}</p>
+                              <p className="font-semibold truncate">{isSealedRow(c) && <Package className="inline w-3.5 h-3.5 mr-1 text-secondary align-[-2px]" />}{c.card_name || (pending ? "Identifying…" : "Unknown card")}</p>
                               <p className="text-xs text-muted-foreground truncate">{[c.card_set, c.card_year].filter(Boolean).join(" · ") || "—"}{grade ? ` · ${grade}` : ""}</p>
                               <div className="mt-1 flex flex-wrap items-center gap-2">
-                                {pending && !(lo && hi) ? <Skeleton className="h-4 w-20" /> : (
+                                {isSealedRow(c) ? null : pending && !(lo && hi) ? <Skeleton className="h-4 w-20" /> : (
                                   <span className="text-sm font-numeric font-semibold">{lo && hi ? `$${lo.toFixed(0)} – $${hi.toFixed(0)}` : "—"}</span>
+                                )}
+                                {isSealedRow(c) && c.ai_analysis?.sealedPrice != null && (
+                                  <span className="text-sm font-numeric font-semibold">${Number(c.ai_analysis.sealedPrice).toFixed(2)}</span>
                                 )}
                                 {c.asking_price != null && (
                                   <span className="text-xs text-muted-foreground font-numeric">Ask ${Number(c.asking_price).toFixed(0)}</span>
                                 )}
                                 {c.asking_price != null && lo > 0 && hi > 0 && <DealChip asking={c.asking_price} low={lo} high={hi} />}
                               </div>
+                              {isSealedRow(c) && c.ai_analysis?.chase?.[0] && (
+                                <p className="mt-0.5 text-xs text-muted-foreground truncate">Top chase: {c.ai_analysis.chase[0].name} · ${Math.round(Number(c.ai_analysis.chase[0].rawPrice ?? 0)).toLocaleString()}</p>
+                              )}
                             </div>
                           </button>
                           {!selecting && (

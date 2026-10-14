@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@/components/ui/table";
-import { ArrowLeft, Camera, Trash2, Search, X, SlidersHorizontal, ChevronDown, LayoutGrid, List, Download, CheckSquare, FolderPlus, Check, Shield, RefreshCw } from "lucide-react";
+import { ArrowLeft, Camera, Trash2, Search, X, SlidersHorizontal, ChevronDown, LayoutGrid, List, Download, CheckSquare, FolderPlus, Check, Shield, RefreshCw, Package } from "lucide-react";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -102,6 +102,8 @@ const gradeRank = (g: string | null) => {
   return -1;
 };
 
+const catOf = (c: any): string => (c.item_type === "sealed" ? "Sealed" : c.category || "Trading Card");
+
 const Collection = () => {
   const insightCount = useInsightCount();
   const [user, setUser] = useState<User | null>(null);
@@ -135,7 +137,7 @@ const Collection = () => {
     if (user) {
       supabase
         .from("cards")
-        .select("id, image_url, card_name, card_set, card_year, rarity, category, condition_grade, estimated_value_low, estimated_value_high, authentiseal_serial, is_authenticated, grading_company, grading_cert_number, grade_numeric, ebay_recent_sales")
+        .select("id, image_url, card_name, card_set, card_year, rarity, category, condition_grade, estimated_value_low, estimated_value_high, authentiseal_serial, is_authenticated, grading_company, grading_cert_number, grade_numeric, ebay_recent_sales, item_type")
         .eq("user_id", user.id)
         .eq("scan_purpose", "collection")
         .is("superseded_by_card_id", null)
@@ -253,7 +255,7 @@ const Collection = () => {
 
   // Derive unique categories and rarities for filter chips
   const categories = useMemo(() => {
-    const cats = new Set(cards.map((c) => c.category || "Trading Card"));
+    const cats = new Set(cards.map(catOf));
     return Array.from(cats).sort();
   }, [cards]);
 
@@ -294,7 +296,7 @@ const Collection = () => {
     }
 
     if (activeCategory) {
-      list = list.filter((c) => (c.category || "Trading Card") === activeCategory);
+      list = list.filter((c) => catOf(c) === activeCategory);
     }
 
     if (activeRarity) {
@@ -782,6 +784,7 @@ const Collection = () => {
                     )}
                     <TableCell className="font-medium">
                       <span className="flex items-center gap-1.5">
+                        {(card as any).item_type === "sealed" && <Package className="w-3.5 h-3.5 text-secondary flex-shrink-0" aria-label="Sealed" />}
                         {card.card_name || "Unknown"}
                         {card.authentiseal_serial && (
                           <span title="AuthentiSeal Certified"><Shield className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" /></span>
@@ -882,6 +885,11 @@ const Collection = () => {
                           <FoilBadge label={`$${Math.round(cardValue(card))}+`} />
                         </div>
                       ) : null}
+                      {(card as any).item_type === "sealed" && (
+                        <span className="absolute top-1.5 left-1.5 z-10 bg-secondary/90 text-secondary-foreground p-1 rounded-md" title="Sealed product">
+                          <Package className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                        </span>
+                      )}
                       {card.authentiseal_serial && (
                         <span className="absolute top-1.5 right-1.5 z-10 bg-emerald-500/90 backdrop-blur-sm text-white p-1 rounded-md" title="AuthentiSeal Certified">
                           <Shield className="w-3 h-3 sm:w-3.5 sm:h-3.5" />

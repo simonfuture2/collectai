@@ -18,6 +18,7 @@ import { getSignedImageUrl, deleteCardAndImage } from "@/lib/cardImage";
 import { moveInsightToCollection } from "@/lib/insights";
 import { DealChip, InsightPill } from "@/components/DealChip";
 import { HoloFoil, FoilBadge, shouldFoil } from "@/components/HoloFoil";
+import SealedResult from "@/components/sealed/SealedResult";
 
 const PENDING_STATUSES = ["pending", "identifying", "pricing", "analyzing", "verifying"];
 
@@ -312,6 +313,9 @@ const ScanReveal = () => {
       </header>
 
       <main className="container mx-auto px-4 py-6 max-w-3xl space-y-6">
+        {card?.item_type === "sealed" ? (
+          <SealedResult card={card} imgUrl={imgUrl} isPending={isPending} statusLabel={statusLabel} onUpdated={(c) => setCard(c)} />
+        ) : (<>
         {/* Hero: image + identity + confidence */}
         <FadeUp>
           <GlassCard padding="lg" className="relative overflow-hidden">
@@ -599,6 +603,7 @@ const ScanReveal = () => {
             )}
           </GlassCard>
         </FadeUp>
+        </>)}
 
         {/* Primary actions */}
         <FadeUp delay={0.2}>
