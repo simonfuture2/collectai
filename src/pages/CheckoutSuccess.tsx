@@ -1,3 +1,4 @@
+import { trackAgentEvent } from "@/lib/agentRef";
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -7,6 +8,10 @@ import ThemeToggle from "@/components/ThemeToggle";
 const CheckoutSuccess = () => {
   const [searchParams] = useSearchParams();
   const [countdown, setCountdown] = useState(5);
+
+  useEffect(() => {
+    void trackAgentEvent("paid");
+  }, []);
 
   useEffect(() => {
     const timer = setInterval(() => {

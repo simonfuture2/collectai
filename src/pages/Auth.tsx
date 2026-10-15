@@ -1,3 +1,4 @@
+import { trackAgentEvent } from "@/lib/agentRef";
 import { useState, useEffect } from "react";
 import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -42,6 +43,8 @@ const Auth = () => {
       if (session?.user) {
         // Redeem referral on signup
         if (event === "SIGNED_IN") {
+          // Server records "signup" only once per user; safe on every sign-in.
+          setTimeout(() => { void trackAgentEvent("signup"); }, 0);
           const ref = localStorage.getItem("collectai_ref");
           if (ref) {
             localStorage.removeItem("collectai_ref");

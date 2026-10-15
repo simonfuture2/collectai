@@ -1,3 +1,4 @@
+import { trackAgentEvent } from "@/lib/agentRef";
 import BetaEndedPrompt from "@/components/BetaEndedPrompt";
 import { useState, useEffect } from "react";
 import { useNavigate, Link, useSearchParams } from "react-router-dom";
@@ -210,6 +211,7 @@ const Scan = () => {
         if (slabErr) toast({ title: "Couldn't read the slab label", description: "Showing raw-card pricing instead." });
       }
 
+      if (mode === "collection") void trackAgentEvent("first_scan");
       setScanDone(true);
       refreshCredits();
       toast({

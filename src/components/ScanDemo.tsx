@@ -1,3 +1,4 @@
+import { trackAgentEvent } from "@/lib/agentRef";
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { Upload, Loader2, RotateCcw } from "lucide-react";
 import charizardCard from "@/assets/scan-demo-charizard.jpeg";
@@ -112,6 +113,8 @@ const ScanDemo = forwardRef<ScanDemoHandle>((_props, ref) => {
         setStage("error");
         return;
       }
+      void trackAgentEvent("demo_scan");
+
 
       setResult(data.data as DemoResult);
       setStage("graded");
