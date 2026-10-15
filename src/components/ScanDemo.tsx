@@ -112,6 +112,8 @@ const ScanDemo = forwardRef<ScanDemoHandle>((_props, ref) => {
         setStage("error");
         return;
       }
+      void trackAgentEvent("demo_scan");
+
 
       setResult(data.data as DemoResult);
       setStage("graded");

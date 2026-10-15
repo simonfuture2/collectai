@@ -42,6 +42,8 @@ const Auth = () => {
       if (session?.user) {
         // Redeem referral on signup
         if (event === "SIGNED_IN") {
+          // Server records "signup" only once per user; safe on every sign-in.
+          setTimeout(() => { void trackAgentEvent("signup"); }, 0);
           const ref = localStorage.getItem("collectai_ref");
           if (ref) {
             localStorage.removeItem("collectai_ref");

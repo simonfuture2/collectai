@@ -9,6 +9,10 @@ const CheckoutSuccess = () => {
   const [countdown, setCountdown] = useState(5);
 
   useEffect(() => {
+    void trackAgentEvent("paid");
+  }, []);
+
+  useEffect(() => {
     const timer = setInterval(() => {
       setCountdown((c) => {
         if (c <= 1) {

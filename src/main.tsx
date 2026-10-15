@@ -3,6 +3,7 @@ import { HelmetProvider } from "react-helmet-async";
 import App from "./App";
 import "./index.css";
 import { registerServiceWorker } from "./lib/registerServiceWorker";
+import { captureRef } from "./lib/agentRef";
 
 // Recover from stale-cache chunk load failures (common after a new deploy
 // when the service worker is still serving an old index that references
@@ -75,6 +76,8 @@ window.addEventListener("unhandledrejection", (e) => {
 window.addEventListener("load", () => {
   setTimeout(() => sessionStorage.removeItem(RELOAD_KEY), 5_000);
 });
+
+captureRef();
 
 createRoot(document.getElementById("root")!).render(
   <HelmetProvider>
