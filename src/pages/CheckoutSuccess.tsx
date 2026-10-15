@@ -1,3 +1,4 @@
+import { trackAgentEvent } from "@/lib/agentRef";
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";

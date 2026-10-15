@@ -1,3 +1,4 @@
+import { trackAgentEvent } from "@/lib/agentRef";
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { Upload, Loader2, RotateCcw } from "lucide-react";
 import charizardCard from "@/assets/scan-demo-charizard.jpeg";

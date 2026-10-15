@@ -1,3 +1,4 @@
+import { trackAgentEvent } from "@/lib/agentRef";
 import BetaEndedPrompt from "@/components/BetaEndedPrompt";
 import { useState, useEffect } from "react";
 import { useNavigate, Link, useSearchParams } from "react-router-dom";
