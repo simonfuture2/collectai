@@ -100,7 +100,7 @@ export default function AgentHQ() {
 
   return (
     <div className="min-h-screen bg-background pb-24 md:pb-8">
-      <SEO title="Agent HQ" description="Agent control center" path="/admin/agent" noindex />
+      <SEO title="Agent HQ" description="Agent control center" path="/admin/agent" noIndex />
       <header className="sticky top-0 z-20 border-b border-border bg-background/90 backdrop-blur">
         <div className="mx-auto max-w-5xl px-4 py-3 flex items-center justify-between gap-4">
           <h1 className="text-xl font-bold">Agent HQ</h1>
