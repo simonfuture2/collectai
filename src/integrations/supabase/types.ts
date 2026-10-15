@@ -14,6 +14,188 @@ export type Database = {
   }
   public: {
     Tables: {
+      agent_admins: {
+        Row: {
+          created_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      agent_attribution: {
+        Row: {
+          anon_id: string | null
+          created_at: string
+          event_type: string
+          id: number
+          meta: Json
+          ref_code: string
+          user_id: string | null
+        }
+        Insert: {
+          anon_id?: string | null
+          created_at?: string
+          event_type: string
+          id?: number
+          meta?: Json
+          ref_code: string
+          user_id?: string | null
+        }
+        Update: {
+          anon_id?: string | null
+          created_at?: string
+          event_type?: string
+          id?: number
+          meta?: Json
+          ref_code?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      agent_leads: {
+        Row: {
+          business_name: string | null
+          created_at: string
+          do_not_contact: boolean
+          email: string | null
+          external_id: string | null
+          handle: string | null
+          id: string
+          last_contacted_at: string | null
+          lead_type: string
+          name: string | null
+          notes: string | null
+          platform: string
+          status: string
+          website: string | null
+        }
+        Insert: {
+          business_name?: string | null
+          created_at?: string
+          do_not_contact?: boolean
+          email?: string | null
+          external_id?: string | null
+          handle?: string | null
+          id?: string
+          last_contacted_at?: string | null
+          lead_type?: string
+          name?: string | null
+          notes?: string | null
+          platform: string
+          status?: string
+          website?: string | null
+        }
+        Update: {
+          business_name?: string | null
+          created_at?: string
+          do_not_contact?: boolean
+          email?: string | null
+          external_id?: string | null
+          handle?: string | null
+          id?: string
+          last_contacted_at?: string | null
+          lead_type?: string
+          name?: string | null
+          notes?: string | null
+          platform?: string
+          status?: string
+          website?: string | null
+        }
+        Relationships: []
+      }
+      agent_outreach: {
+        Row: {
+          channel: string
+          created_at: string
+          decided_at: string | null
+          draft_text: string | null
+          error: string | null
+          external_ref: string | null
+          final_text: string | null
+          id: string
+          lead_id: string | null
+          ref_code: string | null
+          sent_at: string | null
+          source_text: string | null
+          source_url: string | null
+          status: string
+          subject: string | null
+          workflow: string
+        }
+        Insert: {
+          channel: string
+          created_at?: string
+          decided_at?: string | null
+          draft_text?: string | null
+          error?: string | null
+          external_ref?: string | null
+          final_text?: string | null
+          id?: string
+          lead_id?: string | null
+          ref_code?: string | null
+          sent_at?: string | null
+          source_text?: string | null
+          source_url?: string | null
+          status?: string
+          subject?: string | null
+          workflow: string
+        }
+        Update: {
+          channel?: string
+          created_at?: string
+          decided_at?: string | null
+          draft_text?: string | null
+          error?: string | null
+          external_ref?: string | null
+          final_text?: string | null
+          id?: string
+          lead_id?: string | null
+          ref_code?: string | null
+          sent_at?: string | null
+          source_text?: string | null
+          source_url?: string | null
+          status?: string
+          subject?: string | null
+          workflow?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_outreach_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "agent_leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agent_settings: {
+        Row: {
+          config: Json
+          enabled: boolean
+          key: string
+          updated_at: string
+        }
+        Insert: {
+          config?: Json
+          enabled?: boolean
+          key: string
+          updated_at?: string
+        }
+        Update: {
+          config?: Json
+          enabled?: boolean
+          key?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       bakeoff_truth: {
         Row: {
           card_id: string
@@ -1073,6 +1255,7 @@ export type Database = {
           id: string
           public_collection_enabled: boolean
           public_collection_slug: string | null
+          signup_ref: string | null
           updated_at: string
         }
         Insert: {
@@ -1082,6 +1265,7 @@ export type Database = {
           id: string
           public_collection_enabled?: boolean
           public_collection_slug?: string | null
+          signup_ref?: string | null
           updated_at?: string
         }
         Update: {
@@ -1091,6 +1275,7 @@ export type Database = {
           id?: string
           public_collection_enabled?: boolean
           public_collection_slug?: string | null
+          signup_ref?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -1310,6 +1495,19 @@ export type Database = {
       }
     }
     Views: {
+      agent_funnel: {
+        Row: {
+          channel: string | null
+          demo_scans: number | null
+          first_scans: number | null
+          last_event_at: string | null
+          paid: number | null
+          ref_code: string | null
+          signups: number | null
+          visits: number | null
+        }
+        Relationships: []
+      }
       public_profiles: {
         Row: {
           avatar_url: string | null
@@ -1340,6 +1538,80 @@ export type Database = {
         Args: { _amount: number; _user_id: string }
         Returns: number
       }
+      agent_attach_draft: {
+        Args: { p_draft: string; p_id: string; p_subject?: string }
+        Returns: Json
+      }
+      agent_claim_approved_emails: {
+        Args: never
+        Returns: {
+          base_url: string
+          body: string
+          from_email: string
+          id: string
+          lead_id: string
+          physical_address: string
+          ref_code: string
+          reply_to: string
+          subject: string
+          to_email: string
+          to_name: string
+        }[]
+      }
+      agent_claim_ig_comment: {
+        Args: {
+          p_comment_id: string
+          p_ig_user_id: string
+          p_media_id: string
+          p_text: string
+          p_username: string
+        }
+        Returns: Json
+      }
+      agent_mark_outreach: {
+        Args: { p_error?: string; p_id: string; p_status: string }
+        Returns: Json
+      }
+      agent_next_leads_to_draft: {
+        Args: { p_limit?: number }
+        Returns: {
+          business_name: string | null
+          created_at: string
+          do_not_contact: boolean
+          email: string | null
+          external_id: string | null
+          handle: string | null
+          id: string
+          last_contacted_at: string | null
+          lead_type: string
+          name: string | null
+          notes: string | null
+          platform: string
+          status: string
+          website: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "agent_leads"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      agent_queue_community_post: {
+        Args: {
+          p_author: string
+          p_body: string
+          p_channel?: string
+          p_title: string
+          p_url: string
+        }
+        Returns: Json
+      }
+      agent_queue_email: {
+        Args: { p_body: string; p_lead_id: string; p_subject: string }
+        Returns: Json
+      }
+      agent_unsubscribe: { Args: { p_lead_id: string }; Returns: undefined }
       consume_daily_budget: {
         Args: { _bucket_key: string; _max_per_day: number }
         Returns: {
@@ -1378,6 +1650,7 @@ export type Database = {
         Returns: number
       }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
+      is_agent_admin: { Args: never; Returns: boolean }
       move_to_dlq: {
         Args: {
           dlq_name: string

@@ -68,3 +68,9 @@ verify_jwt = false
 
 [functions.mcp]
 verify_jwt = false
+
+[functions.agent-gateway]
+verify_jwt = false
+
+[functions.agent-track]
+verify_jwt = false
