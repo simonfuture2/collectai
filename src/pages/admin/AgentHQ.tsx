@@ -561,7 +561,7 @@ function ChannelCard({ s, lastAt, onSaved }: { s: Setting; lastAt: string | null
   };
 
   const keywords: string[] = Array.isArray(cfg.keywords) ? cfg.keywords : [];
-  const feeds: string[] = Array.isArray(cfg.feeds) ? cfg.feeds : [];
+  const subreddits: string[] = Array.isArray(cfg.subreddits) ? cfg.subreddits : [];
   const preview = String(cfg.dm_template ?? "").replace(/\{username\}/g, "cardcollector42").replace(/\{link\}/g, `${cfg.base_url ?? "https://mycollectai.com"}?ref=ig_123`);
 
   return (
