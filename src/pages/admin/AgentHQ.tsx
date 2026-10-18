@@ -201,6 +201,8 @@ function QueueCard({ item, onDone }: { item: OutreachWithLead; onDone: () => voi
   const isManual = item.channel === "reddit_reply" || item.channel === "discord_reply";
   // Agent posts that haven't had their draft attached yet — show a drafting notice instead of the reply box.
   const isDrafting = !item.final_text && !item.draft_text && !isManual;
+  // Subreddit chip for community drafts — the part after /r/ in the post URL.
+  const subreddit = item.workflow === "community_drafts" ? item.source_url?.match(/\/r\/([^/?#]+)/i)?.[1] ?? "" : "";
 
   const update = async (patch: Partial<Outreach>, msg?: string) => {
     setBusy(true);
@@ -221,8 +223,11 @@ function QueueCard({ item, onDone }: { item: OutreachWithLead; onDone: () => voi
     <Card>
       <CardContent className="p-4 space-y-3">
         <div className="flex items-center justify-between gap-2">
-          <Badge variant="outline">{CHANNEL_LABEL[item.channel] ?? item.channel}</Badge>
-          <span className="text-xs text-muted-foreground" title={new Date(item.created_at).toLocaleString()}>{ago(item.created_at)}</span>
+          <div className="flex items-center gap-2 min-w-0">
+            <Badge variant="outline" className="shrink-0">{CHANNEL_LABEL[item.channel] ?? item.channel}</Badge>
+            {subreddit && <Badge variant="secondary" className="max-w-[14rem] truncate">r/{subreddit}</Badge>}
+          </div>
+          <span className="text-xs text-muted-foreground shrink-0" title={new Date(item.created_at).toLocaleString()}>{ago(item.created_at)}</span>
         </div>
         {isEmail && item.agent_leads && (
           <p className="text-sm"><span className="font-medium">{item.agent_leads.business_name || item.agent_leads.name}</span>
@@ -590,16 +595,9 @@ function ChannelCard({ s, lastAt, onSaved }: { s: Setting; lastAt: string | null
           </div>
         </>)}
         {s.key === "community_drafts" && (<>
-          <div className="space-y-1"><Label>Feeds</Label>
-            <div className="space-y-2">
-              {feeds.map((f, i) => (
-                <div key={i} className="flex gap-2">
-                  <Input value={f} onChange={(e) => set({ feeds: feeds.map((x, j) => (j === i ? e.target.value : x)) })} />
-                  <Button variant="outline" size="icon" onClick={() => set({ feeds: feeds.filter((_, j) => j !== i) })} aria-label="Remove feed"><X className="h-4 w-4" /></Button>
-                </div>
-              ))}
-              <Button variant="outline" size="sm" onClick={() => set({ feeds: [...feeds, ""] })} className="gap-1"><Plus className="h-4 w-4" />Add feed</Button>
-            </div>
+          <div className="space-y-1"><Label>Subreddits</Label>
+            <ChipEditor values={subreddits} onChange={(k) => set({ subreddits: k })} placeholder="e.g. pokemontradingcards" />
+            <p className="text-xs text-muted-foreground">Reddit alerts from F5Bot are only added to the Queue when they come from these subreddits.</p>
           </div>
           <div className="space-y-1"><Label>Keywords</Label><ChipEditor values={keywords} onChange={(k) => set({ keywords: k })} placeholder="e.g. how much is" /></div>
           <div className="space-y-1 sm:w-1/2"><Label>Max drafts per run</Label><Input type="number" min={0} value={cfg.max_per_run ?? ""} onChange={(e) => set({ max_per_run: Number(e.target.value) })} /></div>
