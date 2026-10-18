@@ -22,6 +22,7 @@ const ALLOWED: Record<string, string[]> = {
   agent_mark_outreach: ["p_id", "p_status", "p_error"],
   agent_queue_community_post: ["p_url", "p_author", "p_title", "p_body", "p_channel"],
   agent_attach_draft: ["p_id", "p_draft", "p_subject"],
+  agent_next_posts_to_draft: ["p_limit"],
   agent_next_leads_to_draft: ["p_limit"],
   agent_queue_email: ["p_lead_id", "p_subject", "p_body"],
   agent_claim_approved_emails: [],
