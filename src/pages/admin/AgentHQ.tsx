@@ -57,7 +57,7 @@ export default function AgentHQ() {
   }, [navigate]);
 
   const loadCount = useCallback(async () => {
-    const { count } = await supabase.from("agent_outreach").select("id", { count: "exact", head: true }).eq("status", "pending");
+    const { count } = await supabase.from("agent_outreach").select("id", { count: "exact", head: true }).eq("status", "pending").neq("status", "drafting");
     setPendingCount(count ?? 0);
   }, []);
 
@@ -199,6 +199,8 @@ function QueueCard({ item, onDone }: { item: OutreachWithLead; onDone: () => voi
   const [busy, setBusy] = useState(false);
   const isEmail = item.channel === "email";
   const isManual = item.channel === "reddit_reply" || item.channel === "discord_reply";
+  // Agent posts that haven't had their draft attached yet — show a drafting notice instead of the reply box.
+  const isDrafting = !item.final_text && !item.draft_text && !isManual;
 
   const update = async (patch: Partial<Outreach>, msg?: string) => {
     setBusy(true);
@@ -242,14 +244,20 @@ function QueueCard({ item, onDone }: { item: OutreachWithLead; onDone: () => voi
         {isEmail && (
           <div className="space-y-1"><Label>Subject</Label><Input value={subject} onChange={(e) => setSubject(e.target.value)} /></div>
         )}
-        <Textarea value={text} onChange={(e) => setText(e.target.value)} rows={6} placeholder="Reply text" />
+        {isDrafting ? (
+          <div className="flex items-center gap-2 rounded-md border border-dashed px-3 py-4 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" /> Drafting a reply…
+          </div>
+        ) : (
+          <Textarea value={text} onChange={(e) => setText(e.target.value)} rows={6} placeholder="Reply text" />
+        )}
         <div className="flex gap-2 flex-wrap">
           {isEmail && (
-            <Button disabled={busy || !text.trim()} onClick={() => update({ final_text: text, subject, status: "approved", decided_at: now() }, "Approved — sends within 10 minutes.")}>
+            <Button disabled={busy || isDrafting || !text.trim()} onClick={() => update({ final_text: text, subject, status: "approved", decided_at: now() }, "Approved — sends within 10 minutes.")}>
               Approve & send
             </Button>
           )}
-          {isManual && <Button disabled={busy || !text.trim()} onClick={copyAndOpen} className="gap-1"><Copy className="h-4 w-4" />Copy & open</Button>}
+          {isManual && <Button disabled={busy || isDrafting || !text.trim()} onClick={copyAndOpen} className="gap-1"><Copy className="h-4 w-4" />Copy & open</Button>}
           <Button variant="outline" disabled={busy} onClick={() => update({ status: "rejected", decided_at: now() }, "Rejected")} className="gap-1">
             <X className="h-4 w-4" />Reject
           </Button>

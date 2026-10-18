@@ -1597,6 +1597,33 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      agent_next_posts_to_draft: {
+        Args: { p_limit?: number }
+        Returns: {
+          channel: string
+          created_at: string
+          decided_at: string | null
+          draft_text: string | null
+          error: string | null
+          external_ref: string | null
+          final_text: string | null
+          id: string
+          lead_id: string | null
+          ref_code: string | null
+          sent_at: string | null
+          source_text: string | null
+          source_url: string | null
+          status: string
+          subject: string | null
+          workflow: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "agent_outreach"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       agent_queue_community_post: {
         Args: {
           p_author: string
