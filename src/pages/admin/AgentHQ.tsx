@@ -57,7 +57,7 @@ export default function AgentHQ() {
   }, [navigate]);
 
   const loadCount = useCallback(async () => {
-    const { count } = await supabase.from("agent_outreach").select("id", { count: "exact", head: true }).eq("status", "pending");
+    const { count } = await supabase.from("agent_outreach").select("id", { count: "exact", head: true }).eq("status", "pending").neq("status", "drafting");
     setPendingCount(count ?? 0);
   }, []);
 
@@ -199,6 +199,8 @@ function QueueCard({ item, onDone }: { item: OutreachWithLead; onDone: () => voi
   const [busy, setBusy] = useState(false);
   const isEmail = item.channel === "email";
   const isManual = item.channel === "reddit_reply" || item.channel === "discord_reply";
+  // Agent posts that haven't had their draft attached yet — show a drafting notice instead of the reply box.
+  const isDrafting = !item.final_text && !item.draft_text && !isManual;
 
   const update = async (patch: Partial<Outreach>, msg?: string) => {
     setBusy(true);
