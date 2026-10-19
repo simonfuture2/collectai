@@ -29,6 +29,13 @@
       "when": 1791994670526,
       "tag": "0003_sealed_products",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792380725688,
+      "tag": "0004_create_social_videos",
+      "breakpoints": true
     }
   ]
 }

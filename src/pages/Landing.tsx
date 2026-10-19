@@ -15,6 +15,7 @@ import Footer from "@/components/Footer";
 import HeroBackground from "@/components/HeroBackground";
 import ScanDemo, { type ScanDemoHandle } from "@/components/ScanDemo";
 import BetaPromoBanner from "@/components/BetaPromoBanner";
+import FeaturedVideos from "@/components/social/FeaturedVideos";
 import collectaiLogo from "@/assets/collectai-logo.png";
 import charizardCard from "@/assets/scan-demo-charizard.jpeg";
 
@@ -94,6 +95,7 @@ const Landing = () => {
             </DropdownMenuContent>
           </DropdownMenu>
           <Link to="/partners" className="text-sm text-muted-foreground hover:text-foreground transition-colors hidden lg:inline">Partners</Link>
+          <Link to="/watch" className="text-sm text-muted-foreground hover:text-foreground transition-colors hidden sm:inline">Watch</Link>
           <Link to="/pricing" className="text-sm text-muted-foreground hover:text-foreground transition-colors hidden sm:inline">Pricing</Link>
           <Link to="/marketplace" className="text-sm text-muted-foreground hover:text-foreground transition-colors hidden lg:inline">Marketplace</Link>
           <ThemeToggle />
@@ -112,6 +114,7 @@ const Landing = () => {
               <nav className="flex flex-col gap-4 mt-6">
                 <Link to="/auth?mode=signup"><Button className="w-full gradient-primary">Sign up free</Button></Link>
                 <Link to="/grading" className="text-base text-foreground hover:text-primary transition-colors">Grading Guides</Link>
+                <Link to="/watch" className="text-base text-foreground hover:text-primary transition-colors">Watch</Link>
                 <Link to="/how-it-works" className="text-base text-foreground hover:text-primary transition-colors">How It Works</Link>
                 <Link to="/verify" className="text-base text-foreground hover:text-primary transition-colors">Verify a certificate</Link>
                 <Link to="/partners" className="text-base text-foreground hover:text-primary transition-colors">Partners</Link>
@@ -153,13 +156,14 @@ const Landing = () => {
               </div>
               <p className="mt-4 text-sm text-muted-foreground">No sign-up needed to try · 3 free demo scans a day</p>
             </motion.div>
-            <motion.div variants={fadeUp} className="flex justify-center w-full" ref={demoWrapRef}>
+            <motion.div id="demo-scan" variants={fadeUp} className="flex justify-center w-full scroll-mt-8" ref={demoWrapRef}>
               <ScanDemo ref={demoRef} />
             </motion.div>
           </motion.div>
         </div>
 
         {/* Categories */}
+        <FeaturedVideos />
         <motion.section {...inView} variants={fadeUp} className="mt-20 max-w-5xl mx-auto">
           <h2 className="text-3xl md:text-5xl font-display font-bold text-center mb-10">
             Every TCG. <span className="text-gradient-primary">Every sport.</span>
