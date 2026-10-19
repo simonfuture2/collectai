@@ -12,7 +12,7 @@ import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/s
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import Footer from "@/components/Footer";
-import HeroBackground from "@/components/HeroBackground";
+import HomeVideoBackground from "@/components/HomeVideoBackground";
 import ScanDemo, { type ScanDemoHandle } from "@/components/ScanDemo";
 import BetaPromoBanner from "@/components/BetaPromoBanner";
 import FeaturedVideos from "@/components/social/FeaturedVideos";
@@ -131,7 +131,7 @@ const Landing = () => {
       <main className="container mx-auto px-4 py-12 relative">
         {/* Hero */}
         <div className="relative" ref={heroRef}>
-          <HeroBackground />
+          <HomeVideoBackground />
           <motion.div initial="hidden" animate="visible" variants={staggerContainer}
             className="relative z-10 py-8 grid md:grid-cols-2 gap-12 items-center max-w-6xl mx-auto">
             <motion.div variants={fadeUp} className="text-center md:text-left">
