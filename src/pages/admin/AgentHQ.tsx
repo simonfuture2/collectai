@@ -3,7 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { Inbox, Users, Radio, BarChart3, Plus, ExternalLink, Copy, X, Search, Loader2, ShieldAlert } from "lucide-react";
+import { Inbox, Users, Radio, BarChart3, Plus, ExternalLink, Copy, X, Search, Loader2, ShieldAlert, Film } from "lucide-react";
+import VideosTab from "@/components/admin/VideosTab";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,7 +41,7 @@ const nice = (s: string) => s.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpper
 const ago = (d: string | null) => (d ? formatDistanceToNow(new Date(d), { addSuffix: true }) : "never");
 const now = () => new Date().toISOString();
 
-type Tab = "queue" | "leads" | "channels" | "results";
+type Tab = "queue" | "leads" | "channels" | "results" | "videos";
 
 export default function AgentHQ() {
   const navigate = useNavigate();
@@ -115,6 +116,7 @@ export default function AgentHQ() {
     { id: "leads", label: "Leads", icon: Users },
     { id: "channels", label: "Channels", icon: Radio },
     { id: "results", label: "Results", icon: BarChart3 },
+    { id: "videos", label: "Videos", icon: Film },
   ];
 
   return (
@@ -144,10 +146,11 @@ export default function AgentHQ() {
         {tab === "leads" && <LeadsTab repliesOnly={repliesOnly} onRepliesOnlyChange={setRepliesOnly} refreshKey={refreshKey} />}
         {tab === "channels" && <ChannelsTab />}
         {tab === "results" && <ResultsTab refreshKey={refreshKey} />}
+        {tab === "videos" && <VideosTab />}
       </main>
 
       <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 border-t border-border bg-background/95 backdrop-blur pb-[env(safe-area-inset-bottom)]">
-        <div className="grid grid-cols-4">
+        <div className="grid grid-cols-5">
           {tabs.map((t) => (
             <button key={t.id} onClick={() => setTab(t.id)}
               className={`relative flex flex-col items-center gap-1 py-2.5 text-xs ${tab === t.id ? "text-primary" : "text-muted-foreground"}`}>

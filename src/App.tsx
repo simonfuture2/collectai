@@ -47,6 +47,7 @@ const Insights = lazy(() => import("./pages/Insights"));
 const GradingGuides = lazy(() => import("./pages/GradingGuides"));
 const GradingGuide = lazy(() => import("./pages/GradingGuide"));
 const OAuthConsent = lazy(() => import("./pages/OAuthConsent"));
+const Watch = lazy(() => import("./pages/Watch"));
 
 const queryClient = new QueryClient();
 
@@ -138,6 +139,7 @@ const App = () => (
               <Route path="/refund" element={<Refund />} />
               <Route path="/faq" element={<FAQ />} />
               <Route path="/verify" element={<Verify />} />
+              <Route path="/watch" element={<Watch />} />
               <Route path="/about" element={<About />} />
               <Route path="/how-it-works" element={<HowItWorks />} />
               <Route path="/admin" element={<Admin />} />
