@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Pause, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import clip from "@/assets/homepage-tiktok.mp4.asset.json";
+import webm from "@/assets/homepage-tiktok.webm.asset.json";
 import poster from "@/assets/homepage-tiktok-poster.jpg.asset.json";
 
 export default function HomeVideoBackground() {
@@ -30,9 +31,12 @@ export default function HomeVideoBackground() {
   }, []);
 
   return <div className="home-video-background">
-    <video ref={videoRef} src={clip.url} poster={poster.url} muted loop playsInline preload="metadata"
+    <video ref={videoRef} poster={poster.url} muted loop playsInline preload="metadata"
       aria-hidden="true" onPlaying={() => { setReady(true); setPaused(false); }} onPause={() => setPaused(true)}
-      className={`home-video-footage ${ready ? "home-video-ready" : ""}`} />
+      className={`home-video-footage ${ready ? "home-video-ready" : ""}`}>
+      <source src={webm.url} type="video/webm" />
+      <source src={clip.url} type="video/mp4" />
+    </video>
     <div className="home-video-veil" />
     <div className="absolute bottom-2 right-4 z-20 pointer-events-auto">
       <Button variant="outline" size="icon" className="bg-background/80 backdrop-blur-sm" title={paused ? "Play background video" : "Pause background video"}
