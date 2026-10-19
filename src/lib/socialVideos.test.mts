@@ -1,6 +1,14 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { detectSocialPlatform, publicVideos, orderedVideos, validateVideo, needsVideoCta, SOCIAL_SCAN_URL, EMBED_TIMEOUT_MS } from "./socialVideos.ts";
+import { detectSocialPlatform, isSupportedVideoUpload, publicVideos, orderedVideos, validateVideo, needsVideoCta, SOCIAL_SCAN_URL, EMBED_TIMEOUT_MS } from "./socialVideos.ts";
+
+test("uploads accept MOV and MP4 including files without a MIME type", () => {
+  for (const file of [{ name: "clip.mov", type: "video/quicktime" }, { name: "clip.MOV", type: "" }, { name: "clip.mov", type: "application/octet-stream" }, { name: "clip.mp4", type: "video/mp4" }, { name: "clip.MP4", type: "" }]) {
+    assert.equal(isSupportedVideoUpload(file), true);
+  }
+  assert.equal(isSupportedVideoUpload({ name: "clip.avi", type: "video/x-msvideo" }), false);
+  assert.equal(isSupportedVideoUpload({ name: "poster.jpg", type: "image/jpeg" }), false);
+});
 
 test("only full TikTok video and Instagram post/reel URLs are accepted", () => {
   assert.equal(detectSocialPlatform("https://www.tiktok.com/@collectai/video/123456789"), "tiktok");
