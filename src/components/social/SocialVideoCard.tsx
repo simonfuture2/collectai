@@ -74,6 +74,15 @@ export default function SocialVideoCard({ video }: { video: SocialVideo }) {
     });
     const observer = new MutationObserver(check);
     observer.observe(node, { childList: true, subtree: true });
+    // TikTok's bootstrap loads its renderer asynchronously; later cards must wait for it too.
+    const renderTimer = window.setInterval(() => {
+      if (disposed) return;
+      if (platform === "tiktok" && window.tiktokEmbed?.lib?.render) {
+        window.tiktokEmbed.lib.render([quote]); clearInterval(renderTimer);
+      } else if (platform === "instagram" && window.instgrm) {
+        window.instgrm.Embeds.process(); clearInterval(renderTimer);
+      }
+    }, 250);
     timeout = window.setTimeout(() => { if (!disposed) setFailed(true); }, EMBED_TIMEOUT_MS);
     void loadEmbedScript(platform).then(() => {
       if (disposed) return;
@@ -81,7 +90,7 @@ export default function SocialVideoCard({ video }: { video: SocialVideo }) {
       else window.tiktokEmbed?.lib?.render([quote]);
       check();
     }).catch(() => { if (!disposed) setFailed(true); });
-    return () => { disposed = true; observer.disconnect(); clearTimeout(timeout); node.querySelectorAll("iframe").forEach(frame => frame.removeEventListener("load", onLoaded)); node.replaceChildren(); };
+    return () => { disposed = true; observer.disconnect(); clearInterval(renderTimer); clearTimeout(timeout); node.querySelectorAll("iframe").forEach(frame => frame.removeEventListener("load", onLoaded)); node.replaceChildren(); };
   }, [active, video.platform, video.url]);
 
   return <article className="overflow-hidden rounded-lg border border-border bg-card">
