@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { detectSocialPlatform, validateVideo, VIDEO_CATEGORIES, type SocialVideo } from "@/lib/socialVideos";
+import { detectSocialPlatform, isSupportedVideoUpload, validateVideo, VIDEO_CATEGORIES, type SocialVideo } from "@/lib/socialVideos";
 
 export default function VideosTab() {
   const [videos, setVideos] = useState<SocialVideo[]>([]);
@@ -94,7 +94,7 @@ function VideoForm({ video, sortOrder, onClose, onSaved }: { video: SocialVideo 
   const save = async (event: React.FormEvent) => {
     event.preventDefault(); setError("");
     if (!platform) { setError("Use a full TikTok video or Instagram reel/post URL."); return; }
-    if (clip && clip.type !== "video/mp4" && !clip.name.toLowerCase().endsWith(".mp4")) { setError("Choose an MP4 video."); return; }
+    if (clip && !isSupportedVideoUpload(clip)) { setError("Choose an MP4 or MOV video."); return; }
     if (poster && !["image/jpeg", "image/png", "image/webp"].includes(poster.type)) { setError("Choose a JPG, PNG or WebP poster."); return; }
     const validation = validateVideo({ platform, url: clip ? clip.name : url, title, poster_url: poster ? poster.name : posterUrl });
     if (validation) { setError(validation); return; }
@@ -103,7 +103,8 @@ function VideoForm({ video, sortOrder, onClose, onSaved }: { video: SocialVideo 
     try {
       const upload = async (file: File) => {
         const path = `${crypto.randomUUID()}/${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
-        const { error } = await supabase.storage.from("social-videos").upload(path, file, { contentType: file.type });
+        const contentType = /\.mov$/i.test(file.name) ? "video/quicktime" : /\.mp4$/i.test(file.name) ? "video/mp4" : file.type || undefined;
+        const { error } = await supabase.storage.from("social-videos").upload(path, file, { contentType });
         if (error) throw error;
         uploaded.push(path); return path;
       };
@@ -119,8 +120,8 @@ function VideoForm({ video, sortOrder, onClose, onSaved }: { video: SocialVideo 
     } finally { setBusy(false); }
   };
   return <Dialog open onOpenChange={open => { if (!open && !busy) onClose(); }}><DialogContent className="max-h-[90vh] overflow-y-auto"><DialogHeader><DialogTitle>{video ? "Edit video" : "Add video"}</DialogTitle></DialogHeader><form onSubmit={save} className="space-y-4">
-    <div className="flex gap-2"><Button type="button" variant={mode === "social" ? "default" : "outline"} disabled={busy} onClick={() => { setMode("social"); setUrl(""); }}>Social link</Button><Button type="button" variant={mode === "hosted" ? "default" : "outline"} disabled={busy} onClick={() => { setMode("hosted"); setUrl(""); }}><Upload className="mr-2 h-4 w-4" />Upload MP4</Button></div>
-    {mode === "social" ? <div className="space-y-2"><Label htmlFor="video-url">TikTok or Instagram URL</Label><Input id="video-url" type="url" value={url} onChange={e => setUrl(e.target.value)} placeholder="https://www.tiktok.com/@name/video/…" required />{platform && <p className="text-xs text-muted-foreground">{platform === "tiktok" ? "TikTok" : "Instagram"}</p>}</div> : <div className="space-y-2"><Label htmlFor="video-file">MP4 video</Label><Input id="video-file" type="file" accept="video/mp4,.mp4" onChange={e => setClip(e.target.files?.[0] ?? null)} />{url && <p className="text-xs text-muted-foreground">Current video saved</p>}</div>}
+    <div className="flex gap-2"><Button type="button" variant={mode === "social" ? "default" : "outline"} disabled={busy} onClick={() => { setMode("social"); setUrl(""); }}>Social link</Button><Button type="button" variant={mode === "hosted" ? "default" : "outline"} disabled={busy} onClick={() => { setMode("hosted"); setUrl(""); }}><Upload className="mr-2 h-4 w-4" />Upload video</Button></div>
+    {mode === "social" ? <div className="space-y-2"><Label htmlFor="video-url">TikTok or Instagram URL</Label><Input id="video-url" type="url" value={url} onChange={e => setUrl(e.target.value)} placeholder="https://www.tiktok.com/@name/video/…" required />{platform && <p className="text-xs text-muted-foreground">{platform === "tiktok" ? "TikTok" : "Instagram"}</p>}</div> : <div className="space-y-2"><Label htmlFor="video-file">MP4 or MOV video</Label><Input id="video-file" type="file" accept="video/mp4,video/quicktime,.mp4,.mov" onChange={e => setClip(e.target.files?.[0] ?? null)} />{url && <p className="text-xs text-muted-foreground">Current video saved</p>}</div>}
     <div className="space-y-2"><Label htmlFor="video-poster">Poster image{mode === "hosted" ? " (required)" : " (optional)"}</Label><Input id="video-poster" type="file" accept="image/jpeg,image/png,image/webp" onChange={e => setPoster(e.target.files?.[0] ?? null)} />{posterUrl && <p className="text-xs text-muted-foreground">Current poster saved</p>}</div>
     <div className="space-y-2"><Label htmlFor="video-title">Title</Label><Input id="video-title" value={title} onChange={e => setTitle(e.target.value)} maxLength={180} required /></div>
     <div className="space-y-2"><Label htmlFor="video-caption">Caption</Label><Input id="video-caption" value={caption} onChange={e => setCaption(e.target.value)} maxLength={300} /></div>

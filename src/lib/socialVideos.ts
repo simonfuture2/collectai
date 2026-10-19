@@ -9,6 +9,10 @@ export const VIDEO_CATEGORIES = [
 ] as const;
 export const EMBED_TIMEOUT_MS = 8000;
 
+export function isSupportedVideoUpload(file: { name: string; type: string }): boolean {
+  return ["video/mp4", "video/quicktime"].includes(file.type) || /\.(mp4|mov)$/i.test(file.name);
+}
+
 export function detectSocialPlatform(value: string): "tiktok" | "instagram" | null {
   try {
     const url = new URL(value);
@@ -42,7 +46,7 @@ export function needsVideoCta(index: number): boolean { return (index + 1) % 6 =
 export function validateVideo(video: Pick<SocialVideo, "platform" | "url" | "poster_url" | "title">): string | null {
   if (!video.title.trim()) return "Add a title.";
   if (video.platform !== "hosted") return detectSocialPlatform(video.url) === video.platform ? null : "Use a full TikTok video or Instagram reel/post URL.";
-  if (!video.url.trim()) return "Upload an MP4.";
+  if (!video.url.trim()) return "Upload an MP4 or MOV video.";
   if (!video.poster_url?.trim()) return "Add a poster image for your video.";
   return null;
 }
