@@ -1432,6 +1432,48 @@ export type Database = {
         }
         Relationships: []
       }
+      social_videos: {
+        Row: {
+          caption: string | null
+          category: string
+          created_at: string
+          featured: boolean
+          id: string
+          platform: string
+          poster_url: string | null
+          published: boolean
+          sort_order: number
+          title: string
+          url: string
+        }
+        Insert: {
+          caption?: string | null
+          category?: string
+          created_at?: string
+          featured?: boolean
+          id?: string
+          platform: string
+          poster_url?: string | null
+          published?: boolean
+          sort_order?: number
+          title: string
+          url: string
+        }
+        Update: {
+          caption?: string | null
+          category?: string
+          created_at?: string
+          featured?: boolean
+          id?: string
+          platform?: string
+          poster_url?: string | null
+          published?: boolean
+          sort_order?: number
+          title?: string
+          url?: string
+        }
+        Relationships: []
+      }
       suppressed_emails: {
         Row: {
           created_at: string
