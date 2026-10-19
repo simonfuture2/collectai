@@ -31,7 +31,7 @@ const DeleteAccount = () => {
       setSubmitted(true);
       toast.success("Your account and all data have been permanently deleted.");
     } catch (err: any) {
-      toast.error(err.message || "Something went wrong. Please email support@collectai.app for assistance.");
+      toast.error(err.message || "Something went wrong. Please email simon@mycollectai.com for assistance.");
     } finally {
       setSubmitting(false);
     }
@@ -46,7 +46,7 @@ const DeleteAccount = () => {
             <h2 className="text-xl font-display font-bold">Account Deleted</h2>
             <p className="text-sm text-muted-foreground">
               Your account and all associated data have been permanently removed.
-              If you have questions, email <a href="mailto:support@collectai.app" className="text-primary hover:underline">support@collectai.app</a>.
+              If you have questions, email <a href="mailto:simon@mycollectai.com" className="text-primary hover:underline">simon@mycollectai.com</a>.
             </p>
             <Link to="/">
               <Button className="mt-4">Return Home</Button>

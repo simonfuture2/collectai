@@ -16,7 +16,7 @@ const Refund = () => {
         </p>
         <p className="text-muted-foreground">
           If you cancel within 48 hours of your initial subscription purchase and have not used any Pro features, you may request a full refund by contacting us at{" "}
-          <a href="mailto:support@collectai.app" className="text-primary hover:underline">support@collectai.app</a>.
+          <a href="mailto:simon@mycollectai.com" className="text-primary hover:underline">simon@mycollectai.com</a>.
         </p>
       </section>
 
@@ -45,7 +45,7 @@ const Refund = () => {
         <h2 className="text-xl font-display font-bold">How to Request a Refund</h2>
         <p className="text-muted-foreground">
           To request a refund, email us at{" "}
-          <a href="mailto:support@collectai.app" className="text-primary hover:underline">support@collectai.app</a>{" "}
+          <a href="mailto:simon@mycollectai.com" className="text-primary hover:underline">simon@mycollectai.com</a>{" "}
           with your account email and a description of the issue. Refund requests are typically processed within 5–7 business days.
         </p>
       </section>

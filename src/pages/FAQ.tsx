@@ -96,7 +96,7 @@ const FAQ = () => {
 
         <div className="mt-10 text-center">
           <p className="text-sm text-muted-foreground mb-2">Still have questions?</p>
-          <a href="mailto:support@collectai.app">
+          <a href="mailto:simon@mycollectai.com">
             <Button variant="outline">Contact Support</Button>
           </a>
         </div>

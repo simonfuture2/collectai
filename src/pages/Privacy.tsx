@@ -62,7 +62,7 @@ const Privacy = () => {
         </p>
         <p className="text-muted-foreground mt-2">
           <strong>You may request deletion of your account and all associated data</strong> (including scan history and card images) at any time by emailing{" "}
-          <a href="mailto:support@collectai.app" className="text-primary hover:underline">support@collectai.app</a>.
+          <a href="mailto:simon@mycollectai.com" className="text-primary hover:underline">simon@mycollectai.com</a>.
           Deletion requests are processed within 30 days. Please note that AuthentiSeal certificates recorded on the blockchain cannot be deleted as they are immutable public records.
         </p>
       </section>
@@ -117,7 +117,7 @@ const Privacy = () => {
         <h2 className="text-xl font-display font-bold">11. Contact</h2>
         <p className="text-muted-foreground">
           For privacy-related questions, contact us at{" "}
-          <a href="mailto:support@collectai.app" className="text-primary hover:underline">support@collectai.app</a>.
+          <a href="mailto:simon@mycollectai.com" className="text-primary hover:underline">simon@mycollectai.com</a>.
         </p>
       </section>
     </LegalPageLayout>

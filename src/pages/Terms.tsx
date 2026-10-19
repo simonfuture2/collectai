@@ -113,7 +113,7 @@ const Terms = () => {
         <h2 className="text-xl font-display font-bold">13. Contact</h2>
         <p className="text-muted-foreground">
           For questions about these Terms, please contact us at{" "}
-          <a href="mailto:support@collectai.app" className="text-primary hover:underline">support@collectai.app</a>.
+          <a href="mailto:simon@mycollectai.com" className="text-primary hover:underline">simon@mycollectai.com</a>.
         </p>
       </section>
     </LegalPageLayout>

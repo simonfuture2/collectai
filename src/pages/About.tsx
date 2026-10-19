@@ -109,7 +109,7 @@ const About = () => {
       <section className="p-5 rounded-xl bg-muted/50 border border-border">
         <p className="text-sm text-muted-foreground leading-relaxed">
           <strong className="text-foreground">Data Deletion:</strong> You may request deletion of your account and all associated data at any time by emailing{" "}
-          <a href="mailto:support@collectai.app" className="text-primary hover:underline">support@collectai.app</a>. 
+          <a href="mailto:simon@mycollectai.com" className="text-primary hover:underline">simon@mycollectai.com</a>. 
           Requests are processed within 30 days. On-chain AuthentiSeal certificates cannot be removed as they are immutable records.
         </p>
         <p className="text-sm text-muted-foreground mt-3">

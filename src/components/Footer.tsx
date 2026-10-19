@@ -50,7 +50,7 @@ const Footer = () => {
           <div>
             <h4 className="font-display font-semibold text-sm mb-3">Connect</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
-              <li><a href="mailto:support@collectai.app" className="hover:text-foreground transition-colors">support@collectai.app</a></li>
+              <li><a href="mailto:simon@mycollectai.com" className="hover:text-foreground transition-colors">simon@mycollectai.com</a></li>
             </ul>
           </div>
         </div>
