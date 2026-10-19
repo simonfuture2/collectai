@@ -1,6 +1,6 @@
 - [x] Add the two existing reply actions to agent-gateway and deploy it.
 - [x] Add reply filters, intent chips, reply history, Gmail action, Queue banner, Results count, and insert notifications to Agent HQ.
 - [x] Test reply rules and verify the admin flow without database definition changes; temporary test records removed.
-- [ ] Create social video table and admin-only upload bucket without modifying existing definitions.
-- [ ] Build shared lazy video cards, /watch, home strip and navigation links.
-- [ ] Add Agent HQ video management, uploads and ordering; test publishing and public visibility.
+- [x] Create social video table and admin-only upload bucket without modifying existing definitions (private bucket required by workspace policy).
+- [x] Build shared lazy video cards, /watch, home strip and navigation links.
+- [x] Add Agent HQ video management, uploads and ordering; test publishing and public visibility; temporary entries removed.
