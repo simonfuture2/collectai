@@ -103,7 +103,7 @@ function VideoForm({ video, sortOrder, onClose, onSaved }: { video: SocialVideo 
     try {
       const upload = async (file: File) => {
         const path = `${crypto.randomUUID()}/${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
-        const contentType = file.type || (/\.mov$/i.test(file.name) ? "video/quicktime" : /\.mp4$/i.test(file.name) ? "video/mp4" : undefined);
+        const contentType = /\.mov$/i.test(file.name) ? "video/quicktime" : /\.mp4$/i.test(file.name) ? "video/mp4" : file.type || undefined;
         const { error } = await supabase.storage.from("social-videos").upload(path, file, { contentType });
         if (error) throw error;
         uploaded.push(path); return path;
