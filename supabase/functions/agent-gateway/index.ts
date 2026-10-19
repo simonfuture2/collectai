@@ -8,7 +8,7 @@
 //
 // POST { "action": "agent_claim_ig_comment", "args": { ...named params... } }
 // POST { "action": "get_settings", "args": { "key": "community_drafts" } }
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "npm:@supabase/supabase-js@2";
 
 const db = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -23,6 +23,8 @@ const ALLOWED: Record<string, string[]> = {
   agent_queue_community_post: ["p_url", "p_author", "p_title", "p_body", "p_channel"],
   agent_attach_draft: ["p_id", "p_draft", "p_subject"],
   agent_next_posts_to_draft: ["p_limit"],
+  agent_match_reply: ["p_from_email", "p_message_id"],
+  agent_record_reply: ["p_lead_id", "p_message_id", "p_from_email", "p_subject", "p_body", "p_intent", "p_summary"],
   agent_next_leads_to_draft: ["p_limit"],
   agent_queue_email: ["p_lead_id", "p_subject", "p_body"],
   agent_claim_approved_emails: [],

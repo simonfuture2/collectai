@@ -1,3 +1,4 @@
 - All Anthropic calls go through `supabase/functions/_shared/claude.ts` (`callClaude` + `MODELS`); never hard-code Claude model IDs elsewhere — one place to switch models via env.
 - Never register a Tailwind colour whose name collides with a built-in utility (`base` generated `.text-base { color }` and silently repainted every 16px heading); name surface tokens so they can't form a `text-*` font-size class.
 - Sealed-product chase lists and every price in them come only from price data (pricecharting_catalog or the live PriceCharting/SportsCardsPro API); AI may read packaging and summarise built data but never pick chase cards or prices — avoids invented values.
+- Agent HQ reply timing, filtering and Gmail URL rules live in src/lib/agentReplies.ts with adjacent tests so reply behavior can be checked without database writes; realtime subscriptions are access-gated effects with cleanup.

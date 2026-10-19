@@ -73,6 +73,9 @@ export type Database = {
           name: string | null
           notes: string | null
           platform: string
+          replied_at: string | null
+          reply_intent: string | null
+          reply_summary: string | null
           status: string
           website: string | null
         }
@@ -89,6 +92,9 @@ export type Database = {
           name?: string | null
           notes?: string | null
           platform: string
+          replied_at?: string | null
+          reply_intent?: string | null
+          reply_summary?: string | null
           status?: string
           website?: string | null
         }
@@ -105,6 +111,9 @@ export type Database = {
           name?: string | null
           notes?: string | null
           platform?: string
+          replied_at?: string | null
+          reply_intent?: string | null
+          reply_summary?: string | null
           status?: string
           website?: string | null
         }
@@ -168,6 +177,50 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "agent_outreach_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "agent_leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agent_replies: {
+        Row: {
+          body: string | null
+          from_email: string | null
+          id: string
+          intent: string | null
+          lead_id: string | null
+          message_id: string
+          received_at: string
+          subject: string | null
+          summary: string | null
+        }
+        Insert: {
+          body?: string | null
+          from_email?: string | null
+          id?: string
+          intent?: string | null
+          lead_id?: string | null
+          message_id: string
+          received_at?: string
+          subject?: string | null
+          summary?: string | null
+        }
+        Update: {
+          body?: string | null
+          from_email?: string | null
+          id?: string
+          intent?: string | null
+          lead_id?: string | null
+          message_id?: string
+          received_at?: string
+          subject?: string | null
+          summary?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_replies_lead_id_fkey"
             columns: ["lead_id"]
             isOneToOne: false
             referencedRelation: "agent_leads"
@@ -1572,6 +1625,10 @@ export type Database = {
         Args: { p_error?: string; p_id: string; p_status: string }
         Returns: Json
       }
+      agent_match_reply: {
+        Args: { p_from_email: string; p_message_id: string }
+        Returns: Json
+      }
       agent_next_leads_to_draft: {
         Args: { p_limit?: number }
         Returns: {
@@ -1587,6 +1644,9 @@ export type Database = {
           name: string | null
           notes: string | null
           platform: string
+          replied_at: string | null
+          reply_intent: string | null
+          reply_summary: string | null
           status: string
           website: string | null
         }[]
@@ -1636,6 +1696,18 @@ export type Database = {
       }
       agent_queue_email: {
         Args: { p_body: string; p_lead_id: string; p_subject: string }
+        Returns: Json
+      }
+      agent_record_reply: {
+        Args: {
+          p_body: string
+          p_from_email: string
+          p_intent: string
+          p_lead_id: string
+          p_message_id: string
+          p_subject: string
+          p_summary: string
+        }
         Returns: Json
       }
       agent_unsubscribe: { Args: { p_lead_id: string }; Returns: undefined }

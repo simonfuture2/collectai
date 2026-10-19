@@ -1,0 +1,3 @@
+- [x] Add the two existing reply actions to agent-gateway and deploy it.
+- [x] Add reply filters, intent chips, reply history, Gmail action, Queue banner, Results count, and insert notifications to Agent HQ.
+- [x] Test reply rules and verify the admin flow without database definition changes; temporary test records removed.
