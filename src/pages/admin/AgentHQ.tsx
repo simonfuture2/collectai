@@ -18,9 +18,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import SEO from "@/components/SEO";
 import type { Database } from "@/integrations/supabase/types";
+import { ATTENTION_INTENTS, gmailReplyUrl, newestRepliedLeads, sevenDaysAgo } from "@/lib/agentReplies";
 
 type Outreach = Database["public"]["Tables"]["agent_outreach"]["Row"];
 type Lead = Database["public"]["Tables"]["agent_leads"]["Row"];
+type Reply = Database["public"]["Tables"]["agent_replies"]["Row"];
 type Setting = Database["public"]["Tables"]["agent_settings"]["Row"];
 type Funnel = Database["public"]["Views"]["agent_funnel"]["Row"];
 type OutreachWithLead = Outreach & { agent_leads: Pick<Lead, "business_name" | "email" | "name"> | null };
@@ -46,6 +48,14 @@ export default function AgentHQ() {
   const [tab, setTab] = useState<Tab>("queue");
   const [pendingCount, setPendingCount] = useState(0);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [repliesOnly, setRepliesOnly] = useState(false);
+  const [waitingCount, setWaitingCount] = useState(0);
+
+  const loadWaiting = useCallback(async () => {
+    const { count, error } = await supabase.from("agent_leads")
+      .select("id", { count: "exact", head: true }).in("reply_intent", ATTENTION_INTENTS).gte("replied_at", sevenDaysAgo());
+    if (!error) setWaitingCount(count ?? 0);
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -64,6 +74,7 @@ export default function AgentHQ() {
   useEffect(() => {
     if (access !== "ok") return;
     loadCount();
+    loadWaiting();
     const ch = supabase
       .channel("agent-outreach-live")
       .on("postgres_changes", { event: "*", schema: "public", table: "agent_outreach" }, (p) => {
@@ -71,11 +82,19 @@ export default function AgentHQ() {
         loadCount();
         setRefreshKey((k) => k + 1);
       })
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "agent_replies" }, async (payload) => {
+        const reply = payload.new as Reply;
+        loadWaiting();
+        setRefreshKey((k) => k + 1);
+        if (!reply.intent || !ATTENTION_INTENTS.includes(reply.intent)) return;
+        const { data: lead } = await supabase.from("agent_leads").select("business_name,name,email").eq("id", reply.lead_id ?? "").maybeSingle();
+        toast(`New reply from ${lead?.business_name || lead?.name || lead?.email || reply.from_email || "a lead"}`);
+      })
       .subscribe();
     // Backup in case live updates aren't enabled for this table.
-    const t = setInterval(() => { loadCount(); }, 30000);
+    const t = setInterval(() => { loadCount(); loadWaiting(); setRefreshKey((k) => k + 1); }, 30000);
     return () => { supabase.removeChannel(ch); clearInterval(t); };
-  }, [access, loadCount]);
+  }, [access, loadCount, loadWaiting]);
 
   if (access === "loading") {
     return <div className="min-h-screen flex items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
@@ -116,10 +135,15 @@ export default function AgentHQ() {
       </header>
 
       <main className="mx-auto max-w-5xl px-4 py-5">
-        {tab === "queue" && <QueueTab refreshKey={refreshKey} onChange={loadCount} />}
-        {tab === "leads" && <LeadsTab />}
+        {tab === "queue" && <>
+          {waitingCount > 0 && <Button variant="outline" className="mb-4 h-auto w-full justify-start whitespace-normal border-secondary/40 bg-secondary/10 py-3 text-left text-foreground" onClick={() => { setRepliesOnly(true); setTab("leads"); }}>
+            {waitingCount} leads replied and are waiting on you
+          </Button>}
+          <QueueTab refreshKey={refreshKey} onChange={loadCount} />
+        </>}
+        {tab === "leads" && <LeadsTab repliesOnly={repliesOnly} onRepliesOnlyChange={setRepliesOnly} refreshKey={refreshKey} />}
         {tab === "channels" && <ChannelsTab />}
-        {tab === "results" && <ResultsTab />}
+        {tab === "results" && <ResultsTab refreshKey={refreshKey} />}
       </main>
 
       <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 border-t border-border bg-background/95 backdrop-blur pb-[env(safe-area-inset-bottom)]">
@@ -322,7 +346,18 @@ function FilterSelect({ value, onChange, options, all }: { value: string; onChan
   );
 }
 
-function LeadsTab() {
+function IntentChip({ intent }: { intent: string | null }) {
+  if (!intent) return null;
+  const styles: Record<string, string> = {
+    interested: "border-gain/30 bg-gain/10 text-gain",
+    question: "border-secondary/30 bg-secondary/10 text-secondary",
+    not_interested: "border-border bg-muted text-muted-foreground",
+    remove_me: "border-destructive/30 bg-destructive/10 text-destructive",
+  };
+  return <Badge variant="outline" className={`shrink-0 ${styles[intent] ?? "bg-muted text-muted-foreground"}`}>{nice(intent)}</Badge>;
+}
+
+function LeadsTab({ repliesOnly, onRepliesOnlyChange, refreshKey }: { repliesOnly: boolean; onRepliesOnlyChange: (value: boolean) => void; refreshKey: number }) {
   const [leads, setLeads] = useState<Lead[] | null>(null);
   const [q, setQ] = useState("");
   const [platform, setPlatform] = useState("all");
@@ -332,19 +367,21 @@ function LeadsTab() {
   const [open, setOpen] = useState<Lead | null>(null);
 
   const load = useCallback(async () => {
-    const { data, error } = await supabase.from("agent_leads").select("*").order("created_at", { ascending: false }).limit(1000);
+    let query = supabase.from("agent_leads").select("*");
+    if (repliesOnly) query = query.not("replied_at", "is", null);
+    const { data, error } = await query.order(repliesOnly ? "replied_at" : "created_at", { ascending: false }).limit(1000);
     if (error) toast.error(error.message);
     setLeads(data ?? []);
-  }, []);
-  useEffect(() => { load(); }, [load]);
+  }, [repliesOnly]);
+  useEffect(() => { load(); }, [load, refreshKey]);
 
-  const shown = (leads ?? []).filter((l) => {
+  const shown = (repliesOnly ? newestRepliedLeads(leads ?? []) : leads ?? []).filter((l) => {
     if (platform !== "all" && l.platform !== platform) return false;
     if (type !== "all" && l.lead_type !== type) return false;
     if (status !== "all" && l.status !== status) return false;
     const s = q.trim().toLowerCase();
     if (!s) return true;
-    return [l.name, l.handle, l.email, l.business_name, l.website, l.notes].some((v) => v?.toLowerCase().includes(s));
+    return [l.name, l.handle, l.email, l.business_name, l.website, l.notes, l.reply_summary].some((v) => v?.toLowerCase().includes(s));
   });
 
   return (
@@ -357,6 +394,7 @@ function LeadsTab() {
         <Button onClick={() => setAddOpen(true)} className="gap-1"><Plus className="h-4 w-4" />Add lead</Button>
       </div>
       <div className="grid grid-cols-1 sm:flex gap-2">
+        <Chips value={repliesOnly ? "replies" : "all"} onChange={(value) => onRepliesOnlyChange(value === "replies")} options={[{ v: "all", l: "All leads" }, { v: "replies", l: "Replies" }]} />
         <FilterSelect value={platform} onChange={setPlatform} options={PLATFORMS} all="All platforms" />
         <FilterSelect value={type} onChange={setType} options={LEAD_TYPES} all="All types" />
         <FilterSelect value={status} onChange={setStatus} options={LEAD_STATUSES} all="All statuses" />
@@ -366,18 +404,22 @@ function LeadsTab() {
         : (
           <div className="divide-y divide-border rounded-xl border border-border">
             {shown.map((l) => (
-              <button key={l.id} onClick={() => setOpen(l)} className="w-full text-left p-3 hover:bg-muted/50 flex items-center justify-between gap-3">
+              <Button key={l.id} variant="ghost" onClick={() => setOpen(l)} className="h-auto w-full rounded-none whitespace-normal text-left p-3 hover:bg-muted/50 flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <p className="font-medium truncate">{l.business_name || l.name || l.handle || l.email || "Unnamed"}</p>
+                  {l.reply_summary && <p className="mt-1 text-sm text-muted-foreground line-clamp-2">{l.reply_summary}</p>}
                   <p className="text-xs text-muted-foreground truncate">{nice(l.platform)} · {nice(l.lead_type)}{l.email ? ` · ${l.email}` : ""}</p>
                 </div>
-                <Badge variant={l.do_not_contact ? "destructive" : "secondary"} className="shrink-0">{nice(l.status)}</Badge>
-              </button>
+                <div className="flex shrink-0 flex-col items-end gap-1">
+                  <IntentChip intent={l.reply_intent} />
+                  <Badge variant={l.do_not_contact ? "destructive" : "secondary"} className="shrink-0">{nice(l.status)}</Badge>
+                </div>
+              </Button>
             ))}
           </div>
         )}
       <AddLeadDialog open={addOpen} onOpenChange={setAddOpen} onAdded={load} />
-      <LeadDrawer lead={open} onClose={() => setOpen(null)} onSaved={load} />
+      <LeadDrawer lead={open} onClose={() => setOpen(null)} onSaved={load} refreshKey={refreshKey} />
     </div>
   );
 }
@@ -439,10 +481,28 @@ function AddLeadDialog({ open, onOpenChange, onAdded }: { open: boolean; onOpenC
   );
 }
 
-function LeadDrawer({ lead, onClose, onSaved }: { lead: Lead | null; onClose: () => void; onSaved: () => void }) {
+function LeadReply({ reply }: { reply: Reply }) {
+  const [expanded, setExpanded] = useState(false);
+  return <article className="border-b border-border py-3 text-sm last:border-b-0">
+    <div className="flex flex-wrap items-center justify-between gap-2">
+      <time className="text-xs text-muted-foreground" dateTime={reply.received_at}>{new Date(reply.received_at).toLocaleString()}</time>
+      <IntentChip intent={reply.intent} />
+    </div>
+    {reply.subject && <p className="mt-2 font-medium break-words">{reply.subject}</p>}
+    {reply.summary && <p className="mt-2 break-words">{reply.summary}</p>}
+    {reply.body && <>
+      <p className={`mt-2 whitespace-pre-wrap break-words text-muted-foreground ${expanded ? "" : "line-clamp-4"}`}>{reply.body}</p>
+      <Button variant="link" size="sm" className="h-auto px-0 py-1" aria-expanded={expanded} onClick={() => setExpanded((value) => !value)}>{expanded ? "Show less" : "Show more"}</Button>
+    </>}
+  </article>;
+}
+
+function LeadDrawer({ lead, onClose, onSaved, refreshKey }: { lead: Lead | null; onClose: () => void; onSaved: () => void; refreshKey: number }) {
   const [v, setV] = useState<Partial<Lead>>({});
   const [history, setHistory] = useState<Outreach[]>([]);
   const [busy, setBusy] = useState(false);
+  const [replies, setReplies] = useState<Reply[] | null>(null);
+  const [repliesError, setRepliesError] = useState(false);
 
   useEffect(() => {
     if (!lead) return;
@@ -450,6 +510,19 @@ function LeadDrawer({ lead, onClose, onSaved }: { lead: Lead | null; onClose: ()
     supabase.from("agent_outreach").select("*").eq("lead_id", lead.id).order("created_at", { ascending: false })
       .then(({ data }) => setHistory(data ?? []));
   }, [lead]);
+
+  useEffect(() => {
+    if (!lead) return;
+    let active = true;
+    setReplies(null); setRepliesError(false);
+    supabase.from("agent_replies").select("*").eq("lead_id", lead.id).order("received_at", { ascending: false })
+      .then(({ data, error }) => {
+        if (!active) return;
+        setRepliesError(!!error); setReplies(data ?? []);
+        if (error) toast.error("Couldn't load replies");
+      });
+    return () => { active = false; };
+  }, [lead, refreshKey]);
 
   const save = async (patch?: Partial<Lead>) => {
     if (!lead) return;
@@ -484,6 +557,16 @@ function LeadDrawer({ lead, onClose, onSaved }: { lead: Lead | null; onClose: ()
           </div>
           <LeadFields v={v} set={(p) => setV((s) => ({ ...s, ...p }))} />
           <Button className="w-full" disabled={busy} onClick={() => save()}>Save changes</Button>
+          <section>
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+              <h3 className="font-semibold">Replies</h3>
+              {lead?.email && <Button variant="outline" size="sm" asChild><a href={gmailReplyUrl(lead.email)} target="_blank" rel="noopener noreferrer">Reply in Gmail <ExternalLink className="ml-1 h-3.5 w-3.5" /></a></Button>}
+            </div>
+            {replies === null ? <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+              : repliesError ? <p className="text-sm text-destructive">Couldn't load replies.</p>
+              : replies.length === 0 ? <p className="text-sm text-muted-foreground">No replies yet.</p>
+              : replies.map((reply) => <LeadReply key={reply.id} reply={reply} />)}
+          </section>
           <div>
             <h3 className="font-semibold mb-2">Outreach history</h3>
             {history.length === 0 ? <p className="text-sm text-muted-foreground">Nothing sent yet.</p> : (
@@ -626,23 +709,27 @@ function ChannelCard({ s, lastAt, onSaved }: { s: Setting; lastAt: string | null
 
 /* ---------------- Results ---------------- */
 
-function ResultsTab() {
+function ResultsTab({ refreshKey }: { refreshKey: number }) {
   const [funnel, setFunnel] = useState<Funnel[] | null>(null);
   const [week, setWeek] = useState<Outreach[]>([]);
   const [failed, setFailed] = useState<Outreach[]>([]);
+  const [replyCount, setReplyCount] = useState<number | null>(null);
 
   const load = useCallback(async () => {
-    const since = new Date(Date.now() - 7 * 864e5).toISOString();
-    const [f, w, x] = await Promise.all([
+    const since = sevenDaysAgo();
+    const [f, w, x, r] = await Promise.all([
       supabase.from("agent_funnel").select("*"),
       supabase.from("agent_outreach").select("*").gte("sent_at", since).limit(2000),
       supabase.from("agent_outreach").select("*").eq("status", "failed").order("created_at", { ascending: false }).limit(100),
+      supabase.from("agent_replies").select("id", { count: "exact", head: true }).gte("received_at", since).or("intent.neq.auto_reply,intent.is.null"),
     ]);
     setFunnel(f.data ?? []);
     setWeek(w.data ?? []);
     setFailed(x.data ?? []);
+    setReplyCount(r.error ? null : r.count ?? 0);
+    if (r.error) toast.error("Couldn't load reply count");
   }, []);
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { load(); }, [load, refreshKey]);
 
   const tiles = useMemo(() => {
     const done = week.filter((o) => o.status === "sent" || o.status === "posted_manually");
@@ -653,8 +740,9 @@ function ResultsTab() {
       { l: "Emails sent", v: done.filter((o) => o.channel === "email").length },
       { l: "Replies posted", v: done.filter((o) => o.channel === "reddit_reply" || o.channel === "discord_reply").length },
       { l: "Sign-ups attributed", v: (funnel ?? []).reduce((a, r) => a + (r.signups ?? 0), 0) },
+      { l: "Replies (7 days)", v: replyCount ?? "—" },
     ];
-  }, [week, funnel]);
+  }, [week, funnel, replyCount]);
 
   const chart = useMemo(() => {
     const groups: Record<string, { name: string; visits: number; demo_scans: number; signups: number; paid: number }> = {};
@@ -683,7 +771,7 @@ function ResultsTab() {
     <div className="space-y-6">
       <div>
         <p className="text-sm text-muted-foreground mb-2">Last 7 days</p>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           {tiles.map((t) => (
             <Card key={t.l}><CardContent className="p-4"><p className="text-3xl font-bold">{t.v}</p><p className="text-xs text-muted-foreground mt-1">{t.l}</p></CardContent></Card>
           ))}
