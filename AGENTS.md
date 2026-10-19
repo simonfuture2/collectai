@@ -4,3 +4,4 @@
 - Agent HQ reply timing, filtering and Gmail URL rules live in src/lib/agentReplies.ts with adjacent tests so reply behavior can be checked without database writes; realtime subscriptions are access-gated effects with cleanup.
 - Social video validation and ordering rules live in src/lib/socialVideos.ts with adjacent tests; both public views share lazy SocialVideoCard rendering to keep embeds off the initial load.
 - Store hosted social media as storage paths and resolve signed viewing URLs for published rows; this supports private-bucket workspace restrictions without exposing unpublished uploads.
+- Keep the homepage background film in its own component with CDN asset pointers, reduced-motion handling and visibility-based pausing so other pages and scan logic remain unchanged.

@@ -200,3 +200,35 @@
   max-width: 100% !important;
   margin: 0 !important;
 }
+
+/* The portrait film stays crisp on the right; the themed veil protects the copy. */
+.home-video-background {
+  position: absolute;
+  inset: -3rem calc((100vw - 100%) / -2) -2rem;
+  overflow: hidden;
+  pointer-events: none;
+}
+.home-video-footage {
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: 68%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 42%;
+  opacity: 0.5;
+  transition: opacity 1.2s ease;
+}
+.home-video-ready { opacity: 0.65; }
+.home-video-veil {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, hsl(var(--background)) 12%, hsl(var(--background) / 0.97) 35%, hsl(var(--background) / 0.45) 64%, hsl(var(--background) / 0.12)), linear-gradient(0deg, hsl(var(--background)), transparent 28%, transparent 80%, hsl(var(--background)));
+}
+@media (max-width: 767px) {
+  .home-video-footage { width: 100%; object-position: center; opacity: 0.3; }
+  .home-video-veil { background: linear-gradient(180deg, hsl(var(--background) / 0.96), hsl(var(--background) / 0.88) 44%, hsl(var(--background) / 0.48) 70%, hsl(var(--background))); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .home-video-footage { transition: none; }
+}
