@@ -4,4 +4,4 @@
 - [x] Create social video table and admin-only upload bucket without modifying existing definitions (private bucket required by workspace policy).
 - [x] Build shared lazy video cards, /watch, home strip and navigation links.
 - [x] Add Agent HQ video management, uploads and ordering; test publishing and public visibility; temporary entries removed.
-- [ ] Add the supplied TikTok clip as an elegant homepage background and verify readability and playback.
+- [x] Add the supplied TikTok clip as an elegant homepage background; verified muted playback, pause controls, reduced motion and narrow/wide layouts using local asset interception (hosted MP4 also returns 200).
