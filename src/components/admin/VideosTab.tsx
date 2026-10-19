@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Reorder } from "framer-motion";
 import { Plus, GripVertical, Pencil, Trash2, Upload, Loader2, ArrowUp, ArrowDown } from "lucide-react";
@@ -14,6 +14,7 @@ import { detectSocialPlatform, validateVideo, VIDEO_CATEGORIES, type SocialVideo
 
 export default function VideosTab() {
   const [videos, setVideos] = useState<SocialVideo[]>([]);
+  const dragOrder = useRef<SocialVideo[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<SocialVideo | "new" | null>(null);
   const [deleting, setDeleting] = useState<SocialVideo | null>(null);
@@ -59,8 +60,8 @@ export default function VideosTab() {
   };
   return <section>
     <div className="mb-5 flex items-center justify-between gap-3"><h2 className="font-display text-2xl">Videos</h2><Button onClick={() => setEditing("new")}><Plus className="mr-2 h-4 w-4" />Add video</Button></div>
-    {loading ? <Loader2 className="mx-auto h-6 w-6 animate-spin" /> : videos.length === 0 ? <p className="border-y border-border py-12 text-center text-muted-foreground">No videos yet</p> : <Reorder.Group axis="y" values={videos} onReorder={setVideos} className="space-y-3">
-      {videos.map((v, index) => <Reorder.Item key={v.id} value={v} dragListener={!busy} onDragEnd={() => void saveOrder(videos)} className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card p-4">
+    {loading ? <Loader2 className="mx-auto h-6 w-6 animate-spin" /> : videos.length === 0 ? <p className="border-y border-border py-12 text-center text-muted-foreground">No videos yet</p> : <Reorder.Group axis="y" values={videos} onReorder={next => { dragOrder.current = next; setVideos(next); }} className="space-y-3">
+      {videos.map((v, index) => <Reorder.Item key={v.id} value={v} dragListener={!busy} onDragStart={() => { dragOrder.current = videos; }} onDragEnd={() => void saveOrder(dragOrder.current)} className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card p-4">
         <GripVertical className="h-5 w-5 shrink-0 cursor-grab text-muted-foreground" aria-label="Drag to reorder" />
         <div className="min-w-0 flex-1"><h3 className="break-words font-medium">{v.title}</h3><p className="text-xs text-muted-foreground">{v.platform} · {VIDEO_CATEGORIES.find(c => c.value === v.category)?.label}</p></div>
         <div className="flex flex-wrap items-center gap-3" onPointerDown={e => e.stopPropagation()}>

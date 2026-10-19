@@ -67,20 +67,21 @@ export default function SocialVideoCard({ video }: { video: SocialVideo }) {
     node.replaceChildren(quote);
     let disposed = false;
     const observedFrames = new WeakSet<HTMLIFrameElement>();
-    const onLoaded = () => { if (!disposed) setReady(true); };
+    let timeout: number;
+    const onLoaded = () => { if (!disposed) { setReady(true); setFailed(false); clearTimeout(timeout); } };
     const check = () => node.querySelectorAll("iframe").forEach(frame => {
       if (!observedFrames.has(frame)) { observedFrames.add(frame); frame.addEventListener("load", onLoaded, { once: true }); }
     });
     const observer = new MutationObserver(check);
     observer.observe(node, { childList: true, subtree: true });
-    const timeout = window.setTimeout(() => { if (!disposed) setFailed(true); }, EMBED_TIMEOUT_MS);
+    timeout = window.setTimeout(() => { if (!disposed) setFailed(true); }, EMBED_TIMEOUT_MS);
     void loadEmbedScript(platform).then(() => {
       if (disposed) return;
       if (platform === "instagram") window.instgrm?.Embeds.process();
       else window.tiktokEmbed?.lib?.render([quote]);
       check();
     }).catch(() => { if (!disposed) setFailed(true); });
-    return () => { disposed = true; observer.disconnect(); clearTimeout(timeout); node.replaceChildren(); };
+    return () => { disposed = true; observer.disconnect(); clearTimeout(timeout); node.querySelectorAll("iframe").forEach(frame => frame.removeEventListener("load", onLoaded)); node.replaceChildren(); };
   }, [active, video.platform, video.url]);
 
   return <article className="overflow-hidden rounded-lg border border-border bg-card">
