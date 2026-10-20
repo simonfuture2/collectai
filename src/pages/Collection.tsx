@@ -107,6 +107,7 @@ const catOf = (c: any): string => (c.item_type === "sealed" ? "Sealed" : c.categ
 const Collection = () => {
   const insightCount = useInsightCount();
   const [user, setUser] = useState<User | null>(null);
+  const [isAgentAdmin, setIsAgentAdmin] = useState(false);
   const [cards, setCards] = useState<Card[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -132,6 +133,18 @@ const Collection = () => {
       else setUser(session.user);
     });
   }, [navigate]);
+
+  useEffect(() => {
+    let active = true;
+    setIsAgentAdmin(false);
+    if (user) {
+      supabase.from("agent_admins").select("user_id").eq("user_id", user.id).maybeSingle()
+        .then(({ data, error }) => {
+          if (active) setIsAgentAdmin(!error && !!data);
+        });
+    }
+    return () => { active = false; };
+  }, [user]);
 
   useEffect(() => {
     if (user) {
@@ -455,6 +468,13 @@ const Collection = () => {
         </div>
 
         {/* Search & filter bar */}
+        {isAgentAdmin && (
+          <div className="container mx-auto px-3 sm:px-4 pb-3">
+            <Button asChild variant="outline" size="sm" className="gap-2">
+              <Link to="/admin/agent"><Shield className="h-4 w-4" />Agent HQ</Link>
+            </Button>
+          </div>
+        )}
         {cards.length > 0 && (
           <div className="container mx-auto px-4 pb-3 space-y-3">
             {/* Search input */}
