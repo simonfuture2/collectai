@@ -42,9 +42,10 @@ export default function SocialVideoCard({ video }: { video: SocialVideo }) {
     const node = container.current;
     if (!node) return;
     const observer = new IntersectionObserver(([entry]) => { if (entry.isIntersecting) { setActive(true); observer.disconnect(); } }, { rootMargin: "250px" });
+    if (video.platform !== "hosted") return;
     observer.observe(node);
     return () => observer.disconnect();
-  }, []);
+  }, [video.platform]);
 
   useEffect(() => {
     if (!active || video.platform === "hosted") return;
@@ -68,6 +69,13 @@ export default function SocialVideoCard({ video }: { video: SocialVideo }) {
     let disposed = false;
     const observedFrames = new WeakSet<HTMLIFrameElement>();
     let timeout: number;
+    let rendered = false;
+    const render = () => {
+      if (rendered || disposed) return;
+      if (platform === "tiktok" && window.tiktokEmbed?.lib?.render) { rendered = true; window.tiktokEmbed.lib.render([quote]); }
+      else if (platform === "instagram" && window.instgrm) { rendered = true; window.instgrm.Embeds.process(); }
+      if (rendered) clearInterval(renderTimer);
+    };
     const onLoaded = () => { if (!disposed) { setReady(true); setFailed(false); clearTimeout(timeout); } };
     const check = () => node.querySelectorAll("iframe").forEach(frame => {
       if (!observedFrames.has(frame)) { observedFrames.add(frame); frame.addEventListener("load", onLoaded, { once: true }); }
@@ -75,19 +83,11 @@ export default function SocialVideoCard({ video }: { video: SocialVideo }) {
     const observer = new MutationObserver(check);
     observer.observe(node, { childList: true, subtree: true });
     // TikTok's bootstrap loads its renderer asynchronously; later cards must wait for it too.
-    const renderTimer = window.setInterval(() => {
-      if (disposed) return;
-      if (platform === "tiktok" && window.tiktokEmbed?.lib?.render) {
-        window.tiktokEmbed.lib.render([quote]); clearInterval(renderTimer);
-      } else if (platform === "instagram" && window.instgrm) {
-        window.instgrm.Embeds.process(); clearInterval(renderTimer);
-      }
-    }, 250);
+    const renderTimer: number = window.setInterval(render, 250);
     timeout = window.setTimeout(() => { if (!disposed) setFailed(true); }, EMBED_TIMEOUT_MS);
     void loadEmbedScript(platform).then(() => {
       if (disposed) return;
-      if (platform === "instagram") window.instgrm?.Embeds.process();
-      else window.tiktokEmbed?.lib?.render([quote]);
+      render();
       check();
     }).catch(() => { if (!disposed) setFailed(true); });
     return () => { disposed = true; observer.disconnect(); clearInterval(renderTimer); clearTimeout(timeout); node.querySelectorAll("iframe").forEach(frame => frame.removeEventListener("load", onLoaded)); node.replaceChildren(); };
