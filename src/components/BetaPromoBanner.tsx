@@ -4,7 +4,6 @@ import { Sparkles, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { BETA_OFFER } from "@/lib/stripe-config";
 
-const CUTOFF = new Date("2026-09-30T23:59:59Z");
 const DISMISS_KEY = "beta-promo-dismissed";
 
 export default function BetaPromoBanner() {
@@ -12,7 +11,6 @@ export default function BetaPromoBanner() {
   const [signedIn, setSignedIn] = useState(false);
 
   useEffect(() => {
-    if (Date.now() > CUTOFF.getTime()) return;
     try {
       if (localStorage.getItem(DISMISS_KEY) === "1") return;
     } catch {
@@ -45,7 +43,6 @@ export default function BetaPromoBanner() {
         <span className="font-semibold">Beta Founder offer</span>
         <span className="text-muted-foreground">
           — Free for {BETA_OFFER.trial_days} days of full Pro access, then lock in ${BETA_OFFER.price}/mo (50% off) for {BETA_OFFER.months} months.
-          Offer ends September 30, 2026.
         </span>
         <Link
           to={signedIn ? "/pricing" : "/auth"}
