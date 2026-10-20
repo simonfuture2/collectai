@@ -1,19 +1,16 @@
-# Fix "Could not identify the card" on clear photos
+# Fix the "See it in action" video being rate-limited
 
-## What's wrong
-The scan logs show the photos are fine. The step that identifies the card uses your own Google Gemini account, and Google is rejecting every request with "Your prepayment credits are depleted" (HTTP 402). The step gets no answer back, so the scan fails and shows the "clearer image" message, which is misleading.
+## What is happening
+The featured video on the home page ("Pokemon Raw Cards - Should I get it Graded?") is a TikTok embed. On mycollectai.com, TikTok's own player server answers with "429 Too Many Requests" — TikTok is throttling its embedded player, not our site. Our card also asks TikTok to draw the player twice per visit (once from a retry timer and once when TikTok's script finishes loading), which doubles the requests and makes throttling more likely.
 
 ## Fix
-1. Send card identification through the built-in Lovable AI service first. It runs the same Gemini model and needs no Google billing. Your own Gemini key becomes the backup.
-2. If identification still fails, try Claude next. It is already set up as the identify fallback.
-3. Show an honest message when the AI service is out of credits or rate-limited: "Scanning is temporarily unavailable, please try again shortly". Save "try a clearer image" for photos the AI really couldn't read.
-4. Refund the scan credit when the failure is on our side and not caused by the photo.
-5. Redeploy, run a real scan and check the logs.
-
-## Your option
-You can also top up prepayment credits in Google AI Studio to make your own Gemini key work again. The fix above stops scanning from depending on it.
+1. **Stop the double request** — draw each TikTok/Instagram player only once.
+2. **Don't load TikTok until the visitor taps play** on the home page — show a poster image with a play button; tapping loads the player. Fewer automatic hits to TikTok.
+3. **Better fallback** — if TikTok still refuses, show the poster plus a clear "Watch on TikTok" button instead of a blank/broken box.
+4. **Most reliable option (recommended):** download this featured TikTok clip (as was done for the homepage background), upload it as our own hosted video with a poster, and feature that copy instead. It then plays from our own storage and TikTok can't throttle it; the TikTok link stays on the card.
 
 ## Technical details
-- `supabase/functions/_shared/gemini.ts`: when the call to `generativelanguage.googleapis.com` fails, retry through `ai.gateway.lovable.dev` with `LOVABLE_API_KEY` and model `google/gemini-3.5-flash`. Also return a typed error (`billing` / `rate_limit` / `unreadable`) instead of a bare null.
-- `enrich-card/index.ts` (around line 160): when Gemini returns null, use the Claude identify fallback from `_shared/claude.ts`. Map the error type to the message shown to the user and refund the credit.
-- Apply the same handling to the other places that call `_shared/gemini.ts` (identify, reanalyze and sealed paths).
+- `SocialVideoCard.tsx`: add a `rendered` guard so `tiktokEmbed.lib.render` / `instgrm.Embeds.process` runs once; clear the interval when the script's `.then` renders.
+- Add a click-to-load mode for featured cards (activation on click, not IntersectionObserver); fetch a poster via TikTok oEmbed thumbnail when `poster_url` is empty, or use the uploaded poster.
+- Step 4: yt-dlp + ffmpeg to 720px mp4, upload through the admin Videos tab as hosted, set it featured, un-feature the TikTok row.
+- Verify on the preview with Playwright: no 429s on load, video plays/loads after tap.
