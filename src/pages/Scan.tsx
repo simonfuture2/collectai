@@ -20,11 +20,12 @@ import SEO from "@/components/SEO";
 import CameraWarmup from "@/components/CameraWarmup";
 import { cn } from "@/lib/utils";
 import BarcodeScanner from "@/components/sealed/BarcodeScanner";
+import { usePriceCheckAccess } from "@/hooks/use-price-check-access";
 
 const WARMUP_KEY = "mca-camera-warmup-seen";
 const EVENT_KEY = "mca-insight-event";
 
-type Mode = "collection" | "insight";
+type Mode = "price" | "collection" | "insight";
 type ItemType = "card" | "slab" | "sealed";
 
 const SEALED_SLOTS: ImageSlot[] = [
@@ -46,8 +47,12 @@ const DEFAULT_SLOTS: ImageSlot[] = [
 
 const Scan = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const mode: Mode = searchParams.get("mode") === "insight" ? "insight" : "collection";
+  const { allowed: priceAllowed } = usePriceCheckAccess();
+  const rawMode = searchParams.get("mode");
+  const mode: Mode = rawMode === "insight" ? "insight" : rawMode === "price" && priceAllowed ? "price" : "collection";
   const isInsight = mode === "insight";
+  const isPrice = mode === "price";
+  const modes: Mode[] = priceAllowed ? ["price", "collection", "insight"] : ["collection", "insight"];
   const setMode = (m: Mode) => setSearchParams({ mode: m }, { replace: true });
 
   const [session, setSession] = useState<Session | null>(null);
@@ -126,8 +131,36 @@ const Scan = () => {
   const filledSlots = slots.filter((s) => s.file !== null);
   const hasImages = filledSlots.length > 0;
 
+  // Free price check: upload the front photo, call price-check, open the result. No credit checks.
+  const runPriceCheck = async () => {
+    if (!user) { navigate("/auth"); return; }
+    const slot = filledSlots.find((s) => s.id === "front") ?? filledSlots[0];
+    setAnalyzing(true);
+    setScanDone(false);
+    try {
+      const filePath = `${user.id}/${Date.now()}-price-${slot.file!.name}`;
+      const { error: uploadError } = await supabase.storage.from("card-images").upload(filePath, slot.file!);
+      if (uploadError) throw uploadError;
+      const { data, error } = await supabase.functions.invoke("price-check", { body: { imagePath: filePath } });
+      if (error) {
+        const body = await (error as any)?.context?.json?.().catch(() => null);
+        throw new Error(body?.error ?? error.message);
+      }
+      if (data?.error) throw new Error(data.error);
+      if (!data?.priceCheckId) throw new Error("Price check didn't return a result");
+      setScanDone(true);
+      setSlots(DEFAULT_SLOTS);
+      navigate(`/price/${data.priceCheckId}`);
+    } catch (error: any) {
+      toast({ title: "Price check failed", description: error.message, variant: "destructive" });
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
   const analyzeCard = async () => {
     if (!hasImages) return;
+    if (isPrice) return runPriceCheck();
 
     let allowed = canScan;
     if (creditsLoading) {
@@ -243,22 +276,23 @@ const Scan = () => {
             </Link>
             <div className="min-w-0">
               <h1 className={cn("text-xl font-display font-bold truncate", isInsight && "text-secondary")}>
-                {isInsight ? "Insight Scan" : "Scan to Collection"}
+                {isPrice ? "Price Check" : isInsight ? "Insight Scan" : "Scan to Collection"}
               </h1>
+              {isPrice && <p className="text-xs text-muted-foreground leading-snug">Free, no credits. Nothing is saved to your collection.</p>}
               {isInsight && (
                 <p className="text-xs text-muted-foreground leading-snug">Won't be added to your collection. You can add it later.</p>
               )}
             </div>
           </div>
-          <CreditBalance credits={credits} isPro={isPro} loading={creditsLoading} />
+          {!isPrice && <CreditBalance credits={credits} isPro={isPro} loading={creditsLoading} />}
           <ThemeToggle />
         </div>
       </header>
 
       <div className="sticky top-0 z-20 bg-background/90 backdrop-blur-md border-b border-border/60">
         <div className="container mx-auto px-4 py-2 max-w-3xl">
-          <div role="tablist" aria-label="Scan mode" className="grid grid-cols-2 rounded-xl bg-muted p-1">
-            {(["collection", "insight"] as Mode[]).map((m) => {
+          <div role="tablist" aria-label="Scan mode" className={cn("grid rounded-xl bg-muted p-1", modes.length === 3 ? "grid-cols-3" : "grid-cols-2")}>
+            {modes.map((m) => {
               const active = mode === m;
               return (
                 <button
@@ -271,11 +305,11 @@ const Scan = () => {
                   className={cn(
                     "rounded-lg py-2 text-sm font-semibold transition-colors",
                     active
-                      ? m === "collection" ? "gradient-primary text-white shadow" : "bg-secondary text-secondary-foreground shadow"
+                      ? m !== "insight" ? "gradient-primary text-white shadow" : "bg-secondary text-secondary-foreground shadow"
                       : "text-muted-foreground hover:text-foreground",
                   )}
                 >
-                  {m === "collection" ? "Collection" : "Insights"}
+                  {m === "price" ? "Price (free)" : m === "collection" ? "Collection" : "Insights"}
                 </button>
               );
             })}
@@ -284,11 +318,11 @@ const Scan = () => {
       </div>
 
       <main className="container mx-auto px-4 py-6 max-w-3xl">
-        {showWarmup ? (
+        {showWarmup && !isPrice ? (
           <CameraWarmup onContinue={dismissWarmup} onSkip={dismissWarmup} />
         ) : (
           <div className="space-y-6">
-            <div role="radiogroup" aria-label="What are you scanning?" className="grid grid-cols-3 rounded-xl bg-muted p-1">
+            {!isPrice && <div role="radiogroup" aria-label="What are you scanning?" className="grid grid-cols-3 rounded-xl bg-muted p-1">
               {([["card", "Card"], ["slab", "Graded slab"], ["sealed", "Sealed pack/box"]] as [ItemType, string][]).map(([v, l]) => (
                 <button
                   key={v}
@@ -307,10 +341,12 @@ const Scan = () => {
                   {l}
                 </button>
               ))}
-            </div>
+            </div>}
 
             <p className="text-muted-foreground text-sm">
-              {isSealed
+              {isPrice
+                ? "Snap the front of the card. You'll get its PriceCharting value in a few seconds."
+                : isSealed
                 ? "Photograph the front so the set logo is readable. Add the barcode for an exact match."
                 : "Upload the front & back of a card, or multiple views of any collectible for the best analysis."}
             </p>
@@ -335,7 +371,7 @@ const Scan = () => {
             )}
 
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              {slots.map((slot) => (
+              {(isPrice ? slots.filter((s) => s.id === "front") : slots).map((slot) => (
                 <div key={slot.id} className="relative group">
                   <div className={cn("block border-2 border-dashed border-border rounded-xl aspect-[3/4] transition-colors overflow-hidden", isInsight ? "hover:border-secondary/50" : "hover:border-primary/50")}>
                     {slot.preview ? (
@@ -372,7 +408,7 @@ const Scan = () => {
                   )}
                 </div>
               ))}
-              {!isSealed && <button onClick={addSlot} className="border-2 border-dashed border-border rounded-xl aspect-[3/4] flex flex-col items-center justify-center gap-2 hover:border-primary/50 transition-colors text-muted-foreground hover:text-primary">
+              {!isSealed && !isPrice && <button onClick={addSlot} className="border-2 border-dashed border-border rounded-xl aspect-[3/4] flex flex-col items-center justify-center gap-2 hover:border-primary/50 transition-colors text-muted-foreground hover:text-primary">
                 <Plus className="w-8 h-8" />
                 <span className="text-xs font-medium">Add View</span>
               </button>}
@@ -380,7 +416,7 @@ const Scan = () => {
 
             {hasImages && !analyzing && (
               <div className="space-y-3">
-                {filledSlots.length === 1 && filledSlots[0].id === "front" && itemType === "card" && (
+                {!isPrice && filledSlots.length === 1 && filledSlots[0].id === "front" && itemType === "card" && (
                   <div className="flex items-start gap-3 rounded-xl border border-primary/25 bg-primary/5 p-4">
                     <Sparkles className="w-5 h-5 text-primary mt-0.5 shrink-0" />
                     <div>
@@ -408,7 +444,7 @@ const Scan = () => {
                   </div>
                 )}
 
-                <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card p-4">
+                {!isPrice && <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card p-4">
                   <div className="flex items-start gap-3">
                     <Zap className={`w-5 h-5 mt-0.5 ${fastScan ? "text-primary" : "text-muted-foreground"}`} />
                     <div>
@@ -419,15 +455,17 @@ const Scan = () => {
                     </div>
                   </div>
                   <Switch id="fast-scan" checked={fastScan} onCheckedChange={setFastScan} />
-                </div>
+                </div>}
 
                 <Button
                   onClick={analyzeCard}
-                  disabled={analyzing || creditsLoading}
+                  disabled={analyzing || (!isPrice && creditsLoading)}
                   className={cn("w-full py-6 text-lg", isInsight ? "bg-secondary text-secondary-foreground hover:bg-secondary/90" : "gradient-primary")}
                 >
-                  {creditsLoading ? <Loader2 className="mr-2 w-5 h-5 animate-spin" /> : isInsight ? <ScanSearch className="mr-2 w-5 h-5" /> : <Sparkles className="mr-2 w-5 h-5" />}
-                  {creditsLoading
+                  {!isPrice && creditsLoading ? <Loader2 className="mr-2 w-5 h-5 animate-spin" /> : isInsight ? <ScanSearch className="mr-2 w-5 h-5" /> : <Sparkles className="mr-2 w-5 h-5" />}
+                  {isPrice
+                    ? "Check price (free)"
+                    : creditsLoading
                     ? "Checking access…"
                     : isSealed
                     ? "Find chase cards"
