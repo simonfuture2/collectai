@@ -10,6 +10,8 @@ const CATEGORIES = [
   "magic-cards",
   "yugioh-cards",
   "onepiece-cards",
+  "lorcana-cards",
+  "dragon-ball-cards",
   "video-games",
 ];
 
@@ -32,6 +34,16 @@ const HEADER_MAP: Record<string, string> = {
   "bgs-10-price": "bgs_10_price",
   "condition-17-price": "condition_17_price",
   "condition-18-price": "condition_18_price",
+  "condition-9-price": "condition_9_price",
+  "condition-10-price": "condition_10_price",
+  "condition-13-price": "condition_13_price",
+  "condition-14-price": "condition_14_price",
+  "condition-15-price": "condition_15_price",
+  "condition-16-price": "condition_16_price",
+  "condition-19-price": "condition_19_price",
+  "condition-20-price": "condition_20_price",
+  "condition-21-price": "condition_21_price",
+  "condition-22-price": "condition_22_price",
   "release-date": "release_date",
   "upc": "upc",
   "asin": "asin",
@@ -57,6 +69,16 @@ const INT_COLUMNS = new Set([
   "bgs_10_price",
   "condition_17_price",
   "condition_18_price",
+  "condition_9_price",
+  "condition_10_price",
+  "condition_13_price",
+  "condition_14_price",
+  "condition_15_price",
+  "condition_16_price",
+  "condition_19_price",
+  "condition_20_price",
+  "condition_21_price",
+  "condition_22_price",
   "retail_loose_buy",
   "retail_loose_sell",
   "retail_cib_buy",
@@ -180,9 +202,23 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    const results = [];
+    const results: any[] = [];
+    const force = new URL(req.url).searchParams.get("force") === "true";
+    const todayStart = new Date().toISOString().slice(0, 10) + "T00:00:00Z";
     for (const category of CATEGORIES) {
       try {
+        if (!force) {
+          const { count } = await supabase
+            .from("pricecharting_catalog")
+            .select("id", { count: "exact", head: true })
+            .eq("category", category)
+            .gte("last_synced_at", todayStart);
+          if ((count ?? 0) > 0) {
+            console.log(`[pricecharting-sync] ${category}: skipped (already synced today)`);
+            results.push({ category, skipped: "already synced today" });
+            continue;
+          }
+        }
         results.push(await syncCategory(supabase, apiKey, category));
       } catch (err) {
         const msg = (err as Error)?.message ?? String(err);

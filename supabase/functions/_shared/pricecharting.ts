@@ -339,11 +339,12 @@ async function fetchProduct(
   query: string,
   apiKey: string,
 ): Promise<Record<string, unknown> | null> {
+  const cacheKey = `${base}|product|${query}`;
+  const cached = await readLiveCache(cacheKey);
+  if (cached) return cached as Record<string, unknown>;
   const url = `${base}/api/product?t=${encodeURIComponent(apiKey)}&q=${encodeURIComponent(query)}`;
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
   try {
-    const res = await fetch(url, { signal: ctrl.signal });
+    const res = await pcThrottledFetch(url);
     if (!res.ok) {
       console.error("[pricecharting] HTTP", res.status, "for", base, query);
       return null;
@@ -353,12 +354,12 @@ async function fetchProduct(
       console.warn("[pricecharting] non-success", base, query, data?.["error-message"]);
       return null;
     }
+    const pid = Number(data?.id);
+    if (Number.isFinite(pid)) await writeLiveCache(pid, cacheKey, data);
     return data as Record<string, unknown>;
   } catch (err) {
     console.error("[pricecharting] fetch error", (err as Error)?.message);
     return null;
-  } finally {
-    clearTimeout(timer);
   }
 }
 
@@ -437,18 +438,22 @@ export async function searchProducts(sports: boolean, query: string): Promise<Re
   const apiKey = Deno.env.get("PRICECHARTING_API_KEY");
   if (!apiKey || !query.trim()) return [];
   const base = sports ? SCP_BASE : PC_BASE;
+  const cacheKey = `${base}|products|${query}`;
+  const cached = await readLiveCache(cacheKey);
+  if (cached && Array.isArray((cached as any).products)) return (cached as any).products;
   const url = `${base}/api/products?t=${encodeURIComponent(apiKey)}&q=${encodeURIComponent(query)}`;
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
   try {
-    const res = await fetch(url, { signal: ctrl.signal });
+    const res = await pcThrottledFetch(url);
     if (!res.ok) { console.error("[pricecharting] products HTTP", res.status, query); return []; }
     const data = await res.json();
-    return Array.isArray(data?.products) ? data.products : [];
+    const products = Array.isArray(data?.products) ? data.products : [];
+    const pid = Number(products[0]?.id);
+    if (products.length && Number.isFinite(pid)) await writeLiveCache(pid, cacheKey, { products });
+    return products;
   } catch (err) {
     console.error("[pricecharting] products error", (err as Error)?.message);
     return [];
-  } finally { clearTimeout(timer); }
+  }
 }
 
 /** Score a catalog/API set name against identified set words (with aliases). */
@@ -467,4 +472,172 @@ export function scoreSetName(consoleName: string, setName: string, setCode: stri
   const want = tokensOf(setName);
   for (const t of cTok) if (!want.has(t) && !["pokemon", "cards", "japanese", "magic", "yugioh", "one", "piece"].includes(t)) score -= 2;
   return score;
+}
+
+
+// ---------------------------------------------------------------------------
+// App-wide call spacing + 24h live cache
+// ---------------------------------------------------------------------------
+
+const MIN_GAP_MS = 1100;
+const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** Waits for a global slot (pc_acquire_slot) and then fetches. Never faster than 1/s app-wide. */
+export async function pcThrottledFetch(url: string): Promise<Response> {
+  let wait = MIN_GAP_MS;
+  const sb = getSupabase();
+  if (sb) {
+    const { data, error } = await sb.rpc("pc_acquire_slot");
+    if (!error && typeof data === "number" && Number.isFinite(data)) wait = Math.max(0, data);
+    else console.warn("[pricecharting] pc_acquire_slot failed, waiting fallback", error?.message);
+  }
+  if (wait > 0) await sleep(wait);
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
+  try {
+    return await fetch(url, { signal: ctrl.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function readLiveCache(key: string): Promise<unknown | null> {
+  try {
+    const sb = getSupabase();
+    if (!sb) return null;
+    const { data } = await sb
+      .from("pricecharting_live_cache")
+      .select("payload, fetched_at")
+      .ilike("query", key.replace(/[\\%_]/g, (c) => "\\" + c))
+      .maybeSingle();
+    if (!data) return null;
+    if (Date.now() - new Date(data.fetched_at as string).getTime() > CACHE_TTL_MS) return null;
+    console.log("[pricecharting] cache hit", key);
+    return data.payload;
+  } catch {
+    return null;
+  }
+}
+
+async function writeLiveCache(productId: number, key: string, payload: unknown): Promise<void> {
+  try {
+    const sb = getSupabase();
+    if (!sb) return;
+    // Clear any older row holding this query text (unique on lower(query)) or this product.
+    await sb.from("pricecharting_live_cache").delete().ilike("query", key.replace(/[\\%_]/g, (c) => "\\" + c));
+    const { error } = await sb.from("pricecharting_live_cache").upsert(
+      { product_id: productId, query: key, payload, fetched_at: new Date().toISOString() },
+      { onConflict: "product_id" },
+    );
+    if (error) console.warn("[pricecharting] cache write", error.message);
+  } catch { /* never break a lookup */ }
+}
+
+// ---------------------------------------------------------------------------
+// Full grade ladder
+// ---------------------------------------------------------------------------
+
+export const LADDER_KEYS = {
+  ungraded: "loose-price",
+  grade1: "condition-9-price",
+  grade2: "condition-10-price",
+  grade3: "condition-13-price",
+  grade4: "condition-14-price",
+  grade5: "condition-15-price",
+  grade6: "condition-16-price",
+  grade7: "cib-price",
+  grade8: "new-price",
+  grade9: "graded-price",
+  grade9_5: "box-only-price",
+  psa10: "manual-only-price",
+  bgs10: "bgs-10-price",
+  cgc10: "condition-17-price",
+  sgc10: "condition-18-price",
+  cgc10_pristine: "condition-19-price",
+  bgs10_black: "condition-20-price",
+  tag10: "condition-21-price",
+  ace10: "condition-22-price",
+} as const;
+
+export type PriceLadder = Partial<Record<keyof typeof LADDER_KEYS, number>>;
+
+/** Every grade price in dollars from an API row (hyphen keys) or catalog row (underscore keys). Missing values omitted. */
+export function normalizeLadder(row: Record<string, unknown> | null | undefined): PriceLadder {
+  const out: PriceLadder = {};
+  if (!row) return out;
+  for (const [grade, key] of Object.entries(LADDER_KEYS)) {
+    let raw = row[key] ?? row[key.replace(/-/g, "_")];
+    if (raw === undefined && key === "bgs-10-price") raw = row["bgs_10_price"];
+    if (raw === null || raw === undefined || raw === "") continue;
+    const n = typeof raw === "number" ? raw : Number(String(raw).replace(/[^\d.-]/g, ""));
+    if (!Number.isFinite(n) || n <= 0) continue;
+    out[grade as keyof PriceLadder] = Math.round(n) / 100;
+  }
+  return out;
+}
+
+// ---------------------------------------------------------------------------
+// Catalog-only candidate search (no API call)
+// ---------------------------------------------------------------------------
+
+export type CatalogCandidate = {
+  product_id: number;
+  product_name: string;
+  console_name: string | null;
+  category: string;
+  score: number;
+  ladder: PriceLadder;
+};
+
+function normNum(n: string | null | undefined): string {
+  return String(n ?? "").split("/")[0].replace(/^#/, "").replace(/^0+(?=\w)/, "").trim().toLowerCase();
+}
+
+export async function searchCatalogCandidates(
+  identification: CardId & { japanese?: boolean; set_code?: string | null },
+  limit = 8,
+  supabaseClient?: SupabaseClient,
+): Promise<CatalogCandidate[]> {
+  const name = (identification?.card_name ?? "").trim();
+  if (!name) return [];
+  const sb = supabaseClient ?? getSupabase();
+  if (!sb) return [];
+  const esc = (v: string) => v.replace(/[\\%_]/g, (c) => "\\" + c);
+  const num = normNum(identification.card_number);
+  const nameTokens = [...tokensOf(name)];
+  const pattern = "%" + (nameTokens.length ? nameTokens.map(esc).join("%") : esc(name)) + "%";
+
+  const queries = [sb.from("pricecharting_catalog").select("*").ilike("product_name", pattern).limit(60)];
+  if (num) {
+    const first = nameTokens[0] ?? esc(name);
+    queries.push(sb.from("pricecharting_catalog").select("*").ilike("product_name", `%${first}%#${esc(num)}%`).limit(30));
+  }
+  const results = await Promise.all(queries);
+  const rows = new Map<number, Record<string, any>>();
+  for (const r of results) for (const row of r.data ?? []) rows.set(Number(row.id), row);
+
+  const set = identification.card_set ?? "";
+  const scored: CatalogCandidate[] = [];
+  for (const row of rows.values()) {
+    const pTok = tokensOf(row.product_name);
+    let score = 0;
+    for (const t of nameTokens) score += pTok.has(t) ? 10 : -5;
+    const m = String(row.product_name).match(/#\s*([\w-]+)/);
+    if (num) {
+      if (m && normNum(m[1]) === num) score += 30;
+      else if (m) score -= 20;
+    }
+    if (set) score += scoreSetName(row.console_name ?? "", set, identification.set_code ?? null, !!identification.japanese);
+    if (identification.category && row.category === identification.category) score += 8;
+    scored.push({
+      product_id: Number(row.id),
+      product_name: row.product_name,
+      console_name: row.console_name ?? null,
+      category: row.category,
+      score,
+      ladder: normalizeLadder(row),
+    });
+  }
+  return scored.sort((a, b) => b.score - a.score).slice(0, limit);
 }
