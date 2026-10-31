@@ -249,6 +249,24 @@ export type Database = {
         }
         Relationships: []
       }
+      app_settings: {
+        Row: {
+          key: string
+          updated_at: string
+          value: Json
+        }
+        Insert: {
+          key: string
+          updated_at?: string
+          value: Json
+        }
+        Update: {
+          key?: string
+          updated_at?: string
+          value?: Json
+        }
+        Relationships: []
+      }
       bakeoff_truth: {
         Row: {
           card_id: string
@@ -372,6 +390,7 @@ export type Database = {
         Row: {
           ai_analysis: Json | null
           analysis_completed_at: string | null
+          analysis_depth: string
           analysis_error: string | null
           analysis_started_at: string | null
           analysis_status: string
@@ -403,6 +422,9 @@ export type Database = {
           moved_to_collection_at: string | null
           notes: string | null
           paired_raw_card_id: string | null
+          pc_prices: Json | null
+          pc_synced_at: string | null
+          pricecharting_id: number | null
           psa_population_data: Json | null
           rarity: string | null
           scan_purpose: string
@@ -416,6 +438,7 @@ export type Database = {
         Insert: {
           ai_analysis?: Json | null
           analysis_completed_at?: string | null
+          analysis_depth?: string
           analysis_error?: string | null
           analysis_started_at?: string | null
           analysis_status?: string
@@ -447,6 +470,9 @@ export type Database = {
           moved_to_collection_at?: string | null
           notes?: string | null
           paired_raw_card_id?: string | null
+          pc_prices?: Json | null
+          pc_synced_at?: string | null
+          pricecharting_id?: number | null
           psa_population_data?: Json | null
           rarity?: string | null
           scan_purpose?: string
@@ -460,6 +486,7 @@ export type Database = {
         Update: {
           ai_analysis?: Json | null
           analysis_completed_at?: string | null
+          analysis_depth?: string
           analysis_error?: string | null
           analysis_started_at?: string | null
           analysis_status?: string
@@ -491,6 +518,9 @@ export type Database = {
           moved_to_collection_at?: string | null
           notes?: string | null
           paired_raw_card_id?: string | null
+          pc_prices?: Json | null
+          pc_synced_at?: string | null
+          pricecharting_id?: number | null
           psa_population_data?: Json | null
           rarity?: string | null
           scan_purpose?: string
@@ -1145,6 +1175,51 @@ export type Database = {
         }
         Relationships: []
       }
+      price_checks: {
+        Row: {
+          added_card_id: string | null
+          candidates: Json | null
+          created_at: string
+          id: string
+          identification: Json | null
+          image_path: string | null
+          latency_ms: number | null
+          pack_rip_id: string | null
+          selected_prices: Json | null
+          selected_product_id: number | null
+          source: string | null
+          user_id: string
+        }
+        Insert: {
+          added_card_id?: string | null
+          candidates?: Json | null
+          created_at?: string
+          id?: string
+          identification?: Json | null
+          image_path?: string | null
+          latency_ms?: number | null
+          pack_rip_id?: string | null
+          selected_prices?: Json | null
+          selected_product_id?: number | null
+          source?: string | null
+          user_id: string
+        }
+        Update: {
+          added_card_id?: string | null
+          candidates?: Json | null
+          created_at?: string
+          id?: string
+          identification?: Json | null
+          image_path?: string | null
+          latency_ms?: number | null
+          pack_rip_id?: string | null
+          selected_prices?: Json | null
+          selected_product_id?: number | null
+          source?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       price_history: {
         Row: {
           card_id: string
@@ -1192,6 +1267,21 @@ export type Database = {
           },
         ]
       }
+      pricecharting_api_throttle: {
+        Row: {
+          id: number
+          next_allowed_at: string
+        }
+        Insert: {
+          id?: number
+          next_allowed_at?: string
+        }
+        Update: {
+          id?: number
+          next_allowed_at?: string
+        }
+        Relationships: []
+      }
       pricecharting_catalog: {
         Row: {
           asin: string | null
@@ -1199,8 +1289,18 @@ export type Database = {
           box_only_price: number | null
           category: string
           cib_price: number | null
+          condition_10_price: number | null
+          condition_13_price: number | null
+          condition_14_price: number | null
+          condition_15_price: number | null
+          condition_16_price: number | null
           condition_17_price: number | null
           condition_18_price: number | null
+          condition_19_price: number | null
+          condition_20_price: number | null
+          condition_21_price: number | null
+          condition_22_price: number | null
+          condition_9_price: number | null
           console_name: string | null
           epid: string | null
           genre: string | null
@@ -1228,8 +1328,18 @@ export type Database = {
           box_only_price?: number | null
           category: string
           cib_price?: number | null
+          condition_10_price?: number | null
+          condition_13_price?: number | null
+          condition_14_price?: number | null
+          condition_15_price?: number | null
+          condition_16_price?: number | null
           condition_17_price?: number | null
           condition_18_price?: number | null
+          condition_19_price?: number | null
+          condition_20_price?: number | null
+          condition_21_price?: number | null
+          condition_22_price?: number | null
+          condition_9_price?: number | null
           console_name?: string | null
           epid?: string | null
           genre?: string | null
@@ -1257,8 +1367,18 @@ export type Database = {
           box_only_price?: number | null
           category?: string
           cib_price?: number | null
+          condition_10_price?: number | null
+          condition_13_price?: number | null
+          condition_14_price?: number | null
+          condition_15_price?: number | null
+          condition_16_price?: number | null
           condition_17_price?: number | null
           condition_18_price?: number | null
+          condition_19_price?: number | null
+          condition_20_price?: number | null
+          condition_21_price?: number | null
+          condition_22_price?: number | null
+          condition_9_price?: number | null
           console_name?: string | null
           epid?: string | null
           genre?: string | null
@@ -1279,6 +1399,27 @@ export type Database = {
           sales_volume?: number | null
           upc?: string | null
           updated_at?: string
+        }
+        Relationships: []
+      }
+      pricecharting_live_cache: {
+        Row: {
+          fetched_at: string
+          payload: Json
+          product_id: number
+          query: string | null
+        }
+        Insert: {
+          fetched_at?: string
+          payload: Json
+          product_id: number
+          query?: string | null
+        }
+        Update: {
+          fetched_at?: string
+          payload?: Json
+          product_id?: number
+          query?: string | null
         }
         Relationships: []
       }
@@ -1507,6 +1648,7 @@ export type Database = {
           credits: number
           id: string
           plan: string
+          price_check_beta: boolean
           stripe_customer_id: string | null
           stripe_subscription_id: string | null
           updated_at: string
@@ -1520,6 +1662,7 @@ export type Database = {
           credits?: number
           id?: string
           plan?: string
+          price_check_beta?: boolean
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
           updated_at?: string
@@ -1533,6 +1676,7 @@ export type Database = {
           credits?: number
           id?: string
           plan?: string
+          price_check_beta?: boolean
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
           updated_at?: string
@@ -1753,6 +1897,7 @@ export type Database = {
         Returns: Json
       }
       agent_unsubscribe: { Args: { p_lead_id: string }; Returns: undefined }
+      can_use_price_check: { Args: { _uid: string }; Returns: boolean }
       consume_daily_budget: {
         Args: { _bucket_key: string; _max_per_day: number }
         Returns: {
@@ -1801,6 +1946,7 @@ export type Database = {
         }
         Returns: number
       }
+      pc_acquire_slot: { Args: never; Returns: number }
       read_email_batch: {
         Args: { batch_size: number; queue_name: string; vt: number }
         Returns: {
