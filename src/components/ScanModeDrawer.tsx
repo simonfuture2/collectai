@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
-import { Layers, ScanSearch, ChevronRight } from "lucide-react";
+import { Layers, ScanSearch, ChevronRight, Tag } from "lucide-react";
+import { usePriceCheckAccess } from "@/hooks/use-price-check-access";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
 import { useInsightCount } from "@/hooks/use-insight-count";
 import { cn } from "@/lib/utils";
@@ -9,7 +10,9 @@ export function ScanModeDrawer({ open, onOpenChange }: { open: boolean; onOpenCh
   const recent = useInsightCount(7, open);
   const go = (to: string) => { onOpenChange(false); navigate(to); };
 
+  const { allowed: priceAllowed } = usePriceCheckAccess(open);
   const options = [
+    ...(priceAllowed ? [{ to: "/scan?mode=price", icon: Tag, title: "Price check (free)", sub: "Fast PriceCharting value. Free, no credits.", tone: "primary" as const }] : []),
     { to: "/scan?mode=collection", icon: Layers, title: "Add to my collection", sub: "A card you own. Saved, priced and tracked in your portfolio.", tone: "primary" as const },
     { to: "/scan?mode=insight", icon: ScanSearch, title: "Insights only", sub: "At a show or shop? Price-check a raw or graded card without adding it.", tone: "secondary" as const },
   ];
