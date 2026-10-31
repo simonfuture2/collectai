@@ -130,6 +130,9 @@ Deno.serve(async (req) => {
   t = performance.now();
   const ai = await geminiVisionJson(signed.data.signedUrl, PROMPT, "gemini-3.5-flash", 400);
   mark("identify_ms", t);
+  if (ai === null) {
+    return json({ error: "Price Check is temporarily unavailable. Please try again shortly." }, 503);
+  }
   const readings: Reading[] = [ai?.best, ...(Array.isArray(ai?.alternates) ? ai.alternates.slice(0, 2) : [])]
     .filter((r): r is Reading => !!r && typeof r.name === "string" && r.name.trim().length > 0)
     .map((r) => ({ ...r, name: r.name.trim() }));
