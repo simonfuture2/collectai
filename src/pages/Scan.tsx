@@ -371,7 +371,7 @@ const Scan = () => {
             )}
 
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              {slots.map((slot) => (
+              {(isPrice ? slots.filter((s) => s.id === "front") : slots).map((slot) => (
                 <div key={slot.id} className="relative group">
                   <div className={cn("block border-2 border-dashed border-border rounded-xl aspect-[3/4] transition-colors overflow-hidden", isInsight ? "hover:border-secondary/50" : "hover:border-primary/50")}>
                     {slot.preview ? (
