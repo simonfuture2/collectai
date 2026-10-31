@@ -36,7 +36,6 @@ const About = () => {
 
       {/* Hero statement */}
       <div className="mb-10">
-        <h1 className="text-3xl font-display font-bold text-foreground mb-2">About MyCollectAI</h1>
         <p className="text-xl font-display font-semibold text-foreground mb-3">
           Stop guessing the grade. Start sealing the value.
         </p>

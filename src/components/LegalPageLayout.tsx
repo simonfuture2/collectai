@@ -18,12 +18,13 @@ const LegalPageLayout = ({ title, lastUpdated, children }: LegalPageLayoutProps)
           <Link to="/">
             <Button variant="ghost" size="icon" aria-label="Go back"><ArrowLeft className="w-5 h-5" /></Button>
           </Link>
-          <h1 className="text-xl font-display font-bold flex-1">{title}</h1>
+          <span className="text-xl font-display font-bold flex-1" aria-hidden="true">MyCollectAI</span>
           <ThemeToggle />
         </div>
       </header>
 
       <main className="container mx-auto px-4 py-10 max-w-3xl flex-1">
+        <h1 className="text-3xl md:text-4xl font-display font-bold text-foreground mb-2">{title}</h1>
         <p className="text-sm text-muted-foreground mb-8">Last updated: {lastUpdated}</p>
         <div className="prose prose-sm dark:prose-invert max-w-none space-y-6 text-foreground">
           {children}
