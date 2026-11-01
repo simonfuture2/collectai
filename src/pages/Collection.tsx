@@ -154,7 +154,7 @@ const Collection = () => {
     if (user) {
       supabase
         .from("cards")
-        .select("id, image_url, card_name, card_set, card_year, rarity, category, condition_grade, estimated_value_low, estimated_value_high, authentiseal_serial, is_authenticated, grading_company, grading_cert_number, grade_numeric, ebay_recent_sales, item_type, analysis_depth, analysis_status, analysis_started_at")
+        .select("id, image_url, card_name, card_set, card_year, rarity, category, condition_grade, estimated_value_low, estimated_value_high, authentiseal_serial, is_authenticated, grading_company, grading_cert_number, grade_numeric, ebay_recent_sales, item_type, analysis_depth, analysis_status, analysis_started_at, pricecharting_id")
         .eq("user_id", user.id)
         .eq("scan_purpose", "collection")
         .is("superseded_by_card_id", null)

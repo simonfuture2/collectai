@@ -8,6 +8,10 @@ import SEO from "@/components/SEO";
 
 const faqs = [
   {
+    q: "Where do your card prices come from?",
+    a: "Data sources: card values come from PriceCharting (pricecharting.com). Recent eBay sales and TCGplayer listings are used only as a cross-check. Prices are updated daily.",
+  },
+  {
     q: "What types of cards does MyCollectAI support?",
     a: "MyCollectAI can identify and analyze trading cards across major categories including Pokémon, Magic: The Gathering, Yu-Gi-Oh!, sports cards (baseball, basketball, football, hockey), and other collectible cards. Our SI is continuously trained on new card sets and categories.",
   },
