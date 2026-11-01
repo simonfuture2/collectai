@@ -23,6 +23,7 @@ import {
   crossCheckIdentification,
 } from "./marketData.ts";
 import { computeMarketConfidence } from "./confidence.ts";
+import { crossCheck, crossCheckNote, ladderGradedEstimates, lowerConfidence, NO_PC_GRADE_NOTE, pcHeadline, rungForGrade, type Ladder } from "./pcValuation.ts";
 import { groundedPreGrade } from "./grading.ts";
 
 // Model used for Step 1 card identification (bake-off winner).
@@ -276,7 +277,13 @@ export async function runAnalysis(input: RunAnalysisInput): Promise<RunAnalysisR
   const systemPrompt = `You are an expert trading card analyst, appraiser, and professional grader. Today's date is ${today}.
 
 CRITICAL PRICING INSTRUCTIONS:
-${marketData.hasData ? `You are provided with REAL recent market price data from eBay (sold + active listings) AND TCGPlayer with extracted dollar amounts below.
+${aggregated.pcMatched ? `PriceCharting matched this card. PriceCharting IS the value. The PriceCharting ungraded price and grade ladder below are fixed numbers.
+
+VALUATION FORMULA (you MUST follow this):
+1. Do NOT change, blend, or re-weight the PriceCharting number. The server sets the headline value from PriceCharting after you respond.
+2. Set estimatedValueLow/High to the PriceCharting price for this card's grade (ungraded when raw) ± 10%.
+3. eBay sold/active and TCGPlayer data are a CROSS-CHECK only. In additionalNotes, explain why recent eBay sales differ from PriceCharting if they do (listing condition, variant mix, small sample, shipping, hype).
+4. Explain the card's condition and its grading upside using the PriceCharting grade ladder. Never invent a graded price: if a grade has no PriceCharting price, say "No PriceCharting data for this grade".` : marketData.hasData ? `You are provided with REAL recent market price data from eBay (sold + active listings) AND TCGPlayer with extracted dollar amounts below.
 
 VALUATION FORMULA (you MUST follow this):
 1. Look at the eBay SOLD listing prices — these are your primary anchor (50% weight).
@@ -296,7 +303,7 @@ CRITICAL NO-MARKET-DATA RULES:
 3. NEVER estimate above $100 without market data unless the card is clearly a rare insert, autograph, or serial-numbered parallel that you can specifically identify.
 4. Set confidence to "low" and clearly state that values are rough estimates without live market verification.
 5. Use a WIDE value range (±50%) to communicate uncertainty.
-6. For any card you estimate above $50 without market data, you MUST explain exactly why in confidenceReason (e.g., "rookie card", "autograph", "numbered /25").`}
+6. For any card you estimate above $50 without market data, you MUST explain exactly why in confidenceReason (e.g., "rookie card", "autograph", "numbered /25").`}}
 
 When shown an image of a trading card, you will:
 
@@ -385,7 +392,7 @@ GRADER COVERAGE RULES (MANDATORY):
 - TCG cards (Pokémon, Magic, Yu-Gi-Oh, Dragon Ball, One Piece, etc.): populate psa, cgc, bgs, tag. Set sgc to null.
 - Sports cards: populate psa, cgc, bgs, sgc. Set tag to null.
 - Other categories: populate psa, cgc, bgs at minimum; others may be null.
-- Never return only psa. When you lack direct sales for a grader, estimate from the PSA anchor (BGS ~PSA, CGC ~0.85-0.9x PSA, SGC ~0.9x PSA for sports, TAG ~0.8x PSA for TCG) and lower confidence accordingly.
+${aggregated.pcMatched ? "- Graded values come ONLY from the PriceCharting ladder. Never derive a graded value by multiplying the raw price or another grader; leave it null when PriceCharting has no price for that grade." : "- Never return only psa. When you lack direct sales for a grader, estimate from the PSA anchor (BGS ~PSA, CGC ~0.85-0.9x PSA, SGC ~0.9x PSA for sports, TAG ~0.8x PSA for TCG) and lower confidence accordingly."}
 
 GRADE-CEILING RULE (MANDATORY):
 - You MUST populate preGradingAnalysis.gradeCeiling for every card.
@@ -546,7 +553,7 @@ GRADE-CEILING RULE (MANDATORY):
   if (skipVerifierOverride) {
     console.log("[graded-anchor] skipping verifier override — comps don't match this slab");
   }
-  if (!skipVerifierOverride && !fastScan && marketData.hasData && analysis.estimatedValueLow != null && cardId) {
+  if (!aggregated.pcMatched && !skipVerifierOverride && !fastScan && marketData.hasData && analysis.estimatedValueLow != null && cardId) {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 
     const [claudeVerification, geminiVerification] = await Promise.all([
@@ -630,7 +637,7 @@ GRADE-CEILING RULE (MANDATORY):
   }
 
   // ===== STEP 4.55: Restore the graded anchor if the range collapsed =====
-  if (knownGrade && gradedAnchor && gradedAnchor > 0) {
+  if (!aggregated.pcMatched && knownGrade && gradedAnchor && gradedAnchor > 0) {
     const lo = Number(analysis.estimatedValueLow) || 0;
     const hi = Number(analysis.estimatedValueHigh) || 0;
     const mid = (lo + hi) / 2;
@@ -650,6 +657,7 @@ GRADE-CEILING RULE (MANDATORY):
     try {
       const ebaySoldSrc = aggregated.sources.find((s) => s.source === "ebay_sold");
       const rawValue =
+        (aggregated.pcMatched ? aggregated.pcLadder?.ungraded ?? null : null) ??
         (ebaySoldSrc?.median && ebaySoldSrc.median > 0 ? ebaySoldSrc.median : null) ??
           aggregated.crossReference.priceChartingValue ??
           aggregated.blended?.median ??
@@ -670,14 +678,11 @@ GRADE-CEILING RULE (MANDATORY):
         9;
       const nextGrade = Math.min(10, Math.round(mostLikelyGrade) + 1);
 
-      const pcg = aggregated.priceChartingGraded || {};
+      const ladder: Ladder = (aggregated.pcLadder || {}) as Ladder;
       const pcAt = (g: number): number | undefined => {
-        if (service !== "PSA") return undefined;
-        if (g >= 10) return pcg.psa10;
-        if (g >= 9) return pcg.psa9;
-        if (g >= 8) return pcg.psa8;
-        if (g >= 7) return pcg.psa7;
-        return undefined;
+        if (!aggregated.pcMatched) return undefined;
+        const rung = rungForGrade(service, g >= 10 ? 10 : g >= 9.5 && service !== "PSA" ? 9.5 : Math.floor(g));
+        return rung ? ladder[rung] : undefined;
       };
 
       const gveAt = (g: number): number | undefined => {
@@ -692,8 +697,10 @@ GRADE-CEILING RULE (MANDATORY):
         return Number(tier.valueAtGrade) || undefined;
       };
 
-      const valueAtMostLikely = pcAt(mostLikelyGrade) ?? gveAt(mostLikelyGrade) ?? Number(tier.valueAtGrade) ?? 0;
-      const valueAtNextGrade = pcAt(nextGrade) ?? gveAt(nextGrade) ?? 0;
+      const valueAtMostLikely = aggregated.pcMatched
+        ? pcAt(mostLikelyGrade) ?? 0
+        : gveAt(mostLikelyGrade) ?? Number(tier.valueAtGrade) ?? 0;
+      const valueAtNextGrade = aggregated.pcMatched ? pcAt(nextGrade) ?? 0 : gveAt(nextGrade) ?? 0;
 
       const gradingCost = Number(tier.gradingCost) || 25;
       const turnaroundTime = String(tier.turnaroundTime || "unknown");
@@ -765,6 +772,60 @@ GRADE-CEILING RULE (MANDATORY):
     analysis.confidenceReason = `${conf.explanation}${analysis.confidenceReason ? " " + analysis.confidenceReason : ""}`.trim();
 
     console.log(`[confidence] score=${conf.score} band=${conf.band} | ${conf.explanation}`);
+  }
+
+  // ===== STEP 4.75: PriceCharting is the source when matched =====
+  if (aggregated.pcMatched && aggregated.pcLadder) {
+    const ladder = aggregated.pcLadder as Ladder;
+    const rung = knownGrade?.company
+      ? rungForGrade(knownGrade.company, knownGrade.numeric, knownGrade.label)
+      : "ungraded";
+    const head = pcHeadline(ladder, rung);
+    analysis.valuationSource = "pricecharting";
+    analysis.pricechartingId = aggregated.pricechartingId ?? null;
+    analysis.pcLadder = ladder;
+    analysis.pcRung = rung;
+    analysis.pcProductName = aggregated.priceChartingProduct ?? null;
+    if (head) {
+      analysis.estimatedValueLow = head.low;
+      analysis.estimatedValueHigh = head.high;
+      analysis.pcValue = head.value;
+      analysis.dataSource = "PriceCharting";
+    } else {
+      analysis.pcValue = null;
+      analysis.valuationNote = NO_PC_GRADE_NOTE;
+    }
+    // Graded estimates: ladder only, never multipliers.
+    const pcGraded = ladderGradedEstimates(ladder);
+    const gve = analysis.gradedValueEstimates || {};
+    const setTier = (k: string, fields: Record<string, { value: number | null }>) => {
+      const t = { ...(gve[k] || {}) };
+      for (const [f, row] of Object.entries(fields)) t[f] = row.value;
+      gve[k] = t;
+    };
+    setTier("psa", { valueAtPSA7: pcGraded.psa["7"], valueAtPSA8: pcGraded.psa["8"], valueAtPSA9: pcGraded.psa["9"], valueAtPSA10: pcGraded.psa["10"] });
+    setTier("bgs", { valueAtBGS9_5: pcGraded.bgs["9.5"], valueAtBGS10: pcGraded.bgs["10"] });
+    setTier("cgc", { valueAtCGC10: pcGraded.cgc["10"] });
+    setTier("sgc", { valueAtSGC10: pcGraded.sgc["10"] });
+    setTier("tag", { valueAtTAG10: pcGraded.tag["10"] });
+    for (const k of ["psa", "bgs", "cgc", "sgc", "tag"]) if (gve[k]) delete gve[k].valueAtGrade;
+    gve.source = "pricecharting";
+    gve.pcLadder = pcGraded;
+    analysis.gradedValueEstimates = gve;
+
+    // eBay/TCGplayer cross-check.
+    const med = (src: string) => aggregated.sources.find((s) => s.source === src)?.median;
+    const cc = head ? crossCheck(head.value, med("ebay_sold"), med("ebay_active"), med("tcgplayer")) : null;
+    analysis.marketCrossCheck = cc
+      ? { ...cc, soldCount: aggregated.sources.find((s) => s.source === "ebay_sold")?.count ?? 0 }
+      : null;
+    if (cc?.flagged) {
+      const note = crossCheckNote(cc);
+      analysis.confidence = lowerConfidence(analysis.confidence);
+      analysis.confidenceBand = analysis.confidence;
+      analysis.crossCheckNote = note;
+      analysis.confidenceReason = `${analysis.confidenceReason || ""} ${note}.`.trim();
+    }
   }
 
   // ===== STEP 4.8: Deterministic pre-grade (lowest dimension caps the band) =====
