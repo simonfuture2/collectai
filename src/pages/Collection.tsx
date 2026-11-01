@@ -2,6 +2,8 @@ import BetaEndedPrompt from "@/components/BetaEndedPrompt";
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useInsightCount } from "@/hooks/use-insight-count";
+import { useCredits } from "@/hooks/use-credits";
+import { withCost } from "@/lib/analysisCost";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -150,7 +152,7 @@ const Collection = () => {
     if (user) {
       supabase
         .from("cards")
-        .select("id, image_url, card_name, card_set, card_year, rarity, category, condition_grade, estimated_value_low, estimated_value_high, authentiseal_serial, is_authenticated, grading_company, grading_cert_number, grade_numeric, ebay_recent_sales, item_type, analysis_depth")
+        .select("id, image_url, card_name, card_set, card_year, rarity, category, condition_grade, estimated_value_low, estimated_value_high, authentiseal_serial, is_authenticated, grading_company, grading_cert_number, grade_numeric, ebay_recent_sales, item_type, analysis_depth, analysis_status, analysis_started_at")
         .eq("user_id", user.id)
         .eq("scan_purpose", "collection")
         .is("superseded_by_card_id", null)
@@ -822,7 +824,7 @@ const Collection = () => {
                     <TableCell className="text-right font-medium">${cardValue(card).toFixed(0)}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-0.5">
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => rescanCard(card, e)} disabled={rescanningId === card.id} title="Re-Scan" aria-label="Re-scan card">
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => rescanCard(card, e)} disabled={rescanningId === card.id} title={withCost("Re-run full analysis", card as any, hasPro)} aria-label={withCost("Re-run full analysis", card as any, hasPro)}>
                           <RefreshCw className={`w-3.5 h-3.5 text-primary ${rescanningId === card.id ? "animate-spin" : ""}`} />
                         </Button>
                         <AlertDialog>
@@ -935,7 +937,8 @@ const Collection = () => {
                               className="h-7 w-7 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
                               onClick={(e) => rescanCard(card, e)}
                               disabled={rescanningId === card.id}
-                              title="Re-Scan"
+                              title={withCost("Re-run full analysis", card as any, hasPro)}
+                              aria-label={withCost("Re-run full analysis", card as any, hasPro)}
                             >
                               <RefreshCw className={`w-3.5 h-3.5 text-primary ${rescanningId === card.id ? "animate-spin" : ""}`} />
                             </Button>
