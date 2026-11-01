@@ -41,6 +41,13 @@ serve(async (req) => {
     const supabaseAdmin = createClient(supabaseUrl, serviceKey);
 
     const body = await req.json();
+    // Admin test lab: no credit charge or hourly cap; results are cleaned up by the lab page.
+    const labRun = body.lab === true && (await supabaseAdmin.rpc("is_admin", { _user_id: user.id })).data === true;
+    if (body.lab === true && !labRun) {
+      return new Response(JSON.stringify({ error: "Lab runs are admin-only" }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     // Scan purpose: 'collection' (default) or 'insight' (card the user doesn't own)
     const rawPurpose = body.scanPurpose ?? "collection";
@@ -99,7 +106,7 @@ serve(async (req) => {
     // Active beta access = full (Pro-level) access, matching check-subscription.
     const betaUntil = (creditsData as any)?.beta_access_until;
     const betaActive = !!betaUntil && new Date(betaUntil).getTime() > Date.now();
-    const isPro = creditsData?.plan === "pro" || betaActive;
+    const isPro = creditsData?.plan === "pro" || betaActive || labRun;
     const hasCredits = (creditsData?.credits ?? 0) > 0;
 
     // Rate limit (per plan)
@@ -109,7 +116,7 @@ serve(async (req) => {
       .from("credit_transactions")
       .select("*", { count: "exact", head: true })
       .eq("user_id", user.id).eq("type", "scan").gte("created_at", oneHourAgo);
-    if ((recentScans ?? 0) >= hourlyCap) {
+    if (!labRun && (recentScans ?? 0) >= hourlyCap) {
       return new Response(JSON.stringify({ error: `Rate limit exceeded — max ${hourlyCap} scans per hour.` }), {
         status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });

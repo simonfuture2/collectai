@@ -33,6 +33,7 @@ const Body = z.object({
   imagePath: z.string().min(3).max(500),
   category: z.string().max(60).optional(),
   packRipId: z.string().uuid().optional(),
+  lab: z.boolean().optional(),
 });
 
 type Reading = {
@@ -114,7 +115,7 @@ Deno.serve(async (req) => {
   if (raw?.action) return handleAction(raw, userId);
   const parsed = Body.safeParse(raw);
   if (!parsed.success) return json({ error: parsed.error.flatten().fieldErrors }, 400);
-  const { imagePath, category: catInput, packRipId } = parsed.data;
+  const { imagePath, category: catInput, packRipId, lab: labReq } = parsed.data;
   if (!imagePath.startsWith(`${userId}/`) || imagePath.includes("..")) {
     return json({ error: "Image must be in your own folder" }, 403);
   }
@@ -128,9 +129,12 @@ Deno.serve(async (req) => {
     admin.from("price_checks").select("id", { count: "exact", head: true }).eq("user_id", userId).gte("created_at", dayAgo),
     admin.storage.from("card-images").createSignedUrl(imagePath, 600),
   ]);
+  // Admin test lab: skip per-user limits and don't record the run as a real check.
+  const lab = labReq === true && (await admin.rpc("is_admin", { _user_id: userId })).data === true;
+  if (labReq && !lab) return json({ error: "Lab runs are admin-only" }, 403);
   if (allowed.error || allowed.data !== true) return json({ error: "Price Check isn't available on your account yet" }, 403);
-  if ((hourCount.count ?? 0) >= HOURLY_LIMIT) return json({ error: "Hourly Price Check limit reached (60). Try again later." }, 429);
-  if ((dayCount.count ?? 0) >= DAILY_LIMIT) return json({ error: "Daily Price Check limit reached (400). Try again tomorrow." }, 429);
+  if (!lab && (hourCount.count ?? 0) >= HOURLY_LIMIT) return json({ error: "Hourly Price Check limit reached (60). Try again later." }, 429);
+  if (!lab && (dayCount.count ?? 0) >= DAILY_LIMIT) return json({ error: "Daily Price Check limit reached (400). Try again tomorrow." }, 429);
   if (!signed.data?.signedUrl) return json({ error: "Image not found" }, 404);
   mark("auth_ms", t);
 
@@ -185,9 +189,11 @@ Deno.serve(async (req) => {
 
   // ONE live call when the stored list isn't enough
   let source: "catalog" | "api" | "catalog+api" = "catalog";
+  let liveCalls = 0;
   if (goodCount() < 3 || !inCatalog) {
     t = performance.now();
     const q = [best.name, best.set, best.number ? `#${normNum(best.number)}` : ""].filter(Boolean).join(" ");
+    liveCalls = 1;
     const live = await searchProducts(!!category && SPORTS.has(category), q).catch(() => []);
     for (const p of live) {
       const id = Number(p?.id);
@@ -220,7 +226,7 @@ Deno.serve(async (req) => {
   t = performance.now();
   const latencyMs = Math.round(performance.now() - t0);
   const identification = { best, alternates: readings.slice(1), category: category ?? null, language, slab, rung, timings };
-  const { data: row, error: insErr } = await admin.from("price_checks").insert({
+  const { data: row, error: insErr } = lab ? { data: null, error: null } : await admin.from("price_checks").insert({
     user_id: userId,
     image_path: imagePath,
     identification,
@@ -243,6 +249,7 @@ Deno.serve(async (req) => {
     identification,
     source,
     latencyMs,
+    liveCalls,
   });
 });
 
