@@ -137,6 +137,7 @@ async function runEnrichment(params: {
   fastScan: boolean;
   knownGrade?: { company: string; numeric: number; label?: string; cert_number?: string | null };
   supabaseAdmin: ReturnType<typeof createClient>;
+  identityHint?: Record<string, unknown>;
 }) {
   const { cardId, userId, images, category, fastScan, knownGrade, supabaseAdmin } = params;
 
@@ -156,7 +157,7 @@ async function runEnrichment(params: {
   // If this card is paired to a raw scan (typically after slab scan), pull the
   // raw card's identity so the engine can ID off the front-of-card image we
   // already have — not the back of the slab.
-  let identityHint: any = undefined;
+  let identityHint: any = params.identityHint;
   let pairedImageUrl: string | null = null;
   if ((currentCard as any)?.paired_raw_card_id) {
     const { data: raw } = await supabaseAdmin
@@ -364,6 +365,9 @@ serve(async (req) => {
   }
 
   const { cardId, images, category, fastScan, knownGrade } = body || {};
+  // PriceCharting match from a price-only upgrade: used as the identity fallback.
+  const hint = body?.identityHint && typeof body.identityHint === "object" ? body.identityHint : undefined;
+  const pricechartingId = Number.isFinite(Number(body?.pricechartingId)) ? Number(body.pricechartingId) : null;
   let identification: IdentifyResult | undefined = body?.identification;
 
   if (!cardId || !Array.isArray(images) || images.length === 0) {
@@ -433,7 +437,14 @@ serve(async (req) => {
         fastScan: fastScan === true,
         knownGrade: knownGrade || undefined,
         supabaseAdmin,
+        identityHint: hint ? {
+          card_name: hint.name ?? null, card_number: hint.number ?? null,
+          card_set: hint.set ?? null, variant: hint.variant ?? null, pricecharting_id: pricechartingId,
+        } : undefined,
       });
+      // A price-only card becomes a full card only once enrichment completes.
+      await supabaseAdmin.from("cards").update({ analysis_depth: "full" })
+        .eq("id", cardId).eq("analysis_depth", "price_only").eq("analysis_status", "complete");
     } catch (err: any) {
       console.error("[enrich-card] failed:", err);
       await supabaseAdmin.from("cards").update({
