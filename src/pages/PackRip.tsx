@@ -1,3 +1,4 @@
+import PriceChartingAttribution from "@/components/PriceChartingAttribution";
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";

@@ -1,3 +1,4 @@
+import PriceChartingAttribution from "@/components/PriceChartingAttribution";
 import { ExternalLink } from "lucide-react";
 import { FULL_LADDER, GRADED_CHIPS, type Ladder } from "@/lib/priceLadder";
 

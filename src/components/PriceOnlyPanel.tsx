@@ -1,3 +1,4 @@
+import PriceChartingAttribution from "@/components/PriceChartingAttribution";
 import { useState } from "react";
 import { ExternalLink, Loader2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";

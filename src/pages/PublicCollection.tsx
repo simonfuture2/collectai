@@ -1,3 +1,4 @@
+import PriceChartingAttribution from "@/components/PriceChartingAttribution";
 import { useEffect, useMemo, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -11,6 +12,7 @@ import { toast } from "sonner";
 import { toPng } from "html-to-image";
 
 interface PublicCard {
+  pricecharting_id?: number | null;
   id: string;
   card_name: string | null;
   card_set: string | null;
@@ -52,7 +54,7 @@ export default function PublicCollection() {
 
       const { data: cardData } = await supabase
         .from("cards")
-        .select("id, card_name, card_set, card_year, condition_grade, estimated_value_low, estimated_value_high, image_url")
+        .select("id, card_name, card_set, card_year, condition_grade, estimated_value_low, estimated_value_high, image_url, pricecharting_id")
         .eq("user_id", prof.id)
         .eq("is_public", true)
         .eq("scan_purpose", "collection")

@@ -1,3 +1,4 @@
+import PriceChartingAttribution from "@/components/PriceChartingAttribution";
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -19,6 +20,7 @@ interface SharedCardData {
   rarity: string | null;
   category: string | null;
   image_url: string;
+  pricecharting_id: number | null;
 }
 
 export default function SharedCard() {
@@ -36,7 +38,7 @@ export default function SharedCard() {
 
       const { data, error } = await supabase
         .from("cards")
-        .select("id, card_name, card_set, card_year, condition_grade, estimated_value_low, estimated_value_high, rarity, category, image_url")
+        .select("id, card_name, card_set, card_year, condition_grade, estimated_value_low, estimated_value_high, rarity, category, image_url, pricecharting_id")
         .eq("id", id)
         .eq("is_public", true)
         .maybeSingle();
