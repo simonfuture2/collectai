@@ -64,6 +64,13 @@
       "when": 1793545697493,
       "tag": "0008_price_check_accuracy",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1793557136157,
+      "tag": "0009_admin_purge_pricecharting",
+      "breakpoints": true
     }
   ]
 }
