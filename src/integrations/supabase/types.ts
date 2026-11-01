@@ -1181,6 +1181,92 @@ export type Database = {
         }
         Relationships: []
       }
+      price_check_lab_items: {
+        Row: {
+          created_at: string
+          created_by: string
+          expected_product_id: number
+          file_name: string | null
+          game: string
+          id: string
+          image_path: string
+          is_japanese: boolean
+          is_slab: boolean
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          expected_product_id: number
+          file_name?: string | null
+          game: string
+          id?: string
+          image_path: string
+          is_japanese?: boolean
+          is_slab?: boolean
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          expected_product_id?: number
+          file_name?: string | null
+          game?: string
+          id?: string
+          image_path?: string
+          is_japanese?: boolean
+          is_slab?: boolean
+        }
+        Relationships: []
+      }
+      price_check_lab_results: {
+        Row: {
+          api_calls: number
+          created_at: string
+          error: string | null
+          id: string
+          item_id: string
+          latency_ms: number | null
+          mode: string
+          no_match: boolean
+          rank: number | null
+          run_id: string
+          top_product_id: number | null
+        }
+        Insert: {
+          api_calls?: number
+          created_at?: string
+          error?: string | null
+          id?: string
+          item_id: string
+          latency_ms?: number | null
+          mode: string
+          no_match?: boolean
+          rank?: number | null
+          run_id: string
+          top_product_id?: number | null
+        }
+        Update: {
+          api_calls?: number
+          created_at?: string
+          error?: string | null
+          id?: string
+          item_id?: string
+          latency_ms?: number | null
+          mode?: string
+          no_match?: boolean
+          rank?: number | null
+          run_id?: string
+          top_product_id?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "price_check_lab_results_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "price_check_lab_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       price_checks: {
         Row: {
           added_card_id: string | null
@@ -1281,14 +1367,17 @@ export type Database = {
       }
       pricecharting_api_throttle: {
         Row: {
+          calls_total: number
           id: number
           next_allowed_at: string
         }
         Insert: {
+          calls_total?: number
           id?: number
           next_allowed_at?: string
         }
         Update: {
+          calls_total?: number
           id?: number
           next_allowed_at?: string
         }
@@ -1950,6 +2039,7 @@ export type Database = {
       }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
       is_agent_admin: { Args: never; Returns: boolean }
+      lab_pc_calls_total: { Args: never; Returns: number }
       move_to_dlq: {
         Args: {
           dlq_name: string
