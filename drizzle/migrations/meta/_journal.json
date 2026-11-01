@@ -43,6 +43,13 @@
       "when": 1793467911525,
       "tag": "0005_price_check_groundwork",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1793541444920,
+      "tag": "0006_cards_number_variant",
+      "breakpoints": true
     }
   ]
 }

@@ -120,15 +120,10 @@ const PriceResult = () => {
 
   const ensureCard = async () => {
     if (cardId) return cardId;
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error("Please sign in.");
-    const id = crypto.randomUUID();
-    const pull: PackPull = { priceCheckId: priceCheckId!, cardName: c?.name || reading.name || "Unidentified card", cardSet: c?.set ?? reading.set ?? null, selected: c, imagePath, category, year: reading.year ?? null };
-    const { error } = await supabase.from("cards").insert(priceOnlyCard(pull, user.id, id));
-    if (error) throw error;
-    await supabase.functions.invoke("price-check", { body: { action: "link", priceCheckId, cardId: id } });
-    setCardId(id);
-    return id;
+    const { data, error } = await supabase.functions.invoke("price-check-save", { body: { priceCheckId } });
+    if (error || !data?.cardId) throw new Error(data?.error || error?.message || "Could not save card");
+    setCardId(data.cardId);
+    return data.cardId as string;
   };
 
   const addToCollection = async () => {

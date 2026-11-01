@@ -1,0 +1,1 @@
+ALTER TABLE public.cards ADD COLUMN IF NOT EXISTS card_number text, ADD COLUMN IF NOT EXISTS variant text;
