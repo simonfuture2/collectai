@@ -4,6 +4,53 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { parse } from "npm:csv-parse@5/sync";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
+import { fetchProductById, normalizeLadder } from "../_shared/pricecharting.ts";
+import { liveRefreshDue, refreshDecision, type Ladder } from "../_shared/pcValuation.ts";
+
+const LIVE_REFRESH_CAP = 150;
+const SPORTS_RE = /sport|baseball|basketball|football|hockey|soccer/i;
+
+// Cards whose product isn't in the stored list: throttled live API, at most once per 7 days.
+async function refreshLiveOnlyCards(supabase: any) {
+  const cutoff = new Date(Date.now() - 7 * 86_400_000).toISOString();
+  const { data: cards } = await supabase
+    .from("cards")
+    .select("id, user_id, category, pricecharting_id, pc_synced_at, analysis_depth, ai_analysis, estimated_value_low, estimated_value_high")
+    .not("pricecharting_id", "is", null)
+    .or(`pc_synced_at.is.null,pc_synced_at.lt.${cutoff}`)
+    .order("pc_synced_at", { ascending: true, nullsFirst: true })
+    .limit(LIVE_REFRESH_CAP * 3);
+  if (!cards?.length) return { checked: 0, refreshed: 0, revalued: 0 };
+  const ids = [...new Set(cards.map((c: any) => c.pricecharting_id))];
+  const { data: inCatalog } = await supabase.from("pricecharting_catalog").select("id").in("id", ids);
+  const stored = new Set((inCatalog || []).map((r: any) => Number(r.id)));
+  const due = cards.filter((c: any) => !stored.has(Number(c.pricecharting_id)) && liveRefreshDue(c.pc_synced_at)).slice(0, LIVE_REFRESH_CAP);
+  let refreshed = 0, revalued = 0;
+  for (const c of due) {
+    const row = await fetchProductById(c.pricecharting_id, SPORTS_RE.test(String(c.category || "")));
+    if (!row) continue;
+    const ladder = normalizeLadder(row) as Ladder;
+    const d = refreshDecision(c, ladder);
+    const now = new Date().toISOString();
+    const patch: Record<string, unknown> = { pc_prices: ladder, pc_synced_at: now };
+    if (d.revalue) {
+      patch.estimated_value_low = d.low;
+      patch.estimated_value_high = d.high;
+      if (c.ai_analysis) patch.ai_analysis = { ...c.ai_analysis, pcValue: d.value, pcLadder: ladder, estimatedValueLow: d.low, estimatedValueHigh: d.high };
+    }
+    const { error } = await supabase.from("cards").update(patch).eq("id", c.id);
+    if (error) { console.error("[pricecharting-sync] live update", c.id, error.message); continue; }
+    refreshed++;
+    if (d.revalue) {
+      await supabase.from("price_history").insert({
+        card_id: c.id, user_id: c.user_id, source: "pricecharting",
+        median_price: d.value, low_price: d.value, high_price: d.value, price_count: 1, raw_prices: [d.value],
+      });
+      revalued++;
+    }
+  }
+  return { checked: due.length, refreshed, revalued };
+}
 
 const CATEGORIES = [
   "pokemon-cards",
@@ -230,7 +277,19 @@ Deno.serve(async (req) => {
     const totalUpserted = results.reduce((s, r: any) => s + (r.upserted ?? 0), 0);
     console.log(`[pricecharting-sync] DONE total_upserted=${totalUpserted}`);
 
-    return new Response(JSON.stringify({ ok: true, totalUpserted, results }), {
+    // Refresh saved cards from the stored list (database only), then live-only cards.
+    const { data: cardRefresh, error: refreshErr } = await supabase.rpc("pc_refresh_cards_from_catalog");
+    if (refreshErr) console.error("[pricecharting-sync] card refresh failed", refreshErr.message);
+    else console.log("[pricecharting-sync] card refresh", JSON.stringify(cardRefresh));
+    let liveRefresh: unknown = null;
+    try {
+      liveRefresh = await refreshLiveOnlyCards(supabase);
+      console.log("[pricecharting-sync] live refresh", JSON.stringify(liveRefresh));
+    } catch (err) {
+      console.error("[pricecharting-sync] live refresh failed", (err as Error)?.message);
+    }
+
+    return new Response(JSON.stringify({ ok: true, totalUpserted, results, cardRefresh, liveRefresh }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {

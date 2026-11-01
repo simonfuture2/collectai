@@ -1953,6 +1953,7 @@ export type Database = {
         Returns: number
       }
       pc_acquire_slot: { Args: never; Returns: number }
+      pc_refresh_cards_from_catalog: { Args: never; Returns: Json }
       read_email_batch: {
         Args: { batch_size: number; queue_name: string; vt: number }
         Returns: {

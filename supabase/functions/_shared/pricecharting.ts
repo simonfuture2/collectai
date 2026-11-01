@@ -365,6 +365,27 @@ async function fetchProduct(
   }
 }
 
+/** Throttled, cache-first lookup of one product by its PriceCharting/SportsCardsPro id. */
+export async function fetchProductById(id: number | string, sports: boolean): Promise<Record<string, unknown> | null> {
+  const apiKey = Deno.env.get("PRICECHARTING_API_KEY");
+  if (!apiKey) return null;
+  const base = sports ? SCP_BASE : PC_BASE;
+  const cacheKey = `${base}|id|${id}`;
+  const cached = await readLiveCache(cacheKey);
+  if (cached) return cached as Record<string, unknown>;
+  try {
+    const res = await pcThrottledFetch(`${base}/api/product?t=${encodeURIComponent(apiKey)}&id=${encodeURIComponent(String(id))}`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (data?.status !== "success") return null;
+    await writeLiveCache(Number(id), cacheKey, data);
+    return data as Record<string, unknown>;
+  } catch (err) {
+    console.error("[pricecharting] id fetch error", (err as Error)?.message);
+    return null;
+  }
+}
+
 async function lookupApi(
   cardId: CardId,
   apiKey: string,

@@ -79,3 +79,23 @@ export function ladderGradedEstimates(ladder: Ladder) {
     ace: { "10": row("ace10") },
   };
 }
+
+export const LIVE_REFRESH_DAYS = 7;
+
+/** Live-only cards refresh when never synced or synced at least 7 days ago. */
+export function liveRefreshDue(pcSyncedAt: string | null | undefined, now = new Date()): boolean {
+  if (!pcSyncedAt) return true;
+  return now.getTime() - new Date(pcSyncedAt).getTime() >= LIVE_REFRESH_DAYS * 86_400_000;
+}
+
+/** Mirrors pc_refresh_cards_from_catalog(): which saved cards get a new value from the ladder. */
+export function refreshDecision(
+  card: { analysis_depth?: string | null; ai_analysis?: Record<string, unknown> | null },
+  ladder: Ladder,
+) {
+  const eligible = card.analysis_depth === "price_only" || card.ai_analysis?.valuationSource === "pricecharting";
+  if (!eligible) return { revalue: false as const };
+  const rung = ((card.ai_analysis?.pcRung as string) || "ungraded") as LadderKey;
+  const head = pcHeadline(ladder, rung);
+  return head ? { revalue: true as const, rung, ...head } : { revalue: false as const };
+}
