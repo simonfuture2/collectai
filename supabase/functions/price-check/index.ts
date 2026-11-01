@@ -104,7 +104,9 @@ Deno.serve(async (req) => {
   if (claimsErr || !claims?.claims?.sub) return json({ error: "Unauthorized" }, 401);
   const userId = claims.claims.sub as string;
 
-  const parsed = Body.safeParse(await req.json().catch(() => null));
+  const raw = await req.json().catch(() => null);
+  if (raw?.action) return handleAction(raw, userId);
+  const parsed = Body.safeParse(raw);
   if (!parsed.success) return json({ error: parsed.error.flatten().fieldErrors }, 400);
   const { imagePath, category: catInput, packRipId } = parsed.data;
   if (!imagePath.startsWith(`${userId}/`) || imagePath.includes("..")) {
@@ -230,3 +232,57 @@ Deno.serve(async (req) => {
     latencyMs,
   });
 });
+
+// ---- Follow-up actions from the result page (no credits, no live API calls) ----
+const ActionBody = z.discriminatedUnion("action", [
+  z.object({ action: z.literal("select"), priceCheckId: z.string().uuid(), productId: z.number().int().positive() }),
+  z.object({ action: z.literal("search"), query: z.string().trim().min(2).max(120) }),
+  z.object({ action: z.literal("link"), priceCheckId: z.string().uuid(), cardId: z.string().uuid() }),
+]);
+
+async function handleAction(raw: unknown, userId: string): Promise<Response> {
+  const parsed = ActionBody.safeParse(raw);
+  if (!parsed.success) return json({ error: "Invalid request" }, 400);
+  const body = parsed.data;
+  const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+  const allowed = await admin.rpc("can_use_price_check", { _uid: userId });
+  if (!allowed.data) return json({ error: "Price Check is not available on your account yet" }, 403);
+
+  if (body.action === "search") {
+    const m = body.query.match(/#?\s*(\d+[a-z]?(?:\/\d+)?)\s*$/i);
+    const name = m ? body.query.slice(0, m.index).trim() || body.query : body.query;
+    // deno-lint-ignore no-explicit-any
+    const found = await searchCatalogCandidates({ card_name: name, card_number: m?.[1] ?? null } as any, MAX_CANDIDATES, admin);
+    return json({ candidates: found.map(c => ({
+      productId: c.product_id, name: c.product_name, set: c.console_name, number: numberOf(c.product_name),
+      ladder: c.ladder, url: `https://www.pricecharting.com/game/${c.product_id}`,
+    })) });
+  }
+
+  const { data: row } = await admin.from("price_checks").select("id, candidates").eq("id", body.priceCheckId).eq("user_id", userId).maybeSingle();
+  if (!row) return json({ error: "Price check not found" }, 404);
+
+  if (body.action === "link") {
+    const { data: card } = await admin.from("cards").select("id").eq("id", body.cardId).eq("user_id", userId).maybeSingle();
+    if (!card) return json({ error: "Card not found" }, 404);
+    await admin.from("price_checks").update({ added_card_id: body.cardId }).eq("id", row.id);
+    return json({ ok: true });
+  }
+
+  // deno-lint-ignore no-explicit-any
+  const list = (row.candidates as any[]) ?? [];
+  let candidates = list;
+  if (!list.some(c => Number(c.productId) === body.productId)) {
+    // A search pick: re-read it from the stored list so prices are never client-supplied.
+    const { data: cat } = await admin.from("pricecharting_catalog").select("*").eq("id", body.productId).maybeSingle();
+    if (!cat) return json({ error: "Product not in the stored list" }, 400);
+    candidates = [...list, {
+      productId: body.productId, name: cat.product_name, set: cat.console_name, number: numberOf(cat.product_name),
+      ladder: normalizeLadder(cat), url: `https://www.pricecharting.com/game/${body.productId}`,
+    }];
+  }
+  const selected = candidates.find(c => Number(c.productId) === body.productId);
+  const { error } = await admin.from("price_checks").update({ selected_product_id: body.productId, selected_prices: selected?.ladder ?? null, candidates }).eq("id", row.id);
+  if (error) return json({ error: "Could not save the choice" }, 500);
+  return json({ ok: true, selected, candidates });
+}
