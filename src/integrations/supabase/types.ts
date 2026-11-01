@@ -1789,6 +1789,7 @@ export type Database = {
         Args: { _amount: number; _user_id: string }
         Returns: number
       }
+      admin_purge_pricecharting: { Args: { _confirm: string }; Returns: Json }
       agent_attach_draft: {
         Args: { p_draft: string; p_id: string; p_subject?: string }
         Returns: Json
