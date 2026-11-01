@@ -216,6 +216,9 @@ serve(async (req) => {
         ebay_recent_sales: analysis.ebayRecentSales || null,
         tcgplayer_price: analysis.tcgplayerPrice || null,
         psa_population_data: analysis.psaPopulation || null,
+        ...((analysis as any).valuationSource === "pricecharting" && (analysis as any).pcLadder
+          ? { pricecharting_id: (analysis as any).pricechartingId ?? null, pc_prices: (analysis as any).pcLadder, pc_synced_at: new Date().toISOString() }
+          : {}),
         ai_analysis: analysis,
         last_scanned_at: new Date().toISOString(),
       })

@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { GlassCard } from "@/components/ui/glass-card";
 import { Value } from "@/components/ui/value";
+import PriceChartingValuePanel, { isPriceChartingValued } from "@/components/PriceChartingValuePanel";
 import { FadeUp, PressScale } from "@/components/ui/motion";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, ArrowRight, BadgeCheck, Camera, ScanSearch, Trash2, SearchX, ShieldCheck, Sparkles, TrendingUp } from "lucide-react";
@@ -456,6 +457,12 @@ const ScanReveal = () => {
             </div>
           </GlassCard>
         </FadeUp>
+
+        {isPriceChartingValued(card?.ai_analysis) && (
+          <FadeUp delay={0.05}>
+            <PriceChartingValuePanel analysis={card.ai_analysis} pricechartingId={card?.pricecharting_id} syncedAt={card?.pc_synced_at} />
+          </FadeUp>
+        )}
 
         {/* Value block */}
         <FadeUp delay={0.1}>

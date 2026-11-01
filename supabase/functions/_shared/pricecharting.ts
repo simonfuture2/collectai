@@ -44,6 +44,7 @@ export type PriceChartingResult = {
   productId?: string;
   marketValue?: number; // raw / ungraded, in dollars
   gradedPrices?: GradedPrices;
+  ladder?: PriceLadder;
   recentSales: RecentSale[];
   source: "pricecharting";
   fetchedAt: string;
@@ -187,6 +188,7 @@ function normalize(
     productId: productId !== undefined ? String(productId) : undefined,
     marketValue,
     gradedPrices: Object.keys(graded).length ? graded : undefined,
+    ladder: normalizeLadder(rec),
     recentSales: [], // API does not expose historical sales
     source: "pricecharting",
     fetchedAt: new Date().toISOString(),
