@@ -49,6 +49,8 @@ import {
 import type { Tables } from "@/integrations/supabase/types";
 import PreGradingAnalysis from "@/components/PreGradingAnalysis";
 import PriceOnlyPanel from "@/components/PriceOnlyPanel";
+import { useCredits } from "@/hooks/use-credits";
+import { withCost } from "@/lib/analysisCost";
 import EcosystemBadge from "@/components/EcosystemBadge";
 import AuthentiSealVerify from "@/components/AuthentiSealVerify";
 import AIDisclaimer from "@/components/AIDisclaimer";
@@ -324,6 +326,7 @@ export default function CardDetail() {
   const [hasRealPriceData, setHasRealPriceData] = useState(false);
   const [rescanning, setRescanning] = useState(false);
   const [reanalyzing, setReanalyzing] = useState(false);
+  const { isPro: hasPro } = useCredits();
   const notifiedCompleteRef = useRef(false);
   const [pairedRawAccuracy, setPairedRawAccuracy] = useState<any | null>(null);
 
@@ -851,6 +854,7 @@ export default function CardDetail() {
           errorMessage={(card as any).analysis_error}
           onRetry={reanalyzeFull}
           retrying={reanalyzing}
+          retryLabel={withCost("Retry", card as any, hasPro)}
         />
 
         {/* Premium hero: image, metadata, value + raw/graded toggle, chart, comps */}
@@ -1048,7 +1052,7 @@ export default function CardDetail() {
                     className="gradient-primary text-white"
                   >
                     <RefreshCw className={`w-3.5 h-3.5 ${reanalyzing ? "animate-spin" : ""}`} />
-                    {reanalyzing ? "Starting…" : "Re-run full analysis"}
+                    {reanalyzing ? "Starting…" : withCost("Re-run full analysis", card as any, hasPro)}
                   </Button>
                 </div>
               )}
@@ -1071,7 +1075,7 @@ export default function CardDetail() {
               disabled={reanalyzing}
             >
               <RefreshCw className={`w-4 h-4 ${reanalyzing ? "animate-spin" : ""}`} />
-              {reanalyzing ? "Starting full re-analysis…" : "Re-run full analysis"}
+              {reanalyzing ? "Starting full re-analysis…" : withCost("Re-run full analysis", card as any, hasPro)}
             </Button>
 
             {/* List on Marketplace */}

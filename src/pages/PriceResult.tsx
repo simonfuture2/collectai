@@ -24,7 +24,7 @@ const PriceResult = () => {
   const ripId = params.get("rip");
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { credits, refresh: refreshCredits } = useCredits();
+  const { credits, isPro, refresh: refreshCredits } = useCredits();
   const backUrl = ripId ? `/pack-rip?rip=${ripId}` : "/scan?mode=price";
 
   const [loading, setLoading] = useState(true);
@@ -134,7 +134,7 @@ const PriceResult = () => {
   };
 
   const fullAnalysis = async () => {
-    if (credits < 1) { setShowUpgrade(true); return; }
+    if (!isPro && credits < 1) { setShowUpgrade(true); return; }
     setBusy("full");
     try {
       const id = await ensureCard();
@@ -186,7 +186,7 @@ const PriceResult = () => {
                 <div className="flex flex-col gap-2">
                   <Button variant="outline" onClick={() => setSearchOpen(true)}><Search className="mr-2 w-4 h-4" />Search</Button>
                   <Button disabled={!!busy} onClick={fullAnalysis}>
-                    {busy === "full" ? <Loader2 className="mr-2 w-4 h-4 animate-spin" /> : <Sparkles className="mr-2 w-4 h-4" />}Run full analysis · 1 credit
+                    {busy === "full" ? <Loader2 className="mr-2 w-4 h-4 animate-spin" /> : <Sparkles className="mr-2 w-4 h-4" />}Run full analysis · {isPro ? "Free with Pro" : "1 credit"}
                   </Button>
                 </div>
               </section>
@@ -272,7 +272,7 @@ const PriceResult = () => {
                 {busy === "add" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}{cardId ? "In collection" : "Add to collection (free)"}
               </Button>
               <Button className="h-auto py-2.5 flex-col gap-1 text-xs whitespace-normal" disabled={!!busy} onClick={fullAnalysis}>
-                {busy === "full" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}Full analysis · 1 credit
+                {busy === "full" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}Full analysis · {isPro ? "Free with Pro" : "1 credit"}
               </Button>
             </div>
           </div>

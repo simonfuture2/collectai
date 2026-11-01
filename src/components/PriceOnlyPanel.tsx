@@ -18,12 +18,12 @@ export default function PriceOnlyPanel({ card, onUpgraded }: Props) {
   const ladder = (card.pc_prices as Ladder | null) ?? null;
   const raw = ungradedPrice(ladder);
   const rows = ladderRows(ladder).filter(r => r.key !== "ungraded");
-  const { credits, refresh } = useCredits();
+  const { credits, isPro, refresh } = useCredits();
   const { toast } = useToast();
   const [busy, setBusy] = useState(false);
 
   const upgrade = async () => {
-    if (credits < 1) { toast({ title: "You need 1 credit", description: "Get more credits to run a full analysis.", variant: "destructive" }); return; }
+    if (!isPro && credits < 1) { toast({ title: "You need 1 credit", description: "Get more credits to run a full analysis.", variant: "destructive" }); return; }
     setBusy(true);
     try {
       const { data, error } = await supabase.functions.invoke("reanalyze-card", { body: { cardId: card.id, priceOnlyUpgrade: true } });
@@ -66,7 +66,7 @@ export default function PriceOnlyPanel({ card, onUpgraded }: Props) {
       </div>
       <Button className="w-full gradient-primary text-primary-foreground" onClick={upgrade} disabled={busy}>
         {busy ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Sparkles className="w-4 h-4 mr-2" />}
-        Get full analysis · 1 credit
+        Get full analysis · {isPro ? "Free with Pro" : "1 credit"}
       </Button>
     </section>
   );

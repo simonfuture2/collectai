@@ -34,7 +34,7 @@ const PackRip = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { allowed, loading: accessLoading } = usePriceCheckAccess();
-  const { credits, refresh: refreshCredits } = useCredits();
+  const { credits, isPro, refresh: refreshCredits } = useCredits();
   const summary = packSummary(pulls);
   const ordered = sortedPulls(pulls);
 
@@ -135,7 +135,7 @@ const PackRip = () => {
   };
   const fullAnalysis = async (p: PackPull) => {
     if (lock.current) return;
-    if (credits < 1) { setShowUpgrade(true); return; }
+    if (!isPro && credits < 1) { setShowUpgrade(true); return; }
     lock.current = true; setBusy(p.priceCheckId);
     try {
       const saved = await addPull(p);
@@ -204,7 +204,7 @@ const PackRip = () => {
             {chaseHit(p, chase) && <span className="inline-flex items-center gap-1 text-xs font-semibold text-primary mt-1"><Sparkles className="w-3 h-3" />Chase hit</span>}
             {p.cardId && <p className="text-xs text-muted-foreground mt-1">In collection</p>}
             <Button variant="outline" size="sm" className="mt-3 w-full px-1 text-xs" disabled={pending || !p.selected || p.fullAnalysis} onClick={() => fullAnalysis(p)}>
-              {busy === p.priceCheckId ? <Loader2 className="w-4 h-4 animate-spin" /> : p.fullAnalysis ? "Analysis requested" : "Full analysis · 1 credit"}
+              {busy === p.priceCheckId ? <Loader2 className="w-4 h-4 animate-spin" /> : p.fullAnalysis ? "Analysis requested" : `Full analysis · ${isPro ? "Free with Pro" : "1 credit"}`}
             </Button>
           </article>)}
         </div>

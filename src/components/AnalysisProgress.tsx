@@ -21,6 +21,7 @@ interface AnalysisProgressProps {
   errorMessage?: string | null;
   onRetry?: () => void;
   retrying?: boolean;
+  retryLabel?: string;
 }
 
 const STEPS = [
@@ -67,6 +68,7 @@ const AnalysisProgress = ({
   errorMessage,
   onRetry,
   retrying,
+  retryLabel,
 }: AnalysisProgressProps) => {
   const isRunning =
     !!status && ["pending", "identifying", "pricing", "analyzing", "verifying"].includes(status);
@@ -98,7 +100,7 @@ const AnalysisProgress = ({
         {onRetry && (
           <Button size="sm" variant="outline" onClick={onRetry} disabled={retrying}>
             <RefreshCw className={`w-3.5 h-3.5 ${retrying ? "animate-spin" : ""}`} />
-            {retrying ? "Retrying…" : "Retry"}
+            {retrying ? "Retrying…" : retryLabel ?? "Retry"}
           </Button>
         )}
       </div>
