@@ -104,7 +104,9 @@ Deno.serve(async (req) => {
   if (claimsErr || !claims?.claims?.sub) return json({ error: "Unauthorized" }, 401);
   const userId = claims.claims.sub as string;
 
-  const parsed = Body.safeParse(await req.json().catch(() => null));
+  const raw = await req.json().catch(() => null);
+  if (raw?.action) return handleAction(raw, userId);
+  const parsed = Body.safeParse(raw);
   if (!parsed.success) return json({ error: parsed.error.flatten().fieldErrors }, 400);
   const { imagePath, category: catInput, packRipId } = parsed.data;
   if (!imagePath.startsWith(`${userId}/`) || imagePath.includes("..")) {
