@@ -49,6 +49,7 @@ import {
 import type { Tables } from "@/integrations/supabase/types";
 import PreGradingAnalysis from "@/components/PreGradingAnalysis";
 import PriceOnlyPanel from "@/components/PriceOnlyPanel";
+import PriceChartingValuePanel, { isPriceChartingValued } from "@/components/PriceChartingValuePanel";
 import { useCredits } from "@/hooks/use-credits";
 import { withCost } from "@/lib/analysisCost";
 import EcosystemBadge from "@/components/EcosystemBadge";
@@ -982,6 +983,11 @@ export default function CardDetail() {
         {(card as any).analysis_depth === "price_only" ? (
           <PriceOnlyPanel card={card as any} onUpgraded={() => window.location.reload()} />
         ) : (<>
+        {isPriceChartingValued(analysis) && (
+          <div className="mb-8">
+            <PriceChartingValuePanel analysis={analysis as any} pricechartingId={(card as any).pricecharting_id} syncedAt={(card as any).pc_synced_at} />
+          </div>
+        )}
         {analysis && (
           <div className="mb-8">
             <AIAnalysisCard analysis={analysis as any} />
