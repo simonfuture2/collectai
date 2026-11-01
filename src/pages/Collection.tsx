@@ -465,6 +465,7 @@ const Collection = () => {
                 {filtered.length}{filtered.length !== cards.length ? `/${cards.length}` : ""} items
               </p>
               <p className="text-sm sm:text-lg font-display font-bold text-gradient-primary leading-tight">~${totalValue.toFixed(0)}</p>
+              {filtered.some((c: any) => c.pricecharting_id) && <PriceChartingAttribution hideLink className="justify-end text-[10px]" />}
             </div>
             <ThemeToggle />
           </div>

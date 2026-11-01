@@ -244,6 +244,7 @@ export default function PublicCollection() {
                 <div className="text-2xl font-display font-bold tabular-nums mt-1 text-gradient-primary">
                   {hideValue ? "•••••" : fmtUsd(totalValue)}
                 </div>
+                {!hideValue && cards.some((c) => c.pricecharting_id) && <PriceChartingAttribution hideLink className="justify-center mt-1 text-[10px]" />}
               </GlassCard>
             </div>
           </section>

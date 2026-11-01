@@ -48,14 +48,7 @@ export default function PriceChartingValuePanel({ analysis, pricechartingId, syn
             );
           })}
         </div>
-        <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-          <span>Prices from PriceCharting{syncedAt ? ` · ${new Date(syncedAt).toLocaleDateString()}` : ""}</span>
-          {id && (
-            <a href={`https://www.pricecharting.com/offers?product=${id}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
-              View on PriceCharting <ExternalLink className="w-3 h-3" />
-            </a>
-          )}
-        </div>
+        <PriceChartingAttribution productId={id} syncedAt={syncedAt} />
       </section>
       {cc && (
         <section className="rounded-2xl border border-border bg-card p-4 space-y-1">
