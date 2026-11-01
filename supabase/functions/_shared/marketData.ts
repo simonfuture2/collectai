@@ -13,7 +13,7 @@
 //   - crossReference: PriceCharting vs eBay-sold agreement (within ~15%)
 //   - summary: human/LLM-readable markdown for downstream prompt context
 
-import { getPriceChartingData, type CardId, type GradedPrices } from "./pricecharting.ts";
+import { getPriceChartingData, type CardId, type GradedPrices, type PriceLadder } from "./pricecharting.ts";
 
 export interface CardIdentification {
   card_name: string;
@@ -50,6 +50,9 @@ export interface AggregatedMarketData {
   compTitles: string[]; // raw titles from eBay sold comps used for ID cross-check
   priceChartingGraded?: GradedPrices; // PC graded tier anchors when matched
   priceChartingProduct?: string;
+  pcMatched?: boolean; // PriceCharting matched → it is the headline value
+  pcLadder?: PriceLadder; // full grade ladder in dollars
+  pricechartingId?: string;
 }
 
 /**
@@ -146,6 +149,8 @@ export async function getMarketData(
   let pcSummary = "";
   let pcGraded: GradedPrices | undefined;
   let pcProduct: string | undefined;
+  let pcLadder: PriceLadder | undefined;
+  let pcId: string | undefined;
   try {
     const pcCardId: CardId = { ...cardId, category };
     const pc = await getPriceChartingData(pcCardId);
@@ -161,6 +166,8 @@ export async function getMarketData(
       cross.priceChartingValue = pc.marketValue;
       pcGraded = pc.gradedPrices;
       pcProduct = pc.productName;
+      pcLadder = pc.ladder && Object.keys(pc.ladder).length ? pc.ladder : { ungraded: pc.marketValue };
+      pcId = pc.productId;
       pcSummary =
         `\n### PriceCharting (${pc.via || "api"}): ${pc.productName || ""}\n` +
         `- Ungraded (loose): $${pc.marketValue.toFixed(2)}\n` +
@@ -328,20 +335,21 @@ export async function getMarketData(
     );
   }
 
-  // ===== Blended headline (weights normalized to present sources) =====
-  // ebay_sold 0.4, pricecharting 0.3, tcgplayer 0.2, ebay_active 0.1
-  const WEIGHTS: Record<string, number> = {
-    ebay_sold: 0.4,
-    pricecharting: 0.3,
-    tcgplayer: 0.2,
-    ebay_active: 0.1,
-  };
+  // ===== Blended headline =====
+  // PriceCharting matched → it IS the headline; eBay/TCGplayer are cross-check only.
+  // No PriceCharting → eBay-led weights (sold 0.5, tcgplayer 0.3, active 0.2).
+  const pcMatched = cross.priceChartingValue !== undefined;
+  const WEIGHTS: Record<string, number> = { ebay_sold: 0.5, tcgplayer: 0.3, ebay_active: 0.2 };
   const weighted = sources
+    .filter((s) => s.source !== "pricecharting")
     .map((s) => ({ value: s.median, weight: WEIGHTS[s.source] ?? 0.1 }))
     .filter((x) => x.value > 0);
 
   let blended: AggregatedMarketData["blended"] = null;
-  if (weighted.length > 0) {
+  if (pcMatched) {
+    const v = cross.priceChartingValue as number;
+    blended = { median: v, low: v, high: v };
+  } else if (weighted.length > 0) {
     const total = weighted.reduce((s, x) => s + x.weight, 0);
     const m = weighted.reduce((s, x) => s + x.value * (x.weight / total), 0);
     const allPrices = sources.flatMap((s) => s.prices);
@@ -369,20 +377,22 @@ export async function getMarketData(
             : s.source === "tcgplayer"
               ? "TCGPlayer"
               : s.source;
-      summary += `\n### ${label}\n`;
+      summary += `\n### ${label}${pcMatched ? " (cross-check only)" : ""}\n`;
       summary += `- Prices: ${s.prices.map((p) => `$${p.toFixed(2)}`).join(", ")}\n`;
       summary += `- Median: $${s.median.toFixed(2)} | Range: $${s.low.toFixed(2)}-$${s.high.toFixed(2)} | Count: ${s.count}\n`;
     }
     if (cross.priceChartingValue !== undefined && cross.ebaySoldMedian !== undefined) {
       summary += `\n### Cross-reference: PriceCharting $${cross.priceChartingValue.toFixed(2)} vs eBay sold $${cross.ebaySoldMedian.toFixed(2)} → ${cross.agreementPct}% agreement (${cross.agree ? "AGREE" : "DIVERGE"})\n`;
     }
-    if (blended) {
+    if (pcMatched) {
+      summary += `\n### AUTHORITATIVE VALUE: PriceCharting. eBay/TCGplayer above are a cross-check only.\n`;
+    } else if (blended) {
       summary += `\n### SUGGESTED BLENDED VALUE: $${blended.median.toFixed(2)} (weights normalized over present sources)\n`;
     }
     summary += `\nCRITICAL: Your estimatedValueLow/High MUST reflect this data.\n`;
   }
 
-  return { sources, blended, crossReference: cross, summary, hasData, compTitles, priceChartingGraded: pcGraded, priceChartingProduct: pcProduct };
+  return { sources, blended, crossReference: cross, summary, hasData, compTitles, priceChartingGraded: pcGraded, priceChartingProduct: pcProduct, pcMatched, pcLadder, pricechartingId: pcId };
 }
 
 // Convenience: persist per-source rows to price_history (each source attributed).
