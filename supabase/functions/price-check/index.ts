@@ -12,6 +12,7 @@ import {
   tokensOf,
   type PriceLadder,
 } from "../_shared/pricecharting.ts";
+import { groupParallels, languageBoost, normLanguage, parallelLabel, slabRung, type Slab } from "./ranking.ts";
 
 const HOURLY_LIMIT = 60;
 const DAILY_LIMIT = 400;
@@ -37,18 +38,22 @@ const Body = z.object({
 type Reading = {
   name: string; number?: string | null; set?: string | null; year?: string | null;
   language?: string | null; variant?: string | null; game?: string | null;
+  slab?: Slab;
 };
 
 type Candidate = {
   productId: number; name: string; set: string | null; number: string | null;
   ladder: PriceLadder; url: string; score: number; from: "catalog" | "api";
+  parallel?: string | null; rank?: number; japanese?: boolean;
 };
 
 const PROMPT = `Identify the trading card in this photo. Return JSON only:
-{"best":{"name":"","number":"","set":"","year":"","language":"","variant":"","game":""},"alternates":[...up to 2 objects with the same keys]}
+{"best":{"name":"","number":"","set":"","year":"","language":"","variant":"","game":"","slab":null},"alternates":[...up to 2 objects with the same keys]}
 - name: card/player name only. number: collector number as printed (e.g. "4/102", "OP01-120"). variant: parallel/foil/holo/reverse/alt art etc, or "".
 - game: one of pokemon, magic, yugioh, one piece, lorcana, dragon ball, baseball, basketball, football, hockey, soccer.
-- language: english, japanese, etc. Use "" for unknowns. Alternates only if genuinely plausible.`;
+- language: english, japanese, korean or other, based on the text printed on the card.
+- slab: if the card is in a graded slab, {"company":"PSA|BGS|CGC|SGC|TAG|ACE","grade":"10","label":"e.g. Black Label/Pristine or \"\""} from the cert label; otherwise null.
+Use "" for unknowns. Alternates only if genuinely plausible.`;
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -79,6 +84,7 @@ function rank(c: { name: string; set: string | null; number: string | null }, r:
   } else if (/\[(.+?)\]/.test(c.name)) {
     s -= 6; // product is a parallel but none was read
   }
+  s += languageBoost(normLanguage(r.language), c.name, c.set);
   return s;
 }
 
@@ -156,7 +162,7 @@ Deno.serve(async (req) => {
   if (!category || inCatalog) {
     const lists = await Promise.all(readings.map((r) =>
       searchCatalogCandidates(
-        { card_name: r.name, card_number: r.number ?? undefined, card_set: r.set ?? undefined, category, japanese: (r.language ?? "").toLowerCase().startsWith("jap") },
+        { card_name: r.name, card_number: r.number ?? undefined, card_set: r.set ?? undefined, category, japanese: ["japanese", "korean"].includes(normLanguage(r.language) ?? "") },
         MAX_CANDIDATES,
         admin,
       ).catch(() => [])
@@ -200,14 +206,20 @@ Deno.serve(async (req) => {
 
   // 4. Rank
   t = performance.now();
-  const candidates = [...byId.values()].sort((a, b) => b.score - a.score).slice(0, MAX_CANDIDATES);
+  const top = [...byId.values()].sort((a, b) => b.score - a.score).slice(0, MAX_CANDIDATES);
+  const candidates = groupParallels(top).map((c, i) => ({
+    ...c, rank: i + 1, parallel: parallelLabel(c.name), japanese: /japanese/i.test(`${c.name} ${c.set ?? ""}`),
+  }));
+  const language = normLanguage(best.language);
+  const slab = best.slab && typeof best.slab === "object" ? best.slab : null;
+  const rung = slabRung(slab);
   const selected = candidates[0] ?? null;
   mark("rank_ms", t);
 
   // 5. Save
   t = performance.now();
   const latencyMs = Math.round(performance.now() - t0);
-  const identification = { best, alternates: readings.slice(1), category: category ?? null, timings };
+  const identification = { best, alternates: readings.slice(1), category: category ?? null, language, slab, rung, timings };
   const { data: row, error: insErr } = await admin.from("price_checks").insert({
     user_id: userId,
     image_path: imagePath,
@@ -218,6 +230,7 @@ Deno.serve(async (req) => {
     source: source === "catalog" ? "catalog" : "api",
     latency_ms: latencyMs,
     pack_rip_id: packRipId ?? null,
+    game: (best.game ?? "").toLowerCase().trim() || null,
   }).select("id").single();
   mark("save_ms", t);
   if (insErr) console.error("[price-check] insert error", insErr.message);
@@ -282,7 +295,9 @@ async function handleAction(raw: unknown, userId: string): Promise<Response> {
     }];
   }
   const selected = candidates.find(c => Number(c.productId) === body.productId);
-  const { error } = await admin.from("price_checks").update({ selected_product_id: body.productId, selected_prices: selected?.ladder ?? null, candidates }).eq("id", row.id);
+  const pos = list.findIndex(c => Number(c.productId) === body.productId);
+  const picked_rank = pos >= 0 ? pos + 1 : 0; // 0 = picked from search, not in the list
+  const { error } = await admin.from("price_checks").update({ picked_rank, selected_product_id: body.productId, selected_prices: selected?.ladder ?? null, candidates }).eq("id", row.id);
   if (error) return json({ error: "Could not save the choice" }, 500);
   return json({ ok: true, selected, candidates });
 }
