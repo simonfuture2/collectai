@@ -5,5 +5,6 @@
 - [x] Build shared lazy video cards, /watch, home strip and navigation links.
 - [x] Add Agent HQ video management, uploads and ordering; test publishing and public visibility; temporary entries removed.
 - [x] Add the supplied TikTok clip as an elegant homepage background; verified muted playback, pause controls, reduced motion and narrow/wide layouts using local asset interception (hosted MP4 also returns 200).
-- [ ] Switch Pack Rip to free price checks, durable match selection, value tray, genuine chase badges and collection actions.
-- [ ] Test pack rules and verify the signed-in pack flow.
+- [x] Switch Pack Rip to free price checks, durable match selection, value tray, genuine chase badges and collection actions.
+- [x] Test pack rules and verify signed-in tray sorting and free price-only additions with temporary fixtures; test records removed.
+- [ ] Verify completed real-photo pricing, match changes and paid analysis end-to-end; blocked by price-check returning 503 (identification unavailable).
