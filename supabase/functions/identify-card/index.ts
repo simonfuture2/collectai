@@ -222,7 +222,7 @@ serve(async (req) => {
     }
 
     // Log the scan for everyone (amount 0 for Pro) so the hourly cap works.
-    await supabaseAdmin.from("credit_transactions").insert({
+    if (!labRun) await supabaseAdmin.from("credit_transactions").insert({
       user_id: user.id, amount: isPro ? 0 : -1, type: "scan",
       description: `AI scan: card ${savedCard.id}`,
     });
