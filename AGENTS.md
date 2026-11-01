@@ -6,4 +6,4 @@
 - Store hosted social media as storage paths and resolve signed viewing URLs for published rows; this supports private-bucket workspace restrictions without exposing unpublished uploads.
 - Keep the homepage background film in its own component with CDN asset pointers, reduced-motion handling and visibility-based pausing so other pages and scan logic remain unchanged.
 - Pack Rip valuation, chase membership and price-only card payload rules live in src/lib/packRip.ts with adjacent tests; pack_rips holds durable match choices because price_checks is service-write-only.
-- Explicit price-only upgrades reuse reanalyze-card with an ownership-checked conditional claim and server-side credit deduction, preventing duplicate cards and concurrent double charges.
+- reanalyze-card billing (paid upgrade/re-run, free failed/stuck retry, Pro free, hourly cap, refund on dispatch failure) lives in supabase/functions/reanalyze-card/rules.ts with tests; src/lib/analysisCost.ts mirrors it for button labels, and a conditional status claim prevents double charges.
