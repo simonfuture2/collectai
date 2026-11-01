@@ -48,6 +48,7 @@ import {
 } from "recharts";
 import type { Tables } from "@/integrations/supabase/types";
 import PreGradingAnalysis from "@/components/PreGradingAnalysis";
+import PriceOnlyPanel from "@/components/PriceOnlyPanel";
 import EcosystemBadge from "@/components/EcosystemBadge";
 import AuthentiSealVerify from "@/components/AuthentiSealVerify";
 import AIDisclaimer from "@/components/AIDisclaimer";
@@ -974,6 +975,9 @@ export default function CardDetail() {
         </div>
 
 
+        {(card as any).analysis_depth === "price_only" ? (
+          <PriceOnlyPanel card={card as any} onUpgraded={() => window.location.reload()} />
+        ) : (<>
         {analysis && (
           <div className="mb-8">
             <AIAnalysisCard analysis={analysis as any} />
@@ -1873,6 +1877,7 @@ export default function CardDetail() {
             </div>
           </div>
         </div>
+        </>)}
       </main>
       <div className="container mx-auto px-4 pb-4">
         <AIDisclaimer />
