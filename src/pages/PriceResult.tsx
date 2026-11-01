@@ -12,7 +12,7 @@ import { useCredits } from "@/hooks/use-credits";
 import { cn } from "@/lib/utils";
 import { packSummary, priceOnlyCard, storedPulls, type PackPull, type PriceCandidate } from "@/lib/packRip";
 import { updateSessionPick } from "@/lib/priceSession";
-import { gradedChips, ladderRows, parallelOf, ungradedPrice } from "@/lib/priceLadder";
+import { gradedChips, ladderRows, parallelOf, ungradedPrice, slabHero, languageChip } from "@/lib/priceLadder";
 
 type Reading = { name?: string; number?: string; set?: string; year?: string };
 const usd = (n: number) => n.toLocaleString("en-US", { style: "currency", currency: "USD" });
@@ -34,6 +34,8 @@ const PriceResult = () => {
   const [imagePath, setImagePath] = useState<string>("");
   const [reading, setReading] = useState<Reading>({});
   const [category, setCategory] = useState<string | null>(null);
+  const [slab, setSlab] = useState<{ company?: string; grade?: string | number; rung: string | null } | null>(null);
+  const [language, setLanguage] = useState<string | null>(null);
   const [cardId, setCardId] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(false);
   const [busy, setBusy] = useState<"add" | "full" | null>(null);
@@ -52,10 +54,12 @@ const PriceResult = () => {
       const { data } = await supabase.from("price_checks")
         .select("candidates, selected_product_id, image_path, identification, added_card_id").eq("id", priceCheckId).maybeSingle();
       const list = ((data?.candidates as unknown) as PriceCandidate[]) ?? [];
-      const ident = (data?.identification ?? {}) as { best?: Reading; category?: string };
+      const ident = (data?.identification ?? {}) as { best?: Reading; category?: string; language?: string; rung?: string | null; slab?: { company?: string; grade?: string | number } | null };
       setCandidates(list);
       setReading(ident.best ?? {});
       setCategory(ident.category ?? null);
+      setLanguage(ident.language ?? null);
+      setSlab(ident.slab?.company ? { ...ident.slab, rung: ident.rung ?? null } : null);
       setCardId(data?.added_card_id ?? null);
       let sel = data?.selected_product_id ?? list[0]?.productId ?? null;
       if (ripId) {
@@ -148,6 +152,9 @@ const PriceResult = () => {
   };
 
   const raw = ungradedPrice(c?.ladder);
+  const hero = slab ? slabHero(c?.ladder, slab.rung) : null;
+  const slabName = slab ? `${slab.company} ${slab.grade ?? ""}`.trim() : "";
+  const langChip = languageChip(language);
   const chips = gradedChips(c?.ladder);
   const rows = ladderRows(c?.ladder);
   const title = c?.name ?? reading.name ?? "Unidentified card";
@@ -176,6 +183,7 @@ const PriceResult = () => {
                 <h1 className="font-display text-2xl font-semibold leading-tight text-foreground">{title}</h1>
                 {subtitle && <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>}
                 {c && parallelOf(c.name) && <span className="mt-2 inline-block rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">{parallelOf(c.name)}</span>}
+                {langChip && <span className="mt-2 ml-1 inline-block rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground">{langChip}</span>}
               </div>
             </section>
 
@@ -192,7 +200,15 @@ const PriceResult = () => {
               </section>
             ) : (
               <>
-                <section className="rounded-3xl bg-primary p-5 text-primary-foreground shadow-lg">
+                {slab && (
+                  <section className="rounded-3xl bg-primary p-5 text-primary-foreground shadow-lg">
+                    <p className="text-xs font-medium uppercase tracking-wider opacity-90">Graded · {slabName} · PriceCharting</p>
+                    {hero?.value != null
+                      ? <p className="mt-1 font-display text-5xl font-bold tabular-nums">{usd(hero.value)}</p>
+                      : <p className="mt-2 text-sm font-medium">No PriceCharting data for this grade</p>}
+                  </section>
+                )}
+                <section className={cn("rounded-3xl p-5 shadow-lg", slab ? "border border-border bg-card text-foreground" : "bg-primary text-primary-foreground")}>
                   <p className="text-xs font-medium uppercase tracking-wider opacity-90">Ungraded · PriceCharting</p>
                   <p className="mt-1 font-display text-5xl font-bold tabular-nums">{raw != null ? usd(raw) : "—"}</p>
                   {raw == null && <p className="mt-1 text-sm opacity-90">No ungraded price listed.</p>}
@@ -203,7 +219,7 @@ const PriceResult = () => {
                     <button type="button" onClick={() => setExpanded(v => !v)} aria-expanded={expanded} className="w-full text-left">
                       <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4 scrollbar-none">
                         {chips.map(ch => (
-                          <span key={ch.key} className="shrink-0 rounded-2xl border border-border bg-card px-3 py-2">
+                          <span key={ch.key} className={cn("shrink-0 rounded-2xl border-2 bg-card px-3 py-2", slab?.rung === ch.key ? "border-primary" : "border-border")}>
                             <span className="block text-[11px] font-medium text-muted-foreground">{ch.label}</span>
                             <span className="block font-semibold tabular-nums text-foreground">{usd(ch.value)}</span>
                           </span>
@@ -252,7 +268,8 @@ const PriceResult = () => {
                         on ? "border-primary bg-primary/5" : "border-border")}>
                       <span className="block text-sm font-semibold leading-tight text-foreground line-clamp-2">{o.name.replace(/\s*\[[^\]]+\]/, "")}</span>
                       <span className="mt-0.5 block text-[11px] text-muted-foreground truncate">{[o.set, o.number && `#${o.number}`].filter(Boolean).join(" · ")}</span>
-                      {parallelOf(o.name) && <span className="block text-[11px] text-primary truncate">{parallelOf(o.name)}</span>}
+                      <span className="block text-[11px] text-primary truncate">{o.parallel ?? parallelOf(o.name) ?? "Base"}</span>
+                      {o.japanese && <span className="block text-[10px] text-muted-foreground">Japanese</span>}
                       <span className="mt-1 block font-semibold tabular-nums text-foreground">{p != null ? usd(p) : "—"}</span>
                     </button>
                   );
