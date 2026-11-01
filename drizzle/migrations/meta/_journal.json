@@ -50,6 +50,13 @@
       "when": 1793541444920,
       "tag": "0006_cards_number_variant",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1793543447077,
+      "tag": "0007_pc_refresh_cards_from_catalog",
+      "breakpoints": true
     }
   ]
 }
