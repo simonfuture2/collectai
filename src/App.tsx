@@ -27,6 +27,7 @@ const HowItWorks = lazy(() => import("./pages/HowItWorks"));
 const Admin = lazy(() => import("./pages/Admin"));
 const IdBakeoff = lazy(() => import("./pages/admin/IdBakeoff"));
 const AgentHQ = lazy(() => import("./pages/admin/AgentHQ"));
+const PriceCheckLab = lazy(() => import("./pages/admin/PriceCheckLab"));
 const SharedCard = lazy(() => import("./pages/SharedCard"));
 const PublicCollection = lazy(() => import("./pages/PublicCollection"));
 const Showcase = lazy(() => import("./pages/Showcase"));
@@ -147,6 +148,7 @@ const App = () => (
               <Route path="/admin" element={<Admin />} />
               <Route path="/admin/id-bakeoff" element={<IdBakeoff />} />
               <Route path="/admin/agent" element={<AgentHQ />} />
+              <Route path="/admin/price-check-lab" element={<PriceCheckLab />} />
               <Route path="/partners" element={<PartnerSignup />} />
               <Route path="/free-guide" element={<FreeGuide />} />
               <Route path="/card/share/:id" element={<SharedCard />} />
