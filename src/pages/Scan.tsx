@@ -21,6 +21,8 @@ import CameraWarmup from "@/components/CameraWarmup";
 import { cn } from "@/lib/utils";
 import BarcodeScanner from "@/components/sealed/BarcodeScanner";
 import { usePriceCheckAccess } from "@/hooks/use-price-check-access";
+import { addToSession } from "@/lib/priceSession";
+import PriceSessionTray from "@/components/PriceSessionTray";
 
 const WARMUP_KEY = "mca-camera-warmup-seen";
 const EVENT_KEY = "mca-insight-event";
@@ -150,6 +152,8 @@ const Scan = () => {
       if (!data?.priceCheckId) throw new Error("Price check didn't return a result");
       setScanDone(true);
       setSlots(DEFAULT_SLOTS);
+      const raw = Number(data.selected?.ladder?.ungraded);
+      addToSession({ priceCheckId: data.priceCheckId, imagePath: filePath, name: data.selected?.name ?? data.identification?.best?.name ?? "Unidentified card", price: Number.isFinite(raw) && raw > 0 ? raw : null, at: Date.now() });
       navigate(`/price/${data.priceCheckId}`);
     } catch (error: any) {
       toast({ title: "Price check failed", description: error.message, variant: "destructive" });
