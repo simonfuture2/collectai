@@ -399,6 +399,7 @@ export type Database = {
           authentication_data: Json | null
           authentiseal_serial: string | null
           card_name: string | null
+          card_number: string | null
           card_set: string | null
           card_year: string | null
           category: string | null
@@ -434,6 +435,7 @@ export type Database = {
           upc: string | null
           updated_at: string
           user_id: string
+          variant: string | null
         }
         Insert: {
           ai_analysis?: Json | null
@@ -447,6 +449,7 @@ export type Database = {
           authentication_data?: Json | null
           authentiseal_serial?: string | null
           card_name?: string | null
+          card_number?: string | null
           card_set?: string | null
           card_year?: string | null
           category?: string | null
@@ -482,6 +485,7 @@ export type Database = {
           upc?: string | null
           updated_at?: string
           user_id: string
+          variant?: string | null
         }
         Update: {
           ai_analysis?: Json | null
@@ -495,6 +499,7 @@ export type Database = {
           authentication_data?: Json | null
           authentiseal_serial?: string | null
           card_name?: string | null
+          card_number?: string | null
           card_set?: string | null
           card_year?: string | null
           category?: string | null
@@ -530,6 +535,7 @@ export type Database = {
           upc?: string | null
           updated_at?: string
           user_id?: string
+          variant?: string | null
         }
         Relationships: [
           {
