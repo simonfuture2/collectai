@@ -1,3 +1,4 @@
+import PriceChartingAttribution from "@/components/PriceChartingAttribution";
 import BetaEndedPrompt from "@/components/BetaEndedPrompt";
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { useNavigate, Link } from "react-router-dom";
@@ -153,7 +154,7 @@ const Collection = () => {
     if (user) {
       supabase
         .from("cards")
-        .select("id, image_url, card_name, card_set, card_year, rarity, category, condition_grade, estimated_value_low, estimated_value_high, authentiseal_serial, is_authenticated, grading_company, grading_cert_number, grade_numeric, ebay_recent_sales, item_type, analysis_depth, analysis_status, analysis_started_at")
+        .select("id, image_url, card_name, card_set, card_year, rarity, category, condition_grade, estimated_value_low, estimated_value_high, authentiseal_serial, is_authenticated, grading_company, grading_cert_number, grade_numeric, ebay_recent_sales, item_type, analysis_depth, analysis_status, analysis_started_at, pricecharting_id")
         .eq("user_id", user.id)
         .eq("scan_purpose", "collection")
         .is("superseded_by_card_id", null)
@@ -465,6 +466,7 @@ const Collection = () => {
                 {filtered.length}{filtered.length !== cards.length ? `/${cards.length}` : ""} items
               </p>
               <p className="text-sm sm:text-lg font-display font-bold text-gradient-primary leading-tight">~${totalValue.toFixed(0)}</p>
+              {filtered.some((c: any) => c.pricecharting_id) && <PriceChartingAttribution hideLink className="justify-end text-[10px]" />}
             </div>
             <ThemeToggle />
           </div>

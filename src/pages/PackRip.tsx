@@ -1,3 +1,4 @@
+import PriceChartingAttribution from "@/components/PriceChartingAttribution";
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -173,6 +174,7 @@ const PackRip = () => {
           <div><p className="text-xs text-muted-foreground">Pack total · {pulls.length} pulls</p><p className="text-2xl font-bold text-primary">{usd(summary.total_value)}</p></div>
           <div className="min-w-0"><p className="text-xs text-muted-foreground">Biggest hit</p><p className="font-semibold truncate">{summary.best_pull_name || "—"}</p>{summary.best_pull_value != null && <p className="text-sm text-primary">{usd(summary.best_pull_value)}</p>}</div>
         </div>
+        {pulls.length > 0 && <PriceChartingAttribution hideLink className="w-full pt-1" />}
       </div>
     </header>
     <main className="container max-w-5xl mx-auto px-4 py-8 space-y-6">

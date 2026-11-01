@@ -1,3 +1,4 @@
+import PriceChartingAttribution from "@/components/PriceChartingAttribution";
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -242,12 +243,7 @@ const PriceResult = () => {
                   </section>
                 )}
 
-                <section className="flex items-center justify-between gap-3">
-                  <p className="text-xs text-muted-foreground">Prices from PriceCharting</p>
-                  <Button asChild variant="outline" size="sm">
-                    <a href={c.url} target="_blank" rel="noopener noreferrer">View on PriceCharting <ExternalLink className="ml-1 w-3.5 h-3.5" /></a>
-                  </Button>
-                </section>
+                <PriceChartingAttribution productId={c.productId} url={c.url} />
               </>
             )}
           </>

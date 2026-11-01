@@ -105,6 +105,15 @@ const About = () => {
         </div>
       </section>
 
+      <section className="mb-8">
+        <h2 className="text-xl font-display font-bold mb-3">Data sources</h2>
+        <ul className="list-disc pl-5 space-y-1 text-sm text-muted-foreground">
+          <li><strong className="text-foreground">Values:</strong> <a href="https://www.pricecharting.com" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">PriceCharting</a></li>
+          <li><strong className="text-foreground">Cross-checks:</strong> recent eBay sales and TCGplayer prices</li>
+          <li><strong className="text-foreground">Updates:</strong> prices are refreshed daily</li>
+        </ul>
+      </section>
+
       {/* Data deletion + contact */}
       <section className="p-5 rounded-xl bg-muted/50 border border-border">
         <p className="text-sm text-muted-foreground leading-relaxed">

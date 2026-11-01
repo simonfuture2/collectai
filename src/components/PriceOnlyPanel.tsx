@@ -1,3 +1,4 @@
+import PriceChartingAttribution from "@/components/PriceChartingAttribution";
 import { useState } from "react";
 import { ExternalLink, Loader2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -56,14 +57,7 @@ export default function PriceOnlyPanel({ card, onUpgraded }: Props) {
           ))}
         </div>
       )}
-      <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-        <span>Prices from PriceCharting{card.pc_synced_at ? ` · ${new Date(card.pc_synced_at).toLocaleDateString()}` : ""}</span>
-        {card.pricecharting_id && (
-          <a href={`https://www.pricecharting.com/offers?product=${card.pricecharting_id}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
-            View on PriceCharting <ExternalLink className="w-3 h-3" />
-          </a>
-        )}
-      </div>
+      <PriceChartingAttribution productId={card.pricecharting_id} syncedAt={card.pc_synced_at} />
       <Button className="w-full gradient-primary text-primary-foreground" onClick={upgrade} disabled={busy}>
         {busy ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Sparkles className="w-4 h-4 mr-2" />}
         Get full analysis · {isPro ? "Free with Pro" : "1 credit"}

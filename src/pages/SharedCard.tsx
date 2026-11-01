@@ -1,3 +1,4 @@
+import PriceChartingAttribution from "@/components/PriceChartingAttribution";
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -19,6 +20,7 @@ interface SharedCardData {
   rarity: string | null;
   category: string | null;
   image_url: string;
+  pricecharting_id: number | null;
 }
 
 export default function SharedCard() {
@@ -36,7 +38,7 @@ export default function SharedCard() {
 
       const { data, error } = await supabase
         .from("cards")
-        .select("id, card_name, card_set, card_year, condition_grade, estimated_value_low, estimated_value_high, rarity, category, image_url")
+        .select("id, card_name, card_set, card_year, condition_grade, estimated_value_low, estimated_value_high, rarity, category, image_url, pricecharting_id")
         .eq("id", id)
         .eq("is_public", true)
         .maybeSingle();
@@ -169,6 +171,7 @@ export default function SharedCard() {
             <p className="text-2xl font-display font-bold">${avgValue.toFixed(2)}</p>
             <p className="text-xs opacity-70">${card.estimated_value_low?.toFixed(2)} – ${card.estimated_value_high?.toFixed(2)}</p>
           </div>
+          {card.pricecharting_id && <PriceChartingAttribution productId={card.pricecharting_id} className="col-span-2 order-last" />}
           <div className="bg-card border border-border rounded-xl p-4">
             <p className="text-sm text-muted-foreground">SI Grade</p>
             <p className="text-xl font-display font-bold">{card.condition_grade || "N/A"}</p>
