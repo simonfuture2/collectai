@@ -150,7 +150,7 @@ const Collection = () => {
     if (user) {
       supabase
         .from("cards")
-        .select("id, image_url, card_name, card_set, card_year, rarity, category, condition_grade, estimated_value_low, estimated_value_high, authentiseal_serial, is_authenticated, grading_company, grading_cert_number, grade_numeric, ebay_recent_sales, item_type")
+        .select("id, image_url, card_name, card_set, card_year, rarity, category, condition_grade, estimated_value_low, estimated_value_high, authentiseal_serial, is_authenticated, grading_company, grading_cert_number, grade_numeric, ebay_recent_sales, item_type, analysis_depth")
         .eq("user_id", user.id)
         .eq("scan_purpose", "collection")
         .is("superseded_by_card_id", null)
@@ -806,6 +806,7 @@ const Collection = () => {
                       <span className="flex items-center gap-1.5">
                         {(card as any).item_type === "sealed" && <Package className="w-3.5 h-3.5 text-secondary flex-shrink-0" aria-label="Sealed" />}
                         {card.card_name || "Unknown"}
+                        {(card as any).analysis_depth === "price_only" && <Badge variant="outline" className="text-[9px] border-primary text-primary">Price only</Badge>}
                         {card.authentiseal_serial && (
                           <span title="AuthentiSeal Certified"><Shield className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" /></span>
                         )}
@@ -905,6 +906,9 @@ const Collection = () => {
                           <FoilBadge label={`$${Math.round(cardValue(card))}+`} />
                         </div>
                       ) : null}
+                      {(card as any).analysis_depth === "price_only" && (
+                        <span className="absolute bottom-1.5 right-1.5 z-10 text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-primary text-primary-foreground">Price only</span>
+                      )}
                       {(card as any).item_type === "sealed" && (
                         <span className="absolute top-1.5 left-1.5 z-10 bg-secondary/90 text-secondary-foreground p-1 rounded-md" title="Sealed product">
                           <Package className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
