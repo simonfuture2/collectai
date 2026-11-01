@@ -30,3 +30,10 @@ export const ungradedPrice = (l: Ladder | null | undefined) => (has(l, "ungraded
 
 /** Parallel/variant text from a PriceCharting product name, e.g. "Charizard [Reverse Holo] #4". */
 export const parallelOf = (name: string) => name.match(/\[([^\]]+)\]/)?.[1] ?? null;
+
+/** Hero price for a slab's grade rung; null rung = raw card. Never falls back to another grade. */
+export const slabHero = (l: Ladder | null | undefined, rung: string | null | undefined) =>
+  rung ? { rung, value: has(l, rung) ? Number(l![rung]) : null } : null;
+
+export const languageChip = (lang: string | null | undefined) =>
+  lang === "japanese" ? "Japanese" : lang === "korean" ? "Korean" : null;

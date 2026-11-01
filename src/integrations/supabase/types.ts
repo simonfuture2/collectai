@@ -1186,11 +1186,13 @@ export type Database = {
           added_card_id: string | null
           candidates: Json | null
           created_at: string
+          game: string | null
           id: string
           identification: Json | null
           image_path: string | null
           latency_ms: number | null
           pack_rip_id: string | null
+          picked_rank: number | null
           selected_prices: Json | null
           selected_product_id: number | null
           source: string | null
@@ -1200,11 +1202,13 @@ export type Database = {
           added_card_id?: string | null
           candidates?: Json | null
           created_at?: string
+          game?: string | null
           id?: string
           identification?: Json | null
           image_path?: string | null
           latency_ms?: number | null
           pack_rip_id?: string | null
+          picked_rank?: number | null
           selected_prices?: Json | null
           selected_product_id?: number | null
           source?: string | null
@@ -1214,11 +1218,13 @@ export type Database = {
           added_card_id?: string | null
           candidates?: Json | null
           created_at?: string
+          game?: string | null
           id?: string
           identification?: Json | null
           image_path?: string | null
           latency_ms?: number | null
           pack_rip_id?: string | null
+          picked_rank?: number | null
           selected_prices?: Json | null
           selected_product_id?: number | null
           source?: string | null
@@ -1954,6 +1960,15 @@ export type Database = {
       }
       pc_acquire_slot: { Args: never; Returns: number }
       pc_refresh_cards_from_catalog: { Args: never; Returns: Json }
+      price_check_accuracy: {
+        Args: { _days?: number }
+        Returns: {
+          game: string
+          top1_pct: number
+          top3_pct: number
+          total: number
+        }[]
+      }
       read_email_batch: {
         Args: { batch_size: number; queue_name: string; vt: number }
         Returns: {

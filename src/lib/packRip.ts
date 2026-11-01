@@ -1,6 +1,6 @@
 import type { TablesInsert, Json } from "@/integrations/supabase/types";
 
-export type PriceCandidate = { productId: number; name: string; set: string | null; number: string | null; ladder: Record<string, number>; url: string };
+export type PriceCandidate = { productId: number; name: string; set: string | null; number: string | null; ladder: Record<string, number>; url: string; parallel?: string | null; rank?: number; japanese?: boolean };
 export type PackPull = {
   priceCheckId: string; cardName: string; cardSet?: string | null;
   selected: PriceCandidate | null; imagePath: string; imagePreview?: string;

@@ -19,3 +19,11 @@ test("parallel is read from brackets in the product name", () => {
   assert.equal(parallelOf("Charizard [Reverse Holo] #4"), "Reverse Holo");
   assert.equal(parallelOf("Pikachu #25"), null);
 });
+
+test("slab hero uses only its own grade", async () => {
+  const { slabHero, languageChip } = await import("./priceLadder.ts");
+  assert.deepEqual(slabHero({ ungraded: 5, psa10: 100 }, "psa10"), { rung: "psa10", value: 100 });
+  assert.deepEqual(slabHero({ ungraded: 5 }, "grade9"), { rung: "grade9", value: null });
+  assert.equal(slabHero({ ungraded: 5 }, null), null);
+  assert.equal(languageChip("korean"), "Korean");
+});
