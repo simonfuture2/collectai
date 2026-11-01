@@ -1,15 +1,12 @@
 // Client-callable wrapper that re-runs the full enrich-card pipeline for an
 // existing card row the user already owns. Validates ownership, regenerates a
 // signed image URL from the stored image_path, and dispatches enrich-card.
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "npm:@supabase/supabase-js@2";
+import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
+import { z } from "npm:zod@3";
+import { PRICE_ONLY_UPGRADE_CREDITS } from "./rules.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
-
-serve(async (req) => {
+Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
@@ -32,18 +29,18 @@ serve(async (req) => {
       });
     }
 
-    const body = await req.json().catch(() => ({}));
-    const cardId = String(body.cardId || "").trim();
-    if (!cardId) {
-      return new Response(JSON.stringify({ error: "cardId required" }), {
+    const parsed = z.object({ cardId: z.string().uuid(), priceOnlyUpgrade: z.boolean().optional() }).safeParse(await req.json().catch(() => null));
+    if (!parsed.success) {
+      return new Response(JSON.stringify({ error: "Valid cardId required" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    const { cardId, priceOnlyUpgrade } = parsed.data;
 
     const supabaseAdmin = createClient(supabaseUrl, serviceKey);
     const { data: card, error: cardErr } = await supabaseAdmin
       .from("cards")
-      .select("id, user_id, image_url, category")
+      .select("id, user_id, image_url, category, analysis_depth, analysis_status")
       .eq("id", cardId)
       .maybeSingle();
     if (cardErr || !card) {
@@ -78,6 +75,26 @@ serve(async (req) => {
         });
       }
       signedUrl = signed.signedUrl;
+    }
+
+    // Claim price-only upgrades before billing so concurrent requests cannot charge twice.
+    if (priceOnlyUpgrade || card.analysis_depth === "price_only") {
+      const { data: claimed, error: claimError } = await supabaseAdmin.from("cards")
+        .update({ analysis_status: "identifying", analysis_started_at: new Date().toISOString() })
+        .eq("id", cardId).eq("user_id", user.id).eq("analysis_depth", "price_only").eq("analysis_status", "complete")
+        .select("id").maybeSingle();
+      if (claimError || !claimed) return new Response(JSON.stringify({ error: "Analysis has already been requested for this card" }), {
+        status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+      // Exactly one credit, including Pro accounts; the free price-check flow never reaches this action.
+      const { data: remaining, error: creditError } = await supabaseAdmin.rpc("deduct_credit", { _user_id: user.id });
+      if (creditError || remaining == null || remaining < 0) {
+        await supabaseAdmin.from("cards").update({ analysis_status: "complete", analysis_started_at: null }).eq("id", cardId);
+        return new Response(JSON.stringify({ error: `Full analysis requires ${PRICE_ONLY_UPGRADE_CREDITS} credit` }), {
+          status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      await supabaseAdmin.from("cards").update({ analysis_depth: "full" }).eq("id", cardId);
     }
 
     // Reset analysis state so the UI shows the in-progress flow.

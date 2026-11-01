@@ -1,0 +1,1 @@
+export const PRICE_ONLY_UPGRADE_CREDITS = 1;
