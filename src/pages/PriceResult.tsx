@@ -186,14 +186,14 @@ const PriceResult = () => {
                 <p className="text-sm text-muted-foreground">We couldn't find this card in PriceCharting, so we're not showing a price.</p>
                 <div className="flex flex-col gap-2">
                   <Button variant="outline" onClick={() => setSearchOpen(true)}><Search className="mr-2 w-4 h-4" />Search</Button>
-                  <Button className="gradient-primary text-primary-foreground" disabled={!!busy} onClick={fullAnalysis}>
+                  <Button disabled={!!busy} onClick={fullAnalysis}>
                     {busy === "full" ? <Loader2 className="mr-2 w-4 h-4 animate-spin" /> : <Sparkles className="mr-2 w-4 h-4" />}Run full analysis · 1 credit
                   </Button>
                 </div>
               </section>
             ) : (
               <>
-                <section className="rounded-3xl gradient-primary p-5 text-primary-foreground shadow-lg">
+                <section className="rounded-3xl bg-primary p-5 text-primary-foreground shadow-lg">
                   <p className="text-xs font-medium uppercase tracking-wider opacity-90">Ungraded · PriceCharting</p>
                   <p className="mt-1 font-display text-5xl font-bold tabular-nums">{raw != null ? usd(raw) : "—"}</p>
                   {raw == null && <p className="mt-1 text-sm opacity-90">No ungraded price listed.</p>}
@@ -272,7 +272,7 @@ const PriceResult = () => {
               <Button variant="outline" className="h-auto py-2.5 flex-col gap-1 text-xs whitespace-normal" disabled={!!busy || !!cardId} onClick={addToCollection}>
                 {busy === "add" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}{cardId ? "In collection" : "Add to collection (free)"}
               </Button>
-              <Button className="h-auto py-2.5 flex-col gap-1 text-xs whitespace-normal gradient-primary text-primary-foreground" disabled={!!busy} onClick={fullAnalysis}>
+              <Button className="h-auto py-2.5 flex-col gap-1 text-xs whitespace-normal" disabled={!!busy} onClick={fullAnalysis}>
                 {busy === "full" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}Full analysis · 1 credit
               </Button>
             </div>
