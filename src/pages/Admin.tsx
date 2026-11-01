@@ -244,7 +244,7 @@ const Admin = () => {
           </TabsList>
 
 
-          <TabsContent value="accuracy"><MatchAccuracyTab /></TabsContent>
+          <TabsContent value="accuracy"><div className="mb-4"><Link to="/admin/price-check-lab"><Button variant="outline">Open Price Check Lab</Button></Link></div><MatchAccuracyTab /></TabsContent>
           <TabsContent value="pc-purge"><PurgePriceChartingTab /></TabsContent>
 
           {/* Users Tab */}
