@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useCredits } from "@/hooks/use-credits";
 import { cn } from "@/lib/utils";
 import { packSummary, priceOnlyCard, storedPulls, type PackPull, type PriceCandidate } from "@/lib/packRip";
+import { updateSessionPick } from "@/lib/priceSession";
 import { gradedChips, ladderRows, parallelOf, ungradedPrice } from "@/lib/priceLadder";
 
 type Reading = { name?: string; number?: string; set?: string; year?: string };
@@ -42,6 +43,8 @@ const PriceResult = () => {
   const [results, setResults] = useState<PriceCandidate[]>([]);
   const [searching, setSearching] = useState(false);
   const saveSeq = useRef(0);
+
+  useEffect(() => { import("./Scan"); }, []);
 
   useEffect(() => {
     (async () => {
@@ -88,6 +91,7 @@ const PriceResult = () => {
   const choose = async (o: PriceCandidate) => {
     if (o.productId === selectedId) return;
     setSelectedId(o.productId); setExpanded(false);
+    if (priceCheckId) updateSessionPick(priceCheckId, o.name, ungradedPrice(o.ladder));
     if (!candidates.some(x => x.productId === o.productId)) setCandidates(prev => [...prev, o]);
     const seq = ++saveSeq.current;
     try {

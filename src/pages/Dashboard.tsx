@@ -23,6 +23,7 @@ import SEO from "@/components/SEO";
 const PortfolioAnalytics = lazy(() => import("@/components/PortfolioAnalytics"));
 const ReferralCard = lazy(() => import("@/components/ReferralCard"));
 const ConnectedAccounts = lazy(() => import("@/components/ConnectedAccounts"));
+const PriceCheckHistory = lazy(() => import("@/components/PriceCheckHistory"));
 const TransactionHistory = lazy(() => import("@/components/TransactionHistory"));
 
 interface Card {
@@ -259,6 +260,9 @@ const Dashboard = () => {
                   </div>
                   <div className="mt-6">
                     <TransactionHistory />
+                  </div>
+                  <div className="mt-6">
+                    <PriceCheckHistory />
                   </div>
                 </Suspense>
                 <div className="mt-6 border-t border-border pt-6">
