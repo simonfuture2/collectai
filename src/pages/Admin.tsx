@@ -26,6 +26,7 @@ import AdminsTab from "@/components/admin/AdminsTab";
 import BetaTab from "@/components/admin/BetaTab";
 import BetaAuditTab from "@/components/admin/BetaAuditTab";
 import MatchAccuracyTab from "@/components/admin/MatchAccuracyTab";
+import PurgePriceChartingTab from "@/components/admin/PurgePriceChartingTab";
 
 import { toast } from "sonner";
 
@@ -238,11 +239,13 @@ const Admin = () => {
             <TabsTrigger value="beta-audit">Beta Audit</TabsTrigger>
             <TabsTrigger value="admins">Admins</TabsTrigger>
             <TabsTrigger value="accuracy">Match accuracy</TabsTrigger>
+            <TabsTrigger value="pc-purge">PriceCharting data</TabsTrigger>
 
           </TabsList>
 
 
           <TabsContent value="accuracy"><MatchAccuracyTab /></TabsContent>
+          <TabsContent value="pc-purge"><PurgePriceChartingTab /></TabsContent>
 
           {/* Users Tab */}
           <TabsContent value="users">
