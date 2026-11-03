@@ -104,84 +104,112 @@ function normalizeResult(parsed: any): CardIdentification {
   };
 }
 
-export async function identifyWithGemini(
-  imageInput: string,
-  model: string = "gemini-3.5-flash",
-): Promise<CardIdentification | null> {
+/** Why the last vision call failed on BOTH routes (null when it succeeded). */
+export type GeminiFailure = "rate_limited" | "credits_exhausted" | "error";
+export let lastGeminiFailure: GeminiFailure | null = null;
+
+const DIRECT_TIMEOUT_MS = 6000;
+
+type VisionReq = {
+  img: { base64: string; mimeType: string };
+  system?: string;
+  prompt: string;
+  model: string;
+  maxOutputTokens?: number;
+};
+
+async function callGoogleDirect(r: VisionReq): Promise<string | null> {
   const apiKey = Deno.env.get("GEMINI_API_KEY");
-  if (!apiKey) {
-    console.error("[gemini] GEMINI_API_KEY not configured");
-    return null;
-  }
-
-  const img = await normalizeImage(imageInput);
-  if (!img) return null;
-
+  if (!apiKey) { console.warn("[gemini] route=direct skipped: no key"); return null; }
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), DIRECT_TIMEOUT_MS);
   try {
-    const url =
-      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(r.model)}:generateContent?key=${apiKey}`;
     const res = await fetch(url, {
       method: "POST",
+      signal: ctrl.signal,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        system_instruction: { parts: [{ text: IDENTIFY_SYSTEM_PROMPT }] },
-        contents: [
-          {
-            role: "user",
-            parts: [
-              { inline_data: { mime_type: img.mimeType, data: img.base64 } },
-              { text: USER_MSG },
-            ],
-          },
-        ],
-        generationConfig: {
-          responseMimeType: "application/json",
-          thinkingConfig: { thinkingLevel: "low" },
-        },
+        ...(r.system ? { system_instruction: { parts: [{ text: r.system }] } } : {}),
+        contents: [{ role: "user", parts: [{ inline_data: { mime_type: r.img.mimeType, data: r.img.base64 } }, { text: r.prompt }] }],
+        generationConfig: { responseMimeType: "application/json", thinkingConfig: { thinkingLevel: "low" }, ...(r.maxOutputTokens ? { maxOutputTokens: r.maxOutputTokens } : {}) },
       }),
     });
-
-    if (!res.ok) {
-      const body = await res.text().catch(() => "");
-      console.error("[gemini] HTTP", res.status, body.slice(0, 500));
-      return null;
-    }
-
+    if (!res.ok) { console.warn("[gemini] route=direct failed HTTP", res.status, (await res.text().catch(() => "")).slice(0, 200)); return null; }
     const data = await res.json();
-    const parts = data?.candidates?.[0]?.content?.parts ?? [];
-    const text = parts.map((p: any) => p?.text ?? "").join("").trim();
-    const parsed = parseJsonLoose(text);
-    if (!parsed) {
-      console.error("[gemini] parse failed", text.slice(0, 300));
+    const text = (data?.candidates?.[0]?.content?.parts ?? []).map((p: any) => p?.text ?? "").join("").trim();
+    return text || null;
+  } catch (err) {
+    console.warn("[gemini] route=direct failed", (err as Error)?.name === "AbortError" ? "timeout" : String(err));
+    return null;
+  } finally { clearTimeout(t); }
+}
+
+async function callGateway(r: VisionReq): Promise<string | null> {
+  const key = Deno.env.get("LOVABLE_API_KEY");
+  if (!key) { console.error("[gemini] route=gateway skipped: no LOVABLE_API_KEY"); lastGeminiFailure = "error"; return null; }
+  const model = r.model.includes("/") ? r.model : `google/${r.model}`;
+  try {
+    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model,
+        messages: [
+          ...(r.system ? [{ role: "system", content: r.system }] : []),
+          { role: "user", content: [
+            { type: "image_url", image_url: { url: `data:${r.img.mimeType};base64,${r.img.base64}` } },
+            { type: "text", text: r.prompt },
+          ] },
+        ],
+        response_format: { type: "json_object" },
+        reasoning_effort: "low",
+        ...(r.maxOutputTokens ? { max_tokens: r.maxOutputTokens } : {}),
+      }),
+    });
+    if (!res.ok) {
+      lastGeminiFailure = res.status === 429 ? "rate_limited" : res.status === 402 ? "credits_exhausted" : "error";
+      console.error("[gemini] route=gateway failed", lastGeminiFailure, res.status, (await res.text().catch(() => "")).slice(0, 200));
       return null;
     }
-    return normalizeResult(parsed);
+    const data = await res.json();
+    const c = data?.choices?.[0]?.message?.content;
+    const text = (Array.isArray(c) ? c.map((p: any) => p?.text ?? "").join("") : String(c ?? "")).trim();
+    if (!text) lastGeminiFailure = "error";
+    return text || null;
   } catch (err) {
-    console.error("[gemini] request error", err);
+    lastGeminiFailure = "error";
+    console.error("[gemini] route=gateway error", err);
     return null;
   }
 }
 
+/** Google direct first; on any failure (incl. unparseable output) fall back to the built-in gateway. */
+async function visionJsonWithFallback(r: VisionReq): Promise<any | null> {
+  lastGeminiFailure = null;
+  const direct = await callGoogleDirect(r);
+  const dp = direct ? parseJsonLoose(direct) : null;
+  if (dp) { console.log("[gemini] route=direct"); return dp; }
+  const gw = await callGateway(r);
+  const gp = gw ? parseJsonLoose(gw) : null;
+  if (gp) { console.log("[gemini] route=gateway"); lastGeminiFailure = null; return gp; }
+  if (!lastGeminiFailure) lastGeminiFailure = "error";
+  return null;
+}
 
-/** Generic vision → JSON call (same API, same default model). Returns parsed JSON or null. */
-export async function geminiVisionJson(imageInput: string, prompt: string, model: string = "gemini-3.5-flash", maxOutputTokens?: number): Promise<any | null> {
-  const apiKey = Deno.env.get("GEMINI_API_KEY");
-  if (!apiKey) { console.error("[gemini] GEMINI_API_KEY not configured"); return null; }
+export async function identifyWithGemini(
+  imageInput: string,
+  model: string = "gemini-3.5-flash",
+): Promise<CardIdentification | null> {
   const img = await normalizeImage(imageInput);
   if (!img) return null;
-  try {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${apiKey}`;
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ role: "user", parts: [{ inline_data: { mime_type: img.mimeType, data: img.base64 } }, { text: prompt }] }],
-        generationConfig: { responseMimeType: "application/json", thinkingConfig: { thinkingLevel: "low" }, ...(maxOutputTokens ? { maxOutputTokens } : {}) },
-      }),
-    });
-    if (!res.ok) { console.error("[gemini] HTTP", res.status, (await res.text().catch(() => "")).slice(0, 300)); return null; }
-    const data = await res.json();
-    const text = (data?.candidates?.[0]?.content?.parts ?? []).map((p: any) => p?.text ?? "").join("").trim();
-    return parseJsonLoose(text);
-  } catch (err) { console.error("[gemini] vision error", err); return null; }
+  const parsed = await visionJsonWithFallback({ img, system: IDENTIFY_SYSTEM_PROMPT, prompt: USER_MSG, model });
+  return parsed ? normalizeResult(parsed) : null;
+}
+
+/** Generic vision → JSON call. Returns parsed JSON or null. */
+export async function geminiVisionJson(imageInput: string, prompt: string, model: string = "gemini-3.5-flash", maxOutputTokens?: number): Promise<any | null> {
+  const img = await normalizeImage(imageInput);
+  if (!img) return null;
+  return await visionJsonWithFallback({ img, prompt, model, maxOutputTokens });
 }

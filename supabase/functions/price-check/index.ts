@@ -3,7 +3,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { z } from "npm:zod@3";
-import { geminiVisionJson } from "../_shared/gemini.ts";
+import { geminiVisionJson, lastGeminiFailure } from "../_shared/gemini.ts";
 import {
   normalizeLadder,
   scoreSetName,
@@ -143,6 +143,8 @@ Deno.serve(async (req) => {
   const ai = await geminiVisionJson(signed.data.signedUrl, PROMPT, "gemini-3.5-flash", 400);
   mark("identify_ms", t);
   if (ai === null) {
+    if (lastGeminiFailure === "rate_limited") return json({ error: "AI busy, try again in a moment." }, 429);
+    if (lastGeminiFailure === "credits_exhausted") return json({ error: "AI credits used up. Please try again later." }, 402);
     return json({ error: "Price Check is temporarily unavailable. Please try again shortly." }, 503);
   }
   const readings: Reading[] = [ai?.best, ...(Array.isArray(ai?.alternates) ? ai.alternates.slice(0, 2) : [])]
