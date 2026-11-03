@@ -1,5 +1,6 @@
 import { Maximize, SunDim, Shield, Square } from "lucide-react";
 import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
+import { Switch } from "@/components/ui/switch";
 
 const TIPS = [
   { icon: Maximize, text: "Fill most of the screen with the card." },
@@ -8,7 +9,7 @@ const TIPS = [
   { icon: Square, text: "One card at a time, on a plain surface." },
 ];
 
-export default function HelpSheet({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
+export default function HelpSheet({ open, onOpenChange, effects, onEffects }: { open: boolean; onOpenChange: (o: boolean) => void; effects: boolean; onEffects: (on: boolean) => void }) {
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
       <DrawerContent>
@@ -24,6 +25,13 @@ export default function HelpSheet({ open, onOpenChange }: { open: boolean; onOpe
               </div>
             ))}
           </div>
+          <label className="mt-4 flex items-center justify-between rounded-2xl bg-muted p-3">
+            <span>
+              <span className="block text-sm font-semibold">Scan effects</span>
+              <span className="text-xs text-muted-foreground">Laser beam and glowing edges. Turn off to save battery.</span>
+            </span>
+            <Switch checked={effects} onCheckedChange={onEffects} aria-label="Scan effects" />
+          </label>
         </div>
       </DrawerContent>
     </Drawer>

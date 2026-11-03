@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useLiveScanner } from "@/hooks/use-live-scanner";
+import { FX, drawScanFx, lerpQuad, type FxColors, type SQuad } from "@/lib/scanFx";
 import { Capacitor } from "@capacitor/core";
 import { Haptics, ImpactStyle } from "@capacitor/haptics";
 import {
@@ -237,6 +238,7 @@ export default function LiveScan() {
     void skipDup; // the cooldown (not this function) decides whether a card is new
     busyRef.current = true;
     sc.setPhase("capturing");
+    if (Capacitor.isNativePlatform()) Haptics.impact({ style: ImpactStyle.Medium }).catch(() => {}); else navigator.vibrate?.(8);
     capturingRef.current = true; pulseRef.current = performance.now();
     const seenAt = firstSeenRef.current || performance.now();
     const tempId = `tmp-${Date.now()}`;
@@ -353,7 +355,7 @@ export default function LiveScan() {
       const now = performance.now();
       const phase = sc.phaseRef.current;
       const dbg = sc.debugRef.current;
-      if (loopPaused(phase)) { draw(); return; }
+      if (loopPaused(phase)) return;
       sc.tickFrame(now);
 
       const FW = LIVE.FRAME_WIDTH, FH = Math.round(v.videoHeight * FW / v.videoWidth);
@@ -413,7 +415,7 @@ export default function LiveScan() {
       if (phase === "result" || phase === "error") {
         dbg.cooldownMs = Math.max(0, Math.round(sc.resultUntil.current - now));
         if (now >= sc.resultUntil.current) sc.setPhase("cooldown");
-        draw(); return;
+        return;
       }
       // Cooldown: wait for the card to leave or a different card to appear.
       if (phase === "cooldown") {
@@ -429,7 +431,7 @@ export default function LiveScan() {
           sc.setPhase("searching");
           setPill({ state: "searching", text: PILL.searching, progress: 0 });
         }
-        draw(); return;
+        return;
       }
 
       const s = settingsRef.current;
@@ -450,57 +452,68 @@ export default function LiveScan() {
         const text = hint ? "Point at a card – it scans automatically" : PILL[st];
         setPill(p => (p.state === st && p.text === text && !p.error ? p : { state: st, text, progress: 0 }));
       }
-      draw();
     }, LIVE.FRAME_INTERVAL_MS);
     return () => clearInterval(id);
   }, [perm, scanKind, videoReady, captureNow, guideQuad]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  /* ------------------------------ overlay drawing ------------------------------ */
-  const draw = () => {
-    const c = overlayRef.current, v = videoRef.current, root = rootRef.current;
-    if (!c || !v?.videoWidth || !root) return;
-    const dpr = window.devicePixelRatio || 1, cw = root.clientWidth, ch = root.clientHeight;
-    if (c.width !== cw * dpr) { c.width = cw * dpr; c.height = ch * dpr; }
-    const ctx = c.getContext("2d")!;
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.clearRect(0, 0, cw, ch);
-    const css = getComputedStyle(root);
-    const tok = (n: string) => `hsl(${css.getPropertyValue(n).trim()})`;
-    const s = Math.max(cw / v.videoWidth, ch / v.videoHeight), ox = (cw - v.videoWidth * s) / 2, oy = (ch - v.videoHeight * s) / 2;
-    const k = v.videoWidth / LIVE.FRAME_WIDTH;
-    const toS = (p: { x: number; y: number }) => ({ x: p.x * k * s + ox, y: p.y * k * s + oy });
-    const set = settingsRef.current;
-    const accent = set.mode === "insight" ? tok("--secondary") : set.mode === "collection" ? tok("--primary") : tok("--cam-fg");
-    const q = quadRef.current;
-    const ph = sc.phaseRef.current;
-    const st: ScanState = capturingRef.current || ph === "result" ? "capturing" : !q ? "searching" : pillRef.current;
-    const pts = (q ?? guideQuad())?.map(toS);
-    if (!pts) return;
-    const searching = !q;
-    const color = st === "capturing" ? tok("--cam-ok") : st === "steady" ? tok("--primary") : tok("--cam-fg");
-    ctx.lineJoin = "round"; ctx.lineCap = "round";
-    if (!searching) {
-      ctx.save();
-      ctx.strokeStyle = color;
-      ctx.shadowColor = color; ctx.shadowBlur = st === "closer" ? 0 : 16;
-      const pulse = st === "capturing" ? 2 + 2 * Math.abs(Math.sin((performance.now() - pulseRef.current) / 120)) : 3;
-      ctx.lineWidth = pulse;
-      ctx.beginPath(); pts.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y))); ctx.closePath(); ctx.stroke();
-      ctx.restore();
-    }
-    // L-shaped corner accents
-    ctx.strokeStyle = searching ? tok("--cam-fg") : accent;
-    const idle = searching && showIdleHint(sc.autoRef.current && !settingsRef.current.hardPaused, ph, performance.now(), sc.lastCardAt.current, sc.phaseSince.current);
-    ctx.globalAlpha = searching ? (idle ? 0.45 + 0.4 * Math.abs(Math.sin(performance.now() / 500)) : 0.55) : 1;
-    ctx.lineWidth = searching ? 3 : 5;
-    pts.forEach((p, i) => {
-      const a = pts[(i + 1) % 4], b = pts[(i + 3) % 4];
-      const L = (t: { x: number; y: number }) => { const d = Math.hypot(t.x - p.x, t.y - p.y) || 1; const len = Math.min(26, d * 0.25); return { x: p.x + (t.x - p.x) / d * len, y: p.y + (t.y - p.y) / d * len }; };
-      const pa = L(a), pb = L(b);
-      ctx.beginPath(); ctx.moveTo(pa.x, pa.y); ctx.lineTo(p.x, p.y); ctx.lineTo(pb.x, pb.y); ctx.stroke();
-    });
-    ctx.globalAlpha = 1;
-  };
+  /* ------------------------------ overlay drawing (laser-scan effects) ------------------------------ */
+  // Own requestAnimationFrame loop (up to 60 fps), separate from the ~10 fps detection loop.
+  // Visual only: reads quadRef / phase refs, never changes detection or capture.
+  const [fxOn, setFxOn] = useState(() => ls(FX.LS_KEY, "1") === "1");
+  const fxOnRef = useRef(fxOn); fxOnRef.current = fxOn;
+  const fxRef = useRef<{ from: SQuad | null; to: SQuad | null; at: number; src: unknown; resultAt: number | null; lastPhase: string }>({ from: null, to: null, at: 0, src: null, resultAt: null, lastPhase: "idle" });
+  useEffect(() => {
+    if (perm !== "live" || scanKind !== "card") return;
+    const reducedMq = window.matchMedia?.("(prefers-reduced-motion: reduce)");
+    let raf = 0;
+    let colors: FxColors | null = null;
+    const step = () => {
+      raf = requestAnimationFrame(step);
+      if (blockedRef.current || document.hidden) return;
+      const c = overlayRef.current, v = videoRef.current, root = rootRef.current;
+      if (!c || !v?.videoWidth || !root) return;
+      const dpr = window.devicePixelRatio || 1, cw = root.clientWidth, ch = root.clientHeight;
+      if (c.width !== Math.round(cw * dpr)) { c.width = Math.round(cw * dpr); c.height = Math.round(ch * dpr); colors = null; }
+      if (!colors) {
+        const css = getComputedStyle(root), g = (n: string) => css.getPropertyValue(n).trim();
+        colors = { gold: g("--primary"), ok: g("--cam-ok"), err: g("--destructive"), fg: g("--cam-fg"), azure: g("--secondary") };
+      }
+      const cols = colors;
+      const ctx = c.getContext("2d")!;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, cw, ch);
+      const s = Math.max(cw / v.videoWidth, ch / v.videoHeight), ox = (cw - v.videoWidth * s) / 2, oy = (ch - v.videoHeight * s) / 2;
+      const k = v.videoWidth / LIVE.FRAME_WIDTH;
+      const toS = (p: { x: number; y: number }) => ({ x: p.x * k * s + ox, y: p.y * k * s + oy });
+      const now = performance.now();
+      const fx = fxRef.current;
+      const src = quadRef.current;
+      const guide = !src;
+      const target = (src ?? guideQuad())?.map(toS) as SQuad | undefined;
+      if (!target) return;
+      // Interpolate corners between detection updates.
+      if (src !== fx.src || !fx.to) {
+        fx.from = fx.to && fx.from ? lerpQuad(fx.from, fx.to, Math.min(1, (now - fx.at) / FX.INTERP_MS)) : target;
+        fx.to = target; fx.at = now; fx.src = src;
+      }
+      const q = lerpQuad(fx.from!, fx.to, Math.min(1, (now - fx.at) / FX.INTERP_MS));
+      const phase = sc.phaseRef.current;
+      if (phase === "result" && fx.lastPhase !== "result") fx.resultAt = now;
+      fx.lastPhase = phase;
+      drawScanFx(ctx, {
+        q, guide, phase, phaseAge: now - sc.phaseSince.current, now,
+        steady: Math.min(1, sc.debugRef.current.steadyMs / LIVE.STEADY_MS),
+        resultAge: fx.resultAt != null ? now - fx.resultAt : null,
+        insight: settingsRef.current.mode === "insight",
+        reduced: !!reducedMq?.matches || !fxOnRef.current,
+        colors: cols,
+        a: (t, al) => `hsl(${cols[t]} / ${al})`,
+      });
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [perm, scanKind, guideQuad]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const cvStateRef = useRef(cvState);
   cvStateRef.current = cvState;
   const pillRef = useRef<ScanState>("searching");
@@ -836,7 +849,7 @@ export default function LiveScan() {
         busy={sheetBusy} cost={isPro ? "Free with Pro" : "1 credit"} />
       <ReviewSheet open={reviewOpen} onOpenChange={setReviewOpen} tiles={done} mode={mode} isPro={isPro} credits={credits}
         onSaveAll={saveAll} onFullAll={fullAll} onClear={clearAll} />
-      <HelpSheet open={helpOpen} onOpenChange={setHelpOpen} />
+      <HelpSheet open={helpOpen} onOpenChange={setHelpOpen} effects={fxOn} onEffects={(on) => { setFxOn(on); lsSet(FX.LS_KEY, on ? "1" : "0"); }} />
 
       <Drawer open={gameOpen} onOpenChange={setGameOpen}>
         <DrawerContent>
