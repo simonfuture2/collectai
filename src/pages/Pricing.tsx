@@ -54,7 +54,8 @@ const Pricing = () => {
   ];
 
   const freeFeatures = [
-    "3 Free Scans to Start",
+    "Free price checks (up to 100 cards an hour)",
+    "3 full AI scans",
     "Basic Card Identification",
     "Collection Management",
     "Market Value Estimates",

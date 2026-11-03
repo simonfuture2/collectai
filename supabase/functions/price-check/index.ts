@@ -14,8 +14,10 @@ import {
 } from "../_shared/pricecharting.ts";
 import { groupParallels, languageBoost, normLanguage, parallelLabel, slabRung, type Slab } from "./ranking.ts";
 
-const HOURLY_LIMIT = 60;
+const HOURLY_LIMIT = 100;
 const DAILY_LIMIT = 400;
+export const hourlyLimitMessage = () => `You've reached ${HOURLY_LIMIT} price checks this hour. Try again in a few minutes.`;
+export const dailyLimitMessage = () => `You've reached today's limit of ${DAILY_LIMIT} price checks. Try again tomorrow.`;
 const MAX_CANDIDATES = 8;
 // Categories held in the stored list. Lorcana / Dragon Ball count only once synced (checked at runtime).
 const CATALOG_CATEGORIES = new Set(["pokemon-cards", "magic-cards", "yugioh-cards", "onepiece-cards"]);
@@ -133,8 +135,8 @@ Deno.serve(async (req) => {
   const lab = labReq === true && (await admin.rpc("is_admin", { _user_id: userId })).data === true;
   if (labReq && !lab) return json({ error: "Lab runs are admin-only" }, 403);
   if (allowed.error || allowed.data !== true) return json({ error: "Price Check isn't available on your account yet" }, 403);
-  if (!lab && (hourCount.count ?? 0) >= HOURLY_LIMIT) return json({ error: "Hourly Price Check limit reached (60). Try again later." }, 429);
-  if (!lab && (dayCount.count ?? 0) >= DAILY_LIMIT) return json({ error: "Daily Price Check limit reached (400). Try again tomorrow." }, 429);
+  if (!lab && (hourCount.count ?? 0) >= HOURLY_LIMIT) return json({ error: hourlyLimitMessage() }, 429);
+  if (!lab && (dayCount.count ?? 0) >= DAILY_LIMIT) return json({ error: dailyLimitMessage() }, 429);
   if (!signed.data?.signedUrl) return json({ error: "Image not found" }, 404);
   mark("auth_ms", t);
 

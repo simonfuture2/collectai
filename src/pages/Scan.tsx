@@ -51,7 +51,7 @@ const Scan = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { allowed: priceAllowed } = usePriceCheckAccess();
   const rawMode = searchParams.get("mode");
-  const mode: Mode = rawMode === "insight" ? "insight" : rawMode === "price" && priceAllowed ? "price" : "collection";
+  const mode: Mode = rawMode === "insight" ? "insight" : rawMode === "collection" ? "collection" : priceAllowed ? "price" : "collection";
   const isInsight = mode === "insight";
   const isPrice = mode === "price";
   const modes: Mode[] = priceAllowed ? ["price", "collection", "insight"] : ["collection", "insight"];
@@ -102,7 +102,7 @@ const Scan = () => {
     supabase.auth.getSession().then(({ data: { session: existingSession } }) => {
       setSession(existingSession);
       setUser(existingSession?.user ?? null);
-      if (!existingSession?.user) navigate("/auth");
+      if (!existingSession?.user) navigate(rawMode === "price" ? `/auth?mode=signup&next=${encodeURIComponent("/scan?mode=price")}` : "/auth");
     });
 
     return () => subscription.unsubscribe();

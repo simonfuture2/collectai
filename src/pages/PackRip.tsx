@@ -182,7 +182,7 @@ const PackRip = () => {
         <div><Label htmlFor="set">Set / Product</Label><Input id="set" placeholder="e.g. Surging Sparks" value={setName} onChange={e => setSetName(e.target.value)} disabled={pending} /></div>
         <div><Label htmlFor="retail">Retail cost (optional)</Label><Input id="retail" type="number" min="0" step="0.01" placeholder="$ paid" value={retailCost} onChange={e => setRetailCost(e.target.value)} disabled={pending} /></div>
       </section>
-      {accessLoading || loadingRip ? <Loader2 className="w-6 h-6 animate-spin mx-auto" /> : !allowed ? <p className="text-muted-foreground">Free Price Check isn't available on your account yet.</p> : <section>
+      {accessLoading || loadingRip ? <Loader2 className="w-6 h-6 animate-spin mx-auto" /> : <section>
         <input ref={fileInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) handleScan(f); }} />
         <Button onClick={() => fileInputRef.current?.click()} disabled={pending || !setName.trim()} className="w-full py-6 text-lg gradient-primary text-primary-foreground">
           {scanning ? <><Loader2 className="mr-2 w-5 h-5 animate-spin" />Checking pull…</> : <><Plus className="mr-2 w-5 h-5" />Scan next pull · free</>}
