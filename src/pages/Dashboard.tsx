@@ -20,6 +20,7 @@ import PortfolioHero from "@/components/PortfolioHero";
 import InsightsPreview from "@/components/InsightsPreview";
 import SEO from "@/components/SEO";
 import { scanEntryPath } from "@/lib/scanEntry";
+import DemoCardImport from "@/components/DemoCardImport";
 
 const PortfolioAnalytics = lazy(() => import("@/components/PortfolioAnalytics"));
 const ReferralCard = lazy(() => import("@/components/ReferralCard"));
@@ -154,6 +155,7 @@ const Dashboard = () => {
 
       <main className="container mx-auto px-3 sm:px-4 py-6 sm:py-8">
         <BetaEndedPrompt />
+        {user && <DemoCardImport userId={user.id} />}
         <Link to={scanEntryPath()} className="mb-6 block">
           <Button size="lg" className="w-full gradient-primary h-14 text-base"><Camera className="mr-2 h-5 w-5" />Scan card or barcode</Button>
         </Link>
