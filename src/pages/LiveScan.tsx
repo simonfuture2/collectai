@@ -285,6 +285,16 @@ export default function LiveScan() {
     return c;
   };
 
+  /** Frame area ÷ on-screen visible area, so "Move closer" matches what the user sees (object-fit: cover crops). */
+  const visibleShare = (v: HTMLVideoElement, FW: number, FH: number) => {
+    const root = rootRef.current;
+    if (!root) return 1;
+    const cw = root.clientWidth, ch = root.clientHeight;
+    const s = Math.max(cw / v.videoWidth, ch / v.videoHeight), k = FW / v.videoWidth;
+    const vis = Math.min(FW, (cw / s) * k) * Math.min(FH, (ch / s) * k);
+    return vis > 0 ? (FW * FH) / vis : 1;
+  };
+
   /** Guide quad in frame coords (fallback / manual without a detection). */
   const guideQuad = useCallback((): Quad | null => {
     const v = videoRef.current, root = rootRef.current;
@@ -343,7 +353,7 @@ export default function LiveScan() {
           quadRef.current = emaQuad(quadRef.current, det.quad);
           if (!lastSeenRef.current || now - lastSeenRef.current > LIVE.LOST_AFTER_MS) firstSeenRef.current = now;
           lastSeenRef.current = now;
-          found = true; coverage = det.coverage;
+          found = true; coverage = det.coverage * visibleShare(v, FW, FH);
           still = motion < LIVE.MOTION_MAX; sharp = det.sharpness >= LIVE.SHARPNESS_MIN;
         } else if (now - lastSeenRef.current > LIVE.LOST_AFTER_MS) {
           quadRef.current = null; rawQuadRef.current = null;
@@ -632,7 +642,7 @@ export default function LiveScan() {
 
   /* ------------------------------ render ------------------------------ */
   return (
-    <div ref={rootRef} className="cam-surface fixed inset-0 z-[60] overflow-hidden select-none touch-manipulation">
+    <div ref={rootRef} className="cam-surface fixed inset-0 z-40 overflow-hidden select-none touch-manipulation">
       <video ref={videoRef} playsInline muted autoPlay className="absolute inset-0 h-full w-full object-cover" />
       <canvas ref={overlayRef} className="pointer-events-none absolute inset-0 h-full w-full" />
       <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onGallery} />
