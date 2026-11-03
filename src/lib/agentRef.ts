@@ -6,7 +6,10 @@ const REF_KEY = "mca_ref";
 const ANON_KEY = "mca_anon";
 const REF_TTL_DAYS = 30;
 
-type AgentEvent = "visit" | "demo_scan" | "signup" | "first_scan" | "paid";
+export type AgentEvent =
+  | "visit" | "demo_scan" | "signup" | "first_scan" | "paid"
+  | "landing_view" | "demo_cta_click" | "demo_upload_started" | "demo_result" | "demo_error"
+  | "demo_sample_tap" | "demo_limit_hit" | "save_card_click" | "demo_card_imported";
 
 function store(): Storage | null {
   try { return window.localStorage; } catch { return null; }
@@ -33,13 +36,20 @@ export function getRef(): string | null {
   } catch { return null; }
 }
 
-// Fire-and-forget. Does nothing for visitors who didn't arrive with a ref.
-export async function trackAgentEvent(event: AgentEvent): Promise<void> {
-  const ref = getRef();
-  if (!ref) return;
-  let anon_id: string | null = null;
-  try { anon_id = store()?.getItem(ANON_KEY) ?? null; } catch { /* ignore */ }
+function anonId(): string | null {
   try {
-    await supabase.functions.invoke("agent-track", { body: { ref, event, anon_id } });
+    const s = store();
+    let id = s?.getItem(ANON_KEY) ?? null;
+    if (!id && s) { id = crypto.randomUUID(); s.setItem(ANON_KEY, id); }
+    return id;
+  } catch { return null; }
+}
+
+// Fire-and-forget. Visitors who didn't arrive with a ref are tracked as "direct".
+export async function trackAgentEvent(event: AgentEvent, meta?: Record<string, unknown>): Promise<void> {
+  const ref = getRef() ?? "direct";
+  const anon_id = anonId();
+  try {
+    await supabase.functions.invoke("agent-track", { body: { ref, event, anon_id, ...(meta ? { meta } : {}) } });
   } catch { /* never block the app on tracking */ }
 }

@@ -3,8 +3,9 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { Inbox, Users, Radio, BarChart3, Plus, ExternalLink, Copy, X, Search, Loader2, ShieldAlert, Film } from "lucide-react";
+import { Inbox, Users, Radio, BarChart3, Plus, ExternalLink, Copy, X, Search, Loader2, ShieldAlert, Film, Filter } from "lucide-react";
 import VideosTab from "@/components/admin/VideosTab";
+import FunnelTab from "@/components/admin/FunnelTab";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,7 +42,7 @@ const nice = (s: string) => s.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpper
 const ago = (d: string | null) => (d ? formatDistanceToNow(new Date(d), { addSuffix: true }) : "never");
 const now = () => new Date().toISOString();
 
-type Tab = "queue" | "leads" | "channels" | "results" | "videos";
+type Tab = "queue" | "leads" | "channels" | "results" | "funnel" | "videos";
 
 export default function AgentHQ() {
   const navigate = useNavigate();
@@ -116,6 +117,7 @@ export default function AgentHQ() {
     { id: "leads", label: "Leads", icon: Users },
     { id: "channels", label: "Channels", icon: Radio },
     { id: "results", label: "Results", icon: BarChart3 },
+    { id: "funnel", label: "Funnel", icon: Filter },
     { id: "videos", label: "Videos", icon: Film },
   ];
 
@@ -146,6 +148,7 @@ export default function AgentHQ() {
         {tab === "leads" && <LeadsTab repliesOnly={repliesOnly} onRepliesOnlyChange={setRepliesOnly} refreshKey={refreshKey} />}
         {tab === "channels" && <ChannelsTab />}
         {tab === "results" && <ResultsTab refreshKey={refreshKey} />}
+        {tab === "funnel" && <FunnelTab />}
         {tab === "videos" && <VideosTab />}
       </main>
 

@@ -1909,6 +1909,15 @@ export type Database = {
         }
         Returns: Json
       }
+      agent_event_funnel: {
+        Args: { _days: number }
+        Returns: {
+          event_type: string
+          events: number
+          people: number
+          ref_code: string
+        }[]
+      }
       agent_mark_outreach: {
         Args: { p_error?: string; p_id: string; p_status: string }
         Returns: Json

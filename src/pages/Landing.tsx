@@ -13,6 +13,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import Footer from "@/components/Footer";
 import HomeVideoBackground from "@/components/HomeVideoBackground";
+import { trackAgentEvent } from "@/lib/agentRef";
 import ScanDemo, { type ScanDemoHandle } from "@/components/ScanDemo";
 import BetaPromoBanner from "@/components/BetaPromoBanner";
 import FeaturedVideos from "@/components/social/FeaturedVideos";
@@ -55,7 +56,10 @@ const Landing = () => {
     return () => { o1.disconnect(); o2.disconnect(); };
   }, []);
 
+  useEffect(() => { void trackAgentEvent("landing_view"); }, []);
+
   const tryScan = () => {
+    void trackAgentEvent("demo_cta_click");
     demoWrapRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
     demoRef.current?.openPicker();
   };

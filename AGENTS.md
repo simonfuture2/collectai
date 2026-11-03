@@ -13,3 +13,4 @@
 - Price Check Lab scoring and go/no-go rules live in src/lib/priceCheckLab.ts with tests; lab runs pass lab:true so price-check/identify-card skip limits, credits and accuracy logging only after a server-side is_admin check.
 - Photo reading (supabase/functions/_shared/gemini.ts) tries the direct Google key first (6 s timeout) and falls back to the Lovable AI Gateway on any failure; keeps scans working when the Google account fails.
 - Live camera scanning (/scan/live) keeps all detection thresholds and pure helpers in src/lib/liveDetect.ts with tests; OpenCV is lazy-loaded on that page only and the main Scan buttons route through src/lib/scanEntry.ts so desktops keep the upload page.
+- Funnel events go only through trackAgentEvent → agent-track (organic visitors tracked as ref "direct", anonymous events rate-limited per anon_id and IP); funnel maths live in src/lib/funnel.ts with tests and counts come from the admin-checked agent_event_funnel() function.

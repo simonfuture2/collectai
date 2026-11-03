@@ -126,6 +126,9 @@ const Auth = () => {
             </p>
           </div>
 
+          {searchParams.get("from") === "demo" && !resetMode && (
+            <div className="mb-4 rounded-xl border border-primary/40 bg-primary/10 px-4 py-3 text-center text-sm font-medium">Sign up to save your scanned card</div>
+          )}
           <div className="bg-card border border-border rounded-2xl p-8">
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
