@@ -635,6 +635,8 @@ export async function searchCatalogCandidates(
   if (num) {
     const first = nameTokens[0] ?? esc(name);
     queries.push(sb.from("pricecharting_catalog").select("*").ilike("product_name", `%${first}%#${esc(num)}%`).limit(30));
+    // Full name + number: keeps the exact card from being crowded out of the first-token query by common names.
+    if (nameTokens.length > 1) queries.push(sb.from("pricecharting_catalog").select("*").ilike("product_name", `${pattern}#${esc(num)}`).limit(30));
   }
   const results = await Promise.all(queries);
   const rows = new Map<number, Record<string, any>>();
