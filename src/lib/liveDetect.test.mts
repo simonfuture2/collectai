@@ -104,7 +104,7 @@ test("cooldown ends when a different card appears (distance over 10), not the sa
 });
 
 test("same card held still never leaves cooldown", () => {
-  for (let t = 0; t < 10_000; t += 100) assert.equal(cooldownDone({ now: t, lastSeen: t, hashDist: 2 }), null);
+  for (let t = 100; t <= 10_000; t += 100) assert.equal(cooldownDone({ now: t, lastSeen: t, hashDist: 2 }), null);
 });
 
 test("error pause is 2 seconds and result shows for 1.2 seconds", () => {
