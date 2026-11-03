@@ -379,7 +379,7 @@ export default function LiveScan() {
         const step = steadyStep(steadyRef.current, now, still, sharp);
         steadyRef.current = step.since;
         setPill({ state: "steady", text: PILL.steady, progress: step.progress });
-        if (step.fire && s.auto && !s.hardPaused && !busyRef.current) captureNow(quadRef.current);
+        if (step.fire && s.auto && !s.hardPaused && !busyRef.current && cvState !== "loading") captureNow(quadRef.current);
       } else {
         steadyRef.current = null;
         setPill(p => (p.state === st && !p.error ? p : { state: st, text: PILL[st], progress: 0 }));
