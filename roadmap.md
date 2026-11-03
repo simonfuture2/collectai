@@ -7,4 +7,7 @@
 - [x] Add the supplied TikTok clip as an elegant homepage background; verified muted playback, pause controls, reduced motion and narrow/wide layouts using local asset interception (hosted MP4 also returns 200).
 - [x] Switch Pack Rip to free price checks, durable match selection, value tray, genuine chase badges and collection actions.
 - [x] Test pack rules and verify signed-in tray sorting and free price-only additions with temporary fixtures; test records removed.
-- [ ] Verify completed real-photo pricing, match changes and paid analysis end-to-end; blocked by price-check returning 503 (identification unavailable).
+- [x] Price check 503 fixed; 7 real photos ran check → switch → add → full analysis with every step succeeding.
+- [ ] Price check accuracy/speed: wrong #1 on Charizard (picked 1st Edition), Dark Magician (picked Pharaoh's Servant); median ~4.7 s vs 4 s target (direct Google key's billing refusal adds ~1 s).
+- [ ] Slab full analysis valued T206 Wagner PSA 5 at ~$108 — investigate grade rung pick.
+- [ ] Paid upgrade charge path untested: admin account is beta (free); needs a free account with credits.
