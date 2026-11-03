@@ -123,6 +123,7 @@ async function callGoogleDirect(r: VisionReq): Promise<string | null> {
   if (!apiKey) { console.warn("[gemini] route=direct skipped: no key"); return null; }
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), DIRECT_TIMEOUT_MS);
+  const t0 = Date.now();
   try {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(r.model)}:generateContent?key=${apiKey}`;
     const res = await fetch(url, {
@@ -137,6 +138,10 @@ async function callGoogleDirect(r: VisionReq): Promise<string | null> {
     });
     if (!res.ok) { console.warn("[gemini] route=direct failed HTTP", res.status, (await res.text().catch(() => "")).slice(0, 200)); return null; }
     const data = await res.json();
+    const finish = data?.candidates?.[0]?.finishReason;
+    const u = data?.usageMetadata ?? {};
+    console.log(`[gemini] route=direct finish=${finish} thoughts=${u.thoughtsTokenCount ?? 0} out=${u.candidatesTokenCount ?? 0} ms=${Date.now() - t0}`);
+    if (finish === "MAX_TOKENS") console.warn("[gemini] route=direct hit MAX_TOKENS cap", r.maxOutputTokens);
     const text = (data?.candidates?.[0]?.content?.parts ?? []).map((p: any) => p?.text ?? "").join("").trim();
     return text || null;
   } catch (err) {
@@ -149,6 +154,7 @@ async function callGateway(r: VisionReq): Promise<string | null> {
   const key = Deno.env.get("LOVABLE_API_KEY");
   if (!key) { console.error("[gemini] route=gateway skipped: no LOVABLE_API_KEY"); lastGeminiFailure = "error"; return null; }
   const model = r.model.includes("/") ? r.model : `google/${r.model}`;
+  const t0 = Date.now();
   try {
     const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -173,6 +179,10 @@ async function callGateway(r: VisionReq): Promise<string | null> {
       return null;
     }
     const data = await res.json();
+    const finish = data?.choices?.[0]?.finish_reason;
+    const u = data?.usage ?? {};
+    console.log(`[gemini] route=gateway finish=${finish} thoughts=${u.completion_tokens_details?.reasoning_tokens ?? 0} out=${u.completion_tokens ?? 0} ms=${Date.now() - t0}`);
+    if (finish === "length") console.warn("[gemini] route=gateway hit max_tokens cap", r.maxOutputTokens);
     const c = data?.choices?.[0]?.message?.content;
     const text = (Array.isArray(c) ? c.map((p: any) => p?.text ?? "").join("") : String(c ?? "")).trim();
     if (!text) lastGeminiFailure = "error";
@@ -189,9 +199,11 @@ async function visionJsonWithFallback(r: VisionReq): Promise<any | null> {
   lastGeminiFailure = null;
   const direct = await callGoogleDirect(r);
   const dp = direct ? parseJsonLoose(direct) : null;
+  if (direct && !dp) console.warn("[gemini] route=direct unparseable:", direct.slice(0, 300));
   if (dp) { console.log("[gemini] route=direct"); return dp; }
   const gw = await callGateway(r);
   const gp = gw ? parseJsonLoose(gw) : null;
+  if (gw && !gp) console.warn("[gemini] route=gateway unparseable:", gw.slice(0, 300));
   if (gp) { console.log("[gemini] route=gateway"); lastGeminiFailure = null; return gp; }
   if (!lastGeminiFailure) lastGeminiFailure = "error";
   return null;

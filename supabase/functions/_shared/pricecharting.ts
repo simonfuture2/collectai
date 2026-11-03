@@ -107,7 +107,8 @@ export function tokensOf(s: string): Set<string> {
       .toLowerCase()
       .replace(/[^a-z0-9\s]/g, " ")
       .split(/\s+/)
-      .filter((t) => t.length >= 3),
+      // Keep Pokémon mechanic suffixes ("Charizard ex" is a different card from "Charizard").
+      .filter((t) => t.length >= 3 || t === "ex" || t === "gx" || t === "v"),
   );
 }
 
@@ -635,6 +636,8 @@ export async function searchCatalogCandidates(
   if (num) {
     const first = nameTokens[0] ?? esc(name);
     queries.push(sb.from("pricecharting_catalog").select("*").ilike("product_name", `%${first}%#${esc(num)}%`).limit(30));
+    // Full name + number: keeps the exact card from being crowded out of the first-token query by common names.
+    if (nameTokens.length > 1) queries.push(sb.from("pricecharting_catalog").select("*").ilike("product_name", `${pattern}#${esc(num)}`).limit(30));
   }
   const results = await Promise.all(queries);
   const rows = new Map<number, Record<string, any>>();
