@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   LIVE, categoryFor, coverageOk, dHash, emaQuad, errorPill, hamming, isDuplicate, nextLanguage,
-  orderCorners, quadMotion, scanState, shapeKind, steadyStep, type Quad,
+  orderCorners, quadMotion, scanState, shapeKind, steadyStep, cooldownDone, trackPhase, showIdleHint, loopPaused, type Quad,
 } from "./liveDetect.ts";
 
 test("card shape accepted in portrait and landscape within ±15%, other shapes rejected", () => {
@@ -76,7 +76,52 @@ test("language button cycles Any → English → Japanese → Korean → Chinese
 });
 
 test("errors read in plain words; only the hourly limit needs a tap to resume", () => {
-  assert.deepEqual(errorPill(429), { text: "You've hit 100 scans this hour – back in a few minutes", hardPause: true });
+  assert.deepEqual(errorPill(429), { text: "You've hit 100 scans this hour – tap play to resume later", hardPause: true });
   assert.equal(errorPill(422).text, "Couldn't read that card – try less glare");
   assert.equal(errorPill(503).text, "Busy – trying again");
+});
+
+test("auto capture fires after 600 ms steady and sharp", () => {
+  const a = steadyStep(null, 0, true, true);
+  assert.equal(steadyStep(a.since, 599, true, true).fire, false);
+  assert.equal(steadyStep(a.since, 600, true, true).fire, true);
+});
+
+test("blurry but still card still fires after the grace period", () => {
+  const a = steadyStep(null, 0, true, false);
+  assert.equal(steadyStep(a.since, 600, true, false).fire, false);
+  assert.equal(steadyStep(a.since, LIVE.SHARP_GRACE_MS, true, false).fire, true);
+});
+
+test("cooldown ends when the card leaves for 400 ms", () => {
+  assert.equal(cooldownDone({ now: 1399, lastSeen: 1000, hashDist: 0 }), null);
+  assert.equal(cooldownDone({ now: 1400, lastSeen: 1000, hashDist: 0 }), "left");
+});
+
+test("cooldown ends when a different card appears (distance over 10), not the same card", () => {
+  assert.equal(cooldownDone({ now: 1000, lastSeen: 1000, hashDist: 10 }), null);
+  assert.equal(cooldownDone({ now: 1000, lastSeen: 1000, hashDist: 11 }), "new");
+});
+
+test("same card held still never leaves cooldown", () => {
+  for (let t = 100; t <= 10_000; t += 100) assert.equal(cooldownDone({ now: t, lastSeen: t, hashDist: 2 }), null);
+});
+
+test("error pause is 2 seconds and result shows for 1.2 seconds", () => {
+  assert.equal(LIVE.ERROR_PAUSE_MS, 2000);
+  assert.equal(LIVE.RESULT_MS, 1200);
+});
+
+test("loop pauses only while capturing/checking or before the camera is ready", () => {
+  for (const p of ["capturing", "checking", "idle"] as const) assert.equal(loopPaused(p), true);
+  for (const p of ["searching", "tracking", "steady", "result", "cooldown", "error"] as const) assert.equal(loopPaused(p), false);
+});
+
+test("track phase and idle hint after 4 s", () => {
+  assert.equal(trackPhase(false, 0), "searching");
+  assert.equal(trackPhase(true, 0.1), "tracking");
+  assert.equal(trackPhase(true, 0.4), "steady");
+  assert.equal(showIdleHint(true, "searching", 4000, 0, 0), true);
+  assert.equal(showIdleHint(true, "searching", 3999, 0, 0), false);
+  assert.equal(showIdleHint(false, "searching", 9000, 0, 0), false);
 });

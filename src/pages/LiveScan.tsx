@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
+import { useLiveScanner } from "@/hooks/use-live-scanner";
 import { Capacitor } from "@capacitor/core";
 import { Haptics, ImpactStyle } from "@capacitor/haptics";
 import {
@@ -12,8 +13,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
 import {
-  LIVE, GAMES, LANGUAGES, PILL, categoryFor, canvasHash, cropCard, detectCard, emaQuad, errorPill, isDuplicate,
-  laplacianVariance, loadOpenCV, meanAbsDiff, nextLanguage, quadMotion, scanState, steadyStep, toGray, warpCard,
+  LIVE, GAMES, LANGUAGES, PILL, categoryFor, canvasHash, cropCard, detectCard, emaQuad, errorPill,
+  laplacianVariance, loadOpenCV, cooldownDone, trackPhase, showIdleHint, loopPaused, hamming, meanAbsDiff, nextLanguage, quadMotion, scanState, steadyStep, toGray, warpCard,
   type LangId, type Quad, type ScanState,
 } from "@/lib/liveDetect";
 import { addToSession, clearSession, patchSession, readSession, removeFromSession, updateSessionPick } from "@/lib/priceSession";
@@ -63,7 +64,11 @@ export default function LiveScan() {
   const [game, setGame] = useState(() => ls(LS.game, "auto"));
   const [sound, setSound] = useState(() => ls(LS.sound, "1") === "1");
   const [mode, setMode] = useState<ScanMode>(() => ls(LS.mode, "price") as ScanMode);
-  const [auto, setAuto] = useState(true);
+  const sc = useLiveScanner();
+  const auto = sc.auto;
+  const location = useLocation();
+  const debugOn = new URLSearchParams(location.search).get("debug") === "1";
+  const [videoReady, setVideoReady] = useState(false);
   const [hardPaused, setHardPaused] = useState(false);
   const [scanKind, setScanKind] = useState<"card" | "barcode">("card");
 
@@ -140,7 +145,7 @@ export default function LiveScan() {
       streamRef.current = stream;
       lsSet(LS.camOk, "1");
       const v = videoRef.current;
-      if (v) { v.srcObject = stream; await v.play().catch(() => {}); }
+      if (v) { v.muted = true; v.setAttribute("playsinline", ""); v.srcObject = stream; await v.play().catch(() => {}); }
       const track = stream.getVideoTracks()[0];
       const caps = (track?.getCapabilities?.() ?? {}) as Record<string, unknown>;
       setTorchCap(!!caps.torch);
@@ -164,6 +169,17 @@ export default function LiveScan() {
     })();
     return () => stopCamera();
   }, [userId, startCamera, stopCamera]);
+
+  // The loop only starts once the video is really playing (iOS gives blank frames before that).
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v) return;
+    const ready = () => { if (v.readyState >= 2 && v.videoWidth) { setVideoReady(true); if (sc.phaseRef.current === "idle") sc.setPhase("searching"); } };
+    const lost = () => { setVideoReady(false); sc.setPhase("idle"); };
+    v.addEventListener("loadeddata", ready); v.addEventListener("playing", ready); v.addEventListener("emptied", lost);
+    ready();
+    return () => { v.removeEventListener("loadeddata", ready); v.removeEventListener("playing", ready); v.removeEventListener("emptied", lost); };
+  }, [perm]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Stop the camera when the tab is hidden; resume when it's back.
   useEffect(() => {
@@ -218,8 +234,9 @@ export default function LiveScan() {
   const sendCard = useCallback(async (card: HTMLCanvasElement, skipDup = false) => {
     if (!userId || busyRef.current) return;
     const hash = canvasHash(card);
-    if (!skipDup && isDuplicate(hash, lastHashRef.current)) { flashPill("Already scanned – show a different card", 1500, false); return; }
+    void skipDup; // the cooldown (not this function) decides whether a card is new
     busyRef.current = true;
+    sc.setPhase("capturing");
     capturingRef.current = true; pulseRef.current = performance.now();
     const seenAt = firstSeenRef.current || performance.now();
     const tempId = `tmp-${Date.now()}`;
@@ -230,6 +247,7 @@ export default function LiveScan() {
     setPill({ state: "capturing", text: PILL.capturing, progress: 1 });
     const path = `${userId}/live-${Date.now()}.jpg`;
     try {
+      sc.setPhase("checking");
       const up = await supabase.storage.from("card-images").upload(path, blob, { contentType: "image/jpeg" });
       if (up.error) throw Object.assign(new Error(up.error.message), { status: null });
       const s = settingsRef.current;
@@ -260,8 +278,9 @@ export default function LiveScan() {
       const ms = Math.round(performance.now() - seenAt);
       setMetrics(m => ({ ...m, lastMs: ms }));
       console.log(`[live] card→price ${ms}ms server=${data.latencyMs}ms match=${sel?.name ?? "none"}`);
-      setPill({ state: "searching", text: sel ? "Got it – next card" : "No match – tap the card below", progress: 0 });
-      pausedUntilRef.current = Date.now() + 800;
+      setPill({ state: "capturing", text: sel ? `Found – ${sel.name}` : "No match – tap the card below", progress: 0 });
+      sc.resultUntil.current = performance.now() + LIVE.RESULT_MS;
+      sc.setPhase("result");
     } catch (e) {
       const status = (e as { status?: number | null }).status ?? null;
       setTiles(prev => prev.filter(t => t.id !== tempId));
@@ -269,13 +288,15 @@ export default function LiveScan() {
       const { text, hardPause } = errorPill(status);
       console.warn("[live] price-check failed", status, (e as Error).message);
       setPill({ state: "searching", text, progress: 0, error: true });
-      if (hardPause) setHardPaused(true);
-      pausedUntilRef.current = Date.now() + LIVE.ERROR_PAUSE_MS;
+      if (hardPause) { setHardPaused(true); sc.setAuto(false, false); }
+      lastHashRef.current = hash;
+      sc.resultUntil.current = performance.now() + LIVE.ERROR_PAUSE_MS;
+      sc.setPhase("error");
     } finally {
       busyRef.current = false; capturingRef.current = false;
       steadyRef.current = null; firstSeenRef.current = 0;
     }
-  }, [userId, feedback]);
+  }, [userId, feedback]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fullFrame = () => {
     const v = videoRef.current!;
@@ -315,78 +336,124 @@ export default function LiveScan() {
     const k = v.videoWidth / LIVE.FRAME_WIDTH;
     const full = fullFrame();
     const fq = q.map(p => ({ x: p.x * k, y: p.y * k })) as Quad;
-    const card = cvRef.current && cvState === "ready" && !slowRef.current ? warpCard(cvRef.current, full, fq) : cropCard(full, fq);
+    const card = cvRef.current && cvStateRef.current === "ready" && !slowRef.current ? warpCard(cvRef.current, full, fq) : cropCard(full, fq);
     sendCard(card);
-  }, [sendCard, cvState]);
+  }, [sendCard]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ------------------------------ frame loop ------------------------------ */
+  // One loop, started when the video is playing. It reads phase, auto and in-flight state from refs only.
+  const cooldownHashTick = useRef(0);
   useEffect(() => {
-    if (perm !== "live" || scanKind !== "card") return;
+    if (perm !== "live" || scanKind !== "card" || !videoReady) return;
     if (!frameRef.current) frameRef.current = document.createElement("canvas");
     const frame = frameRef.current;
     const id = window.setInterval(() => {
       const v = videoRef.current;
       if (!v?.videoWidth || blockedRef.current || document.hidden) return;
+      const now = performance.now();
+      const phase = sc.phaseRef.current;
+      const dbg = sc.debugRef.current;
+      if (loopPaused(phase)) { draw(); return; }
+      sc.tickFrame(now);
+
       const FW = LIVE.FRAME_WIDTH, FH = Math.round(v.videoHeight * FW / v.videoWidth);
       if (frame.width !== FW) { frame.width = FW; frame.height = FH; }
       const ctx = frame.getContext("2d", { willReadFrequently: true })!;
       ctx.drawImage(v, 0, 0, FW, FH);
-      const now = performance.now();
-      const useCv = cvRef.current && cvState === "ready" && !slowRef.current;
-      let found = false, coverage = 0, still = false, sharp = false;
+      const useCv = cvRef.current && cvStateRef.current === "ready" && !slowRef.current;
+      let found = false, coverage = 0, still = false, sharp = false, sharpness = 0, motion = 0, realCard = false;
 
       if (useCv) {
         const t0 = performance.now();
         let det = null;
         try { det = detectCard(cvRef.current, frame); } catch (e) { console.warn("[live] detect error", e); }
         const dt = performance.now() - t0;
+        dbg.detMs = Math.round(dt);
         detTimes.current.push(dt);
         if (detTimes.current.length > LIVE.SLOW_SAMPLE) detTimes.current.shift();
         if (detTimes.current.length === LIVE.SLOW_SAMPLE) {
-          const med = [...detTimes.current].sort((a, b) => a - b)[Math.floor(LIVE.SLOW_SAMPLE / 2)];
+          const med = [...detTimes.current].sort((x, y) => x - y)[Math.floor(LIVE.SLOW_SAMPLE / 2)];
           if (Math.random() < 0.1) setMetrics(m => ({ ...m, detMs: Math.round(med) }));
           if (med > LIVE.SLOW_FRAME_MS) { slowRef.current = true; console.warn(`[live] slow detection ${Math.round(med)}ms → guides`); setCvState("fallback"); }
         }
         if (det) {
-          const motion = quadMotion(rawQuadRef.current, det.quad) / FW;
+          motion = quadMotion(rawQuadRef.current, det.quad) / FW;
           rawQuadRef.current = det.quad;
           quadRef.current = emaQuad(quadRef.current, det.quad);
           if (!lastSeenRef.current || now - lastSeenRef.current > LIVE.LOST_AFTER_MS) firstSeenRef.current = now;
-          lastSeenRef.current = now;
+          lastSeenRef.current = now; realCard = true;
           found = true; coverage = det.coverage * visibleShare(v, FW, FH);
+          sharpness = det.sharpness;
           still = motion < LIVE.MOTION_MAX; sharp = det.sharpness >= LIVE.SHARPNESS_MIN;
         } else if (now - lastSeenRef.current > LIVE.LOST_AFTER_MS) {
           quadRef.current = null; rawQuadRef.current = null;
         } else if (quadRef.current) { found = true; coverage = 0.3; }
       } else {
-        // Fixed guides: steadiness from frame difference, sharpness over the whole frame.
+        // Fixed guides (outline engine loading, failed or too slow): steadiness from frame difference.
+        const t0 = performance.now();
         const gray = toGray(ctx.getImageData(0, 0, FW, FH).data);
-        still = meanAbsDiff(prevGrayRef.current, gray) < LIVE.FALLBACK_DIFF_MAX;
-        sharp = laplacianVariance(gray, FW, FH) >= LIVE.SHARPNESS_MIN * 0.5;
+        motion = meanAbsDiff(prevGrayRef.current, gray);
+        still = motion < LIVE.FALLBACK_DIFF_MAX;
+        sharpness = laplacianVariance(gray, FW, FH);
+        sharp = sharpness >= LIVE.SHARPNESS_MIN * 0.5;
         prevGrayRef.current = gray;
         quadRef.current = guideQuad();
+        dbg.detMs = Math.round(performance.now() - t0);
+        // Guides can't tell "no card"; a still, detailed frame counts as a card in view.
+        realCard = sharp;
+        if (realCard) lastSeenRef.current = now;
         found = true; coverage = 0.4;
         if (!firstSeenRef.current) firstSeenRef.current = now;
       }
+      if (realCard) sc.lastCardAt.current = now;
+      dbg.found = realCard; dbg.area = Math.round(coverage * 100); dbg.sharpness = Math.round(sharpness);
+      dbg.motion = Math.round(motion * 1000) / 1000;
+
+      // Result / error: hold the message, then cooldown.
+      if (phase === "result" || phase === "error") {
+        dbg.cooldownMs = Math.max(0, Math.round(sc.resultUntil.current - now));
+        if (now >= sc.resultUntil.current) sc.setPhase("cooldown");
+        draw(); return;
+      }
+      // Cooldown: wait for the card to leave or a different card to appear.
+      if (phase === "cooldown") {
+        let dist: number | null = null;
+        if (realCard && quadRef.current && lastHashRef.current && (cooldownHashTick.current++ % 3 === 0)) {
+          try { dist = hamming(canvasHash(cropCard(frame, quadRef.current)), lastHashRef.current); dbg.hashDist = dist; } catch { /* ignore */ }
+        }
+        const why = cooldownDone({ now, lastSeen: realCard ? now : lastSeenRef.current, hashDist: dist });
+        dbg.cooldownMs = 0;
+        if (why) {
+          if (why === "left") lastHashRef.current = null;
+          steadyRef.current = null; firstSeenRef.current = realCard ? now : 0;
+          sc.setPhase("searching");
+          setPill({ state: "searching", text: PILL.searching, progress: 0 });
+        }
+        draw(); return;
+      }
 
       const s = settingsRef.current;
-      const st = scanState({ found, coverage, capturing: capturingRef.current });
-      const paused = Date.now() < pausedUntilRef.current;
-      if (capturingRef.current) { draw(); return; }
-      if (paused) { draw(); return; }
-      if (st === "steady") {
+      const autoOn = sc.autoRef.current && !s.hardPaused;
+      const next = trackPhase(found, coverage);
+      if (next === "steady") {
         const step = steadyStep(steadyRef.current, now, still, sharp);
         steadyRef.current = step.since;
-        setPill({ state: "steady", text: PILL.steady, progress: step.progress });
-        if (step.fire && s.auto && !s.hardPaused && !busyRef.current && cvState !== "loading") captureNow(quadRef.current);
+        dbg.steadyMs = step.since ? Math.round(now - step.since) : 0;
+        sc.setPhase("steady");
+        setPill({ state: "steady", text: autoOn ? PILL.steady : "Tap the button to scan", progress: autoOn ? step.progress : 0 });
+        if (step.fire && autoOn && !busyRef.current) captureNow(quadRef.current);
       } else {
-        steadyRef.current = null;
-        setPill(p => (p.state === st && !p.error ? p : { state: st, text: PILL[st], progress: 0 }));
+        steadyRef.current = null; dbg.steadyMs = 0;
+        sc.setPhase(next);
+        const st: ScanState = next === "tracking" ? "closer" : "searching";
+        const hint = showIdleHint(autoOn, next, now, sc.lastCardAt.current, sc.phaseSince.current);
+        const text = hint ? "Point at a card – it scans automatically" : PILL[st];
+        setPill(p => (p.state === st && p.text === text && !p.error ? p : { state: st, text, progress: 0 }));
       }
       draw();
     }, LIVE.FRAME_INTERVAL_MS);
     return () => clearInterval(id);
-  }, [perm, scanKind, cvState, captureNow, guideQuad]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [perm, scanKind, videoReady, captureNow, guideQuad]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ------------------------------ overlay drawing ------------------------------ */
   const draw = () => {
@@ -405,7 +472,8 @@ export default function LiveScan() {
     const set = settingsRef.current;
     const accent = set.mode === "insight" ? tok("--secondary") : set.mode === "collection" ? tok("--primary") : tok("--cam-fg");
     const q = quadRef.current;
-    const st: ScanState = capturingRef.current ? "capturing" : !q ? "searching" : pillRef.current;
+    const ph = sc.phaseRef.current;
+    const st: ScanState = capturingRef.current || ph === "result" ? "capturing" : !q ? "searching" : pillRef.current;
     const pts = (q ?? guideQuad())?.map(toS);
     if (!pts) return;
     const searching = !q;
@@ -422,7 +490,8 @@ export default function LiveScan() {
     }
     // L-shaped corner accents
     ctx.strokeStyle = searching ? tok("--cam-fg") : accent;
-    ctx.globalAlpha = searching ? 0.55 : 1;
+    const idle = searching && showIdleHint(sc.autoRef.current && !settingsRef.current.hardPaused, ph, performance.now(), sc.lastCardAt.current, sc.phaseSince.current);
+    ctx.globalAlpha = searching ? (idle ? 0.45 + 0.4 * Math.abs(Math.sin(performance.now() / 500)) : 0.55) : 1;
     ctx.lineWidth = searching ? 3 : 5;
     pts.forEach((p, i) => {
       const a = pts[(i + 1) % 4], b = pts[(i + 3) % 4];
@@ -432,6 +501,8 @@ export default function LiveScan() {
     });
     ctx.globalAlpha = 1;
   };
+  const cvStateRef = useRef(cvState);
+  cvStateRef.current = cvState;
   const pillRef = useRef<ScanState>("searching");
   pillRef.current = pill.state;
 
@@ -624,21 +695,24 @@ export default function LiveScan() {
 
   const shutter = () => {
     if (scanKind === "barcode") return;
-    if (hardPaused) { setHardPaused(false); pausedUntilRef.current = 0; }
+    if (busyRef.current) return;
     pausedUntilRef.current = 0;
     lastHashRef.current = null; // a deliberate tap always scans
+    if (sc.phaseRef.current === "idle") return;
     captureNow(quadRef.current ?? guideQuad());
   };
 
   const toggleAuto = () => {
-    if (hardPaused) { setHardPaused(false); pausedUntilRef.current = 0; setPill({ state: "searching", text: PILL.searching, progress: 0 }); return; }
-    setAuto(a => !a);
+    if (hardPaused) { setHardPaused(false); pausedUntilRef.current = 0; }
+    const on = sc.toggleAuto();
+    if (on) { steadyRef.current = null; setPill({ state: "searching", text: PILL.searching, progress: 0 }); }
   };
 
   const langMeta = LANGUAGES.find(l => l.id === lang) ?? LANGUAGES[0];
   const gameMeta = GAMES.find(g => g.id === game) ?? GAMES[0];
   const done = tiles.filter(t => t.status !== "checking");
   const playing = auto && !hardPaused;
+  const d = sc.debug;
 
   /* ------------------------------ render ------------------------------ */
   return (
@@ -655,9 +729,18 @@ export default function LiveScan() {
         <button type="button" aria-label="Close scanner" onClick={close} className="cam-glass rounded-full p-2"><X className="h-5 w-5" /></button>
       </div>
 
-      {isAdmin && perm === "live" && (
-        <div className="absolute left-4 top-16 rounded-md cam-glass px-2 py-1 font-mono text-[10px] cam-muted" style={{ marginTop: "env(safe-area-inset-top)" }}>
-          cv {metrics.cvMs}ms · det {metrics.detMs}ms · card→price {metrics.lastMs}ms · {cvState === "ready" && !slowRef.current ? "outline" : "guides"}
+      {isAdmin && debugOn && (
+        <div data-testid="live-debug" className="absolute left-3 top-14 z-10 rounded-md cam-glass px-2 py-1 font-mono text-[10px] leading-tight" style={{ marginTop: "env(safe-area-inset-top)" }}>
+          <div>auto {playing ? "ON" : "off"}{hardPaused ? " (limit)" : ""} · state {sc.phase}</div>
+          <div>fps {d.fps} · det {d.detMs}ms · {cvState === "ready" && !slowRef.current ? "opencv" : cvState === "loading" ? "guides (cv loading)" : "guides"}</div>
+          <div>card {d.found ? "yes" : "no"} {d.area}% · sharp {d.sharpness} · motion {d.motion}</div>
+          <div>steady {d.steadyMs}ms · inflight {busyRef.current ? "yes" : "no"} · dHash {d.hashDist ?? "–"} · cool {d.cooldownMs}ms</div>
+          <div>cv {metrics.cvMs}ms · card→price {metrics.lastMs}ms · video {videoReady ? "ready" : "waiting"}</div>
+        </div>
+      )}
+      {sc.toast && (
+        <div role="status" className="absolute left-1/2 top-16 z-20 -translate-x-1/2 whitespace-nowrap rounded-full cam-glass px-4 py-2 text-sm font-medium" style={{ marginTop: "env(safe-area-inset-top)" }}>
+          {sc.toast}
         </div>
       )}
 
@@ -668,7 +751,10 @@ export default function LiveScan() {
           <RoundBtn label={`Language: ${langMeta.label}`} onClick={() => { const n = nextLanguage(lang); setLang(n); lsSet(LS.lang, n); }}>
             <span className="text-lg leading-none">{langMeta.flag}</span>
           </RoundBtn>
-          <RoundBtn label={playing ? "Switch to manual" : "Switch to auto"} onClick={toggleAuto}>{playing ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}</RoundBtn>
+          <div className="flex flex-col items-center gap-0.5">
+            <RoundBtn label={playing ? "Pause auto-scan" : "Start auto-scan"} onClick={toggleAuto}>{playing ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}</RoundBtn>
+            <span className={`rounded px-1 text-[9px] font-bold tracking-wider ${playing ? "bg-primary text-primary-foreground" : "cam-muted"}`}>AUTO</span>
+          </div>
           {torchCap && <RoundBtn label="Flash" onClick={toggleTorch}>{torchOn ? <Zap className="h-5 w-5" /> : <ZapOff className="h-5 w-5" />}</RoundBtn>}
           <RoundBtn label={sound ? "Sound off" : "Sound on"} onClick={() => { setSound(!sound); lsSet(LS.sound, sound ? "0" : "1"); }}>
             {sound ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />}
@@ -717,7 +803,7 @@ export default function LiveScan() {
           {perm === "live" && (
             <div role="status" aria-live="polite" className={`relative overflow-hidden rounded-full px-4 py-1.5 text-sm font-medium cam-glass ${pill.state === "capturing" ? "cam-ok" : ""}`}>
               {pill.state === "steady" && <span className="absolute inset-y-0 left-0 bg-primary/40 transition-[width] duration-100" style={{ width: `${pill.progress * 100}%` }} />}
-              <span className="relative">{hardPaused ? "Paused – tap play to resume" : !playing && pill.state === "steady" ? "Tap the shutter" : pill.text}</span>
+              <span className="relative">{pill.error || !hardPaused ? pill.text : "You've hit 100 scans this hour – tap play to resume later"}</span>
             </div>
           )}
           <span className="w-10" />
