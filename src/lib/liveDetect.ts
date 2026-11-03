@@ -27,7 +27,11 @@ export const LIVE = {
   OUT_H: 880,
   JPEG_QUALITY: 0.85,
   DUP_HAMMING_MAX: 10,
-  ERROR_PAUSE_MS: 10_000,
+  ERROR_PAUSE_MS: 2_000,
+  RESULT_MS: 1_200,         // show "Found – name" this long
+  LEAVE_MS: 400,            // no card this long ends the cooldown
+  IDLE_HINT_MS: 4_000,      // auto on, no card this long → hint
+  SHARP_GRACE_MS: 1_800,    // still this long but never "sharp" → capture anyway
   GUIDE_COVERAGE_W: 0.62,    // fallback guide width as fraction of the view width
 } as const;
 
@@ -85,10 +89,12 @@ export function scanState(i: { found: boolean; coverage: number; capturing: bool
 
 /** Steadiness bookkeeping: returns the new steady-since timestamp (or null) and whether to fire. */
 export function steadyStep(since: number | null, now: number, still: boolean, sharp: boolean) {
-  if (!still || !sharp) return { since: null as number | null, fire: false, progress: 0 };
+  // Sharpness alone never blocks forever: a card held still for SHARP_GRACE_MS fires anyway.
+  if (!still) return { since: null as number | null, fire: false, progress: 0 };
   const s = since ?? now;
-  const progress = Math.min(1, (now - s) / LIVE.STEADY_MS);
-  return { since: s, fire: now - s >= LIVE.STEADY_MS, progress };
+  const need = sharp ? LIVE.STEADY_MS : LIVE.SHARP_GRACE_MS;
+  const progress = Math.min(1, (now - s) / need);
+  return { since: s, fire: now - s >= need, progress };
 }
 
 export const PILL: Record<ScanState, string> = {
@@ -97,6 +103,27 @@ export const PILL: Record<ScanState, string> = {
   steady: "Hold steady…",
   capturing: "Checking price…",
 };
+
+/* ------------------------------ scanner phases ------------------------------ */
+export type ScanPhase = "idle" | "searching" | "tracking" | "steady" | "capturing" | "checking" | "result" | "error" | "cooldown";
+
+/** Phases where the frame loop must not analyse frames. */
+export const loopPaused = (p: ScanPhase) => p === "capturing" || p === "checking" || p === "idle";
+
+/** Cooldown ends when the card has left the frame, or a clearly different card is in view. */
+export function cooldownDone(i: { now: number; lastSeen: number; hashDist: number | null }): "left" | "new" | null {
+  if (!i.lastSeen || i.now - i.lastSeen >= LIVE.LEAVE_MS) return "left";
+  if (i.hashDist != null && i.hashDist > LIVE.DUP_HAMMING_MAX) return "new";
+  return null;
+}
+
+/** Live (not capturing) phase from detection results. */
+export const trackPhase = (found: boolean, coverage: number): ScanPhase =>
+  !found ? "searching" : coverage < LIVE.CLOSER_BELOW ? "tracking" : "steady";
+
+/** Whether auto mode should show the idle hint. */
+export const showIdleHint = (auto: boolean, phase: ScanPhase, now: number, lastCardAt: number, since: number) =>
+  auto && phase === "searching" && now - Math.max(lastCardAt, since) >= LIVE.IDLE_HINT_MS;
 
 /* ------------------------------ duplicate guard ------------------------------ */
 /** 64-bit difference hash from a 9×8 grayscale grid (row-major, 72 values). Hex string. */
@@ -151,7 +178,7 @@ export const flagFor = (lang: string | null | undefined) =>
 
 /** Plain-words pill message for a failed price check. */
 export function errorPill(status: number | null): { text: string; hardPause: boolean } {
-  if (status === 429) return { text: "You've hit 100 scans this hour – back in a few minutes", hardPause: true };
+  if (status === 429) return { text: "You've hit 100 scans this hour – tap play to resume later", hardPause: true };
   if (status === 422) return { text: "Couldn't read that card – try less glare", hardPause: false };
   return { text: "Busy – trying again", hardPause: false };
 }
