@@ -8,6 +8,7 @@
         "@capacitor/android": "^8.1.0",
         "@capacitor/cli": "^8.5.3",
         "@capacitor/core": "^8.1.0",
+        "@capacitor/haptics": "^8.0.2",
         "@capacitor/ios": "^8.1.0",
         "@capacitor/push-notifications": "^8.0.2",
         "@hookform/resolvers": "^3.10.0",
@@ -46,6 +47,7 @@
         "@solana/web3.js": "^1.99.0",
         "@supabase/supabase-js": "^2.117.3",
         "@tanstack/react-query": "^5.83.0",
+        "@techstark/opencv-js": "^5.0.0-release.1",
         "@zxing/browser": "^0.2.1",
         "@zxing/library": "^0.23.0",
         "class-variance-authority": "^0.7.1",
@@ -115,6 +117,8 @@
     "@capacitor/cli": ["@capacitor/cli@8.5.3", "https://europe-west1-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@capacitor/cli/-/cli-8.5.3.tgz", { "dependencies": { "@ionic/cli-framework-output": "^2.2.8", "@ionic/utils-subprocess": "^3.0.1", "@ionic/utils-terminal": "^2.3.5", "commander": "^12.1.0", "debug": "^4.4.0", "env-paths": "^2.2.0", "fs-extra": "^11.2.0", "kleur": "^4.1.5", "native-run": "^2.0.3", "open": "^8.4.0", "plist": "^3.1.0", "prompts": "^2.4.2", "rimraf": "^6.0.1", "semver": "^7.6.3", "tar": "^7.5.3", "tslib": "^2.8.1", "xcode": "^3.0.1", "xml2js": "^0.6.2" }, "bin": { "cap": "bin/capacitor", "capacitor": "bin/capacitor" } }, "sha512-/G6xwna+p4GS3lthSdWN3OThCH2F85O0Ukdy8rv3oAXvgEMeyFgPEIA3PMAS++IkHwUuBYBAKOQJnZfcrh1n0w=="],
 
     "@capacitor/core": ["@capacitor/core@8.5.3", "https://europe-west1-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@capacitor/core/-/core-8.5.3.tgz", { "dependencies": { "tslib": "^2.1.0" } }, "sha512-oBE1oGuYE4ZzYYrulC75OuHdSsD6zLUy7d5o1tFwDLG4govGoubY15cxpiI5l0+q87Lm5p0bhbehMdzJg4aFag=="],
+
+    "@capacitor/haptics": ["@capacitor/haptics@8.0.2", "", { "peerDependencies": { "@capacitor/core": ">=8.0.0" } }, "sha512-c2hZzRR5Fk1tbTvhG1jhh2XBAf3EhnIerMIb2sl7Mt41Gxx1fhBJFDa0/BI1IbY4loVepyyuqNC9820/GZuoWQ=="],
 
     "@capacitor/ios": ["@capacitor/ios@8.5.3", "https://europe-west1-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@capacitor/ios/-/ios-8.5.3.tgz", { "peerDependencies": { "@capacitor/core": "^8.5.0" } }, "sha512-HnnV92Jl8+3x0JUloXUMjFcUsQI8wHFVsKwkLn72DfRZXYGZW11tQbmNOWOnRTljaU18FdI1b9ipT09SzzPDNw=="],
 
@@ -631,6 +635,8 @@
     "@tanstack/query-core": ["@tanstack/query-core@5.104.2", "https://europe-west1-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@tanstack/query-core/-/query-core-5.104.2.tgz", {}, "sha512-/qbsxJK5c3Ve1aFIULWYNcT2jeRUAiD4HME6Eu2ZdpofHoVgAjpkQhLg5xHuOoBkTPQUJLfP7zOxy0qsBcqROA=="],
 
     "@tanstack/react-query": ["@tanstack/react-query@5.104.2", "https://europe-west1-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@tanstack/react-query/-/react-query-5.104.2.tgz", { "dependencies": { "@tanstack/query-core": "5.104.2" }, "peerDependencies": { "react": "^18 || ^19" } }, "sha512-xKmzWGhadbE5wGS/ZmXShRITnI9oItox5GO14KvFZco3+vhTAyXS1erYzJWdiY280zapAGJXFUL9nHgwP6SV/g=="],
+
+    "@techstark/opencv-js": ["@techstark/opencv-js@5.0.0-release.1", "", {}, "sha512-PIm+eB0MFtieXoNC2GRao0dv/02sehG+Nv2nSW5D6pQm6J/4WqvDHm0RyoqOmGYQm67jdGiaOdIeTShCY3PIUg=="],
 
     "@types/connect": ["@types/connect@3.4.38", "https://europe-west1-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@types/connect/-/connect-3.4.38.tgz", { "dependencies": { "@types/node": "*" } }, "sha512-K6uROf1LD88uDQqJCktA4yzL1YYAK6NgfsI0v/mTgyPKWsX1CnJ0XPSDhViejru1GcRkLWb8RlzFYJRqGUbaug=="],
 
