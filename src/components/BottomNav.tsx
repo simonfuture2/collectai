@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { scanEntryPath } from "@/lib/scanEntry";
 import { Home, Layers, Trophy, Store, Camera, FlaskConical } from "lucide-react";
