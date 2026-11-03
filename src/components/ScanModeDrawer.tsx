@@ -12,7 +12,7 @@ export function ScanModeDrawer({ open, onOpenChange }: { open: boolean; onOpenCh
 
   const { allowed: priceAllowed } = usePriceCheckAccess(open);
   const options = [
-    ...(priceAllowed ? [{ to: "/scan?mode=price", icon: Tag, title: "Price check (free)", sub: "Fast PriceCharting value. Free, no credits.", tone: "primary" as const }] : []),
+    ...(priceAllowed ? [{ to: "/scan?mode=price", icon: Tag, title: "Price check (free)", sub: "Free with your account. Up to 100 cards an hour.", tone: "primary" as const }] : []),
     { to: "/scan?mode=collection", icon: Layers, title: "Add to my collection", sub: "A card you own. Saved, priced and tracked in your portfolio.", tone: "primary" as const },
     { to: "/scan?mode=insight", icon: ScanSearch, title: "Insights only", sub: "At a show or shop? Price-check a raw or graded card without adding it.", tone: "secondary" as const },
   ];

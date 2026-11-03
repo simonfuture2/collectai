@@ -34,7 +34,7 @@ const FAQS = [
   { q: "Which cards can I scan?", a: "Every major trading card game, including Pokémon, One Piece, Magic: The Gathering, Yu-Gi-Oh! and Lorcana, plus baseball, basketball, football, hockey and soccer cards. Graded slabs and most collectibles that sell online work too." },
   { q: "Where do the prices come from?", a: "Recent sold listings from eBay, plus TCGplayer and PriceCharting market data. We show how many comps were used and how confident the estimate is." },
   { q: "Is the grade official?", a: "No. It's an SI pre-grade to help you decide whether to submit a card. Official grades come from PSA, BGS, CGC, SGC or TAG." },
-  { q: "Do I need an account?", a: "Not to try it. The demo gives you 3 free scans a day. A free account saves your cards and gives you 3 full scans with graded values and trends." },
+  { q: "Do I need an account?", a: "Not to try it. The demo gives you 3 free scans a day. With a free account you get free price checks, up to 100 cards an hour, plus 3 full AI scans with grading." },
 ];
 
 const azure = "hsl(200 90% 45%)";
@@ -154,7 +154,7 @@ const Landing = () => {
                   </Button>
                 </Link>
               </div>
-              <p className="mt-4 text-sm text-muted-foreground">No sign-up needed to try · 3 free demo scans a day</p>
+              <p className="mt-4 text-sm text-muted-foreground">Try a free demo scan now · Create a free account for free price checks</p>
             </motion.div>
             <motion.div id="demo-scan" variants={fadeUp} className="flex justify-center w-full scroll-mt-8" ref={demoWrapRef}>
               <ScanDemo ref={demoRef} />
@@ -317,7 +317,7 @@ const Landing = () => {
               <h3 className="text-xl font-display font-bold mb-2">Free</h3>
               <p className="text-3xl font-display font-bold mb-4">$0</p>
               <ul className="space-y-2 mb-6 text-sm">
-                {["3 full SI scans", "Card ID, condition and value", "Collection tracking"].map((f) => (
+                {["Free price checks (up to 100 cards an hour)", "3 full AI scans", "Card ID, condition and value", "Collection tracking"].map((f) => (
                   <li key={f} className="flex items-center gap-2"><Check className="w-4 h-4 text-primary" />{f}</li>
                 ))}
               </ul>
