@@ -115,6 +115,12 @@
 }
 
 @layer utilities {
+  /* Live camera scanner: always dark, regardless of theme. */
+  .cam-surface { --cam-bg: 0 0% 0%; --cam-fg: 0 0% 100%; --cam-ok: 142 70% 45%; background: hsl(var(--cam-bg)); color: hsl(var(--cam-fg)); }
+  .cam-glass { background: hsl(var(--cam-bg) / 0.45); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid hsl(var(--cam-fg) / 0.15); }
+  .cam-muted { color: hsl(var(--cam-fg) / 0.7); }
+  .cam-ok { color: hsl(var(--cam-ok)); }
+  .cam-ok-bg { background: hsl(var(--cam-ok)); }
   .font-numeric {
     font-variant-numeric: tabular-nums;
     letter-spacing: -0.02em;
