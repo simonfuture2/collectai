@@ -12,3 +12,4 @@
 - [ ] Slab full analysis valued T206 Wagner PSA 5 at ~$108 — investigate grade rung pick.
 - [ ] Paid upgrade charge path untested: admin account is beta (free); needs a free account with credits.- [x] Camera-first scanner at /scan/live: live outline, auto-capture, duplicate guard, results strip, card sheet, review, barcode mode; tested in a phone-sized browser with a fake camera.
 - [ ] Camera scanner on real devices (iPhone Safari, Android Chrome, Android app): sleeve/toploader/slab outline hold and timings — needs the owner's phone.
+- [x] Home demo → sign-up: sample cards, save-on-signup import, daily-limit panel, funnel tracking and Agent HQ Funnel tab.
