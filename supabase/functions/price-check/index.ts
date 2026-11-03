@@ -12,6 +12,7 @@ import {
   tokensOf,
   type PriceLadder,
 } from "../_shared/pricecharting.ts";
+import { buildChaseFromCatalog } from "../_shared/sealed.ts";
 import { groupParallels, languageBoost, normLanguage, parallelLabel, slabRung, type Slab } from "./ranking.ts";
 
 const HOURLY_LIMIT = 100;
@@ -268,6 +269,7 @@ const ActionBody = z.discriminatedUnion("action", [
   z.object({ action: z.literal("select"), priceCheckId: z.string().uuid(), productId: z.number().int().positive() }),
   z.object({ action: z.literal("search"), query: z.string().trim().min(2).max(120) }),
   z.object({ action: z.literal("link"), priceCheckId: z.string().uuid(), cardId: z.string().uuid() }),
+  z.object({ action: z.literal("barcode"), upc: z.string().regex(/^\d{8,14}$/) }),
 ]);
 
 async function handleAction(raw: unknown, userId: string): Promise<Response> {
@@ -287,6 +289,22 @@ async function handleAction(raw: unknown, userId: string): Promise<Response> {
       productId: c.product_id, name: c.product_name, set: c.console_name, number: numberOf(c.product_name),
       ladder: c.ladder, url: `https://www.pricecharting.com/game/${c.product_id}`,
     })) });
+  }
+
+  if (body.action === "barcode") {
+    // Sealed product by barcode: stored list only, prices and chase list never come from AI.
+    const variants = [...new Set([body.upc, body.upc.replace(/^0+/, ""), body.upc.padStart(12, "0"), body.upc.padStart(13, "0")])];
+    const { data: hit } = await admin.from("pricecharting_catalog").select("*").in("upc", variants).limit(1).maybeSingle();
+    if (!hit) return json({ found: false });
+    const name = String(hit.product_name ?? "");
+    const kind = /booster box|display/i.test(name) ? "booster box" : /elite trainer/i.test(name) ? "elite trainer box" : /pack/i.test(name) ? "booster pack" : "booster box";
+    const chase = await buildChaseFromCatalog(admin, hit.category, hit.console_name, kind).catch(() => null);
+    const price = Number(hit.new_price ?? hit.loose_price);
+    return json({
+      found: true,
+      product: { productId: hit.id, name, set: hit.console_name, price: Number.isFinite(price) && price > 0 ? price : null, url: `https://www.pricecharting.com/game/${hit.id}` },
+      chase: chase?.chase ?? [],
+    });
   }
 
   const { data: row } = await admin.from("price_checks").select("id, candidates").eq("id", body.priceCheckId).eq("user_id", userId).maybeSingle();
