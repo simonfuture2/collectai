@@ -1,11 +1,14 @@
 import { trackAgentEvent } from "@/lib/agentRef";
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
-import { Upload, Loader2, RotateCcw } from "lucide-react";
+import { Upload, Loader2, RotateCcw, BookmarkPlus } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { DEMO_SAMPLES, SAMPLE_SCAN_MS, type DemoSample } from "@/lib/demoSamples";
+import { downscalePhoto, saveDemoCard } from "@/lib/demoCard";
 import charizardCard from "@/assets/scan-demo-charizard.jpeg";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
-type Stage = "idle" | "scanning" | "graded" | "error";
+type Stage = "idle" | "scanning" | "graded" | "error" | "limit";
 
 interface DemoResult {
   cardName?: string;
@@ -45,6 +48,10 @@ const ScanDemo = forwardRef<ScanDemoHandle>((_props, ref) => {
   const [usingDefault, setUsingDefault] = useState(true);
   const [result, setResult] = useState<DemoResult | null>(null);
   const [errorMsg, setErrorMsg] = useState<string>("");
+  const [isSample, setIsSample] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const sampleTimer = useRef<number | null>(null);
+  const navigate = useNavigate();
 
   useImperativeHandle(ref, () => ({ openPicker: () => fileRef.current?.click() }), []);
 
@@ -62,7 +69,34 @@ const ScanDemo = forwardRef<ScanDemoHandle>((_props, ref) => {
     setUsingDefault(true);
     setResult(null);
     setErrorMsg("");
+    setIsSample(false);
+    if (sampleTimer.current) clearTimeout(sampleTimer.current);
     setStage("idle");
+  };
+
+  const playSample = (sample: DemoSample) => {
+    if (stage === "scanning") return;
+    void trackAgentEvent("demo_sample_tap", { sample: sample.id });
+    if (!usingDefault && previewUrl.startsWith("blob:")) URL.revokeObjectURL(previewUrl);
+    if (sampleTimer.current) clearTimeout(sampleTimer.current);
+    setPreviewUrl(sample.image);
+    setUsingDefault(true);
+    setResult(null);
+    setErrorMsg("");
+    setIsSample(true);
+    setStage("scanning");
+    sampleTimer.current = window.setTimeout(() => { setResult(sample.result); setStage("graded"); }, SAMPLE_SCAN_MS);
+  };
+
+  const saveCard = async () => {
+    if (!result || isSample) return;
+    setSaving(true);
+    void trackAgentEvent("save_card_click");
+    try {
+      const photo = await downscalePhoto(previewUrl);
+      await saveDemoCard({ at: Date.now(), result: result as Record<string, unknown>, photo });
+    } catch { /* still send them to sign up */ }
+    navigate("/auth?mode=signup&from=demo&next=/dashboard");
   };
 
   const runScan = async (file: File) => {
@@ -81,7 +115,9 @@ const ScanDemo = forwardRef<ScanDemoHandle>((_props, ref) => {
     setUsingDefault(false);
     setResult(null);
     setErrorMsg("");
+    setIsSample(false);
     setStage("scanning");
+    void trackAgentEvent("demo_upload_started");
 
     try {
       const imageBase64 = await fileToBase64(file);
@@ -94,6 +130,14 @@ const ScanDemo = forwardRef<ScanDemoHandle>((_props, ref) => {
         const ctx = (error as any).context;
         let msg = error.message || "Scan failed";
         const status = ctx?.status;
+        let parsedBody: any = null;
+        try { parsedBody = ctx && (await ctx.clone?.().json?.()); } catch { /* ignore */ }
+        if (status === 429 || parsedBody?.rateLimited) {
+          void trackAgentEvent("demo_limit_hit");
+          setStage("limit");
+          return;
+        }
+        void trackAgentEvent("demo_error", { status: status ?? null });
         if (status === 500 || status === 502) {
           setErrorMsg("Our scanner is busy. Try again in a moment. This didn't use one of your free scans.");
           setStage("error");
@@ -109,16 +153,19 @@ const ScanDemo = forwardRef<ScanDemoHandle>((_props, ref) => {
       }
 
       if (!data?.success || !data?.data) {
+        void trackAgentEvent("demo_error", { reason: "no_result" });
         setErrorMsg(data?.error || "SI couldn't analyze that image.");
         setStage("error");
         return;
       }
       void trackAgentEvent("demo_scan");
+      void trackAgentEvent("demo_result");
 
 
       setResult(data.data as DemoResult);
       setStage("graded");
     } catch (e: any) {
+      void trackAgentEvent("demo_error", { reason: "exception" });
       setErrorMsg(e?.message || "Something went wrong.");
       setStage("error");
     }
@@ -146,7 +193,8 @@ const ScanDemo = forwardRef<ScanDemoHandle>((_props, ref) => {
   const gradeNum = result?.gradeNumber ?? 7;
 
   return (
-    <div className="relative w-full max-w-sm mx-auto aspect-[3/4]">
+    <div className="w-full max-w-sm mx-auto">
+    <div className="relative w-full aspect-[3/4]">
       <input
         ref={fileRef}
         type="file"
@@ -218,6 +266,7 @@ const ScanDemo = forwardRef<ScanDemoHandle>((_props, ref) => {
                 <p className="text-xl font-display font-bold text-gradient-primary">
                   {valueLabel}
                 </p>
+                {isSample && <p className="text-[10px] font-semibold uppercase tracking-wide text-primary">Sample result</p>}
                 {result?.pricedFrom && (
                   <p className="text-[10px] text-muted-foreground">
                     {result.pricedFrom === "market" ? "Based on recent sold comps" : "SI estimate, sign up for live comps"}
@@ -239,6 +288,18 @@ const ScanDemo = forwardRef<ScanDemoHandle>((_props, ref) => {
           </>
         )}
 
+        {/* Daily demo limit */}
+        {stage === "limit" && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-background/90 backdrop-blur p-6 text-center">
+            <p className="font-display text-lg font-bold">You've used today's 3 free demo scans.</p>
+            <p className="text-sm text-muted-foreground">Create a free account to keep scanning.</p>
+            <button type="button" onClick={() => navigate("/auth?mode=signup&from=demo")}
+              className="rounded-full gradient-primary text-primary-foreground px-5 py-2.5 text-sm font-semibold shadow">
+              Create free account
+            </button>
+          </div>
+        )}
+
         {/* Error state */}
         {stage === "error" && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-background/85 backdrop-blur p-6 text-center">
@@ -253,6 +314,31 @@ const ScanDemo = forwardRef<ScanDemoHandle>((_props, ref) => {
           </div>
         )}
       </div>
+    </div>
+
+    {stage === "graded" && result && !isSample && (
+      <div className="mt-3 rounded-2xl border border-primary/40 bg-card p-4 text-left shadow">
+        <p className="font-display font-bold">Save this card to your collection</p>
+        <p className="mt-1 text-sm text-muted-foreground">Create a free account and this card – with its value and grade – is waiting for you.</p>
+        <button type="button" onClick={saveCard} disabled={saving}
+          className="mt-3 flex w-full items-center justify-center gap-2 rounded-full gradient-primary text-primary-foreground px-4 py-2.5 text-sm font-semibold shadow">
+          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <BookmarkPlus className="h-4 w-4" />} Save it free
+        </button>
+      </div>
+    )}
+
+    <div className="mt-4">
+      <p className="text-xs text-muted-foreground text-center">No card handy? Try one:</p>
+      <div className="mt-2 grid grid-cols-4 gap-2">
+        {DEMO_SAMPLES.map(s => (
+          <button key={s.id} type="button" onClick={() => playSample(s)} aria-label={`Try a sample ${s.label} card`}
+            className="group rounded-lg border border-border bg-card p-1 transition hover:border-primary">
+            <img src={s.image} alt="" className="aspect-[63/88] w-full rounded object-cover" loading="lazy" />
+            <span className="mt-1 block truncate text-[10px] text-muted-foreground group-hover:text-foreground">{s.label}</span>
+          </button>
+        ))}
+      </div>
+    </div>
     </div>
   );
 });
