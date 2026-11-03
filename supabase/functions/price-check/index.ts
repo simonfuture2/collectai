@@ -299,7 +299,8 @@ async function handleAction(raw: unknown, userId: string): Promise<Response> {
     const name = String(hit.product_name ?? "");
     const kind = /booster box|display/i.test(name) ? "booster box" : /elite trainer/i.test(name) ? "elite trainer box" : /pack/i.test(name) ? "booster pack" : "booster box";
     const chase = await buildChaseFromCatalog(admin, hit.category, hit.console_name, kind).catch(() => null);
-    const price = Number(hit.new_price ?? hit.loose_price);
+    const cents = Number(hit.new_price ?? hit.loose_price);
+    const price = Number.isFinite(cents) && cents > 0 ? Math.round(cents) / 100 : NaN;
     return json({
       found: true,
       product: { productId: hit.id, name, set: hit.console_name, price: Number.isFinite(price) && price > 0 ? price : null, url: `https://www.pricecharting.com/game/${hit.id}` },
