@@ -107,7 +107,8 @@ export function tokensOf(s: string): Set<string> {
       .toLowerCase()
       .replace(/[^a-z0-9\s]/g, " ")
       .split(/\s+/)
-      .filter((t) => t.length >= 3),
+      // Keep Pokémon mechanic suffixes ("Charizard ex" is a different card from "Charizard").
+      .filter((t) => t.length >= 3 || t === "ex" || t === "gx" || t === "v"),
   );
 }
 
