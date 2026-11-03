@@ -147,10 +147,13 @@ Deno.serve(async (req) => {
     if (lastGeminiFailure === "credits_exhausted") return json({ error: "AI credits used up. Please try again later." }, 402);
     return json({ error: "Price Check is temporarily unavailable. Please try again shortly." }, 503);
   }
-  const readings: Reading[] = [ai?.best, ...(Array.isArray(ai?.alternates) ? ai.alternates.slice(0, 2) : [])]
+  // Tolerate shape drift: a bare array, or a single reading object without "best".
+  const shaped = Array.isArray(ai) ? { best: ai[0], alternates: ai.slice(1) } : (ai && !ai.best && typeof ai.name === "string") ? { best: ai, alternates: [] } : ai;
+  const readings: Reading[] = [shaped?.best, ...(Array.isArray(shaped?.alternates) ? shaped.alternates.slice(0, 2) : [])]
     .filter((r): r is Reading => !!r && typeof r.name === "string" && r.name.trim().length > 0)
     .map((r) => ({ ...r, name: r.name.trim() }));
   if (!readings.length) {
+    console.warn("[price-check] no readable name in reply:", JSON.stringify(ai).slice(0, 300));
     return json({ error: "Couldn't read the card. Try a closer, well-lit photo." }, 422);
   }
   const best = readings[0];
