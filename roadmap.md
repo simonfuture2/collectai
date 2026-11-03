@@ -10,4 +10,5 @@
 - [x] Price check 503 fixed; 7 real photos ran check → switch → add → full analysis with every step succeeding.
 - [ ] Price check accuracy/speed: wrong #1 on Charizard (picked 1st Edition), Dark Magician (picked Pharaoh's Servant); median ~4.7 s vs 4 s target (direct Google key's billing refusal adds ~1 s).
 - [ ] Slab full analysis valued T206 Wagner PSA 5 at ~$108 — investigate grade rung pick.
-- [ ] Paid upgrade charge path untested: admin account is beta (free); needs a free account with credits.
+- [ ] Paid upgrade charge path untested: admin account is beta (free); needs a free account with credits.- [x] Camera-first scanner at /scan/live: live outline, auto-capture, duplicate guard, results strip, card sheet, review, barcode mode; tested in a phone-sized browser with a fake camera.
+- [ ] Camera scanner on real devices (iPhone Safari, Android Chrome, Android app): sleeve/toploader/slab outline hold and timings — needs the owner's phone.
