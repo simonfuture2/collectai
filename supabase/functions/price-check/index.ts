@@ -148,7 +148,7 @@ Deno.serve(async (req) => {
     return json({ error: "Price Check is temporarily unavailable. Please try again shortly." }, 503);
   }
   // Tolerate shape drift: a bare array, or a single reading object without "best".
-  const shaped = Array.isArray(ai) ? { best: ai[0], alternates: ai.slice(1) } : (ai && !ai.best && typeof ai.name === "string") ? { best: ai, alternates: [] } : ai;
+  const shaped = Array.isArray(ai) ? (ai[0]?.best ? ai[0] : { best: ai[0], alternates: ai.slice(1) }) : (ai && !ai.best && typeof ai.name === "string") ? { best: ai, alternates: [] } : ai;
   const readings: Reading[] = [shaped?.best, ...(Array.isArray(shaped?.alternates) ? shaped.alternates.slice(0, 2) : [])]
     .filter((r): r is Reading => !!r && typeof r.name === "string" && r.name.trim().length > 0)
     .map((r) => ({ ...r, name: r.name.trim() }));
