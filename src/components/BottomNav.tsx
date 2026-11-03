@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import ScanModeDrawer from "@/components/ScanModeDrawer";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { scanEntryPath } from "@/lib/scanEntry";
 import { Home, Layers, Trophy, Store, Camera, FlaskConical } from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -22,6 +22,7 @@ const APP_ROUTE_PREFIXES = [
 
 const HIDDEN_PREFIXES = [
   "/card/share",
+  "/scan/live",
 ];
 
 function shouldShow(pathname: string) {
@@ -56,7 +57,7 @@ export function BottomNav() {
   const location = useLocation();
   const { isAdmin } = useAdmin();
 
-  const [chooserOpen, setChooserOpen] = useState(false);
+  const navigate = useNavigate();
   const visible = shouldShow(location.pathname);
   const tabs = isAdmin ? [...BASE_TABS, LAB_TAB] : BASE_TABS;
 
@@ -95,7 +96,7 @@ export function BottomNav() {
           <div className="relative -mt-8 flex-1 flex justify-center">
             <motion.button
               type="button"
-              onClick={() => setChooserOpen(true)}
+              onClick={() => navigate(scanEntryPath())}
               whileTap={{ scale: 0.92 }}
               whileHover={{ scale: 1.04 }}
               transition={{ type: "spring", stiffness: 400, damping: 22 }}
@@ -123,7 +124,6 @@ export function BottomNav() {
           ))}
         </div>
       </div>
-      <div className="pointer-events-auto"><ScanModeDrawer open={chooserOpen} onOpenChange={setChooserOpen} /></div>
     </nav>
   );
 }

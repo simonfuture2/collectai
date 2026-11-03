@@ -11,6 +11,7 @@ import { Web3Provider } from "./components/Web3Provider";
 import BottomNav from "./components/BottomNav";
 
 const Scan = lazy(() => import("./pages/Scan"));
+const LiveScan = lazy(() => import("./pages/LiveScan"));
 const Collection = lazy(() => import("./pages/Collection"));
 const PackRip = lazy(() => import("./pages/PackRip"));
 const CardDetail = lazy(() => import("./pages/CardDetail"));
@@ -123,6 +124,7 @@ const App = () => (
               <Route path="/auth" element={<Auth />} />
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/scan" element={<Scan />} />
+              <Route path="/scan/live" element={<LiveScan />} />
               <Route path="/scan/reveal/:cardId" element={<ScanReveal />} />
               <Route path="/price/:priceCheckId" element={<PriceResult />} />
               <Route path="/insights" element={<Insights />} />
