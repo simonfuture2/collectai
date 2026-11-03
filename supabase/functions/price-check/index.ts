@@ -140,7 +140,7 @@ Deno.serve(async (req) => {
 
   // 2. Identification (Gemini Flash only)
   t = performance.now();
-  const ai = await geminiVisionJson(signed.data.signedUrl, PROMPT, "gemini-3.5-flash", 400);
+  const ai = await geminiVisionJson(signed.data.signedUrl, PROMPT, "gemini-3.5-flash", 2048);
   mark("identify_ms", t);
   if (ai === null) {
     if (lastGeminiFailure === "rate_limited") return json({ error: "AI busy, try again in a moment." }, 429);
