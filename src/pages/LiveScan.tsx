@@ -13,7 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
 import {
-  LIVE, GAMES, LANGUAGES, PILL, categoryFor, canvasHash, cropCard, detectCard, emaQuad, errorPill, isDuplicate,
+  LIVE, GAMES, LANGUAGES, PILL, categoryFor, canvasHash, cropCard, detectCard, emaQuad, errorPill,
   laplacianVariance, loadOpenCV, cooldownDone, trackPhase, showIdleHint, loopPaused, hamming, meanAbsDiff, nextLanguage, quadMotion, scanState, steadyStep, toGray, warpCard,
   type LangId, type Quad, type ScanState,
 } from "@/lib/liveDetect";
