@@ -12,7 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
 import {
-  LIVE, GAMES, hamming, LANGUAGES, PILL, categoryFor, canvasHash, cropCard, detectCard, emaQuad, errorPill, isDuplicate,
+  LIVE, GAMES, LANGUAGES, PILL, categoryFor, canvasHash, cropCard, detectCard, emaQuad, errorPill, isDuplicate,
   laplacianVariance, loadOpenCV, meanAbsDiff, nextLanguage, quadMotion, scanState, steadyStep, toGray, warpCard,
   type LangId, type Quad, type ScanState,
 } from "@/lib/liveDetect";
@@ -218,7 +218,6 @@ export default function LiveScan() {
   const sendCard = useCallback(async (card: HTMLCanvasElement, skipDup = false) => {
     if (!userId || busyRef.current) return;
     const hash = canvasHash(card);
-    console.log(`[live] hash ${hash} last=${lastHashRef.current ?? "-"} dist=${lastHashRef.current ? hamming(hash, lastHashRef.current) : "-"}`);
     if (!skipDup && isDuplicate(hash, lastHashRef.current)) { flashPill("Already scanned – show a different card", 1500, false); return; }
     busyRef.current = true;
     capturingRef.current = true; pulseRef.current = performance.now();

@@ -18,7 +18,7 @@ export default function CardSheet({ tile, mode, onClose, onSelect, onSave, onFul
   const others = tile?.candidates.filter(o => o.productId !== c?.productId) ?? [];
   const saved = !!tile?.savedCardId;
   const saveLabel = mode === "insight" ? "Save to Insights – free" : "Add to collection – free";
-  const name = c?.name.replace(/\[[^\]]*\]/g, "").replace(/\s+/g, " ").trim();
+  const name = c?.name.replace(/\[[^\]]*\]/g, "").replace(/#\s*\S+/g, "").replace(/\s+/g, " ").trim();
   const flag = flagFor(tile?.language);
 
   return (

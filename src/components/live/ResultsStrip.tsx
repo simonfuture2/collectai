@@ -54,7 +54,7 @@ function Tile({ t, onOpen, onRemove }: { t: LiveTile; onOpen: (t: LiveTile) => v
   const raw = ungradedPrice(c?.ladder);
   const par = c ? parallelOf(c.name) : null;
   const flag = flagFor(t.language);
-  const name = t.kind === "sealed" ? t.sealed?.name : c?.name.replace(/\[[^\]]*\]/g, "").replace(/\s+/g, " ").trim();
+  const name = t.kind === "sealed" ? t.sealed?.name : c?.name.replace(/\[[^\]]*\]/g, "").replace(/#\s*\S+/g, "").replace(/\s+/g, " ").trim();
   return (
     <div className="relative snap-start shrink-0 w-[9.5rem]">
       <button type="button" onClick={() => onOpen(t)} disabled={t.status === "checking"}
