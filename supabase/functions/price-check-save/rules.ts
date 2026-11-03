@@ -11,13 +11,14 @@ export function priceOnlyCardRow(
   userId: string, imagePath: string, c: SavedCandidate | null,
   reading: { name?: string; set?: string | null; number?: string | null; year?: string | null; variant?: string | null },
   nowIso: string,
+  scanPurpose: "collection" | "insight" = "collection",
 ) {
   const raw = Number(c?.ladder?.ungraded);
   const ungraded = Number.isFinite(raw) && raw > 0 ? raw : null;
   return {
     user_id: userId,
     image_url: imagePath,
-    scan_purpose: "collection",
+    scan_purpose: scanPurpose,
     item_type: "card",
     analysis_depth: "price_only",
     analysis_status: "complete",

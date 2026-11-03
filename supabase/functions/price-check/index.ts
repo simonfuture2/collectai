@@ -36,6 +36,7 @@ const Body = z.object({
   category: z.string().max(60).optional(),
   packRipId: z.string().uuid().optional(),
   lab: z.boolean().optional(),
+  language: z.enum(["any", "english", "japanese", "korean", "chinese"]).optional(),
 });
 
 type Reading = {
@@ -117,7 +118,7 @@ Deno.serve(async (req) => {
   if (raw?.action) return handleAction(raw, userId);
   const parsed = Body.safeParse(raw);
   if (!parsed.success) return json({ error: parsed.error.flatten().fieldErrors }, 400);
-  const { imagePath, category: catInput, packRipId, lab: labReq } = parsed.data;
+  const { imagePath, category: catInput, packRipId, lab: labReq, language: langHint } = parsed.data;
   if (!imagePath.startsWith(`${userId}/`) || imagePath.includes("..")) {
     return json({ error: "Image must be in your own folder" }, 403);
   }
@@ -158,6 +159,8 @@ Deno.serve(async (req) => {
     console.warn("[price-check] no readable name in reply:", JSON.stringify(ai).slice(0, 300));
     return json({ error: "Couldn't read the card. Try a closer, well-lit photo." }, 422);
   }
+  // User-chosen language overrides what was read (ranking hint only).
+  if (langHint && langHint !== "any") for (const r of readings) r.language = langHint;
   const best = readings[0];
   const category =
     catInput ?? GAME_TO_CATEGORY[(best.game ?? "").toLowerCase().trim()] ?? undefined;
