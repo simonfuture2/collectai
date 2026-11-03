@@ -5,7 +5,7 @@ import collectaiLogo from "@/assets/collectai-logo.png";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Camera, LogOut, Wallet, TrendingUp, Layers, BarChart3, Crown, Shield, Trash2, Package } from "lucide-react";
+import { Camera, LogOut, Wallet, TrendingUp, Layers, BarChart3, Crown, Shield, Trash2, Package, FlaskConical } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
 import CreditBalance from "@/components/CreditBalance";
 import UpgradeModal from "@/components/UpgradeModal";
@@ -236,6 +236,11 @@ const Dashboard = () => {
               <Link to="/marketplace" className="contents sm:block">
                 <Button variant="outline" className="hover-lift w-full sm:w-auto"><Wallet className="mr-2 w-5 h-5" />Marketplace</Button>
               </Link>
+              {isAdmin && (
+                <Link to="/admin/price-check-lab" className="contents sm:block">
+                  <Button variant="outline" className="hover-lift w-full sm:w-auto"><FlaskConical className="mr-2 w-5 h-5" />Price Check Lab</Button>
+                </Link>
+              )}
             </div>
 
             {stats.totalCards === 0 && (

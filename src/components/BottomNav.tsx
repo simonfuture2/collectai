@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import ScanModeDrawer from "@/components/ScanModeDrawer";
 import { Link, useLocation } from "react-router-dom";
-import { Home, Layers, Trophy, Store, Camera } from "lucide-react";
+import { Home, Layers, Trophy, Store, Camera, FlaskConical } from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { useAdmin } from "@/hooks/use-admin";
 
 const APP_ROUTE_PREFIXES = [
   "/dashboard",
@@ -16,6 +17,7 @@ const APP_ROUTE_PREFIXES = [
   "/wallets",
   "/pricing",
   "/insights",
+  "/admin/price-check-lab",
 ];
 
 const HIDDEN_PREFIXES = [
@@ -36,18 +38,27 @@ type Tab = {
   match: (path: string) => boolean;
 };
 
-const TABS: Tab[] = [
+const BASE_TABS: Tab[] = [
   { to: "/dashboard", label: "Home", icon: Home, match: (p) => p === "/dashboard" },
   { to: "/collection", label: "Collection", icon: Layers, match: (p) => p.startsWith("/collection") || p.startsWith("/card/") || p.startsWith("/insights") },
   { to: "/achievements", label: "Awards", icon: Trophy, match: (p) => p.startsWith("/achievements") },
   { to: "/marketplace", label: "Market", icon: Store, match: (p) => p.startsWith("/marketplace") },
 ];
 
+const LAB_TAB: Tab = {
+  to: "/admin/price-check-lab",
+  label: "Lab",
+  icon: FlaskConical,
+  match: (p) => p.startsWith("/admin/price-check-lab"),
+};
+
 export function BottomNav() {
   const location = useLocation();
+  const { isAdmin } = useAdmin();
 
   const [chooserOpen, setChooserOpen] = useState(false);
   const visible = shouldShow(location.pathname);
+  const tabs = isAdmin ? [...BASE_TABS, LAB_TAB] : BASE_TABS;
 
   useEffect(() => {
     if (!visible) return;
@@ -76,7 +87,7 @@ export function BottomNav() {
             "bg-[rgba(20,20,22,0.65)] backdrop-blur-xl backdrop-saturate-150"
           )}
         >
-          {TABS.slice(0, 2).map((tab) => (
+          {tabs.slice(0, 2).map((tab) => (
             <TabButton key={tab.to} tab={tab} active={tab.match(location.pathname)} />
           ))}
 
@@ -107,7 +118,7 @@ export function BottomNav() {
             </motion.button>
           </div>
 
-          {TABS.slice(2).map((tab) => (
+          {tabs.slice(2).map((tab) => (
             <TabButton key={tab.to} tab={tab} active={tab.match(location.pathname)} />
           ))}
         </div>
