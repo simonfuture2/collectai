@@ -12,6 +12,7 @@ import {
   tokensOf,
   type PriceLadder,
 } from "../_shared/pricecharting.ts";
+import { buildChaseFromCatalog } from "../_shared/sealed.ts";
 import { groupParallels, languageBoost, normLanguage, parallelLabel, slabRung, type Slab } from "./ranking.ts";
 
 const HOURLY_LIMIT = 100;
@@ -36,6 +37,7 @@ const Body = z.object({
   category: z.string().max(60).optional(),
   packRipId: z.string().uuid().optional(),
   lab: z.boolean().optional(),
+  language: z.enum(["any", "english", "japanese", "korean", "chinese"]).optional(),
 });
 
 type Reading = {
@@ -117,7 +119,7 @@ Deno.serve(async (req) => {
   if (raw?.action) return handleAction(raw, userId);
   const parsed = Body.safeParse(raw);
   if (!parsed.success) return json({ error: parsed.error.flatten().fieldErrors }, 400);
-  const { imagePath, category: catInput, packRipId, lab: labReq } = parsed.data;
+  const { imagePath, category: catInput, packRipId, lab: labReq, language: langHint } = parsed.data;
   if (!imagePath.startsWith(`${userId}/`) || imagePath.includes("..")) {
     return json({ error: "Image must be in your own folder" }, 403);
   }
@@ -158,6 +160,8 @@ Deno.serve(async (req) => {
     console.warn("[price-check] no readable name in reply:", JSON.stringify(ai).slice(0, 300));
     return json({ error: "Couldn't read the card. Try a closer, well-lit photo." }, 422);
   }
+  // User-chosen language overrides what was read (ranking hint only).
+  if (langHint && langHint !== "any") for (const r of readings) r.language = langHint;
   const best = readings[0];
   const category =
     catInput ?? GAME_TO_CATEGORY[(best.game ?? "").toLowerCase().trim()] ?? undefined;
@@ -265,6 +269,7 @@ const ActionBody = z.discriminatedUnion("action", [
   z.object({ action: z.literal("select"), priceCheckId: z.string().uuid(), productId: z.number().int().positive() }),
   z.object({ action: z.literal("search"), query: z.string().trim().min(2).max(120) }),
   z.object({ action: z.literal("link"), priceCheckId: z.string().uuid(), cardId: z.string().uuid() }),
+  z.object({ action: z.literal("barcode"), upc: z.string().regex(/^\d{8,14}$/) }),
 ]);
 
 async function handleAction(raw: unknown, userId: string): Promise<Response> {
@@ -284,6 +289,23 @@ async function handleAction(raw: unknown, userId: string): Promise<Response> {
       productId: c.product_id, name: c.product_name, set: c.console_name, number: numberOf(c.product_name),
       ladder: c.ladder, url: `https://www.pricecharting.com/game/${c.product_id}`,
     })) });
+  }
+
+  if (body.action === "barcode") {
+    // Sealed product by barcode: stored list only, prices and chase list never come from AI.
+    const variants = [...new Set([body.upc, body.upc.replace(/^0+/, ""), body.upc.padStart(12, "0"), body.upc.padStart(13, "0")])];
+    const { data: hit } = await admin.from("pricecharting_catalog").select("*").in("upc", variants).limit(1).maybeSingle();
+    if (!hit) return json({ found: false });
+    const name = String(hit.product_name ?? "");
+    const kind = /booster box|display/i.test(name) ? "booster box" : /elite trainer/i.test(name) ? "elite trainer box" : /pack/i.test(name) ? "booster pack" : "booster box";
+    const chase = await buildChaseFromCatalog(admin, hit.category, hit.console_name, kind).catch(() => null);
+    const cents = Number(hit.new_price ?? hit.loose_price);
+    const price = Number.isFinite(cents) && cents > 0 ? Math.round(cents) / 100 : NaN;
+    return json({
+      found: true,
+      product: { productId: hit.id, name, set: hit.console_name, price: Number.isFinite(price) && price > 0 ? price : null, url: `https://www.pricecharting.com/game/${hit.id}` },
+      chase: chase?.chase ?? [],
+    });
   }
 
   const { data: row } = await admin.from("price_checks").select("id, candidates").eq("id", body.priceCheckId).eq("user_id", userId).maybeSingle();

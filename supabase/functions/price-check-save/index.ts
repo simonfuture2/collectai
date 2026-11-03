@@ -4,7 +4,7 @@ import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { z } from "npm:zod@3";
 import { priceOnlyCardRow, type SavedCandidate } from "./rules.ts";
 
-const Body = z.object({ priceCheckId: z.string().uuid(), folderId: z.string().uuid().optional() });
+const Body = z.object({ priceCheckId: z.string().uuid(), folderId: z.string().uuid().optional(), scanPurpose: z.enum(["collection", "insight"]).optional() });
 const json = (b: unknown, status = 200) =>
   new Response(JSON.stringify(b), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
@@ -21,7 +21,7 @@ Deno.serve(async (req) => {
 
     const parsed = Body.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return json({ error: parsed.error.flatten().fieldErrors }, 400);
-    const { priceCheckId, folderId } = parsed.data;
+    const { priceCheckId, folderId, scanPurpose } = parsed.data;
     const admin = createClient(url, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
     const { data: check } = await admin.from("price_checks")
@@ -46,7 +46,7 @@ Deno.serve(async (req) => {
       const selected = list.find(c => Number(c.productId) === Number(check.selected_product_id)) ?? list[0] ?? null;
       const ident = (check.identification as any) ?? {};
       const reading = ident.best ?? ident ?? {};
-      const row = priceOnlyCardRow(userId, check.image_path, selected, reading, new Date().toISOString());
+      const row = priceOnlyCardRow(userId, check.image_path, selected, reading, new Date().toISOString(), scanPurpose ?? "collection");
       const { data: card, error } = await admin.from("cards").insert(row).select("id").single();
       if (error) throw error;
       cardId = card.id;
