@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Sparkles } from "lucide-react";
 import { lovable } from "@/integrations/lovable/index";
+import { Capacitor } from "@capacitor/core";
 import collectaiLogo from "@/assets/collectai-logo.png";
 import comboGraphic from "@/assets/mycollectai-authentiseal-combo.png";
 import Footer from "@/components/Footer";
@@ -153,7 +154,8 @@ const Auth = () => {
               </Button>
             </form>
 
-            {!resetMode && (
+            {/* Google blocks its sign-in inside app web views, so the Android app offers email only. */}
+            {!resetMode && !Capacitor.isNativePlatform() && (
               <div className="mt-4">
                 <div className="relative my-4">
                   <div className="absolute inset-0 flex items-center">

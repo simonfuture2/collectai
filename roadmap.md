@@ -13,3 +13,7 @@
 - [ ] Paid upgrade charge path untested: admin account is beta (free); needs a free account with credits.- [x] Camera-first scanner at /scan/live: live outline, auto-capture, duplicate guard, results strip, card sheet, review, barcode mode; tested in a phone-sized browser with a fake camera.
 - [ ] Camera scanner on real devices (iPhone Safari, Android Chrome, Android app): sleeve/toploader/slab outline hold and timings — needs the owner's phone.
 - [x] Home demo → sign-up: sample cards, save-on-signup import, daily-limit panel, funnel tracking and Agent HQ Funnel tab.
+
+- [ ] Google Play: closed test with 12+ testers for 14 days, then apply for production — waiting on the owner's Play developer account and a signed build from Android Studio.
+- [ ] Google Sign-in inside the Android app (needs a system-browser sign-in with a return link back to the app); email sign-in works for v1.
+- [ ] Google Search ads: sign-up tracking paused, waiting on the cookie-banner choice; billing not added.
