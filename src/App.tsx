@@ -48,6 +48,7 @@ const PriceResult = lazy(() => import("./pages/PriceResult"));
 const Verify = lazy(() => import("./pages/Verify"));
 const Insights = lazy(() => import("./pages/Insights"));
 const GradingGuides = lazy(() => import("./pages/GradingGuides"));
+const PriceCheckLanding = lazy(() => import("./pages/PriceCheckLanding"));
 const GradingGuide = lazy(() => import("./pages/GradingGuide"));
 const OAuthConsent = lazy(() => import("./pages/OAuthConsent"));
 const Watch = lazy(() => import("./pages/Watch"));
@@ -161,6 +162,7 @@ const App = () => (
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/design-demo" element={<DesignDemo />} />
               <Route path="/grading" element={<GradingGuides />} />
+              <Route path="/price-check" element={<PriceCheckLanding />} />
               <Route path="/grading/:slug" element={<GradingGuide />} />
               <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
               <Route path="*" element={<NotFound />} />

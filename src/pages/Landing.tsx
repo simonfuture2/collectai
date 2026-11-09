@@ -152,13 +152,13 @@ const Landing = () => {
                 <Button size="lg" onClick={tryScan} className="gradient-primary text-lg px-8 py-7 rounded-xl glow-purple hover-lift">
                   <Camera className="mr-2 w-6 h-6" /> Try a free scan
                 </Button>
-                <Link to="/auth?mode=signup">
+                <Link to={`/auth?mode=signup&next=${encodeURIComponent("/scan?mode=price")}`}>
                   <Button size="lg" variant="outline" className="w-full text-lg px-8 py-7 rounded-xl border-primary/50">
-                    Create free account
+                    Check your cards free — sign up
                   </Button>
                 </Link>
               </div>
-              <p className="mt-4 text-sm text-muted-foreground">Try a free demo scan now · Create a free account for free price checks</p>
+              <p className="mt-4 text-sm text-muted-foreground">Try a free demo scan now · <Link to="/price-check" className="underline underline-offset-4 hover:text-primary">How free price checks work</Link></p>
             </motion.div>
             <motion.div id="demo-scan" variants={fadeUp} className="flex justify-center w-full scroll-mt-8" ref={demoWrapRef}>
               <ScanDemo ref={demoRef} />
