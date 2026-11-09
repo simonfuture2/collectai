@@ -99,6 +99,13 @@
       "when": 1793734426856,
       "tag": "0013_migration",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1794230260326,
+      "tag": "0014_fix_signup_referral_trigger",
+      "breakpoints": true
     }
   ]
 }

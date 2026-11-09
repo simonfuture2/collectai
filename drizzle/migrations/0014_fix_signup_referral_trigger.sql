@@ -1,0 +1,1 @@
+DROP TRIGGER IF EXISTS on_profile_created_generate_referral ON public.profiles;
