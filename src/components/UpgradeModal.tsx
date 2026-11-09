@@ -6,6 +6,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { STRIPE_CONFIG, BETA_OFFER } from "@/lib/stripe-config";
 import { useCredits } from "@/hooks/use-credits";
 import { useToast } from "@/hooks/use-toast";
+import AndroidPlansNotice from "@/components/AndroidPlansNotice";
+import { isAndroidApp, ANDROID_OUT_OF_CREDITS_MSG } from "@/lib/platform";
 
 interface UpgradeModalProps {
   open: boolean;
@@ -48,6 +50,12 @@ export default function UpgradeModal({ open, onOpenChange, feature = "this featu
           </DialogDescription>
         </DialogHeader>
 
+        {isAndroidApp() ? (
+          <div className="mt-4 space-y-3">
+            <AndroidPlansNotice message={ANDROID_OUT_OF_CREDITS_MSG} />
+            <Button variant="outline" className="w-full" onClick={() => onOpenChange(false)}>OK</Button>
+          </div>
+        ) : (
         <div className="space-y-3 mt-4">
           {/* Pro subscription */}
           <Button
@@ -98,6 +106,7 @@ export default function UpgradeModal({ open, onOpenChange, feature = "this featu
             </Button>
           ))}
         </div>
+        )}
       </DialogContent>
     </Dialog>
   );

@@ -5,6 +5,7 @@ import { Home, Layers, Trophy, Store, Camera, FlaskConical } from "lucide-react"
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useAdmin } from "@/hooks/use-admin";
+import { isAndroidApp } from "@/lib/platform";
 
 const APP_ROUTE_PREFIXES = [
   "/dashboard",
@@ -59,7 +60,8 @@ export function BottomNav() {
 
   const navigate = useNavigate();
   const visible = shouldShow(location.pathname);
-  const tabs = isAdmin ? [...BASE_TABS, LAB_TAB] : BASE_TABS;
+  const base = isAndroidApp() ? BASE_TABS.filter((t) => t.to !== "/marketplace") : BASE_TABS;
+  const tabs = isAdmin ? [...base, LAB_TAB] : base;
 
   useEffect(() => {
     if (!visible) return;

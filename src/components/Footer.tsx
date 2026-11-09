@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { isAndroidApp } from "@/lib/platform";
 import collectaiLogo from "@/assets/collectai-logo.png";
 
 const Footer = () => {
@@ -23,7 +24,7 @@ const Footer = () => {
               <li><Link to="/scan" className="hover:text-foreground transition-colors">Scan</Link></li>
               <li><Link to="/watch" className="hover:text-foreground transition-colors">Watch</Link></li>
               <li><Link to="/dashboard" className="hover:text-foreground transition-colors">Dashboard</Link></li>
-              <li><Link to="/marketplace" className="hover:text-foreground transition-colors">Marketplace</Link></li>
+              {!isAndroidApp() && <li><Link to="/marketplace" className="hover:text-foreground transition-colors">Marketplace</Link></li>}
               <li><Link to="/how-it-works" className="hover:text-foreground transition-colors">How It Works</Link></li>
             </ul>
           </div>

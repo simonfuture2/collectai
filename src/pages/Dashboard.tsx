@@ -1,4 +1,5 @@
 import BetaEndedPrompt from "@/components/BetaEndedPrompt";
+import { isAndroidApp } from "@/lib/platform";
 import { useEffect, useState, lazy, Suspense } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import collectaiLogo from "@/assets/collectai-logo.png";
@@ -239,9 +240,11 @@ const Dashboard = () => {
               <Link to="/collection" className="contents sm:block">
                 <Button variant="outline" className="w-full sm:w-auto"><span className="sm:hidden">Collection</span><span className="hidden sm:inline">View Full Collection</span></Button>
               </Link>
-              <Link to="/marketplace" className="contents sm:block">
-                <Button variant="outline" className="hover-lift w-full sm:w-auto"><Wallet className="mr-2 w-5 h-5" />Marketplace</Button>
-              </Link>
+              {!isAndroidApp() && (
+                <Link to="/marketplace" className="contents sm:block">
+                  <Button variant="outline" className="hover-lift w-full sm:w-auto"><Wallet className="mr-2 w-5 h-5" />Marketplace</Button>
+                </Link>
+              )}
               {isAdmin && (
                 <Link to="/admin/price-check-lab" className="contents sm:block">
                   <Button variant="outline" className="hover-lift w-full sm:w-auto"><FlaskConical className="mr-2 w-5 h-5" />Price Check Lab</Button>

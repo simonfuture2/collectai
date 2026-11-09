@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { isAndroidApp } from "@/lib/platform";
 import SEO from "@/components/SEO";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -101,7 +102,7 @@ const Landing = () => {
           <Link to="/partners" className="text-sm text-muted-foreground hover:text-foreground transition-colors hidden lg:inline">Partners</Link>
           <Link to="/watch" className="text-sm text-muted-foreground hover:text-foreground transition-colors hidden sm:inline">Watch</Link>
           <Link to="/pricing" className="text-sm text-muted-foreground hover:text-foreground transition-colors hidden sm:inline">Pricing</Link>
-          <Link to="/marketplace" className="text-sm text-muted-foreground hover:text-foreground transition-colors hidden lg:inline">Marketplace</Link>
+          {!isAndroidApp() && <Link to="/marketplace" className="text-sm text-muted-foreground hover:text-foreground transition-colors hidden lg:inline">Marketplace</Link>}
           <ThemeToggle />
           <Link to="/auth" className="hidden sm:inline-flex">
             <Button variant="outline" className="border-primary/50 hover:bg-primary/10">Sign In</Button>
@@ -124,7 +125,7 @@ const Landing = () => {
                 <Link to="/partners" className="text-base text-foreground hover:text-primary transition-colors">Partners</Link>
                 <Link to="/faq" className="text-base text-foreground hover:text-primary transition-colors">FAQ</Link>
                 <Link to="/pricing" className="text-base text-foreground hover:text-primary transition-colors">Pricing</Link>
-                <Link to="/marketplace" className="text-base text-foreground hover:text-primary transition-colors">Marketplace</Link>
+                {!isAndroidApp() && <Link to="/marketplace" className="text-base text-foreground hover:text-primary transition-colors">Marketplace</Link>}
                 <Link to="/auth"><Button variant="outline" className="w-full">Sign In</Button></Link>
               </nav>
             </SheetContent>
@@ -285,7 +286,7 @@ const Landing = () => {
               { icon: Wallet, t: "Portfolio value", d: "Your total collection value, updated as the market moves. Real sold prices from eBay, TCGplayer and PriceCharting." },
               { icon: FolderOpen, t: "Folders & showcase", d: "Organize binders and share a public showcase link." },
               { icon: Coins, t: "Sell with stablecoins", d: "List cards on the marketplace and get paid in USDC." },
-            ].map((f) => (
+            ].filter((f) => !(isAndroidApp() && f.t === "Sell with stablecoins")).map((f) => (
               <motion.div key={f.t} variants={fadeUp} className="p-6 rounded-2xl bg-card border border-border hover-lift">
                 <f.icon className="w-8 h-8 text-primary mb-3" />
                 <h3 className="text-lg font-display font-semibold mb-1">{f.t}</h3>

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { isAndroidApp } from "@/lib/platform";
 import { Link } from "react-router-dom";
 import { Loader2, Sparkles } from "lucide-react";
 import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
@@ -70,7 +71,7 @@ export default function ReviewSheet({ open, onOpenChange, tiles, mode, isPro, cr
           {warn && (
             <div className="mt-3 rounded-xl border border-destructive/40 bg-destructive/10 p-3 text-sm">
               You have {credits} credit{credits === 1 ? "" : "s"}; this needs {ids.length}. Cards beyond your credits won't start.
-              <div className="mt-2 flex gap-2"><Link to="/pricing" className="text-primary underline">Get credits</Link><button type="button" className="underline" onClick={() => run(onFullAll, ids)}>Continue anyway</button></div>
+              <div className="mt-2 flex gap-2">{!isAndroidApp() && <Link to="/pricing" className="text-primary underline">Get credits</Link>}<button type="button" className="underline" onClick={() => run(onFullAll, ids)}>Continue anyway</button></div>
             </div>
           )}
 

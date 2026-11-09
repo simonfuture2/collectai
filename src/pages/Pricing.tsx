@@ -10,6 +10,8 @@ import Footer from "@/components/Footer";
 import { useToast } from "@/hooks/use-toast";
 import ThemeToggle from "@/components/ThemeToggle";
 import SEO from "@/components/SEO";
+import AndroidPlansNotice from "@/components/AndroidPlansNotice";
+import { isAndroidApp } from "@/lib/platform";
 
 const Pricing = () => {
   const [loading, setLoading] = useState<string | null>(null);
@@ -161,7 +163,9 @@ const Pricing = () => {
                 </li>
               ))}
             </ul>
-            {subscribed ? (
+            {isAndroidApp() ? (
+              <AndroidPlansNotice />
+            ) : subscribed ? (
               <Button variant="outline" onClick={handleManageSubscription} disabled={loading === "portal"} className="w-full">
                 {loading === "portal" ? <Loader2 className="mr-2 w-4 h-4 animate-spin" /> : <Settings className="mr-2 w-4 h-4" />}
                 Manage Subscription
@@ -189,7 +193,8 @@ const Pricing = () => {
             </h3>
             <p className="text-sm text-muted-foreground mb-6">Pay as you go</p>
             <div className="space-y-3 flex-1">
-              {[STRIPE_CONFIG.credits_10, STRIPE_CONFIG.credits_50, STRIPE_CONFIG.credits_100].map((pack) => (
+              {isAndroidApp() && <AndroidPlansNotice />}
+              {!isAndroidApp() && [STRIPE_CONFIG.credits_10, STRIPE_CONFIG.credits_50, STRIPE_CONFIG.credits_100].map((pack) => (
                 <Button
                   key={pack.price_id}
                   variant="outline"

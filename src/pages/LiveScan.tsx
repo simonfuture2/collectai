@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { isAndroidApp, ANDROID_OUT_OF_CREDITS_MSG } from "@/lib/platform";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useLiveScanner } from "@/hooks/use-live-scanner";
 import { FX, drawScanFx, lerpQuad, type FxColors, type SQuad } from "@/lib/scanFx";
@@ -662,7 +663,10 @@ export default function LiveScan() {
 
   const sheetFull = async () => {
     if (!openTile) return;
-    if (!isPro && credits < 1) { toast({ title: "No credits left", description: "Get credits or go Pro for full analysis." }); navigate("/pricing"); return; }
+    if (!isPro && credits < 1) {
+      if (isAndroidApp()) { toast({ title: "No credits left", description: ANDROID_OUT_OF_CREDITS_MSG }); return; }
+      toast({ title: "No credits left", description: "Get credits or go Pro for full analysis." }); navigate("/pricing"); return;
+    }
     setSheetBusy("full");
     try { const cardId = await fullOne(openTile.id); refreshCredits(); toast({ title: "Full analysis started" }); stopCamera(); navigate(`/card/${cardId}`); }
     catch (e) { toast({ title: "Analysis could not start", description: (e as Error).message, variant: "destructive" }); }

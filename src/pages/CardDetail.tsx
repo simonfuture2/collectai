@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from "react";
+import { isAndroidApp } from "@/lib/platform";
 import { moveInsightToCollection } from "@/lib/insights";
 import SealedResult from "@/components/sealed/SealedResult";
 
@@ -1085,7 +1086,7 @@ export default function CardDetail() {
             </Button>
 
             {/* List on Marketplace */}
-            {!isInsight && <Button
+            {!isInsight && !isAndroidApp() && <Button
               variant="outline"
               className="w-full"
               onClick={() => navigate(`/marketplace/list/${card.id}`)}

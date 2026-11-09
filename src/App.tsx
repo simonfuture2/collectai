@@ -8,6 +8,8 @@ import Landing from "./pages/Landing";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import { Web3Provider } from "./components/Web3Provider";
+import AndroidMarketGuard from "./components/AndroidMarketGuard";
+import { isAndroidApp } from "./lib/platform";
 import BottomNav from "./components/BottomNav";
 
 const Scan = lazy(() => import("./pages/Scan"));
@@ -108,9 +110,10 @@ class ChunkErrorBoundary extends Component<{ children: React.ReactNode }, { fail
 
 // Wrap only wallet-dependent routes with the Web3 stack so it isn't loaded
 // on the dashboard / landing / auth pages.
-const Wallet = ({ children }: { children: React.ReactNode }) => (
-  <Web3Provider>{children}</Web3Provider>
-);
+// The Android app never renders these (AndroidMarketGuard redirects), so no
+// wallet/Web3 code loads there.
+const Wallet = ({ children }: { children: React.ReactNode }) =>
+  isAndroidApp() ? null : <Web3Provider>{children}</Web3Provider>;
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -118,6 +121,7 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
+        <AndroidMarketGuard />
         <ChunkErrorBoundary>
           <Suspense fallback={<RouteFallback />}>
             <Routes>
