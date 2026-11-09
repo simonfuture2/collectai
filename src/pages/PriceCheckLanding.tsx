@@ -8,7 +8,7 @@ import { Camera, Layers, Tag, BadgeDollarSign } from "lucide-react";
 const SIGNUP = `/auth?mode=signup&next=${encodeURIComponent("/scan?mode=price")}`;
 
 const steps = [
-  { icon: Camera, title: "Snap a photo", text: "Take a picture of your card — raw, sleeved, in a toploader or slabbed." },
+  { icon: Camera, title: "Scan your card", text: "Take a picture of your card — raw, sleeved, in a toploader or slabbed." },
   { icon: Layers, title: "We find the match", text: "We read the name, set and number and show the closest matches, with parallels side by side." },
   { icon: BadgeDollarSign, title: "See the value", text: "Get the ungraded price plus graded values (PSA, BGS, CGC and more) from PriceCharting." },
   { icon: Tag, title: "Save it free", text: "Add the card to your collection at no cost, and run a full analysis later if you want one." },
@@ -29,7 +29,7 @@ export default function PriceCheckLanding() {
         <section className="max-w-3xl mx-auto text-center py-10">
           <h1 className="font-display text-4xl md:text-5xl font-bold mb-4">What's my card worth? Free photo price check</h1>
           <p className="text-lg text-muted-foreground mb-8">
-            Snap a Pokémon, One Piece, Magic, Yu-Gi-Oh!, Lorcana or sports card and see its ungraded and graded values in seconds. Price checks are free with a free account — no credits used.
+            Scan a Pokémon, One Piece, Magic, Yu-Gi-Oh!, Lorcana or sports card and see its ungraded and graded values in seconds. Price checks are free with a free account — no credits used.
           </p>
           <Link to={SIGNUP}>
             <Button size="lg" className="gradient-primary text-lg px-8 py-7 rounded-xl">

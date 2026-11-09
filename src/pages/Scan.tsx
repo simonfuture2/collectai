@@ -350,7 +350,7 @@ const Scan = () => {
 
             <p className="text-muted-foreground text-sm">
               {isPrice
-                ? "Snap the front of the card. You'll get its PriceCharting value in a few seconds."
+                ? "Scan the front of the card. You'll get its PriceCharting value in a few seconds."
                 : isSealed
                 ? "Photograph the front so the set logo is readable. Add the barcode for an exact match."
                 : "Upload the front & back of a card, or multiple views of any collectible for the best analysis."}

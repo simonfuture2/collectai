@@ -143,7 +143,7 @@ const Landing = () => {
                 Pokémon · One Piece · Magic · Yu-Gi-Oh! · Sports · and more
               </p>
               <h1 className="text-4xl md:text-6xl font-display font-bold mb-4 leading-tight">
-                Snap any card. <span className="text-gradient-primary">Know what it's worth.</span>
+                Scan any card. <span className="text-gradient-primary">Know what it's worth.</span>
               </h1>
               <p className="text-lg text-muted-foreground mb-8 max-w-md mx-auto md:mx-0">
                 MyCollectAI identifies every major TCG, sports cards and graded slabs, then prices them from real sold listings – raw and graded – in seconds.
@@ -205,7 +205,7 @@ const Landing = () => {
           </motion.h2>
           <div className="grid md:grid-cols-3 gap-6">
             {[
-              { icon: ScanLine, t: "Snap the front (and back)", d: "Raw card or slab. Phone photo is fine." },
+              { icon: ScanLine, t: "Scan the front (and back)", d: "Raw card or slab. Phone photo is fine." },
               { icon: Search, t: "SI identifies the exact card", d: "Set, number, year, parallel and variant – not just the name." },
               { icon: DollarSign, t: "Get the real price", d: "Priced from recent sold listings, with a raw value and graded values for PSA 9 and PSA 10." },
             ].map((s, i) => (

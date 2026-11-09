@@ -55,12 +55,12 @@ const steps = [
   },
   {
     number: 2,
-    title: "Upload or Snap Your Card",
+    title: "Upload or Scan Your Card",
     icon: Camera,
     color: "from-accent/20 to-accent/5",
     iconBg: "bg-accent/15 text-accent-foreground",
     description:
-      "Use your device camera to snap a photo, or upload an existing image. Our scanner accepts Pokémon, Magic: The Gathering, Yu-Gi-Oh!, and all major sports cards.",
+      "Use your device camera to scan your card, or upload an existing image. Our scanner accepts Pokémon, Magic: The Gathering, Yu-Gi-Oh!, and all major sports cards.",
     visual: (
       <div className="rounded-xl border-2 border-dashed border-border bg-muted/30 p-8 flex flex-col items-center gap-4">
         <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center">
@@ -202,12 +202,12 @@ const HowItWorks = () => {
     <LegalPageLayout title="How MyCollectAI Works" lastUpdated="June 2025">
       <SEO
         title="How MyCollectAI Works – SI Card Grading in 5 Steps"
-        description="From snap to seal in five steps: scan, SI grade, identify, value, and verify your trading cards with MyCollectAI."
+        description="From scan to seal in five steps: scan, SI grade, identify, value, and verify your trading cards with MyCollectAI."
         path="/how-it-works"
       />
       <div className="text-center mb-12 -mt-2">
         <p className="text-muted-foreground max-w-xl mx-auto">
-          From snap to seal in five simple steps. Here's how our SI-powered platform helps you
+          From scan to seal in five simple steps. Here's how our SI-powered platform helps you
           identify, grade, and authenticate your cards.
         </p>
       </div>
