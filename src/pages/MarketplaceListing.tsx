@@ -32,11 +32,16 @@ export default function MarketplaceListing() {
         .eq("id", id)
         .maybeSingle();
       if (!l) { setLoading(false); return; }
-      const { data: c } = await supabase
+      const { data: own } = await supabase
         .from("cards")
         .select("card_name, card_set, card_year, image_url, rarity, condition_grade, authentiseal_serial, category, ai_analysis, estimated_value_low, estimated_value_high")
         .eq("id", l.card_id)
         .maybeSingle();
+      let c: any = own;
+      if (!c) {
+        const { data: shared } = await supabase.rpc("marketplace_listing_cards", { _card_ids: [l.card_id] });
+        c = (shared as any[])?.[0] ?? null;
+      }
       const merged: any = { ...l, cards: c };
       setListing(merged);
       if (c?.image_url) {

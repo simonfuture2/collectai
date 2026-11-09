@@ -51,10 +51,7 @@ export default function Marketplace() {
       const cardIds = listingsRaw.map((r) => r.card_id);
       let cardMap: Record<string, any> = {};
       if (cardIds.length) {
-        const { data: cards } = await supabase
-          .from("cards")
-          .select("id, card_name, card_set, image_url, rarity, condition_grade")
-          .in("id", cardIds);
+        const { data: cards } = await supabase.rpc("marketplace_listing_cards", { _card_ids: cardIds });
         for (const c of cards ?? []) cardMap[c.id] = c;
       }
       const merged: Listing[] = listingsRaw.map((r) => ({ ...r, cards: cardMap[r.card_id] ?? null }));

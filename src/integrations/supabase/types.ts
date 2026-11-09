@@ -2049,6 +2049,20 @@ export type Database = {
       is_admin: { Args: { _user_id: string }; Returns: boolean }
       is_agent_admin: { Args: never; Returns: boolean }
       lab_pc_calls_total: { Args: never; Returns: number }
+      marketplace_listing_cards: {
+        Args: { _card_ids: string[] }
+        Returns: {
+          card_name: string
+          card_set: string
+          card_year: string
+          condition_grade: string
+          grade_numeric: number
+          grading_company: string
+          id: string
+          image_url: string
+          rarity: string
+        }[]
+      }
       move_to_dlq: {
         Args: {
           dlq_name: string
