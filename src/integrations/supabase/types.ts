@@ -2048,6 +2048,7 @@ export type Database = {
       }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
       is_agent_admin: { Args: never; Returns: boolean }
+      is_listed_card_image: { Args: { _name: string }; Returns: boolean }
       lab_pc_calls_total: { Args: never; Returns: number }
       marketplace_listing_cards: {
         Args: { _card_ids: string[] }
