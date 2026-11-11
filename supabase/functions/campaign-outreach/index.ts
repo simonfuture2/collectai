@@ -28,7 +28,21 @@ async function sendSMS(to: string, body: string) {
   return resp.json();
 }
 
-async function sendEmail(to: string, subject: string, body: string, unsubUrl?: string) {
+async function sendgridUnsubscribes(): Promise<string[]> {
+  const apiKey = Deno.env.get("SENDGRID_API_KEY")?.trim();
+  if (!apiKey) return [];
+  const out: string[] = [];
+  for (const path of ["unsubscribes", "bounces", "spam_reports"]) {
+    try {
+      const r = await fetch(`https://api.sendgrid.com/v3/suppression/${path}?limit=500`, { headers: { Authorization: `Bearer ${apiKey}` } });
+      if (!r.ok) { console.warn("SendGrid suppression read failed", path, r.status, await r.text()); continue; }
+      for (const x of await r.json()) if (x?.email) out.push(String(x.email).toLowerCase());
+    } catch (e) { console.warn("SendGrid suppression read error", path, e); }
+  }
+  return out;
+}
+
+async function sendEmail(to: string, subject: string, body: string, unsubUrl?: string, sgUnsub = false) {
   const apiKey = Deno.env.get("SENDGRID_API_KEY")?.trim();
   const fromEmail = Deno.env.get("SENDGRID_FROM_EMAIL")?.trim();
 
@@ -41,6 +55,7 @@ async function sendEmail(to: string, subject: string, body: string, unsubUrl?: s
     from: { email: fromEmail },
     subject,
     content: [{ type: "text/html", value: body }],
+    ...(sgUnsub ? { tracking_settings: { subscription_tracking: { enable: true, substitution_tag: "[unsubscribe]" } } } : {}),
     ...(unsubUrl ? { headers: { "List-Unsubscribe": `<${unsubUrl}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" } } : {}),
   };
 
@@ -225,53 +240,75 @@ Deno.serve(async (req) => {
       });
     }
 
-    if (action === "broadcast") {
-      const { template_id, campaign_name, dry_run } = params;
+    if (action === "broadcast" || action === "broadcast_test") {
+      const { template_id, campaign_name, dry_run, test_to } = params;
       const { data: template } = await supabase.from("campaign_templates").select("*").eq("id", template_id).single();
       if (!template || template.channel !== "email") throw new Error("Email template not found");
+      const DAILY_CAP = 50;
+      const logName = `campaign:${template_id}`;
 
+      if (action === "broadcast_test") {
+        const to = String(test_to || "").trim().toLowerCase();
+        if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(to)) throw new Error("Enter a valid test email");
+        const lead = { name: "Simon", email: to };
+        await sendEmail(to, "[TEST] " + replacePlaceholders(template.subject || "", lead), replacePlaceholders(template.body, lead), undefined, true);
+        return new Response(JSON.stringify({ success: true, sent_to: to }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+
+      // Who to skip: suppressed, SendGrid unsubscribes, and Agent HQ leads who replied / opted out / not interested
+      const blocked = new Set<string>();
       const { data: suppressed } = await supabase.from("suppressed_emails").select("email");
-      const blocked = new Set((suppressed || []).map((r: any) => String(r.email).toLowerCase()));
-      const { data: crm } = await supabase.from("leads").select("id,name,email,company,partner_code").not("email", "is", null);
-      const { data: agent } = await supabase.from("agent_leads").select("id,name,business_name,email,status,do_not_contact")
-        .not("email", "is", null).eq("status", "contacted").eq("do_not_contact", false);
+      for (const r of suppressed || []) blocked.add(String(r.email).toLowerCase());
+      for (const r of await sendgridUnsubscribes()) blocked.add(r);
+      const { data: allAgent } = await supabase.from("agent_leads").select("id,name,business_name,email,status,do_not_contact,replied_at,reply_intent").not("email", "is", null);
+      const skipAgent = (l: any) => l.do_not_contact || l.replied_at || l.status !== "contacted" ||
+        /not.?interested|unsubscribe|opt.?out|negative|stop/i.test(`${l.reply_intent || ""} ${l.status}`);
+      for (const l of allAgent || []) if (skipAgent(l)) blocked.add(String(l.email).trim().toLowerCase());
+      const { data: already } = await supabase.from("email_send_log").select("recipient_email").eq("template_name", logName).eq("status", "sent");
+      const alreadySent = new Set((already || []).map((r: any) => String(r.recipient_email).toLowerCase()));
 
+      const { data: crm } = await supabase.from("leads").select("id,name,email,company,partner_code").eq("status", "contacted").not("email", "is", null);
       const seen = new Set<string>();
       const recipients: { kind: "crm" | "agent"; id: string; email: string; lead: Record<string, any> }[] = [];
-      for (const l of crm || []) {
+      const add = (kind: "crm" | "agent", l: any) => {
         const e = String(l.email).trim().toLowerCase();
-        if (!e || seen.has(e) || blocked.has(e)) continue;
-        seen.add(e); recipients.push({ kind: "crm", id: l.id, email: e, lead: l });
-      }
-      for (const l of agent || []) {
-        const e = String(l.email).trim().toLowerCase();
-        if (!e || seen.has(e) || blocked.has(e)) continue;
-        seen.add(e); recipients.push({ kind: "agent", id: l.id, email: e, lead: { ...l, company: l.business_name } });
-      }
+        if (!e || seen.has(e) || blocked.has(e) || alreadySent.has(e)) return;
+        seen.add(e); recipients.push({ kind, id: l.id, email: e, lead: { ...l, company: l.company || l.business_name } });
+      };
+      for (const l of crm || []) add("crm", l);
+      for (const l of allAgent || []) if (!skipAgent(l)) add("agent", l);
+
+      const today = new Date().toISOString().slice(0, 10);
+      const { count: sentToday } = await supabase.from("email_send_log").select("id", { count: "exact", head: true })
+        .like("template_name", "campaign:%").eq("status", "sent").gte("created_at", today);
+      const remainingToday = Math.max(0, DAILY_CAP - (sentToday || 0));
+      const batch = recipients.slice(0, remainingToday);
+
       if (dry_run) {
-        return new Response(JSON.stringify({ count: recipients.length, crm: recipients.filter(r => r.kind === "crm").length, agent: recipients.filter(r => r.kind === "agent").length }), {
+        return new Response(JSON.stringify({ count: recipients.length, today: batch.length, cap: DAILY_CAP, already: alreadySent.size,
+          crm: batch.filter(r => r.kind === "crm").length, agent: batch.filter(r => r.kind === "agent").length }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
+      if (!batch.length) throw new Error(remainingToday ? "Nobody left to send to" : "Daily limit of 50 reached, try tomorrow");
 
       const { data: campaign } = await supabase.from("outreach_campaigns").insert({
         template_id, name: campaign_name || template.name, status: "sending",
-        target_filter: { broadcast: true, count: recipients.length }, sent_count: 0, created_by: userData.user.id,
+        target_filter: { broadcast: true, count: batch.length }, sent_count: 0, created_by: userData.user.id,
       }).select().single();
 
       const base = Deno.env.get("SUPABASE_URL")!;
       let sentCount = 0;
       const errors: string[] = [];
-      for (const r of recipients) {
+      for (const r of batch) {
         try {
           const token = crypto.randomUUID() + "-" + crypto.randomUUID().slice(0, 8);
           await supabase.from("email_unsubscribe_tokens").insert({ token, email: r.email });
           const unsub = `${base}/functions/v1/email-unsubscribe?token=${token}`;
-          const footer = `<div style="font-family:Arial,sans-serif;font-size:12px;color:#888;max-width:560px;margin-top:24px;border-top:1px solid #eee;padding-top:12px">MyCollectAI · 306 W Redwood Street, Baltimore, MD 21201<br>Don't want these emails? <a href="${unsub}" style="color:#888">Unsubscribe</a></div>`;
           const lead = { ...r.lead, name: (r.lead.name || "").split(" ")[0] || "there" };
-          const body = replacePlaceholders(template.body, lead) + footer;
           const subject = replacePlaceholders(template.subject || "", lead);
-          await sendEmail(r.email, subject, body, unsub);
+          await sendEmail(r.email, subject, replacePlaceholders(template.body, lead), unsub, true);
+          await supabase.from("email_send_log").insert({ template_name: logName, recipient_email: r.email, status: "sent", metadata: { campaign_id: campaign?.id } });
           if (r.kind === "crm") {
             await supabase.from("lead_activities").insert({
               lead_id: r.id, type: "email_sent", content: `Campaign: ${campaign_name || template.name}`,
@@ -283,10 +320,11 @@ Deno.serve(async (req) => {
           sentCount++;
         } catch (e) {
           errors.push(`${r.email}: ${(e as Error).message}`);
+          await supabase.from("email_send_log").insert({ template_name: logName, recipient_email: r.email, status: "failed", error_message: (e as Error).message });
         }
       }
       if (campaign) await supabase.from("outreach_campaigns").update({ status: "sent", sent_count: sentCount }).eq("id", campaign.id);
-      return new Response(JSON.stringify({ success: true, sent_count: sentCount, errors }), {
+      return new Response(JSON.stringify({ success: true, sent_count: sentCount, remaining: recipients.length - batch.length, errors }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }

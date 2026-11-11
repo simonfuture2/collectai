@@ -182,6 +182,17 @@ const CampaignsTab = () => {
   };
 
   const [broadcastTemplate, setBroadcastTemplate] = useState("");
+  const [testTo, setTestTo] = useState("simon@w3mct.club");
+  const [testSent, setTestSent] = useState(false);
+  const handleTest = async () => {
+    if (!broadcastTemplate) { toast.error("Pick an email template"); return; }
+    setActionLoading(true);
+    const { error } = await supabase.functions.invoke("campaign-outreach", { body: { action: "broadcast_test", template_id: broadcastTemplate, test_to: testTo } });
+    setActionLoading(false);
+    if (error) { toast.error("Test send failed"); return; }
+    setTestSent(true);
+    toast.success(`Test copy sent to ${testTo}`);
+  };
   const handleBroadcast = async () => {
     if (!broadcastTemplate) { toast.error("Pick an email template"); return; }
     setActionLoading(true);
@@ -190,14 +201,15 @@ const CampaignsTab = () => {
     });
     setActionLoading(false);
     if (pErr || !preview) { toast.error("Couldn't count recipients"); return; }
-    if (!confirm(`Send this email to ${preview.count} people (${preview.crm} leads + ${preview.agent} already contacted by Agent HQ)? Unsubscribed and do-not-contact people are skipped.`)) return;
+    if (preview.today === 0) { toast.error(preview.count ? "Daily limit of 50 reached, try tomorrow" : "Nobody left to send to"); return; }
+    if (!confirm(`Send to ${preview.today} people today (${preview.crm} leads + ${preview.agent} from Agent HQ)?${preview.count > preview.today ? ` ${preview.count - preview.today} more will wait for tomorrow (limit ${preview.cap}/day).` : ""} People who replied, opted out or aren't interested are skipped.`)) return;
     setActionLoading(true);
     const { data, error } = await supabase.functions.invoke("campaign-outreach", {
       body: { action: "broadcast", template_id: broadcastTemplate },
     });
     setActionLoading(false);
     if (error) { toast.error("Send failed"); return; }
-    toast.success(`Sent to ${data.sent_count}${data.errors?.length ? ` (${data.errors.length} failed)` : ""}`);
+    toast.success(`Sent to ${data.sent_count}${data.remaining ? `, ${data.remaining} left for tomorrow` : ""}${data.errors?.length ? ` (${data.errors.length} failed)` : ""}`);
     if (data.errors?.length) console.warn("Broadcast errors", data.errors);
     fetchData();
   };
@@ -378,12 +390,16 @@ const CampaignsTab = () => {
             </Button>
             <div className="mt-5 pt-4 border-t space-y-2">
               <p className="text-sm font-medium">Send to everyone</p>
-              <p className="text-xs text-muted-foreground">All leads plus people Agent HQ already contacted. Adds your address and a working unsubscribe link.</p>
+              <p className="text-xs text-muted-foreground">Leads marked contacted, including Agent HQ. Skips anyone who replied, opted out or isn't interested. Up to 50 a day. Send a test copy first.</p>
               <select className="w-full rounded-md border bg-background px-3 py-2 text-sm" value={broadcastTemplate} onChange={(e) => setBroadcastTemplate(e.target.value)} aria-label="Template to send to everyone">
                 <option value="">Choose email template…</option>
                 {templates.filter((t) => t.channel === "email").map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
               </select>
-              <Button variant="outline" onClick={handleBroadcast} disabled={actionLoading || !broadcastTemplate}>
+              <div className="flex gap-2">
+                <Input value={testTo} onChange={(e) => setTestTo(e.target.value)} placeholder="Test email" aria-label="Test email address" />
+                <Button variant="secondary" onClick={handleTest} disabled={actionLoading || !broadcastTemplate}>Send test</Button>
+              </div>
+              <Button variant="outline" onClick={handleBroadcast} disabled={actionLoading || !broadcastTemplate || !testSent}>
                 <Send className="w-4 h-4 mr-2" /> Send to everyone
               </Button>
             </div>
