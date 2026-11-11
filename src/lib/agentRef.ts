@@ -28,6 +28,16 @@ export function captureRef(): void {
   void trackAgentEvent("visit");
 }
 
+/** Save a known ref code (e.g. a partner shop code) as the visitor's source. */
+export function setRef(ref: string): void {
+  if (!/^[a-z0-9_\-]{2,64}$/i.test(ref)) return;
+  try {
+    const s = store();
+    s?.setItem(REF_KEY, JSON.stringify({ ref, at: Date.now() }));
+    if (!s?.getItem(ANON_KEY)) s?.setItem(ANON_KEY, crypto.randomUUID());
+  } catch { /* storage blocked */ }
+}
+
 export function getRef(): string | null {
   try {
     const raw = store()?.getItem(REF_KEY);

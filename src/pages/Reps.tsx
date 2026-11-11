@@ -251,6 +251,7 @@ export default function Reps() {
       <header className="sticky top-0 z-20 border-b border-border bg-background/90 backdrop-blur px-4 h-14 flex items-center gap-2">
         <h1 className="font-semibold flex-1 truncate">Hi {first(rep.display_name)}</h1>
         <Button variant="ghost" size="sm" asChild><Link to="/dashboard"><ArrowLeft className="h-4 w-4 mr-1" />App</Link></Button>
+        <Button variant="ghost" size="sm" asChild><Link to="/partner">Partner shops</Link></Button>
       </header>
       <main className="max-w-5xl mx-auto p-4 space-y-4">
         <Card><CardContent className="p-4 space-y-2">

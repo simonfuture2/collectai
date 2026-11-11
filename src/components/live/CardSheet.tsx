@@ -1,9 +1,11 @@
+import { useState } from "react";
 import { Loader2, Sparkles, Plus, ExternalLink, Check, BookmarkPlus } from "lucide-react";
 import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
 import PriceChartingAttribution from "@/components/PriceChartingAttribution";
 import { parallelOf, ungradedPrice } from "@/lib/priceLadder";
 import { flagFor } from "@/lib/liveDetect";
+import { buyOffer, readShopMode } from "@/lib/partnerShops";
 import { ebaySoldUrl, selectedOf, type LiveTile, type ScanMode } from "./types";
 
 const PRICE_TILES: [string, string][] = [["ungraded", "Ungraded"], ["grade9", "PSA 9"], ["psa10", "PSA 10"], ["bgs10", "BGS 10"]];
@@ -72,6 +74,7 @@ export default function CardSheet({ tile, mode, onClose, onSelect, onSave, onFul
                     ))}
                   </div>
                   <PriceChartingAttribution productId={c.productId} url={c.url} className="mt-2" />
+                  <ShopOffer value={Number(c.ladder?.ungraded)} />
                 </>
               ) : <p className="mt-4 text-sm text-muted-foreground">No PriceCharting match. Pick one below if it's there.</p>}
 
@@ -112,5 +115,25 @@ export default function CardSheet({ tile, mode, onClose, onSelect, onSave, onFul
         </div>
       </DrawerContent>
     </Drawer>
+  );
+}
+
+/** Shop mode: suggested buy offer as a % of the ungraded market value (editable per check). */
+function ShopOffer({ value }: { value: number }) {
+  const shop = readShopMode();
+  const [pct, setPct] = useState(shop?.pct ?? 60);
+  if (!shop) return null;
+  const offer = buyOffer(value, pct);
+  return (
+    <div className="mt-3 flex items-center justify-between gap-2 rounded-xl border border-primary/40 bg-primary/5 px-3 py-2">
+      <div>
+        <p className="text-xs text-muted-foreground">Buy offer · {shop.shopName}</p>
+        <p className="font-numeric text-xl font-bold">{offer != null ? `$${offer.toFixed(2)}` : "—"}</p>
+      </div>
+      <label className="flex items-center gap-1 text-sm">
+        <input type="number" min={1} max={100} value={pct} onChange={(e) => setPct(Number(e.target.value))} aria-label="Buy offer percent"
+          className="w-16 rounded-md border border-border bg-background px-2 py-1 text-right" />%
+      </label>
+    </div>
   );
 }

@@ -119,7 +119,8 @@ serve(async (req) => {
             .update({ plan: "pro", stripe_customer_id: customerId, stripe_subscription_id: subscription.id })
             .eq("user_id", user.id);
         }
-      } else if (plan === "pro" && creditsData) {
+      } else if (plan === "pro" && creditsData && (creditsData as any).billing_source !== "partner") {
+        // (Partner-shop staff Pro is managed by the shop status, not Stripe.)
         // Subscription lapsed
         await supabaseClient
           .from("user_credits")

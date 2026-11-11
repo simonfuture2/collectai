@@ -23,3 +23,6 @@
 - [x] Rep name/signature/booking link + reply-to in sequence emails
 - [x] Test with a second rep account
 - [ ] AI-written (n8n) sequence steps don't carry the rep's name/reply-to yet — waits on n8n
+
+## Shop Partner Program
+- [x] Shops, /s/:slug, counter kit, /partner dashboard, staff Pro, shop mode, revenue report, rep onboarding, /partners form, sample test

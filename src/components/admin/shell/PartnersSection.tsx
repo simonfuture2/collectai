@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import { Badge } from "@/components/ui/badge";
 import PersonDrawer from "./PersonDrawer";
+import PartnerShopsAdmin from "./PartnerShopsAdmin";
 
 type Lead = Database["public"]["Tables"]["agent_leads"]["Row"];
 const nice = (s: string) => s.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase());
@@ -21,6 +22,8 @@ export default function PartnersSection() {
   if (!rows) return <Loader2 className="mx-auto h-6 w-6 animate-spin text-muted-foreground" />;
   return (
     <div className="space-y-3">
+      <PartnerShopsAdmin />
+      <h3 className="pt-4 font-semibold">Partner leads</h3>
       <p className="text-sm text-muted-foreground">Shops and creators from the partner form, or moved to a partner stage.</p>
       {rows.length === 0 ? <p className="text-muted-foreground">No partners yet.</p> : (
         <div className="divide-y divide-border rounded-xl border border-border">

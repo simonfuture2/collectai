@@ -21,6 +21,7 @@ import {
 } from "@/lib/liveDetect";
 import { addToSession, clearSession, patchSession, readSession, removeFromSession, updateSessionPick } from "@/lib/priceSession";
 import { parallelOf, ungradedPrice } from "@/lib/priceLadder";
+import { readShopMode } from "@/lib/partnerShops";
 import type { PriceCandidate } from "@/lib/packRip";
 import ResultsStrip from "@/components/live/ResultsStrip";
 import CardSheet from "@/components/live/CardSheet";
@@ -65,7 +66,7 @@ export default function LiveScan() {
   const [lang, setLang] = useState<LangId>(() => ls(LS.lang, "any") as LangId);
   const [game, setGame] = useState(() => ls(LS.game, "auto"));
   const [sound, setSound] = useState(() => ls(LS.sound, "1") === "1");
-  const [mode, setMode] = useState<ScanMode>(() => ls(LS.mode, "price") as ScanMode);
+  const [mode, setMode] = useState<ScanMode>(() => (readShopMode() ? "insight" : ls(LS.mode, "price")) as ScanMode);
   const sc = useLiveScanner();
   const auto = sc.auto;
   const location = useLocation();

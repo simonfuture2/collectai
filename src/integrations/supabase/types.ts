@@ -1756,6 +1756,165 @@ export type Database = {
         }
         Relationships: []
       }
+      partner_shop_staff: {
+        Row: {
+          created_at: string
+          id: string
+          role: string
+          shop_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role?: string
+          shop_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: string
+          shop_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_shop_staff_shop_id_fkey"
+            columns: ["shop_id"]
+            isOneToOne: false
+            referencedRelation: "partner_shops"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      partner_shops: {
+        Row: {
+          address: string | null
+          buy_offer_pct: number
+          checklist: Json
+          city: string | null
+          created_at: string
+          id: string
+          joined_at: string | null
+          lead_id: string | null
+          logo_path: string | null
+          name: string
+          notes: string | null
+          owner_approved_at: string | null
+          owner_user_id: string | null
+          partner_code: string
+          rep_id: string | null
+          revenue_share_pct: number
+          show_address: boolean
+          show_website: boolean
+          slug: string
+          state: string | null
+          status: string
+          tier: string
+          updated_at: string
+          website: string | null
+        }
+        Insert: {
+          address?: string | null
+          buy_offer_pct?: number
+          checklist?: Json
+          city?: string | null
+          created_at?: string
+          id?: string
+          joined_at?: string | null
+          lead_id?: string | null
+          logo_path?: string | null
+          name: string
+          notes?: string | null
+          owner_approved_at?: string | null
+          owner_user_id?: string | null
+          partner_code: string
+          rep_id?: string | null
+          revenue_share_pct?: number
+          show_address?: boolean
+          show_website?: boolean
+          slug: string
+          state?: string | null
+          status?: string
+          tier?: string
+          updated_at?: string
+          website?: string | null
+        }
+        Update: {
+          address?: string | null
+          buy_offer_pct?: number
+          checklist?: Json
+          city?: string | null
+          created_at?: string
+          id?: string
+          joined_at?: string | null
+          lead_id?: string | null
+          logo_path?: string | null
+          name?: string
+          notes?: string | null
+          owner_approved_at?: string | null
+          owner_user_id?: string | null
+          partner_code?: string
+          rep_id?: string | null
+          revenue_share_pct?: number
+          show_address?: boolean
+          show_website?: boolean
+          slug?: string
+          state?: string | null
+          status?: string
+          tier?: string
+          updated_at?: string
+          website?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_shops_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "agent_leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      partner_staff_invites: {
+        Row: {
+          accepted_at: string | null
+          created_at: string
+          email: string
+          id: string
+          invited_by: string | null
+          role: string
+          shop_id: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          created_at?: string
+          email: string
+          id?: string
+          invited_by?: string | null
+          role?: string
+          shop_id: string
+        }
+        Update: {
+          accepted_at?: string | null
+          created_at?: string
+          email?: string
+          id?: string
+          invited_by?: string | null
+          role?: string
+          shop_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_staff_invites_shop_id_fkey"
+            columns: ["shop_id"]
+            isOneToOne: false
+            referencedRelation: "partner_shops"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       price_check_lab_items: {
         Row: {
           created_at: string
@@ -2470,6 +2629,7 @@ export type Database = {
           beta_access_until: string | null
           beta_eligible: boolean
           beta_price_locked_at: string | null
+          billing_source: string | null
           created_at: string
           credits: number
           id: string
@@ -2484,6 +2644,7 @@ export type Database = {
           beta_access_until?: string | null
           beta_eligible?: boolean
           beta_price_locked_at?: string | null
+          billing_source?: string | null
           created_at?: string
           credits?: number
           id?: string
@@ -2498,6 +2659,7 @@ export type Database = {
           beta_access_until?: string | null
           beta_eligible?: boolean
           beta_price_locked_at?: string | null
+          billing_source?: string | null
           created_at?: string
           credits?: number
           id?: string
@@ -2817,6 +2979,8 @@ export type Database = {
         Returns: Json
       }
       agent_unsubscribe: { Args: { p_lead_id: string }; Returns: undefined }
+      can_manage_shop: { Args: { _shop: string }; Returns: boolean }
+      can_run_shop: { Args: { _shop: string }; Returns: boolean }
       can_use_price_check: { Args: { _uid: string }; Returns: boolean }
       cold_capacity_today: { Args: never; Returns: Json }
       cold_send_window_open: {
@@ -2866,6 +3030,8 @@ export type Database = {
       is_lead_admin: { Args: never; Returns: boolean }
       is_listed_card_image: { Args: { _name: string }; Returns: boolean }
       is_sales_rep: { Args: never; Returns: boolean }
+      is_shop_owner: { Args: { _shop: string }; Returns: boolean }
+      is_shop_staff: { Args: { _shop: string }; Returns: boolean }
       lab_pc_calls_total: { Args: never; Returns: number }
       marketplace_listing_cards: {
         Args: { _card_ids: string[] }
@@ -2890,6 +3056,33 @@ export type Database = {
         }
         Returns: number
       }
+      partner_approve_page: { Args: { _shop: string }; Returns: undefined }
+      partner_claim_invites: { Args: never; Returns: number }
+      partner_create_from_lead: { Args: { _lead_id: string }; Returns: string }
+      partner_invite_staff: {
+        Args: { _email: string; _role?: string; _shop: string }
+        Returns: Json
+      }
+      partner_revenue_report: {
+        Args: { _since: string; _until: string }
+        Returns: {
+          conversions: number
+          name: string
+          owed_cents: number
+          partner_code: string
+          revenue_cents: number
+          revenue_share_pct: number
+          shop_id: string
+          signups: number
+          status: string
+        }[]
+      }
+      partner_shop_public: { Args: { _slug: string }; Returns: Json }
+      partner_slugify: { Args: { _name: string }; Returns: string }
+      partner_stats: { Args: { _shop: string; _since: string }; Returns: Json }
+      partner_sync_user_pro: { Args: { _user: string }; Returns: undefined }
+      partner_unique_code: { Args: { _name: string }; Returns: string }
+      partner_unique_slug: { Args: { _name: string }; Returns: string }
       pc_acquire_slot: { Args: never; Returns: number }
       pc_refresh_cards_from_catalog: { Args: never; Returns: Json }
       pick_rep_for: {

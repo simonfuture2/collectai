@@ -35,6 +35,8 @@ const SharedCard = lazy(() => import("./pages/SharedCard"));
 const PublicCollection = lazy(() => import("./pages/PublicCollection"));
 const Showcase = lazy(() => import("./pages/Showcase"));
 const PartnerSignup = lazy(() => import("./pages/PartnerSignup"));
+const PartnerDashboard = lazy(() => import("./pages/PartnerDashboard"));
+const ShopLanding = lazy(() => import("./pages/ShopLanding"));
 const FreeGuide = lazy(() => import("./pages/FreeGuide"));
 const Install = lazy(() => import("./pages/Install"));
 const DeleteAccount = lazy(() => import("./pages/DeleteAccount"));
@@ -158,6 +160,8 @@ const App = () => (
               <Route path="/admin/agent" element={<Navigate to="/admin#inbox" replace />} />
               <Route path="/admin/price-check-lab" element={<PriceCheckLab />} />
               <Route path="/partners" element={<PartnerSignup />} />
+              <Route path="/partner" element={<PartnerDashboard />} />
+              <Route path="/s/:slug" element={<ShopLanding />} />
               <Route path="/free-guide" element={<FreeGuide />} />
               <Route path="/card/share/:id" element={<SharedCard />} />
               <Route path="/u/:slug" element={<PublicCollection />} />

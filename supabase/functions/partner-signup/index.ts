@@ -2,7 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 async function sha256Hex(input: string): Promise<string> {
@@ -16,7 +16,12 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { name, email, phone, company, message } = await req.json();
+    const body = await req.json();
+    const { name, email, phone, company, message } = body;
+    const str = (v: unknown, n: number) => (typeof v === "string" && v.trim() ? v.trim().slice(0, n) : null);
+    const SELLS = ["pokemon", "sports", "magic", "one_piece", "yugioh", "sealed", "comics", "other"];
+    const sells: string[] = Array.isArray(body.sells) ? body.sells.filter((x: unknown) => typeof x === "string" && SELLS.includes(x)) : [];
+    const consentSms = body.consent_sms === true && !!phone;
 
     if (!name || !email) {
       return new Response(JSON.stringify({ error: "Name and email are required" }), {
@@ -71,11 +76,15 @@ Deno.serve(async (req) => {
       business_name: company ? String(company).trim().slice(0, 100) : null,
       notes: message ? String(message).trim().slice(0, 1000) : null,
       consent_email: true, consent_source: "partner_form",
+      city: str(body.city, 80), state: str(body.state, 40), website: str(body.website, 255),
+      ...(consentSms ? { consent_sms: true } : {}),
+      tags: ["hot", "inbound_partner", ...sells.map((x) => `sells:${x}`)],
+      next_action: "Call back: inbound partner form", next_action_at: new Date().toISOString(),
     };
     const { data: existing } = await supabase.from("agent_leads").select("id").ilike("email", cleanEmail).is("merged_into", null).maybeSingle();
     const { data, error } = existing
       ? await supabase.from("agent_leads").update(row).eq("id", existing.id).select("id").single()
-      : await supabase.from("agent_leads").insert({ ...row, email: cleanEmail, platform: "email", lead_type: company ? "card_shop" : "collector", source: "partner_form" }).select("id").single();
+      : await supabase.from("agent_leads").insert({ ...row, email: cleanEmail, platform: "email", lead_type: "card_shop", source: "partner_form" }).select("id").single();
     if (!error) await supabase.from("agent_activities").insert({ lead_id: data.id, type: "partner_form", body: row.notes ?? "Submitted the partner form" });
     if (error) throw error;
 
