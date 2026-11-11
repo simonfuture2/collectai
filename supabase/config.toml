@@ -83,3 +83,6 @@ verify_jwt = true
 
 [functions.email-unsubscribe]
 verify_jwt = false
+
+[functions.unsubscribe]
+verify_jwt = false

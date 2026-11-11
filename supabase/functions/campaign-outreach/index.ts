@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { suppressedSet, unsubscribeUrl } from "../_shared/outreach.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -139,17 +140,16 @@ Deno.serve(async (req) => {
 
     if (action === "send_email") {
       const { lead_id, subject, body } = params;
-      const { data: lead } = await supabase.from("leads").select("*").eq("id", lead_id).single();
+      const { data: lead } = await supabase.from("agent_leads").select("*").eq("id", lead_id).single();
       if (!lead?.email) throw new Error("Lead has no email");
+      if ((await suppressedSet(supabase)).has(String(lead.email).toLowerCase()) || lead.do_not_contact) throw new Error("This address has unsubscribed or is marked do-not-contact");
+      lead.company = lead.company || lead.business_name;
 
       const finalBody = replacePlaceholders(body, lead);
       const finalSubject = replacePlaceholders(subject, lead);
-      await sendEmail(lead.email, finalSubject, finalBody);
+      await sendEmail(lead.email, finalSubject, finalBody, await unsubscribeUrl(lead.email), true);
 
-      await supabase.from("lead_activities").insert({
-        lead_id, type: "email_sent", content: `Subject: ${finalSubject}`,
-        metadata: { subject: finalSubject, body: finalBody }, created_by: userData.user.id,
-      });
+      await supabase.from("agent_activities").insert({ lead_id, type: "email_sent", body: `Subject: ${finalSubject}`, meta: { subject: finalSubject, body: finalBody }, rep_id: userData.user.id });
 
       return new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -158,16 +158,13 @@ Deno.serve(async (req) => {
 
     if (action === "send_sms") {
       const { lead_id, body } = params;
-      const { data: lead } = await supabase.from("leads").select("*").eq("id", lead_id).single();
+      const { data: lead } = await supabase.from("agent_leads").select("*").eq("id", lead_id).single();
       if (!lead?.phone) throw new Error("Lead has no phone number");
 
       const finalBody = replacePlaceholders(body, lead);
       await sendSMS(lead.phone, finalBody);
 
-      await supabase.from("lead_activities").insert({
-        lead_id, type: "sms_sent", content: finalBody,
-        metadata: { body: finalBody }, created_by: userData.user.id,
-      });
+      await supabase.from("agent_activities").insert({ lead_id, type: "sms_sent", body: finalBody, meta: { body: finalBody }, rep_id: userData.user.id });
 
       return new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -177,12 +174,9 @@ Deno.serve(async (req) => {
     if (action === "generate_partner_code") {
       const { lead_id } = params;
       const code = "PARTNER-" + crypto.randomUUID().slice(0, 8).toUpperCase();
-      await supabase.from("leads").update({ partner_code: code }).eq("id", lead_id);
+      await supabase.from("agent_leads").update({ partner_code: code }).eq("id", lead_id);
 
-      await supabase.from("lead_activities").insert({
-        lead_id, type: "note", content: `Partner code generated: ${code}`,
-        created_by: userData.user.id,
-      });
+      await supabase.from("agent_activities").insert({ lead_id, type: "note", body: `Partner code generated: ${code}`, meta: {}, rep_id: userData.user.id });
 
       return new Response(JSON.stringify({ success: true, partner_code: code }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -194,7 +188,7 @@ Deno.serve(async (req) => {
       const { data: template } = await supabase.from("campaign_templates").select("*").eq("id", template_id).single();
       if (!template) throw new Error("Template not found");
 
-      const { data: leads } = await supabase.from("leads").select("*").in("id", lead_ids);
+      const { data: leads } = await supabase.from("agent_leads").select("*").in("id", lead_ids).is("merged_into", null);
       if (!leads?.length) throw new Error("No leads found");
 
       // Create campaign record
@@ -206,24 +200,24 @@ Deno.serve(async (req) => {
       let sentCount = 0;
       const errors: string[] = [];
 
+      const blockedBulk = await suppressedSet(supabase);
       for (const lead of leads) {
         try {
+          lead.company = lead.company || lead.business_name;
+          if (lead.do_not_contact || (lead.email && blockedBulk.has(String(lead.email).toLowerCase()) && template.channel === "email")) {
+            errors.push(`${lead.email}: unsubscribed / do-not-contact, skipped`);
+            continue;
+          }
           if (template.channel === "email" && lead.email) {
             const finalBody = replacePlaceholders(template.body, lead);
             const finalSubject = replacePlaceholders(template.subject || "", lead);
-            await sendEmail(lead.email, finalSubject, finalBody);
-            await supabase.from("lead_activities").insert({
-              lead_id: lead.id, type: "email_sent", content: `Campaign: ${campaign_name || template.name}`,
-              metadata: { campaign_id: campaign?.id, subject: finalSubject }, created_by: userData.user.id,
-            });
+            await sendEmail(lead.email, finalSubject, finalBody, await unsubscribeUrl(lead.email), true);
+            await supabase.from("agent_activities").insert({ lead_id: lead.id, type: "email_sent", body: `Campaign: ${campaign_name || template.name}`, meta: { campaign_id: campaign?.id, subject: finalSubject }, rep_id: userData.user.id });
             sentCount++;
           } else if (template.channel === "sms" && lead.phone) {
             const finalBody = replacePlaceholders(template.body, lead);
             await sendSMS(lead.phone, finalBody);
-            await supabase.from("lead_activities").insert({
-              lead_id: lead.id, type: "sms_sent", content: `Campaign: ${campaign_name || template.name}`,
-              metadata: { campaign_id: campaign?.id }, created_by: userData.user.id,
-            });
+            await supabase.from("agent_activities").insert({ lead_id: lead.id, type: "sms_sent", body: `Campaign: ${campaign_name || template.name}`, meta: { campaign_id: campaign?.id }, rep_id: userData.user.id });
             sentCount++;
           }
         } catch (e) {
@@ -257,17 +251,16 @@ Deno.serve(async (req) => {
 
       // Who to skip: suppressed, SendGrid unsubscribes, and Agent HQ leads who replied / opted out / not interested
       const blocked = new Set<string>();
-      const { data: suppressed } = await supabase.from("suppressed_emails").select("email");
-      for (const r of suppressed || []) blocked.add(String(r.email).toLowerCase());
+      for (const e of await suppressedSet(supabase)) blocked.add(e);
       for (const r of await sendgridUnsubscribes()) blocked.add(r);
-      const { data: allAgent } = await supabase.from("agent_leads").select("id,name,business_name,email,status,do_not_contact,replied_at,reply_intent").not("email", "is", null);
+      const { data: allAgent } = await supabase.from("agent_leads").select("id,name,business_name,email,status,do_not_contact,replied_at,reply_intent,partner_code").not("email", "is", null).is("merged_into", null);
       const skipAgent = (l: any) => l.do_not_contact || l.replied_at || l.status !== "contacted" ||
         /not.?interested|unsubscribe|opt.?out|negative|stop/i.test(`${l.reply_intent || ""} ${l.status}`);
       for (const l of allAgent || []) if (skipAgent(l)) blocked.add(String(l.email).trim().toLowerCase());
       const { data: already } = await supabase.from("email_send_log").select("recipient_email").eq("template_name", logName).eq("status", "sent");
       const alreadySent = new Set((already || []).map((r: any) => String(r.recipient_email).toLowerCase()));
 
-      const { data: crm } = await supabase.from("leads").select("id,name,email,company,partner_code").eq("status", "contacted").not("email", "is", null);
+      const crm: any[] = []; // old CRM leads now live in agent_leads
       const seen = new Set<string>();
       const recipients: { kind: "crm" | "agent"; id: string; email: string; lead: Record<string, any> }[] = [];
       const add = (kind: "crm" | "agent", l: any) => {
@@ -302,21 +295,13 @@ Deno.serve(async (req) => {
       const errors: string[] = [];
       for (const r of batch) {
         try {
-          const token = crypto.randomUUID() + "-" + crypto.randomUUID().slice(0, 8);
-          await supabase.from("email_unsubscribe_tokens").insert({ token, email: r.email });
-          const unsub = `${base}/functions/v1/email-unsubscribe?token=${token}`;
+          const unsub = await unsubscribeUrl(r.email);
           const lead = { ...r.lead, name: (r.lead.name || "").split(" ")[0] || "there" };
           const subject = replacePlaceholders(template.subject || "", lead);
           await sendEmail(r.email, subject, replacePlaceholders(template.body, lead), unsub, true);
           await supabase.from("email_send_log").insert({ template_name: logName, recipient_email: r.email, status: "sent", metadata: { campaign_id: campaign?.id } });
-          if (r.kind === "crm") {
-            await supabase.from("lead_activities").insert({
-              lead_id: r.id, type: "email_sent", content: `Campaign: ${campaign_name || template.name}`,
-              metadata: { campaign_id: campaign?.id, subject }, created_by: userData.user.id,
-            });
-          } else {
-            await supabase.from("agent_leads").update({ last_contacted_at: new Date().toISOString() }).eq("id", r.id);
-          }
+          await supabase.from("agent_leads").update({ last_contacted_at: new Date().toISOString() }).eq("id", r.id);
+          await supabase.from("agent_activities").insert({ lead_id: r.id, type: "campaign_send", body: `Campaign: ${campaign_name || template.name}`, meta: { campaign_id: campaign?.id, subject }, rep_id: userData.user.id });
           sentCount++;
         } catch (e) {
           errors.push(`${r.email}: ${(e as Error).message}`);

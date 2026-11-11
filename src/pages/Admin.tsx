@@ -19,7 +19,7 @@ import {
   UserPlus, Megaphone, ChevronLeft, ChevronRight,
 } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
-import LeadsTab from "@/components/admin/LeadsTab";
+import PersonDrawer from "@/components/admin/shell/PersonDrawer";
 import CampaignsTab from "@/components/admin/CampaignsTab";
 import PushNotificationsTab from "@/components/admin/PushNotificationsTab";
 import AdminsTab from "@/components/admin/AdminsTab";
@@ -66,7 +66,13 @@ interface DashboardStats {
   totalRevenue: number;
 }
 
-const Admin = () => {
+type AdminProps = { section?: string };
+const CAMPAIGN_VIEW: Record<string, "drips" | "templates" | "broadcasts"> = { sequences: "drips", templates: "templates", broadcasts: "broadcasts" };
+
+const Admin = ({ section }: AdminProps = {}) => {
+  const embedded = !!section;
+  const [leadByUser, setLeadByUser] = useState<Record<string, string>>({});
+  const [personUser, setPersonUser] = useState<string | null>(null);
   const navigate = useNavigate();
   const { isAdmin, loading: adminLoading } = useAdmin();
   const [users, setUsers] = useState<UserCredit[]>([]);
@@ -98,6 +104,7 @@ const Admin = () => {
     });
     if (!error && data) {
       setUsers(data.users || []);
+      setLeadByUser(data.leadByUser || {});
       setProfiles(data.profiles || []);
       setTransactions(data.transactions || []);
       setStats(data.stats || { totalCards: 0, totalScans: 0, totalRevenue: 0 });
@@ -179,9 +186,11 @@ const Admin = () => {
 
   const txTypes = [...new Set(transactions.map((t) => t.type))];
 
+  const tabValue = section ? (CAMPAIGN_VIEW[section] ? "campaigns" : section) : undefined;
+
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b border-border">
+    <div className={embedded ? "" : "min-h-screen bg-background"}>
+      {!embedded && <header className="border-b border-border">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <div className="flex items-center gap-3">
             <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard")}>
@@ -202,11 +211,11 @@ const Admin = () => {
             <ThemeToggle />
           </div>
         </div>
-      </header>
+      </header>}
 
-      <main className="container mx-auto px-4 py-8 space-y-8">
+      <main className={embedded ? "space-y-6" : "container mx-auto px-4 py-8 space-y-8"}>
         {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        {(!embedded || section === "users") && <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
           {[
             { label: "Total Users", value: users.length, icon: Users },
             { label: "Pro Subscribers", value: totalPro, icon: Crown },
@@ -225,14 +234,13 @@ const Admin = () => {
               </CardContent>
             </Card>
           ))}
-        </div>
+        </div>}
 
         {/* Tabs */}
-        <Tabs defaultValue="users">
-          <TabsList>
+        <Tabs defaultValue="users" value={tabValue}>
+          <TabsList className={embedded ? "hidden" : ""}>
             <TabsTrigger value="users">Users</TabsTrigger>
             <TabsTrigger value="transactions">Transactions</TabsTrigger>
-            <TabsTrigger value="leads">Leads</TabsTrigger>
             <TabsTrigger value="campaigns">Campaigns</TabsTrigger>
             <TabsTrigger value="push">Push</TabsTrigger>
             <TabsTrigger value="beta">Beta</TabsTrigger>
@@ -244,7 +252,7 @@ const Admin = () => {
           </TabsList>
 
 
-          <TabsContent value="accuracy"><div className="mb-4"><Link to="/admin/price-check-lab"><Button variant="outline">Open Price Check Lab</Button></Link></div><MatchAccuracyTab /></TabsContent>
+          <TabsContent value="accuracy">{!embedded && <div className="mb-4"><Link to="/admin#lab"><Button variant="outline">Open Price Check Lab</Button></Link></div>}<MatchAccuracyTab /></TabsContent>
           <TabsContent value="pc-purge"><PurgePriceChartingTab /></TabsContent>
 
           {/* Users Tab */}
@@ -287,7 +295,8 @@ const Admin = () => {
                               <TableRow key={u.id}>
                                 <TableCell className="font-medium">
                                   <div>
-                                    <p>{profile?.email || u.user_id.slice(0, 8)}</p>
+                                    <button type="button" className="text-left hover:underline" onClick={() => setPersonUser(u.user_id)}>{profile?.email || u.user_id.slice(0, 8)}</button>
+                                    {leadByUser[u.user_id] && <Badge variant="outline" className="ml-2 text-[10px] cursor-pointer" onClick={() => setPersonUser(u.user_id)}>Lead history</Badge>}
                                     {profile?.display_name && <p className="text-xs text-muted-foreground">{profile.display_name}</p>}
                                   </div>
                                 </TableCell>
@@ -424,14 +433,10 @@ const Admin = () => {
               </CardContent>
             </Card>
           </TabsContent>
-          {/* Leads Tab */}
-          <TabsContent value="leads">
-            <LeadsTab />
-          </TabsContent>
 
           {/* Campaigns Tab */}
           <TabsContent value="campaigns">
-            <CampaignsTab />
+            <CampaignsTab view={section ? CAMPAIGN_VIEW[section] ?? "all" : "all"} />
           </TabsContent>
 
           {/* Push Notifications Tab */}
@@ -469,6 +474,7 @@ const Admin = () => {
         </Tabs>
       </main>
 
+      <PersonDrawer userId={personUser} onClose={() => setPersonUser(null)} />
       {/* Credit Adjustment Dialog */}
       <Dialog open={creditDialog.open} onOpenChange={(open) => { if (!open) setCreditDialog({ ...creditDialog, open: false }); }}>
         <DialogContent>

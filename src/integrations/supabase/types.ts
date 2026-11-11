@@ -14,6 +14,44 @@ export type Database = {
   }
   public: {
     Tables: {
+      agent_activities: {
+        Row: {
+          body: string | null
+          created_at: string
+          id: string
+          lead_id: string
+          meta: Json
+          rep_id: string | null
+          type: string
+        }
+        Insert: {
+          body?: string | null
+          created_at?: string
+          id?: string
+          lead_id: string
+          meta?: Json
+          rep_id?: string | null
+          type: string
+        }
+        Update: {
+          body?: string | null
+          created_at?: string
+          id?: string
+          lead_id?: string
+          meta?: Json
+          rep_id?: string | null
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_activities_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "agent_leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       agent_admins: {
         Row: {
           created_at: string
@@ -62,59 +100,119 @@ export type Database = {
       agent_leads: {
         Row: {
           business_name: string | null
+          city: string | null
+          consent_email: boolean
+          consent_sms: boolean
+          consent_source: string | null
+          country: string | null
           created_at: string
           do_not_contact: boolean
           email: string | null
           external_id: string | null
+          fit_score: number | null
           handle: string | null
           id: string
           last_contacted_at: string | null
           lead_type: string
+          legacy_lead_id: string | null
+          merged_into: string | null
           name: string | null
+          next_action: string | null
+          next_action_at: string | null
           notes: string | null
+          owner_id: string | null
+          partner_code: string | null
+          phone: string | null
+          place_id: string | null
           platform: string
           replied_at: string | null
           reply_intent: string | null
           reply_summary: string | null
+          source: string | null
+          stage: string
+          state: string | null
           status: string
+          tags: string[]
+          unsubscribed_at: string | null
+          user_id: string | null
           website: string | null
         }
         Insert: {
           business_name?: string | null
+          city?: string | null
+          consent_email?: boolean
+          consent_sms?: boolean
+          consent_source?: string | null
+          country?: string | null
           created_at?: string
           do_not_contact?: boolean
           email?: string | null
           external_id?: string | null
+          fit_score?: number | null
           handle?: string | null
           id?: string
           last_contacted_at?: string | null
           lead_type?: string
+          legacy_lead_id?: string | null
+          merged_into?: string | null
           name?: string | null
+          next_action?: string | null
+          next_action_at?: string | null
           notes?: string | null
+          owner_id?: string | null
+          partner_code?: string | null
+          phone?: string | null
+          place_id?: string | null
           platform: string
           replied_at?: string | null
           reply_intent?: string | null
           reply_summary?: string | null
+          source?: string | null
+          stage?: string
+          state?: string | null
           status?: string
+          tags?: string[]
+          unsubscribed_at?: string | null
+          user_id?: string | null
           website?: string | null
         }
         Update: {
           business_name?: string | null
+          city?: string | null
+          consent_email?: boolean
+          consent_sms?: boolean
+          consent_source?: string | null
+          country?: string | null
           created_at?: string
           do_not_contact?: boolean
           email?: string | null
           external_id?: string | null
+          fit_score?: number | null
           handle?: string | null
           id?: string
           last_contacted_at?: string | null
           lead_type?: string
+          legacy_lead_id?: string | null
+          merged_into?: string | null
           name?: string | null
+          next_action?: string | null
+          next_action_at?: string | null
           notes?: string | null
+          owner_id?: string | null
+          partner_code?: string | null
+          phone?: string | null
+          place_id?: string | null
           platform?: string
           replied_at?: string | null
           reply_intent?: string | null
           reply_summary?: string | null
+          source?: string | null
+          stage?: string
+          state?: string | null
           status?: string
+          tags?: string[]
+          unsubscribed_at?: string | null
+          user_id?: string | null
           website?: string | null
         }
         Relationships: []
@@ -623,6 +721,7 @@ export type Database = {
       drip_campaign_queue: {
         Row: {
           body: string
+          cancelled_at: string | null
           created_at: string
           id: string
           lead_id: string
@@ -634,6 +733,7 @@ export type Database = {
         }
         Insert: {
           body: string
+          cancelled_at?: string | null
           created_at?: string
           id?: string
           lead_id: string
@@ -645,6 +745,7 @@ export type Database = {
         }
         Update: {
           body?: string
+          cancelled_at?: string | null
           created_at?: string
           id?: string
           lead_id?: string
@@ -656,10 +757,10 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "drip_campaign_queue_lead_id_fkey"
+            foreignKeyName: "drip_campaign_queue_agent_lead_fkey"
             columns: ["lead_id"]
             isOneToOne: false
-            referencedRelation: "leads"
+            referencedRelation: "agent_leads"
             referencedColumns: ["id"]
           },
         ]
@@ -724,6 +825,27 @@ export type Database = {
           send_delay_ms?: number
           transactional_email_ttl_minutes?: number
           updated_at?: string
+        }
+        Relationships: []
+      }
+      email_suppressions: {
+        Row: {
+          created_at: string
+          email: string
+          reason: string
+          source: string | null
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          reason: string
+          source?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          reason?: string
+          source?: string | null
         }
         Relationships: []
       }
@@ -884,6 +1006,29 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      legacy_lead_map: {
+        Row: {
+          agent_lead_id: string
+          legacy_id: string
+        }
+        Insert: {
+          agent_lead_id: string
+          legacy_id: string
+        }
+        Update: {
+          agent_lead_id?: string
+          legacy_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "legacy_lead_map_agent_lead_id_fkey"
+            columns: ["agent_lead_id"]
+            isOneToOne: false
+            referencedRelation: "agent_leads"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       marketplace_listings: {
         Row: {
@@ -1878,6 +2023,7 @@ export type Database = {
         Args: { _amount: number; _user_id: string }
         Returns: number
       }
+      admin_overview: { Args: never; Returns: Json }
       admin_purge_pricecharting: { Args: { _confirm: string }; Returns: Json }
       agent_attach_draft: {
         Args: { p_draft: string; p_id: string; p_subject?: string }
@@ -1930,21 +2076,41 @@ export type Database = {
         Args: { p_limit?: number }
         Returns: {
           business_name: string | null
+          city: string | null
+          consent_email: boolean
+          consent_sms: boolean
+          consent_source: string | null
+          country: string | null
           created_at: string
           do_not_contact: boolean
           email: string | null
           external_id: string | null
+          fit_score: number | null
           handle: string | null
           id: string
           last_contacted_at: string | null
           lead_type: string
+          legacy_lead_id: string | null
+          merged_into: string | null
           name: string | null
+          next_action: string | null
+          next_action_at: string | null
           notes: string | null
+          owner_id: string | null
+          partner_code: string | null
+          phone: string | null
+          place_id: string | null
           platform: string
           replied_at: string | null
           reply_intent: string | null
           reply_summary: string | null
+          source: string | null
+          stage: string
+          state: string | null
           status: string
+          tags: string[]
+          unsubscribed_at: string | null
+          user_id: string | null
           website: string | null
         }[]
         SetofOptions: {
@@ -2007,6 +2173,8 @@ export type Database = {
         }
         Returns: Json
       }
+      agent_stage_to_status: { Args: { _stage: string }; Returns: string }
+      agent_status_to_stage: { Args: { _status: string }; Returns: string }
       agent_unsubscribe: { Args: { p_lead_id: string }; Returns: undefined }
       can_use_price_check: { Args: { _uid: string }; Returns: boolean }
       consume_daily_budget: {
@@ -2048,6 +2216,7 @@ export type Database = {
       }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
       is_agent_admin: { Args: never; Returns: boolean }
+      is_email_suppressed: { Args: { _email: string }; Returns: boolean }
       is_listed_card_image: { Args: { _name: string }; Returns: boolean }
       lab_pc_calls_total: { Args: never; Returns: number }
       marketplace_listing_cards: {
@@ -2093,6 +2262,10 @@ export type Database = {
         }[]
       }
       refund_demo_scan: { Args: { _ip_hash: string }; Returns: undefined }
+      suppress_email: {
+        Args: { _email: string; _reason: string; _source: string }
+        Returns: undefined
+      }
     }
     Enums: {
       activity_type:

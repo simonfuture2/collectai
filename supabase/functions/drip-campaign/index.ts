@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { suppressedSet, unsubscribeUrl } from "../_shared/outreach.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -343,6 +344,7 @@ Deno.serve(async (req) => {
       .from("drip_campaign_queue")
       .select("id, lead_id, step, subject")
       .eq("sent", false)
+      .is("cancelled_at", null)
       .lte("scheduled_for", today)
       .order("step")
       .limit(100);
@@ -357,9 +359,10 @@ Deno.serve(async (req) => {
     // Get lead emails
     const leadIds = [...new Set(queue.map((q: any) => q.lead_id))];
     const { data: leadsData } = await supabase
-      .from("leads")
-      .select("id, email, name")
+      .from("agent_leads")
+      .select("id, email, name, do_not_contact, user_id")
       .in("id", leadIds);
+    const blocked = await suppressedSet(supabase);
 
     const leadMap = new Map((leadsData || []).map((l: any) => [l.id, l]));
 
@@ -372,6 +375,10 @@ Deno.serve(async (req) => {
         errors.push(`No email for lead ${item.lead_id}`);
         continue;
       }
+      if (lead.do_not_contact || blocked.has(String(lead.email).toLowerCase())) {
+        await supabase.from("drip_campaign_queue").update({ cancelled_at: new Date().toISOString() }).eq("id", item.id);
+        continue;
+      }
 
       const templateFn = emailTemplates[item.step as number];
       if (!templateFn) {
@@ -379,7 +386,9 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      const html = templateFn(lead.name || "Collector");
+      const unsub = await unsubscribeUrl(lead.email);
+      const html = templateFn(lead.name || "Collector") +
+        `<p style="font-size:12px;color:#888;text-align:center">Don't want these emails? <a href="${unsub}">Unsubscribe</a></p>`;
 
       // Send via SendGrid
       let sent = false;
@@ -395,6 +404,7 @@ Deno.serve(async (req) => {
             from: { email: fromEmail, name: "MyCollectAI" },
             subject: item.subject || DRIP_SUBJECTS[item.step as number] || "MyCollectAI Tips",
             content: [{ type: "text/html", value: html }],
+            headers: { "List-Unsubscribe": `<${unsub}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" },
           }),
         });
 
@@ -409,6 +419,7 @@ Deno.serve(async (req) => {
           .from("drip_campaign_queue")
           .update({ sent: true, sent_at: new Date().toISOString() })
           .eq("id", item.id);
+        await supabase.from("agent_activities").insert({ lead_id: item.lead_id, type: "email_sent", body: `Drip step ${item.step}`, meta: { drip_id: item.id } });
         sentCount++;
       } else {
         errors.push(`Failed to send step ${item.step} to ${lead.email}`);

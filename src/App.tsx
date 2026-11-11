@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route , Navigate } from "react-router-dom";
 import Landing from "./pages/Landing";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
@@ -27,9 +27,8 @@ const Refund = lazy(() => import("./pages/Refund"));
 const FAQ = lazy(() => import("./pages/FAQ"));
 const About = lazy(() => import("./pages/About"));
 const HowItWorks = lazy(() => import("./pages/HowItWorks"));
-const Admin = lazy(() => import("./pages/Admin"));
+const AdminShell = lazy(() => import("./pages/admin/AdminShell"));
 const IdBakeoff = lazy(() => import("./pages/admin/IdBakeoff"));
-const AgentHQ = lazy(() => import("./pages/admin/AgentHQ"));
 const PriceCheckLab = lazy(() => import("./pages/admin/PriceCheckLab"));
 const SharedCard = lazy(() => import("./pages/SharedCard"));
 const PublicCollection = lazy(() => import("./pages/PublicCollection"));
@@ -152,9 +151,9 @@ const App = () => (
               <Route path="/watch" element={<Watch />} />
               <Route path="/about" element={<About />} />
               <Route path="/how-it-works" element={<HowItWorks />} />
-              <Route path="/admin" element={<Admin />} />
+              <Route path="/admin" element={<AdminShell />} />
               <Route path="/admin/id-bakeoff" element={<IdBakeoff />} />
-              <Route path="/admin/agent" element={<AgentHQ />} />
+              <Route path="/admin/agent" element={<Navigate to="/admin#inbox" replace />} />
               <Route path="/admin/price-check-lab" element={<PriceCheckLab />} />
               <Route path="/partners" element={<PartnerSignup />} />
               <Route path="/free-guide" element={<FreeGuide />} />

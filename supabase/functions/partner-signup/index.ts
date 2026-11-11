@@ -64,16 +64,19 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { data, error } = await supabase.from("leads").insert({
+    const cleanEmail = String(email).trim().toLowerCase().slice(0, 255);
+    const row = {
       name: String(name).trim().slice(0, 100),
-      email: String(email).trim().toLowerCase().slice(0, 255),
       phone: phone ? String(phone).trim().slice(0, 20) : null,
-      company: company ? String(company).trim().slice(0, 100) : null,
+      business_name: company ? String(company).trim().slice(0, 100) : null,
       notes: message ? String(message).trim().slice(0, 1000) : null,
-      source: "form",
-      status: "new",
-    }).select().single();
-
+      consent_email: true, consent_source: "partner_form",
+    };
+    const { data: existing } = await supabase.from("agent_leads").select("id").ilike("email", cleanEmail).is("merged_into", null).maybeSingle();
+    const { data, error } = existing
+      ? await supabase.from("agent_leads").update(row).eq("id", existing.id).select("id").single()
+      : await supabase.from("agent_leads").insert({ ...row, email: cleanEmail, platform: "email", lead_type: company ? "card_shop" : "collector", source: "partner_form" }).select("id").single();
+    if (!error) await supabase.from("agent_activities").insert({ lead_id: data.id, type: "partner_form", body: row.notes ?? "Submitted the partner form" });
     if (error) throw error;
 
     return new Response(JSON.stringify({ success: true, id: data.id }), {

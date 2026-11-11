@@ -1,3 +1,4 @@
+import PersonDrawer from "@/components/admin/shell/PersonDrawer";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -44,10 +45,13 @@ const now = () => new Date().toISOString();
 
 type Tab = "queue" | "leads" | "channels" | "results" | "funnel" | "videos";
 
-export default function AgentHQ() {
+export type AgentSection = "inbox" | "leads" | "channels" | "results" | "funnel" | "videos";
+
+export default function AgentHQ({ section }: { section?: AgentSection } = {}) {
   const navigate = useNavigate();
   const [access, setAccess] = useState<"loading" | "ok" | "denied">("loading");
-  const [tab, setTab] = useState<Tab>("queue");
+  const [tabState, setTab] = useState<Tab>("queue");
+  const tab: Tab = section ? (section === "inbox" ? "queue" : section) : tabState;
   const [pendingCount, setPendingCount] = useState(0);
   const [refreshKey, setRefreshKey] = useState(0);
   const [repliesOnly, setRepliesOnly] = useState(false);
@@ -62,7 +66,7 @@ export default function AgentHQ() {
   useEffect(() => {
     (async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { navigate(`/auth?next=${encodeURIComponent("/admin/agent")}`); return; }
+      if (!user) { navigate(`/auth?next=${encodeURIComponent("/admin#inbox")}`); return; }
       const { data } = await supabase.from("agent_admins").select("user_id").eq("user_id", user.id).maybeSingle();
       setAccess(data ? "ok" : "denied");
     })();
@@ -120,6 +124,22 @@ export default function AgentHQ() {
     { id: "funnel", label: "Funnel", icon: Filter },
     { id: "videos", label: "Videos", icon: Film },
   ];
+
+  if (section) {
+    return (
+      <div>
+        {tab === "queue" && <div className="space-y-8">
+          <section><h2 className="text-lg font-semibold mb-3">Drafts to approve{pendingCount ? ` (${pendingCount})` : ""}</h2><QueueTab refreshKey={refreshKey} onChange={loadCount} /></section>
+          <section><h2 className="text-lg font-semibold mb-3">Replies{waitingCount ? ` · ${waitingCount} waiting on you` : ""}</h2><LeadsTab repliesOnly onRepliesOnlyChange={() => {}} refreshKey={refreshKey} /></section>
+        </div>}
+        {tab === "leads" && <LeadsTab repliesOnly={repliesOnly} onRepliesOnlyChange={setRepliesOnly} refreshKey={refreshKey} />}
+        {tab === "channels" && <ChannelsTab />}
+        {tab === "results" && <ResultsTab refreshKey={refreshKey} />}
+        {tab === "funnel" && <FunnelTab />}
+        {tab === "videos" && <VideosTab />}
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background pb-24 md:pb-8">
@@ -373,7 +393,7 @@ function LeadsTab({ repliesOnly, onRepliesOnlyChange, refreshKey }: { repliesOnl
   const [open, setOpen] = useState<Lead | null>(null);
 
   const load = useCallback(async () => {
-    let query = supabase.from("agent_leads").select("*");
+    let query = supabase.from("agent_leads").select("*").is("merged_into", null);
     if (repliesOnly) query = query.not("replied_at", "is", null);
     const { data, error } = await query.order(repliesOnly ? "replied_at" : "created_at", { ascending: false }).limit(1000);
     if (error) toast.error(error.message);
@@ -425,7 +445,7 @@ function LeadsTab({ repliesOnly, onRepliesOnlyChange, refreshKey }: { repliesOnl
           </div>
         )}
       <AddLeadDialog open={addOpen} onOpenChange={setAddOpen} onAdded={load} />
-      <LeadDrawer lead={open} onClose={() => setOpen(null)} onSaved={load} refreshKey={refreshKey} />
+      <PersonDrawer leadId={open?.id ?? null} onClose={() => setOpen(null)} onSaved={load} />
     </div>
   );
 }
@@ -503,7 +523,7 @@ function LeadReply({ reply }: { reply: Reply }) {
   </article>;
 }
 
-function LeadDrawer({ lead, onClose, onSaved, refreshKey }: { lead: Lead | null; onClose: () => void; onSaved: () => void; refreshKey: number }) {
+export function LeadDrawer({ lead, onClose, onSaved, refreshKey }: { lead: Lead | null; onClose: () => void; onSaved: () => void; refreshKey: number }) {
   const [v, setV] = useState<Partial<Lead>>({});
   const [history, setHistory] = useState<Outreach[]>([]);
   const [busy, setBusy] = useState(false);

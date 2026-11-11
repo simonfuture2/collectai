@@ -52,7 +52,10 @@ interface DripItem {
   lead_email?: string;
 }
 
-const CampaignsTab = () => {
+type CampaignsView = "all" | "drips" | "templates" | "broadcasts";
+
+const CampaignsTab = ({ view = "all" }: { view?: CampaignsView }) => {
+  const show = (v: CampaignsView) => view === "all" || view === v;
   const [templates, setTemplates] = useState<Template[]>([]);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -80,7 +83,7 @@ const CampaignsTab = () => {
     const [tRes, cRes, lRes] = await Promise.all([
       supabase.from("campaign_templates").select("*").order("created_at", { ascending: false }),
       supabase.from("outreach_campaigns").select("*").order("created_at", { ascending: false }),
-      supabase.from("leads").select("id, name, email, phone, status").order("name"),
+      supabase.from("agent_leads").select("id, name, email, phone, status").is("merged_into", null).not("email", "is", null).order("name"),
     ]);
     if (tRes.data) setTemplates(tRes.data as Template[]);
     if (cRes.data) setCampaigns(cRes.data as Campaign[]);
@@ -111,7 +114,7 @@ const CampaignsTab = () => {
     if (items.length > 0) {
       const leadIds = [...new Set(items.map((i: any) => i.lead_id))];
       const { data: leadsData } = await supabase
-        .from("leads")
+        .from("agent_leads")
         .select("id, name, email")
         .in("id", leadIds as string[]);
 
@@ -249,6 +252,7 @@ const CampaignsTab = () => {
   return (
     <div className="space-y-6">
       {/* Drip Campaign Overview */}
+      {show("drips") && (
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between flex-wrap gap-2">
@@ -329,8 +333,10 @@ const CampaignsTab = () => {
           )}
         </CardContent>
       </Card>
+      )}
 
       {/* Templates */}
+      {show("templates") && (
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between flex-wrap gap-2">
@@ -376,8 +382,10 @@ const CampaignsTab = () => {
           )}
         </CardContent>
       </Card>
+      )}
 
       {/* Bulk Send + Campaign History */}
+      {show("broadcasts") && (
       <div className="grid md:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
@@ -429,6 +437,7 @@ const CampaignsTab = () => {
           </CardContent>
         </Card>
       </div>
+      )}
 
       {/* Template Dialog */}
       <Dialog open={templateDialog} onOpenChange={setTemplateDialog}>

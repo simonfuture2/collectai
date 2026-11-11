@@ -153,26 +153,21 @@ Deno.serve(async (req) => {
     }
 
 
-    // Insert lead
-    const { data: leadData, error: insertError } = await supabase.from("leads").insert({
-      name: email.split("@")[0],
-      email,
-      source: "lead_magnet",
-      notes: "Downloaded: Card Grading Cheat Sheet",
-    }).select("id").single();
-
-    let leadId = leadData?.id;
-
-    if (insertError) {
-      console.error("Lead insert error:", insertError);
-      // Try to find existing lead to still enqueue drip
-      const { data: existing } = await supabase
-        .from("leads")
-        .select("id")
-        .eq("email", email)
-        .single();
-      leadId = existing?.id;
+    // Insert or update the lead in the single lead list
+    const cleanEmail = String(email).trim().toLowerCase();
+    const { data: existing } = await supabase.from("agent_leads").select("id").ilike("email", cleanEmail).is("merged_into", null).maybeSingle();
+    let leadId: string | undefined = existing?.id;
+    if (existing) {
+      await supabase.from("agent_leads").update({ consent_email: true, consent_source: "lead_magnet" }).eq("id", existing.id);
+    } else {
+      const { data: leadData, error: insertError } = await supabase.from("agent_leads").insert({
+        name: cleanEmail.split("@")[0], email: cleanEmail, platform: "email", lead_type: "collector",
+        source: "lead_magnet", notes: "Downloaded: Card Grading Cheat Sheet", consent_email: true, consent_source: "lead_magnet",
+      }).select("id").single();
+      if (insertError) console.error("Lead insert error:", insertError);
+      leadId = leadData?.id;
     }
+    if (leadId) await supabase.from("agent_activities").insert({ lead_id: leadId, type: "lead_magnet", body: "Downloaded: Card Grading Cheat Sheet" });
 
     // Enqueue drip campaign emails
     if (leadId) {

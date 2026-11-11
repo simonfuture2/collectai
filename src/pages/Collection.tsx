@@ -476,7 +476,7 @@ const Collection = () => {
         {isAgentAdmin && (
           <div className="container mx-auto px-3 sm:px-4 pb-3">
             <Button asChild variant="outline" size="sm" className="gap-2">
-              <Link to="/admin/agent"><Shield className="h-4 w-4" />Agent HQ</Link>
+              <Link to="/admin#inbox"><Shield className="h-4 w-4" />Admin</Link>
             </Button>
           </div>
         )}

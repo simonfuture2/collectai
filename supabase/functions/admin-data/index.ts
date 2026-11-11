@@ -95,8 +95,13 @@ Deno.serve(async (req) => {
 
       const totalRevenue = (revenueRes.data || []).reduce((sum: number, t: any) => sum + (t.amount || 0), 0);
 
+      const { data: linkedLeads } = await adminClient.from("agent_leads").select("id,user_id,stage").not("user_id", "is", null).is("merged_into", null);
+      const leadByUser: Record<string, string> = {};
+      for (const l of linkedLeads || []) leadByUser[l.user_id as string] = l.id as string;
+
       return new Response(
         JSON.stringify({
+          leadByUser,
           users: usersRes.data || [],
           profiles: profilesWithEmail,
           transactions: transactionsRes.data || [],
@@ -241,6 +246,59 @@ Deno.serve(async (req) => {
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
+    }
+
+    // ─── PERSON VIEW (lead and/or account) ───
+    if (action === "get_person") {
+      const { leadId, targetUserId } = body;
+      let lead: any = null;
+      if (leadId) lead = (await adminClient.from("agent_leads").select("*").eq("id", leadId).maybeSingle()).data;
+      let uid: string | null = targetUserId || lead?.user_id || null;
+      if (!lead && uid) lead = (await adminClient.from("agent_leads").select("*").eq("user_id", uid).is("merged_into", null).limit(1).maybeSingle()).data;
+      let account: any = null;
+      if (uid) {
+        const [authRes, profileRes, creditsRes, transRes, cardsRes, pcRes, lastPc, lastCard] = await Promise.all([
+          adminClient.auth.admin.getUserById(uid),
+          adminClient.from("profiles").select("display_name, created_at, signup_ref").eq("id", uid).maybeSingle(),
+          adminClient.from("user_credits").select("plan, credits, beta_access_until").eq("user_id", uid).maybeSingle(),
+          adminClient.from("credit_transactions").select("id, amount, type, description, created_at").eq("user_id", uid)
+            .in("type", ["credit_purchase", "subscription"]).order("created_at", { ascending: false }).limit(20),
+          adminClient.from("cards").select("id", { count: "exact", head: true }).eq("user_id", uid),
+          adminClient.from("price_checks").select("id", { count: "exact", head: true }).eq("user_id", uid),
+          adminClient.from("price_checks").select("created_at").eq("user_id", uid).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+          adminClient.from("cards").select("created_at").eq("user_id", uid).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+        ]);
+        const u = authRes.data?.user;
+        const lastActive = [u?.last_sign_in_at, lastPc.data?.created_at, lastCard.data?.created_at].filter(Boolean).sort().pop() ?? null;
+        account = {
+          user_id: uid, email: u?.email ?? null, display_name: profileRes.data?.display_name ?? null,
+          signed_up_at: profileRes.data?.created_at ?? u?.created_at ?? null, signup_ref: profileRes.data?.signup_ref ?? null,
+          plan: creditsRes.data?.plan ?? "free", credits: creditsRes.data?.credits ?? 0,
+          scans: cardsRes.count ?? 0, price_checks: pcRes.count ?? 0, purchases: transRes.data ?? [], last_active: lastActive,
+        };
+      }
+      let timeline: any[] = [];
+      if (lead) {
+        const [acts, drips, camp, outr, reps] = await Promise.all([
+          adminClient.from("agent_activities").select("id, type, body, meta, created_at").eq("lead_id", lead.id).order("created_at", { ascending: false }).limit(200),
+          adminClient.from("drip_campaign_queue").select("id, step, subject, sent, sent_at, scheduled_for, cancelled_at").eq("lead_id", lead.id),
+          lead.email ? adminClient.from("email_send_log").select("id, template_name, status, created_at").eq("recipient_email", String(lead.email).toLowerCase()).order("created_at", { ascending: false }).limit(50) : Promise.resolve({ data: [] }),
+          adminClient.from("agent_outreach").select("id, channel, status, subject, final_text, draft_text, created_at, sent_at").eq("lead_id", lead.id),
+          adminClient.from("agent_replies").select("id, intent, subject, summary, body, received_at").eq("lead_id", lead.id),
+        ]);
+        timeline = [
+          ...(outr.data || []).map((o: any) => ({ id: o.id, kind: `outreach_${o.status}`, text: o.subject || (o.final_text || o.draft_text || "").slice(0, 200), meta: { channel: o.channel }, at: o.sent_at || o.created_at })),
+          ...(reps.data || []).map((r: any) => ({ id: r.id, kind: "reply", text: r.summary || (r.body || "").slice(0, 300), meta: { intent: r.intent, subject: r.subject }, at: r.received_at })),
+          ...(acts.data || []).filter((a: any) => a.type !== "reply" && !String(a.type).startsWith("outreach_")).map((a: any) => ({ id: a.id, kind: a.type, text: a.body, meta: a.meta, at: a.created_at })),
+          ...(drips.data || []).map((d: any) => ({ id: d.id, kind: d.cancelled_at ? "sequence_cancelled" : d.sent ? "sequence_sent" : "sequence_scheduled",
+            text: `Step ${d.step}: ${d.subject}`, at: d.sent_at || d.cancelled_at || d.scheduled_for })),
+          ...((camp as any).data || []).filter((e: any) => String(e.template_name).startsWith("campaign:"))
+            .map((e: any) => ({ id: e.id, kind: e.status === "sent" ? "campaign_email" : "campaign_failed", text: e.template_name, at: e.created_at })),
+        ].sort((a, b) => String(b.at).localeCompare(String(a.at)));
+      }
+      const email = lead?.email || account?.email;
+      const suppressed = email ? !!(await adminClient.from("email_suppressions").select("email").eq("email", String(email).toLowerCase()).maybeSingle()).data : false;
+      return new Response(JSON.stringify({ lead, account, timeline, suppressed }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     // ─── DELETE USER DATA ───
