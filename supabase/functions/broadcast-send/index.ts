@@ -216,6 +216,9 @@ Deno.serve(async (req) => {
     }
 
     if (action === "tick") {
+      // Spam complaints above the limit pause the opted-in lane until an admin resumes it.
+      const { data: dl } = await db.from("agent_settings").select("config").eq("key", "deliverability").maybeSingle();
+      if (dl?.config?.broadcasts_paused_at) return json({ paused: dl.config.broadcasts_paused_reason });
       const { data: due } = await db.from("broadcast_recipients").select("*, broadcasts!inner(status, ref_code, template_id)")
         .eq("lane", "opted_in").eq("status", "queued").lte("scheduled_for", new Date().toISOString()).neq("broadcasts.status", "cancelled").limit(100);
       const suppressed = await suppressedSet(db);

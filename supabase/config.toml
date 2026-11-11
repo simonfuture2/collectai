@@ -86,3 +86,9 @@ verify_jwt = false
 
 [functions.unsubscribe]
 verify_jwt = false
+
+[functions.sendgrid-events]
+verify_jwt = false
+
+[functions.weekly-summary]
+verify_jwt = false

@@ -1,4 +1,5 @@
 import LeadRunCard from "./LeadRunCard";
+import DeliverabilityBanner from "./DeliverabilityBanner";
 import { useEffect, useState } from "react";
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { AlertTriangle, Loader2 } from "lucide-react";
@@ -47,6 +48,7 @@ export default function OverviewSection({ go }: { go: (section: string) => void 
 
   return (
     <div className="space-y-6">
+      <DeliverabilityBanner go={go} />
       <div>
         <h2 className="text-lg font-semibold mb-3">Today</h2>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">

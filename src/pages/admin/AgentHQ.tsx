@@ -626,8 +626,10 @@ function ChannelsTab() {
   const load = useCallback(async () => {
     const { data, error } = await supabase.from("agent_settings").select("*").order("key");
     if (error) toast.error(error.message);
-    setSettings(data ?? []);
-    const entries = await Promise.all((data ?? []).map(async (s) => {
+    // Deliverability and weekly-summary settings are edited in the Email health card.
+    const rows = (data ?? []).filter((s) => !["deliverability", "weekly_summary"].includes(s.key));
+    setSettings(rows);
+    const entries = await Promise.all(rows.map(async (s) => {
       const { data: r } = await supabase.from("agent_outreach").select("created_at").eq("workflow", s.key).order("created_at", { ascending: false }).limit(1).maybeSingle();
       return [s.key, r?.created_at ?? null] as const;
     }));

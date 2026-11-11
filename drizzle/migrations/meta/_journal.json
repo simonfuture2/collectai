@@ -183,6 +183,13 @@
       "when": 1794437852453,
       "tag": "0025_shop_partner_program",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1794439879695,
+      "tag": "0026_deliverability_reporting",
+      "breakpoints": true
     }
   ]
 }

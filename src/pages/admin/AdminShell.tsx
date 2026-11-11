@@ -30,6 +30,8 @@ const EventsSection = lazy(() => import("@/components/admin/shell/EventsSection"
 const RepsSection = lazy(() => import("@/components/admin/shell/RepsSection"));
 const RepResultsSection = lazy(() => import("@/components/admin/shell/RepResultsSection"));
 const SendingAccountsSection = lazy(() => import("@/components/admin/shell/SendingAccountsSection"));
+const EmailHealthCard = lazy(() => import("@/components/admin/shell/EmailHealthCard"));
+const ResultsReport = lazy(() => import("@/components/admin/shell/ResultsReport"));
 
 const ICONS: Record<string, typeof Inbox> = {
   overview: LayoutDashboard, inbox: Inbox, leads: Users, sequences: ListOrdered, broadcasts: Megaphone, templates: FileText,
@@ -122,9 +124,9 @@ export default function AdminShell() {
   else if (active === "find-leads") body = <FindLeadsSection />;
   else if (active === "events") body = <EventsSection />;
   else if (active === "leads") body = <div className="space-y-3"><div className="flex justify-end"><BulkEnrollButton /></div><AgentHQ key="leads" section="leads" /></div>;
-  else if (active === "channels") body = <div className="space-y-6"><SendingAccountsSection /><AgentHQ key="channels" section="channels" /></div>;
+  else if (active === "channels") body = <div className="space-y-6"><EmailHealthCard /><SendingAccountsSection /><AgentHQ key="channels" section="channels" /></div>;
   else if (active === "reps") body = <RepsSection />;
-  else if (active === "results") body = <div><RepResultsSection /><AgentHQ key="results" section="results" /></div>;
+  else if (active === "results") body = <div><ResultsReport /><RepResultsSection /><AgentHQ key="results" section="results" /></div>;
   else if (active === "lab") body = <PriceCheckLab />;
   else if (active === "bakeoff") body = <IdBakeoff />;
   else if (AGENT_IDS.has(active)) body = <AgentHQ key={active} section={active as "inbox"} />;

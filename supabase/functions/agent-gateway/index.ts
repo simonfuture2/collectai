@@ -29,6 +29,8 @@ const ALLOWED: Record<string, string[]> = {
   agent_next_leads_to_draft: ["p_limit"],
   agent_queue_email: ["p_lead_id", "p_subject", "p_body"],
   agent_claim_approved_emails: [],
+  // Gmail bounce / complaint notices matched by n8n: suppress, mark bounced, auto-pause the inbox if needed.
+  agent_record_bounce: ["p_email", "p_kind", "p_outreach_id", "p_reason", "p_message_id"],
   // Sequences: AI-written steps, and moving / stopping an enrollment.
   agent_next_steps_to_draft: ["p_limit"],
   agent_advance_enrollment: ["p_enrollment_id", "p_from_step"],

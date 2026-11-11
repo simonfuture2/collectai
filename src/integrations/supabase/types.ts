@@ -1159,6 +1159,42 @@ export type Database = {
           },
         ]
       }
+      email_events: {
+        Row: {
+          created_at: string
+          email: string | null
+          event: string
+          ext_id: string | null
+          id: string
+          outreach_id: string | null
+          provider: string
+          reason: string | null
+          sending_account_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          event: string
+          ext_id?: string | null
+          id?: string
+          outreach_id?: string | null
+          provider: string
+          reason?: string | null
+          sending_account_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          event?: string
+          ext_id?: string | null
+          id?: string
+          outreach_id?: string | null
+          provider?: string
+          reason?: string | null
+          sending_account_id?: string | null
+        }
+        Relationships: []
+      }
       email_send_log: {
         Row: {
           created_at: string
@@ -2943,6 +2979,16 @@ export type Database = {
         Args: { p_body: string; p_lead_id: string; p_subject: string }
         Returns: Json
       }
+      agent_record_bounce: {
+        Args: {
+          p_email: string
+          p_kind?: string
+          p_message_id?: string
+          p_outreach_id?: string
+          p_reason?: string
+        }
+        Returns: Json
+      }
       agent_record_reply: {
         Args: {
           p_body: string
@@ -3019,11 +3065,16 @@ export type Database = {
         Args: { message_id: number; queue_name: string }
         Returns: boolean
       }
+      deliverability_enforce_inbox: { Args: { _acc: string }; Returns: string }
+      deliverability_resume_broadcasts: { Args: never; Returns: undefined }
+      deliverability_status: { Args: never; Returns: Json }
       email_queue_dispatch: { Args: never; Returns: undefined }
       enqueue_email: {
         Args: { payload: Json; queue_name: string }
         Returns: number
       }
+      inbox_health: { Args: never; Returns: Json }
+      inbox_stats: { Args: { _acc: string; _since: string }; Returns: Json }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
       is_agent_admin: { Args: never; Returns: boolean }
       is_email_suppressed: { Args: { _email: string }; Returns: boolean }
@@ -3167,6 +3218,10 @@ export type Database = {
           _signature: string
         }
         Returns: undefined
+      }
+      results_report: {
+        Args: { _since: string; _until: string }
+        Returns: Json
       }
       sending_account_capacity: { Args: { _id: string }; Returns: number }
       sending_account_used_today: { Args: { _id: string }; Returns: number }

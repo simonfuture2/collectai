@@ -26,3 +26,12 @@
 
 ## Shop Partner Program
 - [x] Shops, /s/:slug, counter kit, /partner dashboard, staff Pro, shop mode, revenue report, rep onboarding, /partners form, sample test
+
+## Deliverability and reporting (2026-11-11)
+- [x] Email health card: SPF/DKIM/DMARC/MX per domain, cold-domain check, per-inbox 7-day health
+- [x] Auto-pause inbox (>3% bounces or any complaint); Gmail bounces via n8n agent_record_bounce → suppressions
+- [x] SendGrid Event Webhook → suppressions; broadcasts pause above 0.1% spam; Overview banner
+- [x] Results: sequence/step funnel, lead type, source, shops, reps, week-over-week arrows, CSV
+- [x] Weekly summary Mondays 8:00 ET (schedule id 44), test copy sent
+- [ ] SendGrid webhook live — waits on Simon adding the webhook + SENDGRID_WEBHOOK_PUBLIC_KEY
+- [ ] Gmail bounce matching — waits on n8n workflow calling agent_record_bounce
