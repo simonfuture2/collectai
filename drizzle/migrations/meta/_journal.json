@@ -169,6 +169,13 @@
       "when": 1794433638668,
       "tag": "0023_referral_friend_reward_safe",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1794434705427,
+      "tag": "0024_sales_rep_workspace",
+      "breakpoints": true
     }
   ]
 }

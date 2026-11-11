@@ -24,3 +24,6 @@ test("app admins without agent access don't see the inbox", () => {
   assert.equal(sectionFromHash("#inbox", adminOnly), "overview");
 });
 test("nobody sees nothing", () => assert.equal(visibleSections({ isAdmin: false, isAgentAdmin: false }).length, 0));
+test("sales reps alone see no admin sections", () => {
+  assert.equal(visibleSections({ isAdmin: false, isAgentAdmin: false }).some((s) => s.id === "reps"), false);
+});

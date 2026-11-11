@@ -108,6 +108,7 @@ serve(async (req) => {
           user_id: userId,
           type: "subscription",
           amount: 0,
+          amount_cents: session.amount_total ?? null,
           description: "Pro subscription activated",
         });
 
@@ -143,6 +144,7 @@ serve(async (req) => {
           user_id: userId,
           type: "credit_purchase",
           amount: creditsToAdd,
+          amount_cents: session.amount_total ?? null,
           description: `Purchased ${creditsToAdd} credits`,
         });
       }

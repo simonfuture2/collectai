@@ -15,3 +15,10 @@
 - [x] Two new guides with consent; QR show flyers; events; community keywords
 - [x] Daily lead run 7:00 ET with Overview summary
 - [ ] Bel Air Places search + 10-shop import — blocked: Google key needs Places API (New) enabled
+
+## Sales rep workspace (2026-11-11)
+- [ ] sales_reps table + rep RLS on leads/activities/enrollments/outreach
+- [ ] /reps workspace: Today, call outcomes, book meeting, pipeline board, my results
+- [ ] Admin Reps section (invite, territories, goals, deactivate), assignment round-robin, unassigned queue, leaderboard, commission report
+- [ ] Rep name/signature/booking link + reply-to in sequence emails
+- [ ] Test with a second rep account

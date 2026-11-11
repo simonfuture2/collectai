@@ -28,6 +28,7 @@ const FAQ = lazy(() => import("./pages/FAQ"));
 const About = lazy(() => import("./pages/About"));
 const HowItWorks = lazy(() => import("./pages/HowItWorks"));
 const AdminShell = lazy(() => import("./pages/admin/AdminShell"));
+const Reps = lazy(() => import("./pages/Reps"));
 const IdBakeoff = lazy(() => import("./pages/admin/IdBakeoff"));
 const PriceCheckLab = lazy(() => import("./pages/admin/PriceCheckLab"));
 const SharedCard = lazy(() => import("./pages/SharedCard"));
@@ -152,6 +153,7 @@ const App = () => (
               <Route path="/about" element={<About />} />
               <Route path="/how-it-works" element={<HowItWorks />} />
               <Route path="/admin" element={<AdminShell />} />
+              <Route path="/reps" element={<Reps />} />
               <Route path="/admin/id-bakeoff" element={<IdBakeoff />} />
               <Route path="/admin/agent" element={<Navigate to="/admin#inbox" replace />} />
               <Route path="/admin/price-check-lab" element={<PriceCheckLab />} />

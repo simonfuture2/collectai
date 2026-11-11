@@ -228,6 +228,7 @@ export type Database = {
           consent_sms: boolean
           consent_source: string | null
           country: string | null
+          county: string | null
           created_at: string
           do_not_contact: boolean
           email: string | null
@@ -273,6 +274,7 @@ export type Database = {
           consent_sms?: boolean
           consent_source?: string | null
           country?: string | null
+          county?: string | null
           created_at?: string
           do_not_contact?: boolean
           email?: string | null
@@ -318,6 +320,7 @@ export type Database = {
           consent_sms?: boolean
           consent_source?: string | null
           country?: string | null
+          county?: string | null
           created_at?: string
           do_not_contact?: boolean
           email?: string | null
@@ -370,10 +373,12 @@ export type Database = {
           error: string | null
           external_ref: string | null
           final_text: string | null
+          from_name: string | null
           id: string
           lead_id: string | null
           provider_ref: string | null
           ref_code: string | null
+          reply_to: string | null
           scheduled_for: string | null
           sending_account_id: string | null
           sent_at: string | null
@@ -395,10 +400,12 @@ export type Database = {
           error?: string | null
           external_ref?: string | null
           final_text?: string | null
+          from_name?: string | null
           id?: string
           lead_id?: string | null
           provider_ref?: string | null
           ref_code?: string | null
+          reply_to?: string | null
           scheduled_for?: string | null
           sending_account_id?: string | null
           sent_at?: string | null
@@ -420,10 +427,12 @@ export type Database = {
           error?: string | null
           external_ref?: string | null
           final_text?: string | null
+          from_name?: string | null
           id?: string
           lead_id?: string | null
           provider_ref?: string | null
           ref_code?: string | null
+          reply_to?: string | null
           scheduled_for?: string | null
           sending_account_id?: string | null
           sent_at?: string | null
@@ -1037,6 +1046,7 @@ export type Database = {
       credit_transactions: {
         Row: {
           amount: number
+          amount_cents: number | null
           created_at: string
           description: string | null
           id: string
@@ -1045,6 +1055,7 @@ export type Database = {
         }
         Insert: {
           amount: number
+          amount_cents?: number | null
           created_at?: string
           description?: string | null
           id?: string
@@ -1053,6 +1064,7 @@ export type Database = {
         }
         Update: {
           amount?: number
+          amount_cents?: number | null
           created_at?: string
           description?: string | null
           id?: string
@@ -2225,6 +2237,93 @@ export type Database = {
         }
         Relationships: []
       }
+      sales_rep_invites: {
+        Row: {
+          accepted_at: string | null
+          accepted_user_id: string | null
+          commission_rate: number
+          created_at: string
+          daily_touch_goal: number
+          display_name: string
+          email: string
+          invited_by: string | null
+          ref_code: string
+          territories: string[]
+        }
+        Insert: {
+          accepted_at?: string | null
+          accepted_user_id?: string | null
+          commission_rate?: number
+          created_at?: string
+          daily_touch_goal?: number
+          display_name: string
+          email: string
+          invited_by?: string | null
+          ref_code: string
+          territories?: string[]
+        }
+        Update: {
+          accepted_at?: string | null
+          accepted_user_id?: string | null
+          commission_rate?: number
+          created_at?: string
+          daily_touch_goal?: number
+          display_name?: string
+          email?: string
+          invited_by?: string | null
+          ref_code?: string
+          territories?: string[]
+        }
+        Relationships: []
+      }
+      sales_reps: {
+        Row: {
+          active: boolean
+          booking_link: string | null
+          commission_rate: number
+          created_at: string
+          daily_touch_goal: number
+          display_name: string
+          email: string | null
+          email_signature: string | null
+          last_assigned_at: string | null
+          phone: string | null
+          ref_code: string
+          territories: string[]
+          user_id: string
+        }
+        Insert: {
+          active?: boolean
+          booking_link?: string | null
+          commission_rate?: number
+          created_at?: string
+          daily_touch_goal?: number
+          display_name: string
+          email?: string | null
+          email_signature?: string | null
+          last_assigned_at?: string | null
+          phone?: string | null
+          ref_code: string
+          territories?: string[]
+          user_id: string
+        }
+        Update: {
+          active?: boolean
+          booking_link?: string | null
+          commission_rate?: number
+          created_at?: string
+          daily_touch_goal?: number
+          display_name?: string
+          email?: string | null
+          email_signature?: string | null
+          last_assigned_at?: string | null
+          phone?: string | null
+          ref_code?: string
+          territories?: string[]
+          user_id?: string
+        }
+        Relationships: []
+      }
       sealed_chase_cache: {
         Row: {
           cache_key: string
@@ -2500,12 +2599,29 @@ export type Database = {
       }
     }
     Functions: {
+      accept_rep_invite: { Args: never; Returns: boolean }
       add_credits: {
         Args: { _amount: number; _user_id: string }
         Returns: number
       }
+      admin_assign_unassigned: { Args: never; Returns: Json }
+      admin_invite_rep: {
+        Args: {
+          _display_name: string
+          _email: string
+          _goal?: number
+          _rate?: number
+          _ref_code: string
+          _territories?: string[]
+        }
+        Returns: Json
+      }
       admin_overview: { Args: never; Returns: Json }
       admin_purge_pricecharting: { Args: { _confirm: string }; Returns: Json }
+      admin_reassign_lead: {
+        Args: { _lead_id: string; _owner: string }
+        Returns: undefined
+      }
       agent_advance_enrollment: {
         Args: { p_enrollment_id: string; p_from_step?: number }
         Returns: Json
@@ -2568,6 +2684,7 @@ export type Database = {
           consent_sms: boolean
           consent_source: string | null
           country: string | null
+          county: string | null
           created_at: string
           do_not_contact: boolean
           email: string | null
@@ -2626,10 +2743,12 @@ export type Database = {
           error: string | null
           external_ref: string | null
           final_text: string | null
+          from_name: string | null
           id: string
           lead_id: string | null
           provider_ref: string | null
           ref_code: string | null
+          reply_to: string | null
           scheduled_for: string | null
           sending_account_id: string | null
           sent_at: string | null
@@ -2744,7 +2863,9 @@ export type Database = {
       is_admin: { Args: { _user_id: string }; Returns: boolean }
       is_agent_admin: { Args: never; Returns: boolean }
       is_email_suppressed: { Args: { _email: string }; Returns: boolean }
+      is_lead_admin: { Args: never; Returns: boolean }
       is_listed_card_image: { Args: { _name: string }; Returns: boolean }
+      is_sales_rep: { Args: never; Returns: boolean }
       lab_pc_calls_total: { Args: never; Returns: number }
       marketplace_listing_cards: {
         Args: { _card_ids: string[] }
@@ -2771,6 +2892,10 @@ export type Database = {
       }
       pc_acquire_slot: { Args: never; Returns: number }
       pc_refresh_cards_from_catalog: { Args: never; Returns: Json }
+      pick_rep_for: {
+        Args: { _county: string; _state: string }
+        Returns: string
+      }
       price_check_accuracy: {
         Args: { _days?: number }
         Returns: {
@@ -2789,6 +2914,67 @@ export type Database = {
         }[]
       }
       refund_demo_scan: { Args: { _ip_hash: string }; Returns: undefined }
+      rep_can_see_lead: { Args: { _lead_id: string }; Returns: boolean }
+      rep_claim_lead: { Args: { _lead_id: string }; Returns: boolean }
+      rep_commission_report: {
+        Args: { _since: string; _until?: string }
+        Returns: {
+          commission_cents: number
+          commission_rate: number
+          display_name: string
+          paid_conversions: number
+          paid_users: number
+          ref_code: string
+          revenue_cents: number
+          signups: number
+          user_id: string
+        }[]
+      }
+      rep_leaderboard: {
+        Args: { _since: string }
+        Returns: {
+          active: boolean
+          display_name: string
+          stats: Json
+          user_id: string
+        }[]
+      }
+      rep_log_call: {
+        Args: {
+          _lead_id: string
+          _note?: string
+          _outcome: string
+          _task_id?: string
+        }
+        Returns: Json
+      }
+      rep_log_reply: {
+        Args: { _body: string; _intent?: string; _lead_id: string }
+        Returns: Json
+      }
+      rep_log_touch: {
+        Args: { _kind: string; _lead_id: string; _note?: string }
+        Returns: undefined
+      }
+      rep_owns_lead: { Args: { _lead_id: string }; Returns: boolean }
+      rep_set_stage: {
+        Args: { _lead_id: string; _stage: string }
+        Returns: undefined
+      }
+      rep_stats: { Args: { _rep: string; _since: string }; Returns: Json }
+      rep_territory_match: {
+        Args: { _county: string; _state: string; _territories: string[] }
+        Returns: boolean
+      }
+      rep_update_profile: {
+        Args: {
+          _booking_link: string
+          _display_name: string
+          _phone: string
+          _signature: string
+        }
+        Returns: undefined
+      }
       sending_account_capacity: { Args: { _id: string }; Returns: number }
       sending_account_used_today: { Args: { _id: string }; Returns: number }
       seq_unit: { Args: { _clock_minutes: number }; Returns: string }

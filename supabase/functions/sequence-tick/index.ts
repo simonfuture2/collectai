@@ -68,10 +68,23 @@ async function personFor(db: Any, e: Any) {
   return { lead: { email }, email, name: p?.display_name, business: null, city: null, state: null, consent: false, mopt: !!p?.marketing_opt_in, isUser: true };
 }
 
+// The owning sales rep (if any) signs the email and gets replies.
+const repCache = new Map<string, Any>();
+async function repFor(db: Any, ownerId?: string | null) {
+  if (!ownerId) return null;
+  if (repCache.has(ownerId)) return repCache.get(ownerId);
+  const { data: r } = await db.from("sales_reps").select("display_name, email, email_signature, booking_link, active").eq("user_id", ownerId).maybeSingle();
+  let rep = r?.active ? r : null;
+  if (rep && !rep.email) rep = { ...rep, email: (await db.auth.admin.getUserById(ownerId)).data?.user?.email ?? null };
+  repCache.set(ownerId, rep);
+  return rep;
+}
+
 async function sendOptin(db: Any, o: Any, email: string, consent: boolean, mopt: boolean, cfg: Any) {
   assertLane("sendgrid", { email, consent_email: consent, marketing_opt_in: mopt });
   const unsub = await unsubscribeUrl(email);
-  await sendgridMarketing(email, o.subject ?? "MyCollectAI", String(o.final_text ?? o.draft_text ?? "") + marketingFooter(cfg.address, unsub), unsub);
+  await sendgridMarketing(email, o.subject ?? "MyCollectAI", String(o.final_text ?? o.draft_text ?? "") + marketingFooter(cfg.address, unsub), unsub,
+    { replyTo: o.reply_to ?? undefined, fromName: o.from_name ?? undefined });
   await db.rpc("agent_mark_outreach", { p_id: o.id, p_status: "sent", p_error: null });
 }
 
@@ -114,7 +127,11 @@ Deno.serve(async (req) => {
       if (d.kind === "wait") { await db.from("agent_enrollments").update({ next_due_at: d.until.toISOString() }).eq("id", e.id); log.waiting++; continue; }
 
       const unsub = p.email ? await unsubscribeUrl(p.email) : "";
-      const fields = { first_name: firstName(p.name), business_name: p.business, city: p.city, rep_name: cfg.rep, booking_link: cfg.booking, video_link: cfg.video,
+      const rep = await repFor(db, p.lead?.owner_id);
+      const repName = rep?.display_name ?? cfg.rep;
+      const repSig = rep?.email_signature?.trim() || null;
+      const fields = { first_name: firstName(p.name), business_name: p.business, city: p.city, rep_name: repName, rep_signature: repSig ?? repName,
+        booking_link: rep?.booking_link || cfg.booking, video_link: cfg.video,
         base_url: cfg.base, ref_link: `${cfg.base}/?ref=seq_${seq.slug ?? seq.id.slice(0, 8)}`, unsubscribe_url: unsub, mailing_address: cfg.address };
       const ref = `seq_${seq.slug ?? seq.id.slice(0, 8)}`;
 
@@ -127,7 +144,8 @@ Deno.serve(async (req) => {
       }
       if (!step.template_id) { log.ai_waiting++; continue; } // n8n drafts this one
 
-      const body = renderMerge(step.email_templates.body ?? "", fields);
+      const tpl = String(step.email_templates.body ?? "");
+      const body = renderMerge(tpl, fields) + (repSig && !/\{\{\s*rep_signature/i.test(tpl) ? `\n\n${repSig}` : "");
       const subject = renderMerge(step.email_templates.subject ?? "", fields);
       const problem = linkProblem(body, { lane, isFirstStep: step.step_no === firstStep, unsubscribeUrl: unsub });
       const auto = !problem && canAutoApprove({ stepNo: step.step_no, firstStepNo: firstStep, requireApproval: step.require_approval, autoApprove: seq.auto_approve, approvedUnedited: seq.approved_unedited });
@@ -138,7 +156,7 @@ Deno.serve(async (req) => {
         lead_id: e.lead_id, workflow: lane === "cold" ? "email_outreach" : "sequence_optin", channel: "email",
         status: auto ? "approved" : "pending", decided_at: auto ? now.toISOString() : null, error: problem,
         enrollment_id: e.id, step_id: step.id, subject, draft_text: text, final_text: text, ref_code: ref,
-        external_ref: p.isUser ? `user:${e.user_id}` : null,
+        external_ref: p.isUser ? `user:${e.user_id}` : null, reply_to: rep?.email ?? null, from_name: rep ? repName : null,
       }).select().single();
       if (oe) throw new Error(oe.message);
       log.queued++;
@@ -154,7 +172,8 @@ Deno.serve(async (req) => {
   }
 
   // Approved opted-in sequence emails that still need sending (approved in the Inbox or retried).
-  const { data: approved } = await db.from("agent_outreach").select("*").eq("workflow", "sequence_optin").eq("status", "approved").limit(100);
+  const { data: approved } = await db.from("agent_outreach").select("*").eq("workflow", "sequence_optin").eq("status", "approved")
+    .or(`scheduled_for.is.null,scheduled_for.lte.${now.toISOString()}`).limit(100);
   for (const o of approved ?? []) {
     if (optLeft <= 0) break;
     try {

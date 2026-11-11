@@ -56,7 +56,7 @@ export async function isSuppressed(supabase: any, email: string): Promise<boolea
 }
 
 /** Opted-in lane only: plain-text marketing email through SendGrid with its unsubscribe group and one-click headers. */
-export async function sendgridMarketing(to: string, subject: string, text: string, unsubUrl: string, opts: { test?: boolean } = {}) {
+export async function sendgridMarketing(to: string, subject: string, text: string, unsubUrl: string, opts: { test?: boolean; replyTo?: string; fromName?: string } = {}) {
   const apiKey = Deno.env.get("SENDGRID_API_KEY")?.trim();
   const fromEmail = Deno.env.get("SENDGRID_FROM_EMAIL")?.trim();
   const group = Number(Deno.env.get("SENDGRID_UNSUB_GROUP_ID") ?? "");
@@ -64,7 +64,9 @@ export async function sendgridMarketing(to: string, subject: string, text: strin
   if (!opts.test && !(group > 0)) throw new Error("SENDGRID_UNSUB_GROUP_ID is missing, so opted-in sends are paused");
   const payload = {
     personalizations: [{ to: [{ email: to }] }],
-    from: { email: fromEmail, name: "Simon at MyCollectAI" },
+    from: { email: fromEmail, name: opts.fromName ? `${opts.fromName} at MyCollectAI` : "Simon at MyCollectAI" },
+    // Replies reach the rep; the SendGrid sender stays on reply-to so they are still recorded on the lead.
+    ...(opts.replyTo ? { reply_to_list: [{ email: opts.replyTo }, { email: fromEmail }] } : {}),
     subject,
     content: [{ type: "text/plain", value: text }],
     headers: { "List-Unsubscribe": `<${unsubUrl}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" },

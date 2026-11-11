@@ -22,6 +22,7 @@ export const ADMIN_SECTIONS: AdminSection[] = [
   { id: "beta", label: "Beta", group: "Users", access: "admin" },
   { id: "beta-audit", label: "Beta audit", group: "Users", access: "admin" },
   { id: "admins", label: "Admins", group: "Users", access: "admin" },
+  { id: "reps", label: "Reps", group: "Users", access: "either" },
   { id: "funnel", label: "Funnel", group: "Growth", access: "agent" },
   { id: "results", label: "Results", group: "Growth", access: "agent" },
   { id: "partners", label: "Partners", group: "Growth", access: "agent" },

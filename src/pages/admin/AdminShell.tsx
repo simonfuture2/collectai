@@ -2,7 +2,7 @@ import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, Inbox, Users, ListOrdered, Megaphone, FileText, Radio, UserRound, Receipt, FlaskConical,
-  ClipboardList, ShieldCheck, Filter, BarChart3, Handshake, Film, Bell, Target, Microscope, Database, Swords, ArrowLeft, Loader2, ShieldAlert, SearchCheck, CalendarDays,
+  ClipboardList, ShieldCheck, Filter, BarChart3, Handshake, Film, Bell, Target, Microscope, Database, Swords, ArrowLeft, Loader2, ShieldAlert, SearchCheck, CalendarDays, BadgeCheck,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAdmin } from "@/hooks/use-admin";
@@ -27,13 +27,15 @@ const SequencesSection = lazy(() => import("@/components/admin/shell/SequencesSe
 const BulkEnrollButton = lazy(() => import("@/components/admin/shell/BulkEnrollButton"));
 const FindLeadsSection = lazy(() => import("@/components/admin/shell/FindLeadsSection"));
 const EventsSection = lazy(() => import("@/components/admin/shell/EventsSection"));
+const RepsSection = lazy(() => import("@/components/admin/shell/RepsSection"));
+const RepResultsSection = lazy(() => import("@/components/admin/shell/RepResultsSection"));
 const SendingAccountsSection = lazy(() => import("@/components/admin/shell/SendingAccountsSection"));
 
 const ICONS: Record<string, typeof Inbox> = {
   overview: LayoutDashboard, inbox: Inbox, leads: Users, sequences: ListOrdered, broadcasts: Megaphone, templates: FileText,
   channels: Radio, "find-leads": SearchCheck, events: CalendarDays, users: UserRound, transactions: Receipt, beta: FlaskConical, "beta-audit": ClipboardList, admins: ShieldCheck,
   funnel: Filter, results: BarChart3, partners: Handshake, videos: Film, push: Bell, accuracy: Target, lab: Microscope,
-  "pc-data": Database, bakeoff: Swords,
+  "pc-data": Database, bakeoff: Swords, reps: BadgeCheck,
 };
 const AGENT_IDS = new Set(["inbox", "leads", "channels", "results", "funnel", "videos"]);
 const ADMIN_PAGE_IDS: Record<string, string> = {
@@ -121,6 +123,8 @@ export default function AdminShell() {
   else if (active === "events") body = <EventsSection />;
   else if (active === "leads") body = <div className="space-y-3"><div className="flex justify-end"><BulkEnrollButton /></div><AgentHQ key="leads" section="leads" /></div>;
   else if (active === "channels") body = <div className="space-y-6"><SendingAccountsSection /><AgentHQ key="channels" section="channels" /></div>;
+  else if (active === "reps") body = <RepsSection />;
+  else if (active === "results") body = <div><RepResultsSection /><AgentHQ key="results" section="results" /></div>;
   else if (active === "lab") body = <PriceCheckLab />;
   else if (active === "bakeoff") body = <IdBakeoff />;
   else if (AGENT_IDS.has(active)) body = <AgentHQ key={active} section={active as "inbox"} />;
