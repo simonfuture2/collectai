@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { LEAD_STAGES } from "@/lib/adminSections";
 import { gmailReplyUrl } from "@/lib/agentReplies";
 import SequencePanel from "./SequencePanel";
+import LeadResearchPanel from "./LeadResearchPanel";
 
 type Lead = Database["public"]["Tables"]["agent_leads"]["Row"];
 interface Account {
@@ -185,6 +186,8 @@ export default function PersonDrawer({ leadId, userId, onClose, onSaved }: {
                 </div>
               </section>
             ) : <p className="text-sm text-muted-foreground">No outreach history for this person.</p>}
+
+            {lead && <LeadResearchPanel placeId={(lead as any).place_id} research={(lead as any).research} fitScore={(lead as any).fit_score} />}
 
             {(lead?.id || account?.user_id || userId) && <SequencePanel leadId={lead?.id} userId={account?.user_id ?? userId} />}
 

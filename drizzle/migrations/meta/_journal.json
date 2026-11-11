@@ -162,6 +162,13 @@
       "when": 1794433200680,
       "tag": "0022_lead_platforms_sources",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1794433638668,
+      "tag": "0023_referral_friend_reward_safe",
+      "breakpoints": true
     }
   ]
 }

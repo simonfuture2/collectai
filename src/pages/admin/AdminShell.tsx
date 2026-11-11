@@ -2,7 +2,7 @@ import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, Inbox, Users, ListOrdered, Megaphone, FileText, Radio, UserRound, Receipt, FlaskConical,
-  ClipboardList, ShieldCheck, Filter, BarChart3, Handshake, Film, Bell, Target, Microscope, Database, Swords, ArrowLeft, Loader2, ShieldAlert,
+  ClipboardList, ShieldCheck, Filter, BarChart3, Handshake, Film, Bell, Target, Microscope, Database, Swords, ArrowLeft, Loader2, ShieldAlert, SearchCheck, CalendarDays,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAdmin } from "@/hooks/use-admin";
@@ -25,11 +25,13 @@ const BroadcastsSection = lazy(() => import("@/components/admin/shell/Broadcasts
 const TemplatesSection = lazy(() => import("@/components/admin/shell/TemplatesSection"));
 const SequencesSection = lazy(() => import("@/components/admin/shell/SequencesSection"));
 const BulkEnrollButton = lazy(() => import("@/components/admin/shell/BulkEnrollButton"));
+const FindLeadsSection = lazy(() => import("@/components/admin/shell/FindLeadsSection"));
+const EventsSection = lazy(() => import("@/components/admin/shell/EventsSection"));
 const SendingAccountsSection = lazy(() => import("@/components/admin/shell/SendingAccountsSection"));
 
 const ICONS: Record<string, typeof Inbox> = {
   overview: LayoutDashboard, inbox: Inbox, leads: Users, sequences: ListOrdered, broadcasts: Megaphone, templates: FileText,
-  channels: Radio, users: UserRound, transactions: Receipt, beta: FlaskConical, "beta-audit": ClipboardList, admins: ShieldCheck,
+  channels: Radio, "find-leads": SearchCheck, events: CalendarDays, users: UserRound, transactions: Receipt, beta: FlaskConical, "beta-audit": ClipboardList, admins: ShieldCheck,
   funnel: Filter, results: BarChart3, partners: Handshake, videos: Film, push: Bell, accuracy: Target, lab: Microscope,
   "pc-data": Database, bakeoff: Swords,
 };
@@ -115,6 +117,8 @@ export default function AdminShell() {
   else if (active === "broadcasts") body = <BroadcastsSection />;
   else if (active === "templates") body = <TemplatesSection />;
   else if (active === "sequences") body = <SequencesSection />;
+  else if (active === "find-leads") body = <FindLeadsSection />;
+  else if (active === "events") body = <EventsSection />;
   else if (active === "leads") body = <div className="space-y-3"><div className="flex justify-end"><BulkEnrollButton /></div><AgentHQ key="leads" section="leads" /></div>;
   else if (active === "channels") body = <div className="space-y-6"><SendingAccountsSection /><AgentHQ key="channels" section="channels" /></div>;
   else if (active === "lab") body = <PriceCheckLab />;

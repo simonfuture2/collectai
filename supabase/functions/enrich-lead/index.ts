@@ -13,7 +13,7 @@ Deno.serve(async (req) => {
   const p = Body.safeParse(await req.json().catch(() => ({})));
   if (!p.success) return json({ error: p.error.flatten().fieldErrors }, 400);
   if (p.data.lead_ids?.length) await db.from("agent_leads").update({ enrich_status: "pending" }).in("id", p.data.lead_ids).neq("enrich_status", "done").lt("enrich_attempts", 3);
-  const job = enrichBatch(db, p.data.lead_ids, p.data.limit ?? 50);
+  const job = enrichBatch(db, p.data.lead_ids, p.data.limit ?? 50, p.data.background ? 330_000 : 120_000);
   if (p.data.background) {
     // deno-lint-ignore no-explicit-any
     (globalThis as any).EdgeRuntime?.waitUntil(job);

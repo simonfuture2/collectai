@@ -99,6 +99,42 @@ const cheatSheetHTML = `
 </html>
 `;
 
+type GuideKey = "grading" | "sealed_chase" | "value_check";
+const GUIDE_TITLES: Record<GuideKey, string> = {
+  grading: "Card Grading Cheat Sheet",
+  sealed_chase: "Sealed Product Chase List",
+  value_check: "How to Check a Card's Value Before You Sell",
+};
+const GUIDE_SUBJECTS: Record<GuideKey, string> = {
+  grading: "Your Card Grading Cheat Sheet 📊",
+  sealed_chase: "This month's sealed product chase list",
+  value_check: "How to check a card's value before you sell",
+};
+const wrap = (title: string, body: string) => `<!DOCTYPE html><html><body style="margin:0;background:#f4f4f7;font-family:Arial,Helvetica,sans-serif;"><table width="100%" cellpadding="0" cellspacing="0" style="padding:24px 0;"><tr><td align="center"><table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;padding:32px 36px;color:#1a1a2e;font-size:15px;line-height:1.6;"><tr><td><h1 style="font-size:22px;margin:0 0 16px;">${title}</h1>${body}<p style="margin-top:28px;"><a href="https://mycollectai.com/price-check?ref=guide" style="background:#4f46e5;color:#fff;padding:12px 22px;border-radius:8px;text-decoration:none;font-weight:bold;">Check a card free</a></p><p style="font-size:11px;color:#9ca3af;margin-top:28px;">MyCollectAI · 306 W Redwood Street, Baltimore, MD 21201</p></td></tr></table></td></tr></table></body></html>`;
+const valueCheckHTML = wrap("How to check a card's value before you sell", `
+<ol style="padding-left:20px;">
+<li><b>Identify the exact card.</b> Set, card number, language and any parallel or holo pattern. Two cards with the same name can differ in value by 100×.</li>
+<li><b>Check sold prices, not asking prices.</b> Listings show what sellers hope for; completed sales show what buyers paid. Use eBay "Sold items" or a price guide like PriceCharting.</li>
+<li><b>Match the condition.</b> Raw (ungraded) and graded prices are separate markets. Compare raw to raw, and PSA 9 to PSA 9.</li>
+<li><b>Look at how many sold.</b> A price from one sale is a guess. Several recent sales close together is a real market.</li>
+<li><b>Know the fees.</b> Marketplace and payment fees often take 13–15%, plus shipping. A shop paying 60–70% of value can be fair for an instant sale.</li>
+<li><b>Decide whether to grade first.</b> Grading costs money and time; it only pays when the graded price minus fees beats the raw price by a clear margin.</li>
+</ol>
+<p>MyCollectAI's free price check reads your card from a photo and shows PriceCharting prices for every grade in a few seconds.</p>`);
+// Built only from stored price data (sealed_chase_cache, PriceCharting) — never from AI picks.
+async function sealedChaseHTML(db: any): Promise<string> {
+  const since = new Date(Date.now() - 60 * 864e5).toISOString();
+  const { data } = await db.from("sealed_chase_cache").select("set_name, payload, refreshed_at").gte("refreshed_at", since).limit(200);
+  const sets = (data ?? []).map((r: any) => {
+    const chase = (r.payload?.chase ?? []).filter((c: any) => !c.thinMarket && c.rawPrice != null);
+    return { name: r.set_name, chase: chase.slice(0, 5), volume: chase.reduce((a: number, c: any) => a + (c.salesVolume ?? 0), 0) };
+  }).filter((s: any) => s.chase.length).sort((a: any, b: any) => b.volume - a.volume).slice(0, 6);
+  const usd = (n: number) => `$${Number(n).toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
+  const body = sets.length ? sets.map((s: any) => `<h2 style="font-size:17px;margin:22px 0 6px;">${s.name}</h2><table width="100%" style="font-size:14px;border-collapse:collapse;">${s.chase.map((c: any) => `<tr><td style="padding:4px 0;border-bottom:1px solid #eee;">${c.name}</td><td align="right" style="border-bottom:1px solid #eee;">${usd(c.rawPrice)} raw${c.psa10 ? ` · ${usd(c.psa10)} PSA 10` : ""}</td></tr>`).join("")}</table>`).join("")
+    : "<p>Our chase lists are being refreshed — check the latest any time on MyCollectAI.</p>";
+  return wrap("Sealed product chase list", `<p>The sets with the most sales activity right now and the cards that drive their value.</p>${body}<p style="font-size:12px;color:#6b7280;margin-top:16px;">Prices from PriceCharting at the time of sending; markets move daily.</p>`);
+}
+
 async function sha256Hex(input: string): Promise<string> {
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(input));
   return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("");
@@ -112,7 +148,11 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { email } = await req.json();
+    const { email, guide: rawGuide, consent } = await req.json();
+    const guide: GuideKey = rawGuide === "sealed_chase" || rawGuide === "value_check" ? rawGuide : "grading";
+    if (consent !== undefined && consent !== true) {
+      return new Response(JSON.stringify({ error: "Please tick the box to get the guide by email." }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
 
     if (!email || typeof email !== "string" || !EMAIL_RE.test(email) || email.length > 255) {
       return new Response(JSON.stringify({ error: "Please provide a valid email address." }), {
@@ -158,16 +198,16 @@ Deno.serve(async (req) => {
     const { data: existing } = await supabase.from("agent_leads").select("id").ilike("email", cleanEmail).is("merged_into", null).maybeSingle();
     let leadId: string | undefined = existing?.id;
     if (existing) {
-      await supabase.from("agent_leads").update({ consent_email: true, consent_source: "lead_magnet" }).eq("id", existing.id);
+      await supabase.from("agent_leads").update({ consent_email: true, consent_source: `lead_magnet:${guide}` }).eq("id", existing.id);
     } else {
       const { data: leadData, error: insertError } = await supabase.from("agent_leads").insert({
         name: cleanEmail.split("@")[0], email: cleanEmail, platform: "email", lead_type: "collector",
-        source: "lead_magnet", notes: "Downloaded: Card Grading Cheat Sheet", consent_email: true, consent_source: "lead_magnet",
+        source: "lead_magnet", notes: `Downloaded: ${GUIDE_TITLES[guide]}`, consent_email: true, consent_source: `lead_magnet:${guide}`,
       }).select("id").single();
       if (insertError) console.error("Lead insert error:", insertError);
       leadId = leadData?.id;
     }
-    if (leadId) await supabase.from("agent_activities").insert({ lead_id: leadId, type: "lead_magnet", body: "Downloaded: Card Grading Cheat Sheet" });
+    if (leadId) await supabase.from("agent_activities").insert({ lead_id: leadId, type: "lead_magnet", body: `Downloaded: ${GUIDE_TITLES[guide]}` });
 
     // Start the "Lead magnet welcome" sequence (sequence-tick sends it through the opted-in lane).
     if (leadId) {
@@ -198,8 +238,8 @@ Deno.serve(async (req) => {
         body: JSON.stringify({
           personalizations: [{ to: [{ email }] }],
           from: { email: fromEmail, name: "MyCollectAI" },
-          subject: "Your Card Grading Cheat Sheet 📊",
-          content: [{ type: "text/html", value: cheatSheetHTML }],
+          subject: GUIDE_SUBJECTS[guide],
+          content: [{ type: "text/html", value: guide === "grading" ? cheatSheetHTML : guide === "value_check" ? valueCheckHTML : await sealedChaseHTML(supabase) }],
         }),
       });
 

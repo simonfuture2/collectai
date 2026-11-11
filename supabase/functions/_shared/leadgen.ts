@@ -145,7 +145,8 @@ const FACTS_SCHEMA = {
     sells_online: { type: "boolean" },
   },
 };
-async function scrape(url: string) {
+class RateLimited extends Error { constructor() { super("Firecrawl rate limit"); } }
+async function scrape(url: string, tries = 0): Promise<Any> {
   const key = Deno.env.get("FIRECRAWL_API_KEY");
   if (!key) throw new Error("FIRECRAWL_API_KEY is not configured");
   const r = await fetch(`${FC}/scrape`, {
@@ -153,6 +154,8 @@ async function scrape(url: string) {
     body: JSON.stringify({ url, formats: ["markdown", "links", { type: "json", schema: FACTS_SCHEMA, prompt: "Only facts stated on this page. Leave a field out if the page doesn't say it." }], onlyMainContent: false, timeout: 30000 }),
   });
   const j = await r.json().catch(() => ({}));
+  if (r.status === 429 && tries < 3) { await new Promise((ok) => setTimeout(ok, 10_000 * (tries + 1))); return scrape(url, tries + 1); }
+  if (r.status === 429) throw new RateLimited();
   if (!r.ok) throw new Error(`Firecrawl ${r.status}: ${JSON.stringify(j).slice(0, 200)}`);
   return j.data ?? {};
 }
@@ -166,7 +169,7 @@ export async function enrichOne(db: Any, lead: Any) {
   pages.push({ url: first.metadata?.sourceURL ?? home, data: first });
   const host = new URL(home).hostname.replace(/^www\./, "");
   const extra = (first.links ?? []).map(String).filter((l: string) => { try { return new URL(l).hostname.replace(/^www\./, "") === host && /contact|about/i.test(l); } catch { return false; } });
-  for (const u of [...new Set(extra)].slice(0, 2)) { try { const d = await scrape(u as string); pages.push({ url: u as string, data: d }); } catch (_) { /* one page failing is fine */ } }
+  for (const u of [...new Set(extra)].slice(0, 1)) { try { const d = await scrape(u as string); pages.push({ url: u as string, data: d }); } catch (_) { /* one page failing is fine */ } }
 
   const facts: Record<string, { value: unknown; source: string }> = {};
   const put = (k: string, v: unknown, src: string) => { if (v === undefined || v === null || v === "" || (Array.isArray(v) && !v.length)) return; if (!facts[k]) facts[k] = { value: v, source: src }; };
@@ -205,18 +208,22 @@ export async function enrichOne(db: Any, lead: Any) {
 }
 
 /** Enrich up to 50 leads; failures count an attempt and are retried at most twice. */
-export async function enrichBatch(db: Any, ids?: string[], limit = ENRICH_BATCH_MAX) {
+export async function enrichBatch(db: Any, ids?: string[], limit = ENRICH_BATCH_MAX, budgetMs = 330_000) {
   let q = db.from("agent_leads").select("id, website, lead_type, followers, research, enrich_attempts, enrich_status, email, phone, business_name, stage")
     .not("website", "is", null).is("merged_into", null).in("enrich_status", ["pending", "failed", "none"]).lt("enrich_attempts", 3);
   if (ids?.length) q = q.in("id", ids.slice(0, ENRICH_BATCH_MAX));
   const { data } = await q.order("created_at", { ascending: true }).limit(Math.min(limit, ENRICH_BATCH_MAX));
-  const out = { enriched: 0, emails: 0, failed: 0, results: [] as Any[] };
+  const out = { enriched: 0, emails: 0, failed: 0, deferred: 0, results: [] as Any[] };
   const leads = (data ?? []).filter((l: Any) => shouldRetryEnrich(l.enrich_attempts ?? 0, l.enrich_status));
-  // 6 at a time keeps a 50-lead run inside the function time limit.
-  for (let i = 0; i < leads.length; i += 6) {
-    await Promise.all(leads.slice(i, i + 6).map(async (l: Any) => {
+    // Firecrawl allows ~16 pages a minute on this plan, so go 2 at a time and stop at a time budget;
+  // leftovers stay pending for the next run. Rate-limit misses don't use up a retry.
+  const started = Date.now();
+  for (let i = 0; i < leads.length; i += 2) {
+    if (Date.now() - started > budgetMs) { out.deferred = leads.length - i; break; }
+    await Promise.all(leads.slice(i, i + 2).map(async (l: Any) => {
       try { const r = await enrichOne(db, l); out.enriched++; if (r.email) out.emails++; out.results.push(r); }
       catch (e) {
+        if (e instanceof RateLimited) { out.deferred++; await db.from("agent_leads").update({ enrich_status: "pending" }).eq("id", l.id); return; }
         out.failed++;
         await db.from("agent_leads").update({ enrich_status: "failed", enrich_attempts: (l.enrich_attempts ?? 0) + 1, research: { ...(l.research ?? {}), last_error: String((e as Error).message).slice(0, 300) } }).eq("id", l.id);
       }

@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
+import { Checkbox } from "@/components/ui/checkbox";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,6 +12,13 @@ import HeroBackground from "@/components/HeroBackground";
 import Footer from "@/components/Footer";
 import collectaiLogo from "@/assets/collectai-logo.png";
 import SEO from "@/components/SEO";
+
+type GuideKey = "grading" | "sealed_chase" | "value_check";
+const GUIDES: { key: GuideKey; title: string; blurb: string }[] = [
+  { key: "grading", title: "Card Grading Cheat Sheet", blurb: "PSA & BGS scales, condition factors, when to grade" },
+  { key: "sealed_chase", title: "Sealed Product Chase List", blurb: "This month's busiest sets and their chase cards, with prices" },
+  { key: "value_check", title: "Check a Card's Value Before You Sell", blurb: "Sold prices, condition, fees and when grading pays" },
+];
 
 const cheatSheetTopics = [
   "PSA & BGS grade scale (1–10) explained",
@@ -40,21 +48,26 @@ const FreeGuide = () => {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
+  const [params] = useSearchParams();
+  const initial = params.get("guide");
+  const [guide, setGuide] = useState<GuideKey>(initial === "sealed_chase" || initial === "value_check" ? initial : "grading");
+  const [consent, setConsent] = useState(false);
 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim()) return;
+    if (!consent) { toast.error("Tick the box so we can email you the guide."); return; }
 
     setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke("lead-magnet", {
-        body: { email: email.trim() },
+        body: { email: email.trim(), guide, consent: true },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       setSent(true);
-      toast.success("Check your inbox! The cheat sheet is on its way.");
+      toast.success("Check your inbox! Your guide is on its way.");
     } catch (err: any) {
       toast.error(err.message || "Something went wrong. Please try again.");
     } finally {
@@ -159,8 +172,16 @@ const FreeGuide = () => {
                 ) : (
                   <>
                     <h2 className="text-2xl font-display font-bold mb-2">
-                      Get Your Free Cheat Sheet
+                      Get Your Free Guide
                     </h2>
+                    <div className="grid gap-2 mb-4" role="radiogroup" aria-label="Choose a guide">
+                      {GUIDES.map((g) => (
+                        <button type="button" key={g.key} role="radio" aria-checked={guide === g.key} onClick={() => setGuide(g.key)}
+                          className={`rounded-xl border-2 px-3 py-2 text-left text-sm transition-colors ${guide === g.key ? "border-primary bg-primary/5" : "border-border"}`}>
+                          <span className="font-semibold block">{g.title}</span><span className="text-muted-foreground text-xs">{g.blurb}</span>
+                        </button>
+                      ))}
+                    </div>
                     <p className="text-sm text-muted-foreground mb-6">
                       Instant delivery to your inbox. No spam, unsubscribe anytime.
                     </p>
@@ -173,6 +194,10 @@ const FreeGuide = () => {
                         required
                         className="h-14 text-base"
                       />
+                      <label className="flex items-start gap-2 text-sm text-left">
+                        <Checkbox checked={consent} onCheckedChange={(c) => setConsent(!!c)} className="mt-0.5" />
+                        <span>Email me this guide and occasional collecting tips from MyCollectAI. Unsubscribe any time.</span>
+                      </label>
                       <Button
                         type="submit"
                         disabled={loading}
@@ -183,13 +208,13 @@ const FreeGuide = () => {
                         ) : (
                           <>
                             <Sparkles className="mr-2 w-5 h-5" />
-                            Send Me the Cheat Sheet
+                            Send Me the Guide
                           </>
                         )}
                       </Button>
                     </form>
                     <p className="text-xs text-muted-foreground mt-4 text-center">
-                      By submitting, you agree to receive this guide and occasional updates from MyCollectAI.
+                      We only email you if you tick the box above.
                     </p>
                   </>
                 )}

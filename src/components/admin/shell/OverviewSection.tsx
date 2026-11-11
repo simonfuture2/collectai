@@ -1,3 +1,4 @@
+import LeadRunCard from "./LeadRunCard";
 import { useEffect, useState } from "react";
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { AlertTriangle, Loader2 } from "lucide-react";
@@ -67,6 +68,7 @@ export default function OverviewSection({ go }: { go: (section: string) => void 
           ))}
         </CardContent>
       </Card>
+      <LeadRunCard />
       <Card>
         <CardHeader><CardTitle className="text-base">Last 7 days</CardTitle></CardHeader>
         <CardContent className="h-64">

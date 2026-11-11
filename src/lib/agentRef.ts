@@ -22,6 +22,8 @@ export function captureRef(): void {
     const s = store();
     s?.setItem(REF_KEY, JSON.stringify({ ref, at: Date.now() }));
     if (!s?.getItem(ANON_KEY)) s?.setItem(ANON_KEY, crypto.randomUUID());
+    // A friend's referral code (8 hex chars) on any page counts as a referral at sign-up.
+    if (/^[0-9A-F]{8}$/.test(ref)) s?.setItem("collectai_ref", ref);
   } catch { /* storage blocked */ }
   void trackAgentEvent("visit");
 }

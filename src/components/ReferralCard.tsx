@@ -39,7 +39,7 @@ const ReferralCard = ({ userId }: ReferralCardProps) => {
     fetchData();
   }, [userId]);
 
-  const referralLink = `${window.location.origin}/auth?ref=${referralCode}`;
+  const referralLink = `${window.location.origin}/price-check?ref=${referralCode}`;
 
   const copyCode = () => {
     navigator.clipboard.writeText(referralLink);
@@ -72,7 +72,7 @@ const ReferralCard = ({ userId }: ReferralCardProps) => {
         </div>
         <div>
           <h3 className="font-display font-bold">Refer a Friend</h3>
-          <p className="text-xs text-muted-foreground">Earn 3 free scans per referral</p>
+          <p className="text-xs text-muted-foreground">You both get 3 credits (theirs after 5 price checks · up to 30 a month for you)</p>
         </div>
       </div>
 

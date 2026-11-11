@@ -13,6 +13,7 @@ import { useCredits } from "@/hooks/use-credits";
 import { cn } from "@/lib/utils";
 import { packSummary, priceOnlyCard, storedPulls, type PackPull, type PriceCandidate } from "@/lib/packRip";
 import { updateSessionPick } from "@/lib/priceSession";
+import ShareFindButton from "@/components/ShareFindButton";
 import { gradedChips, ladderRows, parallelOf, ungradedPrice, slabHero, languageChip } from "@/lib/priceLadder";
 
 type Reading = { name?: string; number?: string; set?: string; year?: string };
@@ -214,6 +215,7 @@ const PriceResult = () => {
                   <p className="mt-1 font-display text-5xl font-bold tabular-nums">{raw != null ? usd(raw) : "—"}</p>
                   {raw == null && <p className="mt-1 text-sm opacity-90">No ungraded price listed.</p>}
                 </section>
+                <ShareFindButton className="w-full" name={title} subtitle={subtitle || null} imageUrl={photo} value={(slab ? hero?.value : raw) != null ? usd((slab ? hero?.value : raw) as number) : null} />
 
                 {chips.length > 0 && (
                   <section>
