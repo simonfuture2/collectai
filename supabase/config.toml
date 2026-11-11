@@ -80,3 +80,6 @@ verify_jwt = true
 
 [functions.price-check-save]
 verify_jwt = true
+
+[functions.email-unsubscribe]
+verify_jwt = false

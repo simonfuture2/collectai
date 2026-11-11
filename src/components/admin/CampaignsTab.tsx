@@ -181,6 +181,27 @@ const CampaignsTab = () => {
     fetchData();
   };
 
+  const [broadcastTemplate, setBroadcastTemplate] = useState("");
+  const handleBroadcast = async () => {
+    if (!broadcastTemplate) { toast.error("Pick an email template"); return; }
+    setActionLoading(true);
+    const { data: preview, error: pErr } = await supabase.functions.invoke("campaign-outreach", {
+      body: { action: "broadcast", template_id: broadcastTemplate, dry_run: true },
+    });
+    setActionLoading(false);
+    if (pErr || !preview) { toast.error("Couldn't count recipients"); return; }
+    if (!confirm(`Send this email to ${preview.count} people (${preview.crm} leads + ${preview.agent} already contacted by Agent HQ)? Unsubscribed and do-not-contact people are skipped.`)) return;
+    setActionLoading(true);
+    const { data, error } = await supabase.functions.invoke("campaign-outreach", {
+      body: { action: "broadcast", template_id: broadcastTemplate },
+    });
+    setActionLoading(false);
+    if (error) { toast.error("Send failed"); return; }
+    toast.success(`Sent to ${data.sent_count}${data.errors?.length ? ` (${data.errors.length} failed)` : ""}`);
+    if (data.errors?.length) console.warn("Broadcast errors", data.errors);
+    fetchData();
+  };
+
   const handleCancelDripForLead = async (leadId: string) => {
     if (!confirm("Cancel all pending drip emails for this lead?")) return;
     const { error } = await (supabase as any)
@@ -355,6 +376,17 @@ const CampaignsTab = () => {
             <Button onClick={() => setBulkDialog(true)} disabled={templates.length === 0}>
               <Send className="w-4 h-4 mr-2" /> Start Bulk Campaign
             </Button>
+            <div className="mt-5 pt-4 border-t space-y-2">
+              <p className="text-sm font-medium">Send to everyone</p>
+              <p className="text-xs text-muted-foreground">All leads plus people Agent HQ already contacted. Adds your address and a working unsubscribe link.</p>
+              <select className="w-full rounded-md border bg-background px-3 py-2 text-sm" value={broadcastTemplate} onChange={(e) => setBroadcastTemplate(e.target.value)} aria-label="Template to send to everyone">
+                <option value="">Choose email template…</option>
+                {templates.filter((t) => t.channel === "email").map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+              </select>
+              <Button variant="outline" onClick={handleBroadcast} disabled={actionLoading || !broadcastTemplate}>
+                <Send className="w-4 h-4 mr-2" /> Send to everyone
+              </Button>
+            </div>
           </CardContent>
         </Card>
 
