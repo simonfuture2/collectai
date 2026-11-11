@@ -148,6 +148,20 @@
       "when": 1794431496027,
       "tag": "0020_outreach_sequence_values",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1794433001642,
+      "tag": "0021_lead_generation_volume",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1794433200680,
+      "tag": "0022_lead_platforms_sources",
+      "breakpoints": true
     }
   ]
 }

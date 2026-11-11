@@ -160,6 +160,66 @@ export type Database = {
           },
         ]
       }
+      agent_events: {
+        Row: {
+          checklist: Json
+          city: string | null
+          created_at: string
+          id: string
+          name: string
+          notes: string | null
+          ref_code: string | null
+          start_date: string | null
+          state: string | null
+          url: string | null
+        }
+        Insert: {
+          checklist?: Json
+          city?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          notes?: string | null
+          ref_code?: string | null
+          start_date?: string | null
+          state?: string | null
+          url?: string | null
+        }
+        Update: {
+          checklist?: Json
+          city?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          notes?: string | null
+          ref_code?: string | null
+          start_date?: string | null
+          state?: string | null
+          url?: string | null
+        }
+        Relationships: []
+      }
+      agent_lead_runs: {
+        Row: {
+          created_at: string
+          id: string
+          kind: string
+          summary: Json
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          kind?: string
+          summary?: Json
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          kind?: string
+          summary?: Json
+        }
+        Relationships: []
+      }
       agent_leads: {
         Row: {
           business_name: string | null
@@ -171,8 +231,13 @@ export type Database = {
           created_at: string
           do_not_contact: boolean
           email: string | null
+          enrich_attempts: number
+          enrich_status: string
+          enriched_at: string | null
+          event_id: string | null
           external_id: string | null
           fit_score: number | null
+          followers: number | null
           handle: string | null
           id: string
           last_contacted_at: string | null
@@ -191,6 +256,7 @@ export type Database = {
           replied_at: string | null
           reply_intent: string | null
           reply_summary: string | null
+          research: Json
           source: string | null
           stage: string
           state: string | null
@@ -210,8 +276,13 @@ export type Database = {
           created_at?: string
           do_not_contact?: boolean
           email?: string | null
+          enrich_attempts?: number
+          enrich_status?: string
+          enriched_at?: string | null
+          event_id?: string | null
           external_id?: string | null
           fit_score?: number | null
+          followers?: number | null
           handle?: string | null
           id?: string
           last_contacted_at?: string | null
@@ -230,6 +301,7 @@ export type Database = {
           replied_at?: string | null
           reply_intent?: string | null
           reply_summary?: string | null
+          research?: Json
           source?: string | null
           stage?: string
           state?: string | null
@@ -249,8 +321,13 @@ export type Database = {
           created_at?: string
           do_not_contact?: boolean
           email?: string | null
+          enrich_attempts?: number
+          enrich_status?: string
+          enriched_at?: string | null
+          event_id?: string | null
           external_id?: string | null
           fit_score?: number | null
+          followers?: number | null
           handle?: string | null
           id?: string
           last_contacted_at?: string | null
@@ -269,6 +346,7 @@ export type Database = {
           replied_at?: string | null
           reply_intent?: string | null
           reply_summary?: string | null
+          research?: Json
           source?: string | null
           stage?: string
           state?: string | null
@@ -2115,25 +2193,34 @@ export type Database = {
         Row: {
           created_at: string
           credited: boolean
+          friend_credited_at: string | null
+          friend_reward_eligible: boolean
           id: string
           referral_code: string
           referred_id: string
+          referrer_amount: number | null
           referrer_id: string
         }
         Insert: {
           created_at?: string
           credited?: boolean
+          friend_credited_at?: string | null
+          friend_reward_eligible?: boolean
           id?: string
           referral_code: string
           referred_id: string
+          referrer_amount?: number | null
           referrer_id: string
         }
         Update: {
           created_at?: string
           credited?: boolean
+          friend_credited_at?: string | null
+          friend_reward_eligible?: boolean
           id?: string
           referral_code?: string
           referred_id?: string
+          referrer_amount?: number | null
           referrer_id?: string
         }
         Relationships: []
@@ -2484,8 +2571,13 @@ export type Database = {
           created_at: string
           do_not_contact: boolean
           email: string | null
+          enrich_attempts: number
+          enrich_status: string
+          enriched_at: string | null
+          event_id: string | null
           external_id: string | null
           fit_score: number | null
+          followers: number | null
           handle: string | null
           id: string
           last_contacted_at: string | null
@@ -2504,6 +2596,7 @@ export type Database = {
           replied_at: string | null
           reply_intent: string | null
           reply_summary: string | null
+          research: Json
           source: string | null
           stage: string
           state: string | null

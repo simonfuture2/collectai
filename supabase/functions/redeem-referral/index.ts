@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { referrerReward } from "../_shared/leadScoring.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -122,21 +123,23 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Award 3 credits to referrer atomically
-    const { error: creditError } = await supabaseAdmin.rpc("add_credits", {
-      _user_id: referrer.user_id,
-      _amount: 3,
-    });
-    if (creditError) {
-      console.error("Award referral credits error:", creditError);
+    // Referrer reward: 3 credits, capped at 30 a month (rules in _shared/leadScoring.ts).
+    const monthStart = new Date(); monthStart.setUTCDate(1); monthStart.setUTCHours(0, 0, 0, 0);
+    const { data: monthRows } = await supabaseAdmin.from("credit_transactions").select("amount")
+      .eq("user_id", referrer.user_id).eq("type", "referral_bonus").gte("created_at", monthStart.toISOString());
+    const earned = (monthRows ?? []).reduce((a: number, r: { amount: number }) => a + (r.amount || 0), 0);
+    const amount = referrerReward(earned);
+    await supabaseAdmin.from("referrals").update({ referrer_amount: amount }).eq("id", inserted.id);
+    if (amount > 0) {
+      const { error: creditError } = await supabaseAdmin.rpc("add_credits", { _user_id: referrer.user_id, _amount: amount });
+      if (creditError) console.error("Award referral credits error:", creditError);
+      await supabaseAdmin.from("credit_transactions").insert({
+        user_id: referrer.user_id, amount, type: "referral_bonus", description: "Referral bonus for inviting a new user",
+      });
     }
-
-    // Log the transaction
-    await supabaseAdmin.from("credit_transactions").insert({
-      user_id: referrer.user_id,
-      amount: 3,
-      type: "referral_bonus",
-      description: `Referral bonus for inviting a new user`,
+    // Show referral sign-ups in Results (ref = the referrer's code).
+    await supabaseAdmin.from("agent_attribution").insert({
+      ref_code: referral_code.toUpperCase(), event_type: "signup", user_id: referredUserId, meta: { via: "referral", referrer_credits: amount },
     });
 
     return new Response(JSON.stringify({ success: true }), {
