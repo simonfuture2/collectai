@@ -4,6 +4,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { assertLane, coldBodyProblem, exclusionReason, firstName, marketingFooter, nextWeekdays, pickLane, renderMerge, spreadDays, type Lane } from "../_shared/lanes.ts";
+import { authenticateCronRequest } from "../_shared/cron-auth.ts";
 import { sendgridMarketing, suppressedSet, unsubscribeUrl } from "../_shared/outreach.ts";
 
 const json = (b: unknown, status = 200) => new Response(JSON.stringify(b), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -102,11 +103,11 @@ Deno.serve(async (req) => {
     // Timer: send due opted-in recipients. Callable by the scheduler or an admin.
     const auth = req.headers.get("Authorization") ?? "";
     let userId: string | null = null; let userEmail: string | null = null;
-    if (auth.startsWith("Bearer ")) {
+    if (auth.startsWith("Bearer ") && action !== "tick") {
       const { data } = await createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!).auth.getUser(auth.slice(7));
       userId = data?.user?.id ?? null; userEmail = data?.user?.email ?? null;
     }
-    const isCron = req.headers.get("Lovable-Context") === "cron" || auth.slice(7) === Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const isCron = authenticateCronRequest(req) === null;
     let isAdminUser = false;
     if (userId) {
       const [{ data: a }, { data: g }] = await Promise.all([
@@ -130,7 +131,9 @@ Deno.serve(async (req) => {
         samples = await Promise.all(pick.map(async (r) => ({ email: r.email, lane: r.lane, ...(await render(tpl, r, body.ref_code || "bc_preview", cfg)) })));
         if (tpl) for (const s of samples) if (s.lane === "cold") s.problem = coldBodyProblem(s.text, s.unsub);
       }
-      const { data: cap } = await db.rpc("cold_capacity_today").then((x: Any) => x, () => ({ data: null }));
+      const { data: accs } = await db.from("sending_accounts").select("id").eq("active", true);
+      let capacity = 0; for (const a of accs ?? []) capacity += Number((await db.rpc("sending_account_capacity", { _id: a.id })).data ?? 0);
+      const cap = { capacity, inboxes: accs?.length ?? 0 };
       return json({ counts, excluded, samples, total: recipients.length, cold_capacity: cap });
     }
 

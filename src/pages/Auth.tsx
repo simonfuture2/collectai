@@ -21,6 +21,7 @@ const Auth = () => {
   );
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [marketingOptIn, setMarketingOptIn] = useState(false);
   const [loading, setLoading] = useState(false);
   const [resetMode, setResetMode] = useState(false);
   const navigate = useNavigate();
@@ -84,7 +85,7 @@ const Auth = () => {
         const { error } = await supabase.auth.signUp({
           email,
           password,
-          options: { emailRedirectTo: `${window.location.origin}${nextPath}` },
+          options: { emailRedirectTo: `${window.location.origin}${nextPath}`, data: { marketing_opt_in: marketingOptIn } },
         });
         if (error) throw error;
         toast({ title: "Account created!", description: "Check your email to confirm your account." });
@@ -147,6 +148,12 @@ const Auth = () => {
                     )}
                   </div>
                   <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6} className="mt-1" />
+                  {!isLogin && (
+                    <label className="mt-3 flex items-start gap-2 text-sm text-muted-foreground cursor-pointer">
+                      <input type="checkbox" className="mt-0.5 h-4 w-4 accent-primary" checked={marketingOptIn} onChange={(e) => setMarketingOptIn(e.target.checked)} />
+                      Send me tips and updates
+                    </label>
+                  )}
                 </div>
               )}
               <Button type="submit" className="w-full gradient-primary" disabled={loading}>

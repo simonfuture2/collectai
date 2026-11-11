@@ -15,6 +15,7 @@ import { useAdmin } from "@/hooks/use-admin";
 import Footer from "@/components/Footer";
 import ThemeToggle from "@/components/ThemeToggle";
 import PublicCollectionToggle from "@/components/PublicCollectionToggle";
+import MarketingOptInToggle from "@/components/MarketingOptInToggle";
 import { usePushNotifications } from "@/hooks/use-push-notifications";
 import AchievementsRow from "@/components/AchievementsRow";
 import PortfolioHero from "@/components/PortfolioHero";
@@ -268,6 +269,7 @@ const Dashboard = () => {
                   <div className="grid sm:grid-cols-2 gap-6 mt-10">
                     <ReferralCard userId={user.id} />
                     <PublicCollectionToggle userId={user.id} />
+                    <MarketingOptInToggle userId={user.id} />
                   </div>
                   <div className="mt-6">
                     <ConnectedAccounts />

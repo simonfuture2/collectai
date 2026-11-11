@@ -15,7 +15,9 @@ interface Overview {
 export default function OverviewSection({ go }: { go: (section: string) => void }) {
   const [d, setD] = useState<Overview | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [cold, setCold] = useState<{ capacity: number; used: number; inboxes: number } | null>(null);
   useEffect(() => {
+    supabase.rpc("cold_capacity_today").then(({ data }) => setCold(data as unknown as { capacity: number; used: number; inboxes: number }));
     supabase.rpc("admin_overview").then(({ data, error }) => {
       if (error) setErr(error.message); else setD(data as unknown as Overview);
     });
@@ -25,6 +27,7 @@ export default function OverviewSection({ go }: { go: (section: string) => void 
 
   const tiles: { label: string; value: string | number; go?: string }[] = [
     { label: "Emails sent / capacity", value: `${d.emails_sent} / ${d.email_capacity}`, go: "broadcasts" },
+    { label: "Cold capacity today", value: cold ? `${cold.used} / ${cold.capacity}` : "…", go: "channels" },
     { label: "Replies waiting", value: d.replies_waiting, go: "inbox" },
     { label: "Interested replies", value: d.interested_today, go: "inbox" },
     { label: "Meetings booked", value: d.meetings_booked, go: "leads" },
@@ -35,6 +38,7 @@ export default function OverviewSection({ go }: { go: (section: string) => void 
     { label: "Credit purchases", value: d.credit_purchases, go: "transactions" },
   ];
   const needs: { text: string; go: string; warn?: boolean }[] = [];
+  if (cold && cold.inboxes === 0) needs.push({ text: "No cold inboxes yet, so cold emails are paused. Add them in Channels.", go: "channels", warn: true });
   if (d.drafts_pending) needs.push({ text: `${d.drafts_pending} drafts waiting for your approval`, go: "inbox" });
   if (d.replies_waiting) needs.push({ text: `${d.replies_waiting} interested or question replies to answer`, go: "inbox" });
   if (d.failed_sends) needs.push({ text: `${d.failed_sends} outreach messages failed this week`, go: "inbox", warn: true });

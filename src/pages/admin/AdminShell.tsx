@@ -21,6 +21,9 @@ const PriceCheckLab = lazy(() => import("@/pages/admin/PriceCheckLab"));
 const IdBakeoff = lazy(() => import("@/pages/admin/IdBakeoff"));
 const OverviewSection = lazy(() => import("@/components/admin/shell/OverviewSection"));
 const PartnersSection = lazy(() => import("@/components/admin/shell/PartnersSection"));
+const BroadcastsSection = lazy(() => import("@/components/admin/shell/BroadcastsSection"));
+const TemplatesSection = lazy(() => import("@/components/admin/shell/TemplatesSection"));
+const SendingAccountsSection = lazy(() => import("@/components/admin/shell/SendingAccountsSection"));
 
 const ICONS: Record<string, typeof Inbox> = {
   overview: LayoutDashboard, inbox: Inbox, leads: Users, sequences: ListOrdered, broadcasts: Megaphone, templates: FileText,
@@ -107,6 +110,9 @@ export default function AdminShell() {
   let body: JSX.Element;
   if (active === "overview") body = <OverviewSection go={go} />;
   else if (active === "partners") body = <PartnersSection />;
+  else if (active === "broadcasts") body = <BroadcastsSection />;
+  else if (active === "templates") body = <TemplatesSection />;
+  else if (active === "channels") body = <div className="space-y-6"><SendingAccountsSection /><AgentHQ key="channels" section="channels" /></div>;
   else if (active === "lab") body = <PriceCheckLab />;
   else if (active === "bakeoff") body = <IdBakeoff />;
   else if (AGENT_IDS.has(active)) body = <AgentHQ key={active} section={active as "inbox"} />;
