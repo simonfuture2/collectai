@@ -119,8 +119,9 @@ Deno.serve(async (req) => {
       const ref = `seq_${seq.slug ?? seq.id.slice(0, 8)}`;
 
       if (step.channel !== "email") {
-        await db.from("agent_outreach").insert({ lead_id: e.lead_id, workflow: "sequence_task", channel: step.channel, status: "pending",
+        const { error: te } = await db.from("agent_outreach").insert({ lead_id: e.lead_id, workflow: "sequence_task", channel: step.channel, status: "pending",
           enrollment_id: e.id, step_id: step.id, subject: `${seq.name} · step ${step.step_no}`, draft_text: renderMerge(step.angle ?? "", fields), ref_code: ref });
+        if (te) throw new Error(te.message);
         await db.rpc("agent_advance_enrollment", { p_enrollment_id: e.id, p_from_step: step.step_no });
         log.tasks++; continue;
       }
