@@ -17,8 +17,9 @@
 - [ ] Bel Air Places search + 10-shop import — blocked: Google key needs Places API (New) enabled
 
 ## Sales rep workspace (2026-11-11)
-- [ ] sales_reps table + rep RLS on leads/activities/enrollments/outreach
-- [ ] /reps workspace: Today, call outcomes, book meeting, pipeline board, my results
-- [ ] Admin Reps section (invite, territories, goals, deactivate), assignment round-robin, unassigned queue, leaderboard, commission report
-- [ ] Rep name/signature/booking link + reply-to in sequence emails
-- [ ] Test with a second rep account
+- [x] sales_reps table + rep RLS on leads/activities/enrollments/outreach
+- [x] /reps workspace: Today, call outcomes, book meeting, pipeline board, my results
+- [x] Admin Reps section (invite, territories, goals, deactivate), assignment round-robin, unassigned queue, leaderboard, commission report
+- [x] Rep name/signature/booking link + reply-to in sequence emails
+- [x] Test with a second rep account
+- [ ] AI-written (n8n) sequence steps don't carry the rep's name/reply-to yet — waits on n8n
