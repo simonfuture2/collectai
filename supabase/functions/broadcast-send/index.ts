@@ -28,7 +28,7 @@ async function settings(db: Any) {
 async function buildAudience(db: Any, f: Filters) {
   const now = Date.now();
   const suppressed = await suppressedSet(db);
-  const { data: seq } = await db.from("drip_campaign_queue").select("lead_id").eq("sent", false).is("cancelled_at", null);
+  const { data: seq } = await db.from("agent_enrollments").select("lead_id").in("status", ["active", "paused"]).not("lead_id", "is", null);
   const inSequence = new Set<string>((seq ?? []).map((r: Any) => r.lead_id));
   const excluded: Record<string, number> = {};
   const out: Recipient[] = [];

@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { LEAD_STAGES } from "@/lib/adminSections";
 import { gmailReplyUrl } from "@/lib/agentReplies";
+import SequencePanel from "./SequencePanel";
 
 type Lead = Database["public"]["Tables"]["agent_leads"]["Row"];
 interface Account {
@@ -184,6 +185,8 @@ export default function PersonDrawer({ leadId, userId, onClose, onSaved }: {
                 </div>
               </section>
             ) : <p className="text-sm text-muted-foreground">No outreach history for this person.</p>}
+
+            {(lead?.id || account?.user_id || userId) && <SequencePanel leadId={lead?.id} userId={account?.user_id ?? userId} />}
 
             {lead && (
               <section className="space-y-3">

@@ -9,6 +9,7 @@
 // POST { "action": "agent_claim_ig_comment", "args": { ...named params... } }
 // POST { "action": "get_settings", "args": { "key": "community_drafts" } }
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { unsubscribeUrl } from "../_shared/outreach.ts";
 
 const db = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -28,6 +29,10 @@ const ALLOWED: Record<string, string[]> = {
   agent_next_leads_to_draft: ["p_limit"],
   agent_queue_email: ["p_lead_id", "p_subject", "p_body"],
   agent_claim_approved_emails: [],
+  // Sequences: AI-written steps, and moving / stopping an enrollment.
+  agent_next_steps_to_draft: ["p_limit"],
+  agent_advance_enrollment: ["p_enrollment_id", "p_from_step"],
+  agent_stop_enrollment: ["p_enrollment_id", "p_lead_id", "p_status", "p_reason"],
   get_settings: ["key"],
 };
 
@@ -62,7 +67,18 @@ Deno.serve(async (req) => {
     return json(data ?? []);
   }
 
+  if (action === "agent_stop_enrollment" && !["paused", "stopped_reply", "stopped_unsub", "stopped_signup", "completed"].includes(String(args.p_status ?? "stopped_reply"))) {
+    return json({ error: "bad p_status" }, 400);
+  }
+
   const { data, error } = await db.rpc(action, args);
+  if (!error && action === "agent_next_steps_to_draft" && Array.isArray(data)) {
+    // Add the signed unsubscribe link (needs the secret, so it can't be built in SQL).
+    for (const item of data as Array<Record<string, any>>) {
+      const email = String(item.lead?.email ?? "").trim().toLowerCase();
+      item.unsubscribe_url = email ? await unsubscribeUrl(email) : null;
+    }
+  }
   if (error) return json({ error: error.message, code: error.code }, 500);
   return json(data ?? {});
 });

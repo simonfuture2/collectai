@@ -134,6 +134,13 @@
       "when": 1794420365267,
       "tag": "0018_sending_lanes",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1794430741983,
+      "tag": "0019_sequence_engine",
+      "breakpoints": true
     }
   ]
 }

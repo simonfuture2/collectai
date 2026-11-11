@@ -12,7 +12,7 @@ export const ADMIN_SECTIONS: AdminSection[] = [
   { id: "overview", label: "Overview", group: "Overview", access: "either" },
   { id: "inbox", label: "Inbox", group: "Outreach", access: "agent" },
   { id: "leads", label: "Leads", group: "Outreach", access: "agent" },
-  { id: "sequences", label: "Sequences & drips", group: "Outreach", access: "admin" },
+  { id: "sequences", label: "Sequences & drips", group: "Outreach", access: "either" },
   { id: "broadcasts", label: "Broadcasts", group: "Outreach", access: "either" },
   { id: "templates", label: "Templates", group: "Outreach", access: "either" },
   { id: "channels", label: "Channels", group: "Outreach", access: "agent" },

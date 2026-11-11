@@ -23,6 +23,8 @@ const OverviewSection = lazy(() => import("@/components/admin/shell/OverviewSect
 const PartnersSection = lazy(() => import("@/components/admin/shell/PartnersSection"));
 const BroadcastsSection = lazy(() => import("@/components/admin/shell/BroadcastsSection"));
 const TemplatesSection = lazy(() => import("@/components/admin/shell/TemplatesSection"));
+const SequencesSection = lazy(() => import("@/components/admin/shell/SequencesSection"));
+const BulkEnrollButton = lazy(() => import("@/components/admin/shell/BulkEnrollButton"));
 const SendingAccountsSection = lazy(() => import("@/components/admin/shell/SendingAccountsSection"));
 
 const ICONS: Record<string, typeof Inbox> = {
@@ -33,7 +35,7 @@ const ICONS: Record<string, typeof Inbox> = {
 };
 const AGENT_IDS = new Set(["inbox", "leads", "channels", "results", "funnel", "videos"]);
 const ADMIN_PAGE_IDS: Record<string, string> = {
-  sequences: "sequences", broadcasts: "broadcasts", templates: "templates", users: "users", transactions: "transactions",
+  broadcasts: "broadcasts", templates: "templates", users: "users", transactions: "transactions",
   beta: "beta", "beta-audit": "beta-audit", admins: "admins", push: "push", accuracy: "accuracy", "pc-data": "pc-purge",
 };
 
@@ -112,6 +114,8 @@ export default function AdminShell() {
   else if (active === "partners") body = <PartnersSection />;
   else if (active === "broadcasts") body = <BroadcastsSection />;
   else if (active === "templates") body = <TemplatesSection />;
+  else if (active === "sequences") body = <SequencesSection />;
+  else if (active === "leads") body = <div className="space-y-3"><div className="flex justify-end"><BulkEnrollButton /></div><AgentHQ key="leads" section="leads" /></div>;
   else if (active === "channels") body = <div className="space-y-6"><SendingAccountsSection /><AgentHQ key="channels" section="channels" /></div>;
   else if (active === "lab") body = <PriceCheckLab />;
   else if (active === "bakeoff") body = <IdBakeoff />;

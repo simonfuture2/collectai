@@ -169,29 +169,13 @@ Deno.serve(async (req) => {
     }
     if (leadId) await supabase.from("agent_activities").insert({ lead_id: leadId, type: "lead_magnet", body: "Downloaded: Card Grading Cheat Sheet" });
 
-    // Enqueue drip campaign emails
+    // Start the "Lead magnet welcome" sequence (sequence-tick sends it through the opted-in lane).
     if (leadId) {
-      const now = new Date();
-      const dripRows = DRIP_SCHEDULE.map((d) => {
-        const scheduledDate = new Date(now);
-        scheduledDate.setDate(scheduledDate.getDate() + d.day);
-        return {
-          lead_id: leadId,
-          step: d.step,
-          subject: d.subject,
-          body: "", // HTML is in the drip-campaign function
-          scheduled_for: scheduledDate.toISOString().split("T")[0],
-        };
-      });
-
-      const { error: dripError } = await supabase
-        .from("drip_campaign_queue")
-        .insert(dripRows);
-
-      if (dripError) {
-        console.error("Drip enqueue error:", dripError);
-      } else {
-        console.log(`Enqueued 9 drip emails for lead ${leadId}`);
+      const { data: seq } = await supabase.from("agent_sequences").select("id").eq("slug", "lead_magnet_welcome").eq("active", true).maybeSingle();
+      const { data: active } = await supabase.from("agent_enrollments").select("id").eq("lead_id", leadId).in("status", ["active", "paused"]).maybeSingle();
+      if (seq && !active) {
+        const { error: enrollError } = await supabase.rpc("agent_start_enrollment", { p_sequence_id: seq.id, p_lead_id: leadId });
+        if (enrollError) console.error("Sequence enroll error:", enrollError);
       }
     }
 

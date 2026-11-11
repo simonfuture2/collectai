@@ -34,7 +34,7 @@ const PLATFORMS = ["instagram", "tiktok", "reddit", "discord", "email", "other"]
 const LEAD_TYPES = ["collector", "card_shop", "seller", "creator", "other"];
 const LEAD_STATUSES = ["new", "drafting", "queued", "contacted", "replied", "signed_up", "not_interested", "do_not_contact"];
 const CHANNEL_LABEL: Record<string, string> = {
-  instagram_dm: "Instagram DM", reddit_reply: "Reddit", discord_reply: "Discord", email: "Email",
+  instagram_dm: "Instagram DM", reddit_reply: "Reddit", discord_reply: "Discord", email: "Email", call_task: "Call task", dm_task: "DM task",
 };
 const WORKFLOW_LABEL: Record<string, string> = {
   ig_comment_dm: "Instagram comment → DM", community_drafts: "Community replies", email_outreach: "Email outreach",
@@ -249,8 +249,9 @@ function QueueCard({ item, onDone }: { item: OutreachWithLead; onDone: () => voi
   const [busy, setBusy] = useState(false);
   const isEmail = item.channel === "email";
   const isManual = item.channel === "reddit_reply" || item.channel === "discord_reply";
+  const isTask = item.channel === "call_task" || item.channel === "dm_task";
   // Agent posts that haven't had their draft attached yet — show a drafting notice instead of the reply box.
-  const isDrafting = !item.final_text && !item.draft_text && !isManual;
+  const isDrafting = !item.final_text && !item.draft_text && !isManual && !isTask;
   // Subreddit chip for community drafts — the part after /r/ in the post URL.
   const subreddit = item.workflow === "community_drafts" ? item.source_url?.match(/\/r\/([^/?#]+)/i)?.[1] ?? "" : "";
 
@@ -276,10 +277,12 @@ function QueueCard({ item, onDone }: { item: OutreachWithLead; onDone: () => voi
           <div className="flex items-center gap-2 min-w-0">
             <Badge variant="outline" className="shrink-0">{CHANNEL_LABEL[item.channel] ?? item.channel}</Badge>
             {subreddit && <Badge variant="secondary" className="max-w-[14rem] truncate">r/{subreddit}</Badge>}
+            {item.enrollment_id && <Badge variant="secondary" className="max-w-[14rem] truncate">Sequence</Badge>}
+            {item.ref_code === "booking_reply" && <Badge variant="secondary">Booking reply</Badge>}
           </div>
           <span className="text-xs text-muted-foreground shrink-0" title={new Date(item.created_at).toLocaleString()}>{ago(item.created_at)}</span>
         </div>
-        {isEmail && item.agent_leads && (
+        {(isEmail || isTask) && item.agent_leads && (
           <p className="text-sm"><span className="font-medium">{item.agent_leads.business_name || item.agent_leads.name}</span>
             {item.agent_leads.email && <span className="text-muted-foreground"> · {item.agent_leads.email}</span>}</p>
         )}
@@ -312,6 +315,7 @@ function QueueCard({ item, onDone }: { item: OutreachWithLead; onDone: () => voi
               Approve & send
             </Button>
           )}
+          {isTask && <Button disabled={busy} onClick={() => update({ final_text: text, status: "done", decided_at: now() }, "Marked done")}>Mark done</Button>}
           {isManual && <Button disabled={busy || isDrafting || !text.trim()} onClick={copyAndOpen} className="gap-1"><Copy className="h-4 w-4" />Copy & open</Button>}
           <Button variant="outline" disabled={busy} onClick={() => update({ status: "rejected", decided_at: now() }, "Rejected")} className="gap-1">
             <X className="h-4 w-4" />Reject

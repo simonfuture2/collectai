@@ -97,6 +97,69 @@ export type Database = {
         }
         Relationships: []
       }
+      agent_enrollments: {
+        Row: {
+          clock_minutes: number | null
+          current_step: number
+          id: string
+          last_email_at: string | null
+          lead_id: string | null
+          next_due_at: string
+          rep_id: string | null
+          sequence_id: string
+          started_at: string
+          status: string
+          stop_reason: string | null
+          stopped_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          clock_minutes?: number | null
+          current_step?: number
+          id?: string
+          last_email_at?: string | null
+          lead_id?: string | null
+          next_due_at?: string
+          rep_id?: string | null
+          sequence_id: string
+          started_at?: string
+          status?: string
+          stop_reason?: string | null
+          stopped_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          clock_minutes?: number | null
+          current_step?: number
+          id?: string
+          last_email_at?: string | null
+          lead_id?: string | null
+          next_due_at?: string
+          rep_id?: string | null
+          sequence_id?: string
+          started_at?: string
+          status?: string
+          stop_reason?: string | null
+          stopped_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_enrollments_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "agent_leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_enrollments_sequence_id_fkey"
+            columns: ["sequence_id"]
+            isOneToOne: false
+            referencedRelation: "agent_sequences"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       agent_leads: {
         Row: {
           business_name: string | null
@@ -225,6 +288,7 @@ export type Database = {
           created_at: string
           decided_at: string | null
           draft_text: string | null
+          enrollment_id: string | null
           error: string | null
           external_ref: string | null
           final_text: string | null
@@ -238,6 +302,7 @@ export type Database = {
           source_text: string | null
           source_url: string | null
           status: string
+          step_id: string | null
           subject: string | null
           workflow: string
         }
@@ -248,6 +313,7 @@ export type Database = {
           created_at?: string
           decided_at?: string | null
           draft_text?: string | null
+          enrollment_id?: string | null
           error?: string | null
           external_ref?: string | null
           final_text?: string | null
@@ -261,6 +327,7 @@ export type Database = {
           source_text?: string | null
           source_url?: string | null
           status?: string
+          step_id?: string | null
           subject?: string | null
           workflow: string
         }
@@ -271,6 +338,7 @@ export type Database = {
           created_at?: string
           decided_at?: string | null
           draft_text?: string | null
+          enrollment_id?: string | null
           error?: string | null
           external_ref?: string | null
           final_text?: string | null
@@ -284,10 +352,18 @@ export type Database = {
           source_text?: string | null
           source_url?: string | null
           status?: string
+          step_id?: string | null
           subject?: string | null
           workflow?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "agent_outreach_enrollment_id_fkey"
+            columns: ["enrollment_id"]
+            isOneToOne: false
+            referencedRelation: "agent_enrollments"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "agent_outreach_lead_id_fkey"
             columns: ["lead_id"]
@@ -300,6 +376,13 @@ export type Database = {
             columns: ["sending_account_id"]
             isOneToOne: false
             referencedRelation: "sending_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_outreach_step_id_fkey"
+            columns: ["step_id"]
+            isOneToOne: false
+            referencedRelation: "agent_sequence_steps"
             referencedColumns: ["id"]
           },
         ]
@@ -347,6 +430,99 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      agent_sequence_steps: {
+        Row: {
+          angle: string | null
+          channel: string
+          created_at: string
+          day_offset: number
+          id: string
+          include_link: boolean
+          include_video: boolean
+          require_approval: boolean
+          sequence_id: string
+          step_no: number
+          template_id: string | null
+        }
+        Insert: {
+          angle?: string | null
+          channel?: string
+          created_at?: string
+          day_offset?: number
+          id?: string
+          include_link?: boolean
+          include_video?: boolean
+          require_approval?: boolean
+          sequence_id: string
+          step_no: number
+          template_id?: string | null
+        }
+        Update: {
+          angle?: string | null
+          channel?: string
+          created_at?: string
+          day_offset?: number
+          id?: string
+          include_link?: boolean
+          include_video?: boolean
+          require_approval?: boolean
+          sequence_id?: string
+          step_no?: number
+          template_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_sequence_steps_sequence_id_fkey"
+            columns: ["sequence_id"]
+            isOneToOne: false
+            referencedRelation: "agent_sequences"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_sequence_steps_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "email_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agent_sequences: {
+        Row: {
+          active: boolean
+          approved_unedited: number
+          auto_approve: boolean
+          created_at: string
+          id: string
+          lane: string
+          lead_type: string | null
+          name: string
+          slug: string | null
+        }
+        Insert: {
+          active?: boolean
+          approved_unedited?: number
+          auto_approve?: boolean
+          created_at?: string
+          id?: string
+          lane: string
+          lead_type?: string | null
+          name: string
+          slug?: string | null
+        }
+        Update: {
+          active?: boolean
+          approved_unedited?: number
+          auto_approve?: boolean
+          created_at?: string
+          id?: string
+          lane?: string
+          lead_type?: string | null
+          name?: string
+          slug?: string | null
+        }
+        Relationships: []
       }
       agent_settings: {
         Row: {
@@ -2243,6 +2419,10 @@ export type Database = {
       }
       admin_overview: { Args: never; Returns: Json }
       admin_purge_pricecharting: { Args: { _confirm: string }; Returns: Json }
+      agent_advance_enrollment: {
+        Args: { p_enrollment_id: string; p_from_step?: number }
+        Returns: Json
+      }
       agent_attach_draft: {
         Args: { p_draft: string; p_id: string; p_subject?: string }
         Returns: Json
@@ -2349,6 +2529,7 @@ export type Database = {
           created_at: string
           decided_at: string | null
           draft_text: string | null
+          enrollment_id: string | null
           error: string | null
           external_ref: string | null
           final_text: string | null
@@ -2362,6 +2543,7 @@ export type Database = {
           source_text: string | null
           source_url: string | null
           status: string
+          step_id: string | null
           subject: string | null
           workflow: string
         }[]
@@ -2372,6 +2554,7 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      agent_next_steps_to_draft: { Args: { p_limit?: number }; Returns: Json }
       agent_queue_community_post: {
         Args: {
           p_author: string
@@ -2399,7 +2582,28 @@ export type Database = {
         Returns: Json
       }
       agent_stage_to_status: { Args: { _stage: string }; Returns: string }
+      agent_start_enrollment: {
+        Args: {
+          p_clock_minutes?: number
+          p_lead_id?: string
+          p_rep_id?: string
+          p_sequence_id: string
+          p_start_at?: string
+          p_user_id?: string
+        }
+        Returns: string
+      }
       agent_status_to_stage: { Args: { _status: string }; Returns: string }
+      agent_stop_enrollment: {
+        Args: {
+          p_enrollment_id?: string
+          p_lead_id?: string
+          p_reason?: string
+          p_status?: string
+          p_user_id?: string
+        }
+        Returns: Json
+      }
       agent_unsubscribe: { Args: { p_lead_id: string }; Returns: undefined }
       can_use_price_check: { Args: { _uid: string }; Returns: boolean }
       cold_capacity_today: { Args: never; Returns: Json }
@@ -2494,6 +2698,7 @@ export type Database = {
       refund_demo_scan: { Args: { _ip_hash: string }; Returns: undefined }
       sending_account_capacity: { Args: { _id: string }; Returns: number }
       sending_account_used_today: { Args: { _id: string }; Returns: number }
+      seq_unit: { Args: { _clock_minutes: number }; Returns: string }
       suppress_email: {
         Args: { _email: string; _reason: string; _source: string }
         Returns: undefined
