@@ -54,3 +54,25 @@ export async function isSuppressed(supabase: any, email: string): Promise<boolea
   const s = await suppressedSet(supabase);
   return s.has(email.trim().toLowerCase());
 }
+
+/** Opted-in lane only: plain-text marketing email through SendGrid with its unsubscribe group and one-click headers. */
+export async function sendgridMarketing(to: string, subject: string, text: string, unsubUrl: string, opts: { test?: boolean } = {}) {
+  const apiKey = Deno.env.get("SENDGRID_API_KEY")?.trim();
+  const fromEmail = Deno.env.get("SENDGRID_FROM_EMAIL")?.trim();
+  const group = Number(Deno.env.get("SENDGRID_UNSUB_GROUP_ID") ?? "");
+  if (!apiKey || !fromEmail) throw new Error("SendGrid isn't set up");
+  if (!opts.test && !(group > 0)) throw new Error("SENDGRID_UNSUB_GROUP_ID is missing, so opted-in sends are paused");
+  const payload = {
+    personalizations: [{ to: [{ email: to }] }],
+    from: { email: fromEmail, name: "Simon at MyCollectAI" },
+    subject,
+    content: [{ type: "text/plain", value: text }],
+    headers: { "List-Unsubscribe": `<${unsubUrl}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" },
+    ...(group > 0 ? { asm: { group_id: group } } : {}),
+    tracking_settings: { click_tracking: { enable: false } },
+  };
+  const r = await fetch("https://api.sendgrid.com/v3/mail/send", {
+    method: "POST", headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" }, body: JSON.stringify(payload),
+  });
+  if (!r.ok) throw new Error(`SendGrid ${r.status}: ${(await r.text()).slice(0, 300)}`);
+}

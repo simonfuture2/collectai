@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { suppressedSet, unsubscribeUrl } from "../_shared/outreach.ts";
+import { pickLane } from "../_shared/lanes.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -360,7 +361,7 @@ Deno.serve(async (req) => {
     const leadIds = [...new Set(queue.map((q: any) => q.lead_id))];
     const { data: leadsData } = await supabase
       .from("agent_leads")
-      .select("id, email, name, do_not_contact, user_id")
+      .select("id, email, name, do_not_contact, user_id, consent_email")
       .in("id", leadIds);
     const blocked = await suppressedSet(supabase);
 
@@ -377,6 +378,13 @@ Deno.serve(async (req) => {
       }
       if (lead.do_not_contact || blocked.has(String(lead.email).toLowerCase())) {
         await supabase.from("drip_campaign_queue").update({ cancelled_at: new Date().toISOString() }).eq("id", item.id);
+        continue;
+      }
+      // Drips are SendGrid, so only the opted-in lane may receive them.
+      if (pickLane({ consent_email: lead.consent_email }) !== "opted_in") {
+        console.warn("drip refused: cold lead", lead.email);
+        await supabase.from("drip_campaign_queue").update({ cancelled_at: new Date().toISOString() }).eq("id", item.id);
+        errors.push(`${lead.email}: refused, not opted in`);
         continue;
       }
 

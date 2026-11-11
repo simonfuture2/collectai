@@ -219,7 +219,9 @@ export type Database = {
       }
       agent_outreach: {
         Row: {
+          broadcast_id: string | null
           channel: string
+          claimed_at: string | null
           created_at: string
           decided_at: string | null
           draft_text: string | null
@@ -228,7 +230,10 @@ export type Database = {
           final_text: string | null
           id: string
           lead_id: string | null
+          provider_ref: string | null
           ref_code: string | null
+          scheduled_for: string | null
+          sending_account_id: string | null
           sent_at: string | null
           source_text: string | null
           source_url: string | null
@@ -237,7 +242,9 @@ export type Database = {
           workflow: string
         }
         Insert: {
+          broadcast_id?: string | null
           channel: string
+          claimed_at?: string | null
           created_at?: string
           decided_at?: string | null
           draft_text?: string | null
@@ -246,7 +253,10 @@ export type Database = {
           final_text?: string | null
           id?: string
           lead_id?: string | null
+          provider_ref?: string | null
           ref_code?: string | null
+          scheduled_for?: string | null
+          sending_account_id?: string | null
           sent_at?: string | null
           source_text?: string | null
           source_url?: string | null
@@ -255,7 +265,9 @@ export type Database = {
           workflow: string
         }
         Update: {
+          broadcast_id?: string | null
           channel?: string
+          claimed_at?: string | null
           created_at?: string
           decided_at?: string | null
           draft_text?: string | null
@@ -264,7 +276,10 @@ export type Database = {
           final_text?: string | null
           id?: string
           lead_id?: string | null
+          provider_ref?: string | null
           ref_code?: string | null
+          scheduled_for?: string | null
+          sending_account_id?: string | null
           sent_at?: string | null
           source_text?: string | null
           source_url?: string | null
@@ -278,6 +293,13 @@ export type Database = {
             columns: ["lead_id"]
             isOneToOne: false
             referencedRelation: "agent_leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_outreach_sending_account_id_fkey"
+            columns: ["sending_account_id"]
+            isOneToOne: false
+            referencedRelation: "sending_accounts"
             referencedColumns: ["id"]
           },
         ]
@@ -411,6 +433,112 @@ export type Database = {
             columns: ["card_id"]
             isOneToOne: true
             referencedRelation: "cards"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      broadcast_recipients: {
+        Row: {
+          broadcast_id: string
+          created_at: string
+          email: string
+          error: string | null
+          id: string
+          lane: string
+          lead_id: string | null
+          outreach_id: string | null
+          replied_at: string | null
+          scheduled_for: string
+          sent_at: string | null
+          status: string
+          unsubscribed_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          broadcast_id: string
+          created_at?: string
+          email: string
+          error?: string | null
+          id?: string
+          lane: string
+          lead_id?: string | null
+          outreach_id?: string | null
+          replied_at?: string | null
+          scheduled_for?: string
+          sent_at?: string | null
+          status?: string
+          unsubscribed_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          broadcast_id?: string
+          created_at?: string
+          email?: string
+          error?: string | null
+          id?: string
+          lane?: string
+          lead_id?: string | null
+          outreach_id?: string | null
+          replied_at?: string | null
+          scheduled_for?: string
+          sent_at?: string | null
+          status?: string
+          unsubscribed_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "broadcast_recipients_broadcast_id_fkey"
+            columns: ["broadcast_id"]
+            isOneToOne: false
+            referencedRelation: "broadcasts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      broadcasts: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          filters: Json
+          id: string
+          name: string
+          ref_code: string
+          scheduled_at: string | null
+          spread_days: number
+          status: string
+          template_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          filters?: Json
+          id?: string
+          name: string
+          ref_code: string
+          scheduled_at?: string | null
+          spread_days?: number
+          status?: string
+          template_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          filters?: Json
+          id?: string
+          name?: string
+          ref_code?: string
+          scheduled_at?: string | null
+          spread_days?: number
+          status?: string
+          template_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "broadcasts_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "email_templates"
             referencedColumns: ["id"]
           },
         ]
@@ -846,6 +974,42 @@ export type Database = {
           email?: string
           reason?: string
           source?: string | null
+        }
+        Relationships: []
+      }
+      email_templates: {
+        Row: {
+          audience_note: string | null
+          body: string
+          created_at: string
+          id: string
+          lane: string
+          legacy_template_id: string | null
+          name: string
+          subject: string
+          updated_at: string
+        }
+        Insert: {
+          audience_note?: string | null
+          body?: string
+          created_at?: string
+          id?: string
+          lane?: string
+          legacy_template_id?: string | null
+          name: string
+          subject?: string
+          updated_at?: string
+        }
+        Update: {
+          audience_note?: string | null
+          body?: string
+          created_at?: string
+          id?: string
+          lane?: string
+          legacy_template_id?: string | null
+          name?: string
+          subject?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -1693,6 +1857,8 @@ export type Database = {
           created_at: string
           display_name: string | null
           id: string
+          marketing_opt_in: boolean
+          marketing_opt_in_at: string | null
           public_collection_enabled: boolean
           public_collection_slug: string | null
           signup_ref: string | null
@@ -1703,6 +1869,8 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           id: string
+          marketing_opt_in?: boolean
+          marketing_opt_in_at?: string | null
           public_collection_enabled?: boolean
           public_collection_slug?: string | null
           signup_ref?: string | null
@@ -1713,6 +1881,8 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           id?: string
+          marketing_opt_in?: boolean
+          marketing_opt_in_at?: string | null
           public_collection_enabled?: boolean
           public_collection_slug?: string | null
           signup_ref?: string | null
@@ -1816,6 +1986,54 @@ export type Database = {
           refreshed_at?: string
           set_name?: string
           source?: string
+        }
+        Relationships: []
+      }
+      sending_accounts: {
+        Row: {
+          active: boolean
+          created_at: string
+          daily_limit: number
+          display_name: string | null
+          domain: string | null
+          email: string
+          id: string
+          last_sent_at: string | null
+          paused_reason: string | null
+          provider: string
+          sent_today: number
+          warmup_daily_increase: number
+          warmup_start_date: string | null
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          daily_limit?: number
+          display_name?: string | null
+          domain?: string | null
+          email: string
+          id?: string
+          last_sent_at?: string | null
+          paused_reason?: string | null
+          provider?: string
+          sent_today?: number
+          warmup_daily_increase?: number
+          warmup_start_date?: string | null
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          daily_limit?: number
+          display_name?: string | null
+          domain?: string | null
+          email?: string
+          id?: string
+          last_sent_at?: string | null
+          paused_reason?: string | null
+          provider?: string
+          sent_today?: number
+          warmup_daily_increase?: number
+          warmup_start_date?: string | null
         }
         Relationships: []
       }
@@ -2035,11 +2253,13 @@ export type Database = {
           base_url: string
           body: string
           from_email: string
+          from_name: string
           id: string
           lead_id: string
           physical_address: string
           ref_code: string
           reply_to: string
+          sending_account_id: string
           subject: string
           to_email: string
           to_name: string
@@ -2123,7 +2343,9 @@ export type Database = {
       agent_next_posts_to_draft: {
         Args: { p_limit?: number }
         Returns: {
+          broadcast_id: string | null
           channel: string
+          claimed_at: string | null
           created_at: string
           decided_at: string | null
           draft_text: string | null
@@ -2132,7 +2354,10 @@ export type Database = {
           final_text: string | null
           id: string
           lead_id: string | null
+          provider_ref: string | null
           ref_code: string | null
+          scheduled_for: string | null
+          sending_account_id: string | null
           sent_at: string | null
           source_text: string | null
           source_url: string | null
@@ -2177,6 +2402,11 @@ export type Database = {
       agent_status_to_stage: { Args: { _status: string }; Returns: string }
       agent_unsubscribe: { Args: { p_lead_id: string }; Returns: undefined }
       can_use_price_check: { Args: { _uid: string }; Returns: boolean }
+      cold_capacity_today: { Args: never; Returns: Json }
+      cold_send_window_open: {
+        Args: { _at?: string; _state: string }
+        Returns: boolean
+      }
       consume_daily_budget: {
         Args: { _bucket_key: string; _max_per_day: number }
         Returns: {
@@ -2262,10 +2492,13 @@ export type Database = {
         }[]
       }
       refund_demo_scan: { Args: { _ip_hash: string }; Returns: undefined }
+      sending_account_capacity: { Args: { _id: string }; Returns: number }
+      sending_account_used_today: { Args: { _id: string }; Returns: number }
       suppress_email: {
         Args: { _email: string; _reason: string; _source: string }
         Returns: undefined
       }
+      us_state_tz: { Args: { _state: string }; Returns: string }
     }
     Enums: {
       activity_type:

@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { suppressedSet, unsubscribeUrl } from "../_shared/outreach.ts";
+import { sendgridMarketing, suppressedSet, unsubscribeUrl } from "../_shared/outreach.ts";
+import { assertLane, coldBodyProblem, marketingFooter, pickLane } from "../_shared/lanes.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -144,22 +145,38 @@ Deno.serve(async (req) => {
       if (!lead?.email) throw new Error("Lead has no email");
       if ((await suppressedSet(supabase)).has(String(lead.email).toLowerCase()) || lead.do_not_contact) throw new Error("This address has unsubscribed or is marked do-not-contact");
       lead.company = lead.company || lead.business_name;
-
-      const finalBody = replacePlaceholders(body, lead);
+      let optIn = false;
+      if (lead.user_id) optIn = !!(await supabase.from("profiles").select("marketing_opt_in").eq("id", lead.user_id).maybeSingle()).data?.marketing_opt_in;
+      const lane = pickLane({ consent_email: lead.consent_email, marketing_opt_in: optIn });
       const finalSubject = replacePlaceholders(subject, lead);
-      await sendEmail(lead.email, finalSubject, finalBody, await unsubscribeUrl(lead.email), true);
+      const unsub = await unsubscribeUrl(lead.email);
+      const { data: cfgRow } = await supabase.from("agent_settings").select("config").eq("key", "email_outreach").maybeSingle();
+      const address = String(cfgRow?.config?.physical_address ?? "306 W Redwood Street, Baltimore, MD 21201");
+      const text = replacePlaceholders(body, lead).replace(/<[^>]+>/g, "") + marketingFooter(address, unsub);
 
-      await supabase.from("agent_activities").insert({ lead_id, type: "email_sent", body: `Subject: ${finalSubject}`, meta: { subject: finalSubject, body: finalBody }, rep_id: userData.user.id });
-
-      return new Response(JSON.stringify({ success: true }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      if (lane === "opted_in") {
+        assertLane("sendgrid", { email: lead.email, consent_email: lead.consent_email, marketing_opt_in: optIn });
+        await sendgridMarketing(lead.email, finalSubject, text, unsub, { test: true });
+        await supabase.from("agent_activities").insert({ lead_id, type: "email_sent", body: `Subject: ${finalSubject}`, meta: { subject: finalSubject, lane }, rep_id: userData.user.id });
+        return new Response(JSON.stringify({ success: true, lane }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      // Cold: queue for a cold inbox; never SendGrid.
+      const problem = coldBodyProblem(text, unsub);
+      if (problem) throw new Error(problem);
+      const { error: qErr } = await supabase.from("agent_outreach").insert({
+        lead_id, workflow: "email_outreach", channel: "email", external_ref: `manual:${lead_id}:${Date.now()}`,
+        subject: finalSubject, draft_text: text, final_text: text, ref_code: "email_manual", status: "approved", decided_at: new Date().toISOString(),
       });
+      if (qErr) throw new Error(qErr.message);
+      await supabase.from("agent_activities").insert({ lead_id, type: "email_queued", body: `Subject: ${finalSubject}`, meta: { subject: finalSubject, lane }, rep_id: userData.user.id });
+      return new Response(JSON.stringify({ success: true, lane, queued: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     if (action === "send_sms") {
       const { lead_id, body } = params;
       const { data: lead } = await supabase.from("agent_leads").select("*").eq("id", lead_id).single();
       if (!lead?.phone) throw new Error("Lead has no phone number");
+      if (!lead.consent_sms) throw new Error("Refused: this lead hasn't agreed to texts");
 
       const finalBody = replacePlaceholders(body, lead);
       await sendSMS(lead.phone, finalBody);
@@ -183,135 +200,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    if (action === "bulk_send") {
-      const { template_id, lead_ids, campaign_name } = params;
-      const { data: template } = await supabase.from("campaign_templates").select("*").eq("id", template_id).single();
-      if (!template) throw new Error("Template not found");
-
-      const { data: leads } = await supabase.from("agent_leads").select("*").in("id", lead_ids).is("merged_into", null);
-      if (!leads?.length) throw new Error("No leads found");
-
-      // Create campaign record
-      const { data: campaign } = await supabase.from("outreach_campaigns").insert({
-        template_id, name: campaign_name || template.name, status: "sending",
-        target_filter: { lead_ids }, sent_count: 0, created_by: userData.user.id,
-      }).select().single();
-
-      let sentCount = 0;
-      const errors: string[] = [];
-
-      const blockedBulk = await suppressedSet(supabase);
-      for (const lead of leads) {
-        try {
-          lead.company = lead.company || lead.business_name;
-          if (lead.do_not_contact || (lead.email && blockedBulk.has(String(lead.email).toLowerCase()) && template.channel === "email")) {
-            errors.push(`${lead.email}: unsubscribed / do-not-contact, skipped`);
-            continue;
-          }
-          if (template.channel === "email" && lead.email) {
-            const finalBody = replacePlaceholders(template.body, lead);
-            const finalSubject = replacePlaceholders(template.subject || "", lead);
-            await sendEmail(lead.email, finalSubject, finalBody, await unsubscribeUrl(lead.email), true);
-            await supabase.from("agent_activities").insert({ lead_id: lead.id, type: "email_sent", body: `Campaign: ${campaign_name || template.name}`, meta: { campaign_id: campaign?.id, subject: finalSubject }, rep_id: userData.user.id });
-            sentCount++;
-          } else if (template.channel === "sms" && lead.phone) {
-            const finalBody = replacePlaceholders(template.body, lead);
-            await sendSMS(lead.phone, finalBody);
-            await supabase.from("agent_activities").insert({ lead_id: lead.id, type: "sms_sent", body: `Campaign: ${campaign_name || template.name}`, meta: { campaign_id: campaign?.id }, rep_id: userData.user.id });
-            sentCount++;
-          }
-        } catch (e) {
-          errors.push(`${lead.email || lead.phone}: ${e.message}`);
-        }
-      }
-
-      if (campaign) {
-        await supabase.from("outreach_campaigns").update({ status: "sent", sent_count: sentCount }).eq("id", campaign.id);
-      }
-
-      return new Response(JSON.stringify({ success: true, sent_count: sentCount, errors }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    if (action === "broadcast" || action === "broadcast_test") {
-      const { template_id, campaign_name, dry_run, test_to } = params;
-      const { data: template } = await supabase.from("campaign_templates").select("*").eq("id", template_id).single();
-      if (!template || template.channel !== "email") throw new Error("Email template not found");
-      const DAILY_CAP = 50;
-      const logName = `campaign:${template_id}`;
-
-      if (action === "broadcast_test") {
-        const to = String(test_to || "").trim().toLowerCase();
-        if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(to)) throw new Error("Enter a valid test email");
-        const lead = { name: "Simon", email: to };
-        await sendEmail(to, "[TEST] " + replacePlaceholders(template.subject || "", lead), replacePlaceholders(template.body, lead), undefined, true);
-        return new Response(JSON.stringify({ success: true, sent_to: to }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      }
-
-      // Who to skip: suppressed, SendGrid unsubscribes, and Agent HQ leads who replied / opted out / not interested
-      const blocked = new Set<string>();
-      for (const e of await suppressedSet(supabase)) blocked.add(e);
-      for (const r of await sendgridUnsubscribes()) blocked.add(r);
-      const { data: allAgent } = await supabase.from("agent_leads").select("id,name,business_name,email,status,do_not_contact,replied_at,reply_intent,partner_code").not("email", "is", null).is("merged_into", null);
-      const skipAgent = (l: any) => l.do_not_contact || l.replied_at || l.status !== "contacted" ||
-        /not.?interested|unsubscribe|opt.?out|negative|stop/i.test(`${l.reply_intent || ""} ${l.status}`);
-      for (const l of allAgent || []) if (skipAgent(l)) blocked.add(String(l.email).trim().toLowerCase());
-      const { data: already } = await supabase.from("email_send_log").select("recipient_email").eq("template_name", logName).eq("status", "sent");
-      const alreadySent = new Set((already || []).map((r: any) => String(r.recipient_email).toLowerCase()));
-
-      const crm: any[] = []; // old CRM leads now live in agent_leads
-      const seen = new Set<string>();
-      const recipients: { kind: "crm" | "agent"; id: string; email: string; lead: Record<string, any> }[] = [];
-      const add = (kind: "crm" | "agent", l: any) => {
-        const e = String(l.email).trim().toLowerCase();
-        if (!e || seen.has(e) || blocked.has(e) || alreadySent.has(e)) return;
-        seen.add(e); recipients.push({ kind, id: l.id, email: e, lead: { ...l, company: l.company || l.business_name } });
-      };
-      for (const l of crm || []) add("crm", l);
-      for (const l of allAgent || []) if (!skipAgent(l)) add("agent", l);
-
-      const today = new Date().toISOString().slice(0, 10);
-      const { count: sentToday } = await supabase.from("email_send_log").select("id", { count: "exact", head: true })
-        .like("template_name", "campaign:%").eq("status", "sent").gte("created_at", today);
-      const remainingToday = Math.max(0, DAILY_CAP - (sentToday || 0));
-      const batch = recipients.slice(0, remainingToday);
-
-      if (dry_run) {
-        return new Response(JSON.stringify({ count: recipients.length, today: batch.length, cap: DAILY_CAP, already: alreadySent.size,
-          crm: batch.filter(r => r.kind === "crm").length, agent: batch.filter(r => r.kind === "agent").length }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      if (!batch.length) throw new Error(remainingToday ? "Nobody left to send to" : "Daily limit of 50 reached, try tomorrow");
-
-      const { data: campaign } = await supabase.from("outreach_campaigns").insert({
-        template_id, name: campaign_name || template.name, status: "sending",
-        target_filter: { broadcast: true, count: batch.length }, sent_count: 0, created_by: userData.user.id,
-      }).select().single();
-
-      const base = Deno.env.get("SUPABASE_URL")!;
-      let sentCount = 0;
-      const errors: string[] = [];
-      for (const r of batch) {
-        try {
-          const unsub = await unsubscribeUrl(r.email);
-          const lead = { ...r.lead, name: (r.lead.name || "").split(" ")[0] || "there" };
-          const subject = replacePlaceholders(template.subject || "", lead);
-          await sendEmail(r.email, subject, replacePlaceholders(template.body, lead), unsub, true);
-          await supabase.from("email_send_log").insert({ template_name: logName, recipient_email: r.email, status: "sent", metadata: { campaign_id: campaign?.id } });
-          await supabase.from("agent_leads").update({ last_contacted_at: new Date().toISOString() }).eq("id", r.id);
-          await supabase.from("agent_activities").insert({ lead_id: r.id, type: "campaign_send", body: `Campaign: ${campaign_name || template.name}`, meta: { campaign_id: campaign?.id, subject }, rep_id: userData.user.id });
-          sentCount++;
-        } catch (e) {
-          errors.push(`${r.email}: ${(e as Error).message}`);
-          await supabase.from("email_send_log").insert({ template_name: logName, recipient_email: r.email, status: "failed", error_message: (e as Error).message });
-        }
-      }
-      if (campaign) await supabase.from("outreach_campaigns").update({ status: "sent", sent_count: sentCount }).eq("id", campaign.id);
-      return new Response(JSON.stringify({ success: true, sent_count: sentCount, remaining: recipients.length - batch.length, errors }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    if (["bulk_send", "broadcast", "broadcast_test"].includes(action)) {
+      return new Response(JSON.stringify({ error: "Bulk sending moved to Broadcasts" }), { status: 410, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     return new Response(JSON.stringify({ error: "Unknown action" }), {

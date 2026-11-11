@@ -1,19 +1,8 @@
-- [x] Add the two existing reply actions to agent-gateway and deploy it.
-- [x] Add reply filters, intent chips, reply history, Gmail action, Queue banner, Results count, and insert notifications to Agent HQ.
-- [x] Test reply rules and verify the admin flow without database definition changes; temporary test records removed.
-- [x] Create social video table and admin-only upload bucket without modifying existing definitions (private bucket required by workspace policy).
-- [x] Build shared lazy video cards, /watch, home strip and navigation links.
-- [x] Add Agent HQ video management, uploads and ordering; test publishing and public visibility; temporary entries removed.
-- [x] Add the supplied TikTok clip as an elegant homepage background; verified muted playback, pause controls, reduced motion and narrow/wide layouts using local asset interception (hosted MP4 also returns 200).
-- [x] Switch Pack Rip to free price checks, durable match selection, value tray, genuine chase badges and collection actions.
-- [x] Test pack rules and verify signed-in tray sorting and free price-only additions with temporary fixtures; test records removed.
-- [x] Price check 503 fixed; 7 real photos ran check → switch → add → full analysis with every step succeeding.
-- [ ] Price check accuracy/speed: wrong #1 on Charizard (picked 1st Edition), Dark Magician (picked Pharaoh's Servant); median ~4.7 s vs 4 s target (direct Google key's billing refusal adds ~1 s).
-- [ ] Slab full analysis valued T206 Wagner PSA 5 at ~$108 — investigate grade rung pick.
-- [ ] Paid upgrade charge path untested: admin account is beta (free); needs a free account with credits.- [x] Camera-first scanner at /scan/live: live outline, auto-capture, duplicate guard, results strip, card sheet, review, barcode mode; tested in a phone-sized browser with a fake camera.
-- [ ] Camera scanner on real devices (iPhone Safari, Android Chrome, Android app): sleeve/toploader/slab outline hold and timings — needs the owner's phone.
-- [x] Home demo → sign-up: sample cards, save-on-signup import, daily-limit panel, funnel tracking and Agent HQ Funnel tab.
-
-- [ ] Google Play: closed test with 12+ testers for 14 days, then apply for production — waiting on the owner's Play developer account and a signed build from Android Studio.
-- [ ] Google Sign-in inside the Android app (needs a system-browser sign-in with a return link back to the app); email sign-in works for v1.
-- [ ] Google Search ads: sign-up tracking paused, waiting on the cookie-banner choice; billing not added.
+# Roadmap — sending rebuild (lanes)
+- [ ] DB: marketing_opt_in, sending_accounts, email_templates, broadcasts, broadcast_recipients, claim round-robin
+- [ ] _shared/lanes.ts + tests; src/lib/broadcasts.ts + tests
+- [ ] broadcast-send function (prepare/test/send/tick), Instantly adapter + sync
+- [ ] campaign-outreach/drip lane enforcement; remove cold bulk + SMS to non-consenting
+- [ ] UI: Broadcasts, Templates, Sending accounts, sign-up box, Settings toggle, Overview capacity
+- [ ] Secrets: SENDGRID_UNSUB_GROUP_ID, Instantly key (blocked on user)
+- [ ] Story broadcasts prepared, tests sent, counts shown
