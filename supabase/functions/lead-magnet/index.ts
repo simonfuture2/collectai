@@ -257,8 +257,8 @@ Deno.serve(async (req) => {
       }
     }
 
-    if (!sent && isWebinar) {
-      // Lead is saved; let them watch now even if the replay email can't go out.
+    if (!sent) {
+      // Lead is saved; don't fail the visitor when the email provider is down or out of credits.
       return new Response(JSON.stringify({ success: true, emailed: false }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
     if (!sent) {

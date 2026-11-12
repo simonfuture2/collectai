@@ -67,7 +67,8 @@ const FreeGuide = () => {
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       setSent(true);
-      toast.success("Check your inbox! Your guide is on its way.");
+      if (data?.emailed === false) toast.success("You're signed up! Your guide email is delayed — we'll send it shortly.");
+      else toast.success("Check your inbox! Your guide is on its way.");
     } catch (err: any) {
       toast.error(err.message || "Something went wrong. Please try again.");
     } finally {
