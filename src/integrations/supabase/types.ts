@@ -2549,12 +2549,15 @@ export type Database = {
       sending_accounts: {
         Row: {
           active: boolean
+          check_error: string | null
+          connection_secret: string | null
           created_at: string
           daily_limit: number
           display_name: string | null
           domain: string | null
           email: string
           id: string
+          last_checked_at: string | null
           last_sent_at: string | null
           paused_reason: string | null
           provider: string
@@ -2564,12 +2567,15 @@ export type Database = {
         }
         Insert: {
           active?: boolean
+          check_error?: string | null
+          connection_secret?: string | null
           created_at?: string
           daily_limit?: number
           display_name?: string | null
           domain?: string | null
           email: string
           id?: string
+          last_checked_at?: string | null
           last_sent_at?: string | null
           paused_reason?: string | null
           provider?: string
@@ -2579,12 +2585,15 @@ export type Database = {
         }
         Update: {
           active?: boolean
+          check_error?: string | null
+          connection_secret?: string | null
           created_at?: string
           daily_limit?: number
           display_name?: string | null
           domain?: string | null
           email?: string
           id?: string
+          last_checked_at?: string | null
           last_sent_at?: string | null
           paused_reason?: string | null
           provider?: string
