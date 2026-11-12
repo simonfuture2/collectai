@@ -1,6 +1,9 @@
-// Grading webinar video. Set `url` to the CDN asset pointer's url once the full recording is uploaded.
+// Grading webinar video. Swap the asset pointers to change the recording.
+import video from "@/assets/grading_webinar.mp4.asset.json";
+import poster from "@/assets/grading_webinar_poster.jpg.asset.json";
+
 export const GRADING_WEBINAR = {
-  url: null as string | null,
-  poster: null as string | null,
+  url: video.url as string | null,
+  poster: poster.url as string | null,
   unlockKey: "collectai_webinar_grading_unlocked",
 };

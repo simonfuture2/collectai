@@ -99,7 +99,7 @@ export default function GradingWebinar() {
         </section>
 
         <section className="space-y-4">
-          <div className="relative rounded-2xl overflow-hidden border border-border bg-muted aspect-video">
+          <div className="relative rounded-2xl overflow-hidden border border-border bg-muted aspect-[9/16] w-full max-w-sm mx-auto">
             {unlocked && GRADING_WEBINAR.url ? (
               <video
                 src={GRADING_WEBINAR.url}
