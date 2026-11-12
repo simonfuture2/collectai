@@ -1,0 +1,2 @@
+ALTER TABLE public.agent_attribution DROP CONSTRAINT agent_attribution_event_type_check;
+ALTER TABLE public.agent_attribution ADD CONSTRAINT agent_attribution_event_type_check CHECK (event_type = ANY (ARRAY['visit','demo_scan','signup','first_scan','paid','landing_view','demo_cta_click','demo_upload_started','demo_result','demo_error','demo_sample_tap','demo_limit_hit','save_card_click','demo_card_imported','webinar_view','webinar_signup','webinar_play','webinar_half','webinar_complete','webinar_scan_click']::text[]));
