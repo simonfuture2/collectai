@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import Player from "@vimeo/player";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -22,13 +23,28 @@ const POINTS = [
 
 const isUnlocked = () => { try { return localStorage.getItem(GRADING_WEBINAR.unlockKey) === "1"; } catch { return false; } };
 
+function VimeoWebinar() {
+  const host = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!host.current) return;
+    const player = new Player(host.current, { id: Number(GRADING_WEBINAR.vimeoId), responsive: true });
+    let played = false, half = false;
+    player.on("play", () => { if (!played) { played = true; void trackAgentEvent("webinar_play"); } });
+    player.on("timeupdate", (d: { percent: number }) => { if (!half && d.percent >= 0.5) { half = true; void trackAgentEvent("webinar_half"); } });
+    player.on("ended", () => void trackAgentEvent("webinar_complete"));
+    return () => { player.destroy().catch(() => { /* already gone */ }); };
+  }, []);
+
+  return <div ref={host} className="w-full" />;
+}
+
 export default function GradingWebinar() {
   const [unlocked, setUnlocked] = useState(isUnlocked);
   const [email, setEmail] = useState("");
   const [firstName, setFirstName] = useState("");
   const [consent, setConsent] = useState(false);
   const [loading, setLoading] = useState(false);
-  const marks = useRef({ play: false, half: false });
 
   useEffect(() => { void trackAgentEvent("webinar_view"); }, []);
 
@@ -50,10 +66,6 @@ export default function GradingWebinar() {
     } catch (err: any) {
       toast.error(err.message || "Something went wrong. Please try again.");
     } finally { setLoading(false); }
-  };
-
-  const onTime = (v: HTMLVideoElement) => {
-    if (!marks.current.half && v.duration && v.currentTime / v.duration >= 0.5) { marks.current.half = true; void trackAgentEvent("webinar_half"); }
   };
 
   return (
@@ -99,24 +111,13 @@ export default function GradingWebinar() {
         </section>
 
         <section className="space-y-4">
-          <div className="relative rounded-2xl overflow-hidden border border-border bg-muted aspect-[9/16] w-full max-w-sm mx-auto">
-            {unlocked && GRADING_WEBINAR.url ? (
-              <video
-                src={GRADING_WEBINAR.url}
-                poster={GRADING_WEBINAR.poster ?? undefined}
-                controls playsInline preload="metadata"
-                className="w-full h-full object-contain bg-foreground"
-                onPlay={() => { if (!marks.current.play) { marks.current.play = true; void trackAgentEvent("webinar_play"); } }}
-                onTimeUpdate={e => onTime(e.currentTarget)}
-                onEnded={() => void trackAgentEvent("webinar_complete")}
-              />
+          <div className="relative rounded-2xl overflow-hidden border border-border bg-muted aspect-video w-full">
+            {unlocked ? (
+              <VimeoWebinar />
             ) : (
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-center p-6">
-                {GRADING_WEBINAR.poster && <img src={GRADING_WEBINAR.poster} alt="" className="absolute inset-0 w-full h-full object-cover blur-md opacity-60" />}
-                <div className="relative flex flex-col items-center gap-2">
-                  {unlocked ? <PlayCircle className="w-12 h-12 text-primary" /> : <Lock className="w-12 h-12 text-primary" />}
-                  <p className="font-medium">{unlocked ? "The webinar is being uploaded. We'll email you the moment it's ready." : "Enter your email to start watching"}</p>
-                </div>
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-center p-6 gradient-primary">
+                <Lock className="w-12 h-12 text-primary-foreground" />
+                <p className="font-medium text-primary-foreground">Enter your email to start watching</p>
               </div>
             )}
           </div>

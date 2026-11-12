@@ -1,9 +1,5 @@
-// Grading webinar video. Swap the asset pointers to change the recording.
-import video from "@/assets/grading_webinar.mp4.asset.json";
-import poster from "@/assets/grading_webinar_poster.jpg.asset.json";
-
+// Grading webinar video. Swap the Vimeo id to change the recording.
 export const GRADING_WEBINAR = {
-  url: video.url as string | null,
-  poster: poster.url as string | null,
+  vimeoId: "1246374503",
   unlockKey: "collectai_webinar_grading_unlocked",
 };
