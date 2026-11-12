@@ -19,9 +19,11 @@ export function useSocialVideos(featuredOnly = false) {
 export async function resolveSocialMedia(value: string | null): Promise<string | null> {
   if (!value) return null;
   if (value.startsWith("https://")) return value;
-  const { data, error } = await supabase.storage.from("social-videos").createSignedUrl(value, 3600);
-  if (error) return null;
-  return data.signedUrl;
+  const { data: own } = await supabase.storage.from("social-videos").createSignedUrl(value, 3600);
+  if (own?.signedUrl) return own.signedUrl; // admins can sign directly
+  const { data, error } = await supabase.functions.invoke("social-media-url", { body: { path: value } });
+  if (error || !data?.url) return null;
+  return data.url as string;
 }
 
 export function useSocialMedia(value: string | null) {
