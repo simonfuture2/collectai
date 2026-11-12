@@ -45,14 +45,19 @@ export async function leadGenConfig(db: Any) {
   };
 }
 
-const PLACES = "https://places.googleapis.com/v1";
-function placesKey() {
+const GATEWAY_PLACES = "https://connector-gateway.lovable.dev/google_maps/places/v1";
+const DIRECT_PLACES = "https://places.googleapis.com/v1";
+/** Managed Google Maps connection first; own GOOGLE_PLACES_API_KEY only when it isn't linked. */
+function placesRoute(): { base: string; headers: Record<string, string> } {
+  const lovable = Deno.env.get("LOVABLE_API_KEY"), conn = Deno.env.get("GOOGLE_MAPS_API_KEY");
+  if (lovable && conn) return { base: GATEWAY_PLACES, headers: { Authorization: `Bearer ${lovable}`, "X-Connection-Api-Key": conn } };
   const k = Deno.env.get("GOOGLE_PLACES_API_KEY");
-  if (!k) throw new Error("GOOGLE_PLACES_API_KEY is not configured");
-  return k;
+  if (k) return { base: DIRECT_PLACES, headers: { "X-Goog-Api-Key": k } };
+  throw new Error("Google Maps isn't connected for shop search");
 }
 async function placesPost(path: string, body: unknown, mask: string) {
-  const r = await fetch(`${PLACES}/${path}`, { method: "POST", headers: { "Content-Type": "application/json", "X-Goog-Api-Key": placesKey(), "X-Goog-FieldMask": mask }, body: JSON.stringify(body) });
+  const { base, headers } = placesRoute();
+  const r = await fetch(`${base}/${path}`, { method: "POST", headers: { ...headers, "Content-Type": "application/json", "X-Goog-FieldMask": mask }, body: JSON.stringify(body) });
   const t = await r.text();
   if (!r.ok) throw new Error(`Google Places ${r.status}: ${t.slice(0, 400)}`);
   return JSON.parse(t);
