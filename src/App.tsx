@@ -38,6 +38,7 @@ const PartnerSignup = lazy(() => import("./pages/PartnerSignup"));
 const PartnerDashboard = lazy(() => import("./pages/PartnerDashboard"));
 const ShopLanding = lazy(() => import("./pages/ShopLanding"));
 const FreeGuide = lazy(() => import("./pages/FreeGuide"));
+const GradingWebinar = lazy(() => import("./pages/GradingWebinar"));
 const Install = lazy(() => import("./pages/Install"));
 const DeleteAccount = lazy(() => import("./pages/DeleteAccount"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
@@ -163,6 +164,7 @@ const App = () => (
               <Route path="/partner" element={<PartnerDashboard />} />
               <Route path="/s/:slug" element={<ShopLanding />} />
               <Route path="/free-guide" element={<FreeGuide />} />
+              <Route path="/webinar/grading" element={<GradingWebinar />} />
               <Route path="/card/share/:id" element={<SharedCard />} />
               <Route path="/u/:slug" element={<PublicCollection />} />
               <Route path="/showcase" element={<Showcase />} />

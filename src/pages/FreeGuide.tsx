@@ -216,6 +216,9 @@ const FreeGuide = () => {
                     <p className="text-xs text-muted-foreground mt-4 text-center">
                       We only email you if you tick the box above.
                     </p>
+                    <p className="text-sm text-center mt-2">
+                      Prefer video? <Link to="/webinar/grading" className="text-primary underline">Watch the free grading webinar</Link>
+                    </p>
                   </>
                 )}
               </div>

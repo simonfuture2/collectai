@@ -21,6 +21,7 @@ const cors = {
 const ANON_EVENTS = new Set([
   "visit", "demo_scan", "landing_view", "demo_cta_click", "demo_upload_started", "demo_result",
   "demo_error", "demo_sample_tap", "demo_limit_hit", "save_card_click",
+  "webinar_view", "webinar_signup", "webinar_play", "webinar_half", "webinar_complete", "webinar_scan_click",
 ]);
 const USER_EVENTS = new Set(["signup", "first_scan", "paid", "demo_card_imported"]);
 // Anonymous flood guard (per hour).

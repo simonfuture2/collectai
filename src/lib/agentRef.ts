@@ -9,7 +9,8 @@ const REF_TTL_DAYS = 30;
 export type AgentEvent =
   | "visit" | "demo_scan" | "signup" | "first_scan" | "paid"
   | "landing_view" | "demo_cta_click" | "demo_upload_started" | "demo_result" | "demo_error"
-  | "demo_sample_tap" | "demo_limit_hit" | "save_card_click" | "demo_card_imported";
+  | "demo_sample_tap" | "demo_limit_hit" | "save_card_click" | "demo_card_imported"
+  | "webinar_view" | "webinar_signup" | "webinar_play" | "webinar_half" | "webinar_complete" | "webinar_scan_click";
 
 function store(): Storage | null {
   try { return window.localStorage; } catch { return null; }

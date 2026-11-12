@@ -99,16 +99,18 @@ const cheatSheetHTML = `
 </html>
 `;
 
-type GuideKey = "grading" | "sealed_chase" | "value_check";
+type GuideKey = "grading" | "sealed_chase" | "value_check" | "webinar_grading";
 const GUIDE_TITLES: Record<GuideKey, string> = {
   grading: "Card Grading Cheat Sheet",
   sealed_chase: "Sealed Product Chase List",
   value_check: "How to Check a Card's Value Before You Sell",
+  webinar_grading: "Card Grading Webinar",
 };
 const GUIDE_SUBJECTS: Record<GuideKey, string> = {
   grading: "Your Card Grading Cheat Sheet 📊",
   sealed_chase: "This month's sealed product chase list",
   value_check: "How to check a card's value before you sell",
+  webinar_grading: "Your card grading webinar replay",
 };
 const wrap = (title: string, body: string) => `<!DOCTYPE html><html><body style="margin:0;background:#f4f4f7;font-family:Arial,Helvetica,sans-serif;"><table width="100%" cellpadding="0" cellspacing="0" style="padding:24px 0;"><tr><td align="center"><table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;padding:32px 36px;color:#1a1a2e;font-size:15px;line-height:1.6;"><tr><td><h1 style="font-size:22px;margin:0 0 16px;">${title}</h1>${body}<p style="margin-top:28px;"><a href="https://mycollectai.com/price-check?ref=guide" style="background:#4f46e5;color:#fff;padding:12px 22px;border-radius:8px;text-decoration:none;font-weight:bold;">Check a card free</a></p><p style="font-size:11px;color:#9ca3af;margin-top:28px;">MyCollectAI · 306 W Redwood Street, Baltimore, MD 21201</p></td></tr></table></td></tr></table></body></html>`;
 const valueCheckHTML = wrap("How to check a card's value before you sell", `
@@ -121,6 +123,7 @@ const valueCheckHTML = wrap("How to check a card's value before you sell", `
 <li><b>Decide whether to grade first.</b> Grading costs money and time; it only pays when the graded price minus fees beats the raw price by a clear margin.</li>
 </ol>
 <p>MyCollectAI's free price check reads your card from a photo and shows PriceCharting prices for every grade in a few seconds.</p>`);
+const webinarHTML = (name: string) => wrap("Your card grading webinar replay", `<p>${name ? `Hi ${name.replace(/[<>&"]/g, "")},` : "Hi,"}</p><p>Thanks for signing up. Here is your link to watch the grading webinar any time:</p><p><a href="https://mycollectai.com/webinar/grading?ref=webinar_email">Watch the replay</a></p><p>When you are ready, scan a card and see how it might grade before you pay to send it in.</p>`);
 // Built only from stored price data (sealed_chase_cache, PriceCharting) — never from AI picks.
 async function sealedChaseHTML(db: any): Promise<string> {
   const since = new Date(Date.now() - 60 * 864e5).toISOString();
@@ -148,8 +151,10 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { email, guide: rawGuide, consent } = await req.json();
-    const guide: GuideKey = rawGuide === "sealed_chase" || rawGuide === "value_check" ? rawGuide : "grading";
+    const { email, guide: rawGuide, consent, firstName: body_firstName } = await req.json();
+    const guide: GuideKey = rawGuide === "sealed_chase" || rawGuide === "value_check" || rawGuide === "webinar_grading" ? rawGuide : "grading";
+    const isWebinar = guide === "webinar_grading";
+    const firstName = typeof body_firstName === "string" ? body_firstName.trim().slice(0, 60) : "";
     if (consent !== undefined && consent !== true) {
       return new Response(JSON.stringify({ error: "Please tick the box to get the guide by email." }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
@@ -201,13 +206,13 @@ Deno.serve(async (req) => {
       await supabase.from("agent_leads").update({ consent_email: true, consent_source: `lead_magnet:${guide}` }).eq("id", existing.id);
     } else {
       const { data: leadData, error: insertError } = await supabase.from("agent_leads").insert({
-        name: cleanEmail.split("@")[0], email: cleanEmail, platform: "email", lead_type: "collector",
-        source: "lead_magnet", notes: `Downloaded: ${GUIDE_TITLES[guide]}`, consent_email: true, consent_source: `lead_magnet:${guide}`,
+        name: firstName || cleanEmail.split("@")[0], email: cleanEmail, platform: "email", lead_type: "collector",
+        source: isWebinar ? "webinar_grading" : "lead_magnet", tags: isWebinar ? ["webinar_grading"] : [], notes: `Downloaded: ${GUIDE_TITLES[guide]}`, consent_email: true, consent_source: `lead_magnet:${guide}`,
       }).select("id").single();
       if (insertError) console.error("Lead insert error:", insertError);
       leadId = leadData?.id;
     }
-    if (leadId) await supabase.from("agent_activities").insert({ lead_id: leadId, type: "lead_magnet", body: `Downloaded: ${GUIDE_TITLES[guide]}` });
+    if (leadId) await supabase.from("agent_activities").insert({ lead_id: leadId, type: "lead_magnet", body: `${isWebinar ? "Signed up for" : "Downloaded"}: ${GUIDE_TITLES[guide]}` });
 
     // Start the "Lead magnet welcome" sequence (sequence-tick sends it through the opted-in lane).
     if (leadId) {
@@ -239,7 +244,7 @@ Deno.serve(async (req) => {
           personalizations: [{ to: [{ email }] }],
           from: { email: fromEmail, name: "MyCollectAI" },
           subject: GUIDE_SUBJECTS[guide],
-          content: [{ type: "text/html", value: guide === "grading" ? cheatSheetHTML : guide === "value_check" ? valueCheckHTML : await sealedChaseHTML(supabase) }],
+          content: [{ type: "text/html", value: guide === "grading" ? cheatSheetHTML : guide === "value_check" ? valueCheckHTML : isWebinar ? webinarHTML(firstName) : await sealedChaseHTML(supabase) }],
         }),
       });
 
@@ -252,6 +257,10 @@ Deno.serve(async (req) => {
       }
     }
 
+    if (!sent && isWebinar) {
+      // Lead is saved; let them watch now even if the replay email can't go out.
+      return new Response(JSON.stringify({ success: true, emailed: false }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
     if (!sent) {
       throw new Error("Failed to send email via SendGrid");
     }
