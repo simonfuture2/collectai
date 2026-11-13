@@ -8,7 +8,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { authenticateCronRequest } from "../_shared/cron-auth.ts";
-import { assertLane, firstName, marketingFooter, renderMerge } from "../_shared/lanes.ts";
+import { webinarLink, assertLane, firstName, marketingFooter, renderMerge } from "../_shared/lanes.ts";
 import { canAutoApprove, decide, linkProblem, type SeqLane } from "../_shared/sequenceRules.ts";
 import { sendgridMarketing, suppressedSet, unsubscribeUrl } from "../_shared/outreach.ts";
 
@@ -132,7 +132,8 @@ Deno.serve(async (req) => {
       const repSig = rep?.email_signature?.trim() || null;
       const fields = { first_name: firstName(p.name), business_name: p.business, city: p.city, rep_name: repName, rep_signature: repSig ?? repName,
         booking_link: rep?.booking_link || cfg.booking, video_link: cfg.video,
-        base_url: cfg.base, ref_link: `${cfg.base}/?ref=seq_${seq.slug ?? seq.id.slice(0, 8)}`, unsubscribe_url: unsub, mailing_address: cfg.address };
+        base_url: cfg.base, ref_link: `${cfg.base}/?ref=seq_${seq.slug ?? seq.id.slice(0, 8)}`, unsubscribe_url: unsub, mailing_address: cfg.address,
+        webinar_link: webinarLink(cfg.base, `seq_${seq.slug ?? seq.id.slice(0, 8)}`) };
       const ref = `seq_${seq.slug ?? seq.id.slice(0, 8)}`;
 
       if (step.channel !== "email") {

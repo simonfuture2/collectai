@@ -45,6 +45,8 @@ const now = () => new Date().toISOString();
 
 type Tab = "queue" | "leads" | "channels" | "results" | "funnel" | "videos";
 
+const GRADING_DM_REPLY = "Good question! I made a free short training on exactly this: checking raw vs graded value and whether TAG grading is worth it. Want the link?";
+
 export type AgentSection = "inbox" | "leads" | "channels" | "results" | "funnel" | "videos";
 
 export default function AgentHQ({ section }: { section?: AgentSection } = {}) {
@@ -716,6 +718,12 @@ function ChannelCard({ s, lastAt, onSaved }: { s: Setting; lastAt: string | null
           </div>
           <div className="space-y-1"><Label>Keywords</Label><ChipEditor values={keywords} onChange={(k) => set({ keywords: k })} placeholder="e.g. how much is" /></div>
           <div className="space-y-1 sm:w-1/2"><Label>Max drafts per run</Label><Input type="number" min={0} value={cfg.max_per_run ?? ""} onChange={(e) => set({ max_per_run: Number(e.target.value) })} /></div>
+          <div className="rounded-lg border p-3 space-y-2">
+            <p className="text-sm font-medium">Saved reply: grading webinar</p>
+            <p className="text-xs text-muted-foreground">Instagram, TikTok, Discord. Only use when someone asks about grading. You post it yourself.</p>
+            <p className="text-sm whitespace-pre-wrap bg-muted rounded p-2">{GRADING_DM_REPLY}</p>
+            <Button type="button" size="sm" variant="outline" onClick={() => { navigator.clipboard.writeText(GRADING_DM_REPLY); toast.success("Reply copied"); }}>Copy reply</Button>
+          </div>
         </>)}
         {s.key === "email_outreach" && (<>
           <div className="grid sm:grid-cols-2 gap-3">

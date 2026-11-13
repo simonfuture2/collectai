@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { assertLane, pickLane, exclusionReason, inboxCapacity, coldWindowOpen, spreadDays, renderMerge, coldBodyProblem, nextWeekdays } from "./lanes.ts";
+import { assertLane, pickLane, exclusionReason, inboxCapacity, coldWindowOpen, spreadDays, renderMerge, coldBodyProblem, nextWeekdays, webinarLink } from "./lanes.ts";
 
 const now = Date.parse("2026-11-11T17:00:00Z");
 const ctx = { suppressed: new Set(["gone@x.com"]), inSequence: new Set(["seq1"]), now };
@@ -52,4 +52,13 @@ test("cold body allows one link only", () => {
   assert.equal(coldBodyProblem("Try https://a.com", "https://u"), null);
   assert.match(coldBodyProblem("https://a.com and https://b.com") ?? "", /one link/);
   assert.match(coldBodyProblem("<p>hi</p>") ?? "", /plain text/);
+});
+
+test("webinar link fills in with the sequence ref", () => {
+  const out = renderMerge("Hi {{first_name|there}}: {{webinar_link}}", { first_name: "", webinar_link: webinarLink("https://mycollectai.com/", "seq_collectors") });
+  assert.equal(out, "Hi there: https://mycollectai.com/webinar/grading?ref=seq_collectors");
+});
+test("webinar email body has one link besides unsubscribe", () => {
+  const body = "Here it is: " + webinarLink("https://mycollectai.com", "seq_card_shops");
+  assert.equal(coldBodyProblem(body, "https://mycollectai.com/unsubscribe?t=x"), null);
 });

@@ -134,3 +134,7 @@ export function coldBodyProblem(body: string, unsubscribeUrl?: string): string |
   if (links.length > 1) return "Cold emails can have at most one link";
   return null;
 }
+
+/** Grading webinar link used by {{webinar_link}} in sequence emails, tagged with the sequence ref. */
+export const webinarLink = (base: string, ref: string) =>
+  `${base.replace(/\/+$/, "")}/webinar/grading?ref=${encodeURIComponent(ref)}`;
