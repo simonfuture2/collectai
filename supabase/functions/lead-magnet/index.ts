@@ -179,7 +179,7 @@ Deno.serve(async (req) => {
     const { data: rl, error: rlErr } = await supabase.rpc("consume_ip_rate_limit", {
       _bucket_key: "lead_magnet",
       _ip_hash: ipHash,
-      _max_requests: 2,
+      _max_requests: 10,
       _window_seconds: 86400,
     });
     if (rlErr) {
