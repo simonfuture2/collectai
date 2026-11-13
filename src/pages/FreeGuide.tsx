@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Checkbox } from "@/components/ui/checkbox";
 import { motion } from "framer-motion";
@@ -48,11 +48,17 @@ const FreeGuide = () => {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
+  const [emailed, setEmailed] = useState(true);
+  const [guideHtml, setGuideHtml] = useState<string | null>(null);
+  const [showGuide, setShowGuide] = useState(false);
+  const frameRef = useRef<HTMLIFrameElement>(null);
   const [params] = useSearchParams();
   const initial = params.get("guide");
   const [guide, setGuide] = useState<GuideKey>(initial === "sealed_chase" || initial === "value_check" ? initial : "grading");
   const [consent, setConsent] = useState(false);
 
+
+  const guideTitle = GUIDES.find((g) => g.key === guide)?.title ?? "guide";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,7 +73,10 @@ const FreeGuide = () => {
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       setSent(true);
-      if (data?.emailed === false) toast.success("You're signed up! Your guide email is delayed — we'll send it shortly.");
+      setGuideHtml(typeof data?.guideHtml === "string" ? data.guideHtml : null);
+      setEmailed(data?.emailed !== false);
+      setShowGuide(data?.emailed === false);
+      if (data?.emailed === false) toast.success("You're signed up — your guide is ready to read now.");
       else toast.success("Check your inbox! Your guide is on its way.");
     } catch (err: any) {
       toast.error(err.message || "Something went wrong. Please try again.");
@@ -158,10 +167,26 @@ const FreeGuide = () => {
                     <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-5">
                       <Mail className="w-8 h-8 text-primary" />
                     </div>
-                    <h2 className="text-2xl font-display font-bold mb-3">Check Your Inbox!</h2>
+                    <h2 className="text-2xl font-display font-bold mb-3">{emailed ? "Check Your Inbox!" : "You're in! Your guide is ready below."}</h2>
                     <p className="text-muted-foreground mb-6">
-                      We've sent the Grading Cheat Sheet to your email. If you don't see it, check your spam folder.
+                      {emailed
+                        ? `We've sent the ${guideTitle} to your email. If you don't see it, check your spam folder.`
+                        : `Read the ${guideTitle} right here, or print it and save it as a PDF.`}
                     </p>
+                    {guideHtml && emailed && !showGuide && (
+                      <Button variant="outline" className="mb-4" onClick={() => setShowGuide(true)}>
+                        <BookOpen className="mr-2 w-4 h-4" /> Read it now
+                      </Button>
+                    )}
+                    {guideHtml && showGuide && (
+                      <div className="mb-6 text-left">
+                        <iframe ref={frameRef} title={guideTitle} srcDoc={guideHtml} sandbox="allow-modals allow-same-origin allow-popups"
+                          className="w-full h-[480px] rounded-xl border border-border bg-card" />
+                        <Button variant="outline" className="mt-3 w-full" onClick={() => frameRef.current?.contentWindow?.print()}>
+                          Print / save as PDF
+                        </Button>
+                      </div>
+                    )}
                     <Link to="/auth">
                       <Button className="gradient-primary">
                         <Camera className="mr-2 w-4 h-4" />

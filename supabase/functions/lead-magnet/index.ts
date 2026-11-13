@@ -232,6 +232,8 @@ Deno.serve(async (req) => {
       throw new Error("Email configuration is missing");
     }
 
+    const guideHtml = guide === "grading" ? cheatSheetHTML : guide === "value_check" ? valueCheckHTML : isWebinar ? webinarHTML(firstName) : await sealedChaseHTML(supabase);
+    const pagePayload = isWebinar ? {} : { guideHtml, guideTitle: GUIDE_SUBJECTS[guide] };
     let sent = false;
     for (const baseUrl of ["https://api.sendgrid.com", "https://api.eu.sendgrid.com"]) {
       const sgRes = await fetch(`${baseUrl}/v3/mail/send`, {
@@ -244,7 +246,7 @@ Deno.serve(async (req) => {
           personalizations: [{ to: [{ email }] }],
           from: { email: fromEmail, name: "MyCollectAI" },
           subject: GUIDE_SUBJECTS[guide],
-          content: [{ type: "text/html", value: guide === "grading" ? cheatSheetHTML : guide === "value_check" ? valueCheckHTML : isWebinar ? webinarHTML(firstName) : await sealedChaseHTML(supabase) }],
+          content: [{ type: "text/html", value: guideHtml }],
         }),
       });
 
@@ -259,13 +261,10 @@ Deno.serve(async (req) => {
 
     if (!sent) {
       // Lead is saved; don't fail the visitor when the email provider is down or out of credits.
-      return new Response(JSON.stringify({ success: true, emailed: false }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
-    if (!sent) {
-      throw new Error("Failed to send email via SendGrid");
+      return new Response(JSON.stringify({ success: true, emailed: false, ...pagePayload }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    return new Response(JSON.stringify({ success: true }), {
+    return new Response(JSON.stringify({ success: true, emailed: true, ...pagePayload }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
