@@ -22,3 +22,9 @@ test("pro or active beta is free; expired beta is not", () => {
   assert.equal(isProAccess({ plan: "free", beta_access_until: ago(-60) }, now), true);
   assert.equal(isProAccess({ plan: "free", beta_access_until: ago(60) }, now), false);
 });
+
+import { hasBothSides } from "./rules.ts";
+test("grading is refused without a back photo", () => {
+  assert.equal(hasBothSides({ image_url: "f.jpg", back_image_url: null }), false);
+  assert.equal(hasBothSides({ image_url: "f.jpg", back_image_url: "b.jpg" }), true);
+});

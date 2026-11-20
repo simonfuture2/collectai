@@ -1,3 +1,4 @@
+import { canSubmit } from "@/lib/scanPhotos";
 import { trackAgentEvent } from "@/lib/agentRef";
 import BetaEndedPrompt from "@/components/BetaEndedPrompt";
 import { useState, useEffect } from "react";
@@ -132,6 +133,7 @@ const Scan = () => {
 
   const filledSlots = slots.filter((s) => s.file !== null);
   const hasImages = filledSlots.length > 0;
+  const missingBack = !canSubmit(mode, itemType, filledSlots.map((x) => x.id));
 
   // Free price check: upload the front photo, call price-check, open the result. No credit checks.
   const runPriceCheck = async () => {
@@ -165,6 +167,10 @@ const Scan = () => {
   const analyzeCard = async () => {
     if (!hasImages) return;
     if (isPrice) return runPriceCheck();
+    if (missingBack) {
+      toast({ title: "Add the back of the card", description: "Cards added to your collection need a front and back photo." });
+      return;
+    }
 
     let allowed = canScan;
     if (creditsLoading) {
@@ -421,13 +427,13 @@ const Scan = () => {
 
             {hasImages && !analyzing && (
               <div className="space-y-3">
-                {!isPrice && filledSlots.length === 1 && filledSlots[0].id === "front" && itemType === "card" && (
+                {!isPrice && missingBack && (
                   <div className="flex items-start gap-3 rounded-xl border border-primary/25 bg-primary/5 p-4">
                     <Sparkles className="w-5 h-5 text-primary mt-0.5 shrink-0" />
                     <div>
-                      <p className="text-sm font-semibold text-foreground">Front-only image detected</p>
+                      <p className="text-sm font-semibold text-foreground">Add the back of the card to continue</p>
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        Our SI can identify and price your card from the front alone. For the most accurate grading and condition analysis, add a back photo too.
+                        Cards in your collection need a front and back photo so they can be graded later. Price Check only needs the front.
                       </p>
                     </div>
                   </div>
@@ -464,7 +470,7 @@ const Scan = () => {
 
                 <Button
                   onClick={analyzeCard}
-                  disabled={analyzing || (!isPrice && creditsLoading)}
+                  disabled={analyzing || (!isPrice && (creditsLoading || missingBack))}
                   className={cn("w-full py-6 text-lg", isInsight ? "bg-secondary text-secondary-foreground hover:bg-secondary/90" : "gradient-primary")}
                 >
                   {!isPrice && creditsLoading ? <Loader2 className="mr-2 w-5 h-5 animate-spin" /> : isInsight ? <ScanSearch className="mr-2 w-5 h-5" /> : <Sparkles className="mr-2 w-5 h-5" />}

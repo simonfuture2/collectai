@@ -887,6 +887,7 @@ export type Database = {
           authenticated_at: string | null
           authentication_data: Json | null
           authentiseal_serial: string | null
+          back_image_url: string | null
           card_name: string | null
           card_number: string | null
           card_set: string | null
@@ -937,6 +938,7 @@ export type Database = {
           authenticated_at?: string | null
           authentication_data?: Json | null
           authentiseal_serial?: string | null
+          back_image_url?: string | null
           card_name?: string | null
           card_number?: string | null
           card_set?: string | null
@@ -987,6 +989,7 @@ export type Database = {
           authenticated_at?: string | null
           authentication_data?: Json | null
           authentiseal_serial?: string | null
+          back_image_url?: string | null
           card_name?: string | null
           card_number?: string | null
           card_set?: string | null
@@ -2040,6 +2043,7 @@ export type Database = {
       price_checks: {
         Row: {
           added_card_id: string | null
+          back_image_path: string | null
           candidates: Json | null
           created_at: string
           game: string | null
@@ -2056,6 +2060,7 @@ export type Database = {
         }
         Insert: {
           added_card_id?: string | null
+          back_image_path?: string | null
           candidates?: Json | null
           created_at?: string
           game?: string | null
@@ -2072,6 +2077,7 @@ export type Database = {
         }
         Update: {
           added_card_id?: string | null
+          back_image_path?: string | null
           candidates?: Json | null
           created_at?: string
           game?: string | null

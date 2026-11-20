@@ -169,6 +169,16 @@ serve(async (req) => {
       if (idx !== -1) imagePath = parts.slice(idx + 1).join("/");
     } catch { /* noop */ }
     if (!imagePath) imagePath = body.filePath || images[0].url;
+    // Back photo path (kept for grading).
+    let backImagePath: string | null = null;
+    const backImg = images.find((i) => /^back$/i.test(String(i.label ?? "")));
+    if (backImg) {
+      try {
+        const parts = new URL(backImg.url).pathname.split("/");
+        const idx = parts.indexOf("card-images");
+        if (idx !== -1) backImagePath = parts.slice(idx + 1).join("/");
+      } catch { /* ignore */ }
+    }
 
     // Duplicate check
     const { data: existingCard } = await supabaseAdmin
@@ -197,6 +207,7 @@ serve(async (req) => {
       .insert({
         user_id: user.id,
         image_url: imagePath,
+        back_image_url: backImagePath,
         category,
         card_name: null,
         last_scanned_at: new Date().toISOString(),

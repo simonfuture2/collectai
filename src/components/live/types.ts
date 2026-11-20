@@ -10,6 +10,7 @@ export type LiveTile = {
   status: "checking" | "done" | "nomatch";
   preview: string | null;     // object URL or signed URL of the flattened card
   imagePath: string | null;
+  backPath?: string | null;   // back photo (collection/insight saves need it)
   candidates: PriceCandidate[];
   selectedId: number | null;
   language: string | null;

@@ -1,3 +1,4 @@
+import { addBackToCard } from "@/lib/backPhoto";
 import PriceChartingAttribution from "@/components/PriceChartingAttribution";
 import BetaEndedPrompt from "@/components/BetaEndedPrompt";
 import { useEffect, useState, useMemo, useCallback } from "react";
@@ -38,6 +39,8 @@ import { Inbox, SearchX, Tag } from "lucide-react";
 import { resolveCardValue } from "@/lib/cardValue";
 
 interface Card {
+  user_id: string;
+  back_image_url?: string | null;
   id: string;
   image_url: string;
   card_name: string | null;
@@ -154,7 +157,7 @@ const Collection = () => {
     if (user) {
       supabase
         .from("cards")
-        .select("id, image_url, card_name, card_set, card_year, rarity, category, condition_grade, estimated_value_low, estimated_value_high, authentiseal_serial, is_authenticated, grading_company, grading_cert_number, grade_numeric, ebay_recent_sales, item_type, analysis_depth, analysis_status, analysis_started_at, pricecharting_id")
+        .select("id, user_id, back_image_url, image_url, card_name, card_set, card_year, rarity, category, condition_grade, estimated_value_low, estimated_value_high, authentiseal_serial, is_authenticated, grading_company, grading_cert_number, grade_numeric, ebay_recent_sales, item_type, analysis_depth, analysis_status, analysis_started_at, pricecharting_id")
         .eq("user_id", user.id)
         .eq("scan_purpose", "collection")
         .is("superseded_by_card_id", null)
@@ -396,6 +399,11 @@ const Collection = () => {
   const rescanCard = async (card: Card, e?: React.MouseEvent) => {
     e?.stopPropagation();
     if (rescanningId) return;
+    if (!card.back_image_url) {
+      try {
+        if (!(await addBackToCard(card.user_id, card.id))) return;
+      } catch (err: any) { toast({ title: "Couldn't save the back photo", description: err?.message, variant: "destructive" }); return; }
+    }
     setRescanningId(card.id);
     try {
       // Same flow as Card Detail: reanalyze-card dispatches enrich-card in the background.

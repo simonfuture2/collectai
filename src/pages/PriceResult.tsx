@@ -1,3 +1,4 @@
+import { takeBackPhoto } from "@/lib/backPhoto";
 import PriceChartingAttribution from "@/components/PriceChartingAttribution";
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
@@ -124,9 +125,16 @@ const PriceResult = () => {
     finally { setSearching(false); }
   };
 
+  const [uid, setUid] = useState<string | null>(null);
+  useEffect(() => { supabase.auth.getSession().then(({ data }) => setUid(data.session?.user.id ?? null)); }, []);
+
   const ensureCard = async () => {
     if (cardId) return cardId;
-    const { data, error } = await supabase.functions.invoke("price-check-save", { body: { priceCheckId } });
+    if (!uid) throw new Error("Please sign in.");
+    toast({ title: "Now the back of the card", description: "Cards in your collection need a front and back photo." });
+    const backImagePath = await takeBackPhoto(uid);
+    if (!backImagePath) throw new Error("Add a photo of the back of the card to save it.");
+    const { data, error } = await supabase.functions.invoke("price-check-save", { body: { priceCheckId, backImagePath } });
     if (error || !data?.cardId) throw new Error(data?.error || error?.message || "Could not save card");
     setCardId(data.cardId);
     return data.cardId as string;

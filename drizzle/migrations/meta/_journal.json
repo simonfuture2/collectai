@@ -211,6 +211,13 @@
       "when": 1794527568318,
       "tag": "0029_allow_webinar_events",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1795186430330,
+      "tag": "0030_card_back_photo",
+      "breakpoints": true
     }
   ]
 }

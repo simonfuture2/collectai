@@ -1,3 +1,4 @@
+import { addBackToCard } from "@/lib/backPhoto";
 import PriceChartingAttribution from "@/components/PriceChartingAttribution";
 import { useState } from "react";
 import { ExternalLink, Loader2, Sparkles } from "lucide-react";
@@ -9,7 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { ladderRows, ungradedPrice, type Ladder } from "@/lib/priceLadder";
 
 type Props = {
-  card: { id: string; pricecharting_id?: number | null; pc_prices?: unknown; pc_synced_at?: string | null };
+  card: { id: string; user_id: string; back_image_url?: string | null; pricecharting_id?: number | null; pc_prices?: unknown; pc_synced_at?: string | null };
   onUpgraded: () => void;
 };
 
@@ -25,6 +26,14 @@ export default function PriceOnlyPanel({ card, onUpgraded }: Props) {
 
   const upgrade = async () => {
     if (!isPro && credits < 1) { toast({ title: "You need 1 credit", description: "Get more credits to run a full analysis.", variant: "destructive" }); return; }
+    if (!card.back_image_url) {
+      try {
+        if (!(await addBackToCard(card.user_id, card.id))) {
+          toast({ title: "Add the back of the card", description: "Grading needs a front and back photo." });
+          return;
+        }
+      } catch (e) { toast({ title: "Couldn't save the back photo", description: e instanceof Error ? e.message : String(e), variant: "destructive" }); return; }
+    }
     setBusy(true);
     try {
       const { data, error } = await supabase.functions.invoke("reanalyze-card", { body: { cardId: card.id, priceOnlyUpgrade: true } });

@@ -1,3 +1,4 @@
+import { addBackToCard } from "@/lib/backPhoto";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { isAndroidApp } from "@/lib/platform";
 import { moveInsightToCollection } from "@/lib/insights";
@@ -688,6 +689,15 @@ export default function CardDetail() {
   const reanalyzeFull = async () => {
     if (!card || !id) return;
     if (reanalyzing) return;
+    if (!card.back_image_url) {
+      // Grading needs the original front and back photos.
+      toast.info("Add a photo of the back of the card to grade it.");
+      try {
+        const added = await addBackToCard(card.user_id, card.id);
+        if (!added) return;
+        setCard((prev) => prev ? { ...prev, back_image_url: "added" } as Card : prev);
+      } catch (e: any) { toast.error(e?.message || "Couldn't save the back photo"); return; }
+    }
     setReanalyzing(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();

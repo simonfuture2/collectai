@@ -1,3 +1,4 @@
+import { pickBackPhoto, uploadBackPhoto } from "@/lib/backPhoto";
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Loader2, RotateCcw } from "lucide-react";
@@ -16,20 +17,25 @@ export default function DemoCardImport({ userId }: { userId: string }) {
   const [failed, setFailed] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  const run = useCallback(async () => {
+  const run = useCallback(async (withBack = false) => {
     if (running) return;
+    // Open the picker first, while the tap still counts (phones block it after other waits).
+    const backFile = withBack ? await pickBackPhoto() : null;
+    if (withBack && !backFile) return;
     const entry = await loadDemoCard();
     if (!entry) return;
     if (!isFresh(entry.at)) { await deleteDemoCard(); return; }
+    if (!withBack) { setFailed(true); return; } // the back photo needs a tap
     running = true; setBusy(true); setFailed(false);
     try {
+      const backImagePath = await uploadBackPhoto(userId, backFile!, backFile!.name);
       const path = `${userId}/demo-${entry.at}.jpg`;
       const up = await supabase.storage.from("card-images").upload(path, entry.photo, { contentType: "image/jpeg", upsert: true });
       if (up.error) throw up.error;
       const check = await supabase.functions.invoke("price-check", { body: { imagePath: path } });
       const priceCheckId = check.data?.priceCheckId;
       if (check.error || !priceCheckId) throw new Error("price check failed");
-      const save = await supabase.functions.invoke("price-check-save", { body: { priceCheckId } });
+      const save = await supabase.functions.invoke("price-check-save", { body: { priceCheckId, backImagePath } });
       const cardId = save.data?.cardId;
       if (!cardId) throw new Error("save failed");
       await deleteDemoCard();
@@ -50,8 +56,8 @@ export default function DemoCardImport({ userId }: { userId: string }) {
   }
   return (
     <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary/40 bg-primary/10 px-4 py-3">
-      <p className="text-sm font-medium">Finish saving your demo card</p>
-      <Button size="sm" onClick={run} disabled={busy}>{busy ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <RotateCcw className="mr-1 h-4 w-4" />}Retry</Button>
+      <p className="text-sm font-medium">Finish saving your demo card: add a photo of the back of the card</p>
+      <Button size="sm" onClick={() => run(true)} disabled={busy}>{busy ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <RotateCcw className="mr-1 h-4 w-4" />}Add back photo</Button>
     </div>
   );
 }

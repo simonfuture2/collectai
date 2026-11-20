@@ -1,3 +1,4 @@
+import { uploadBackPhoto } from "@/lib/backPhoto";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { isAndroidApp, ANDROID_OUT_OF_CREDITS_MSG } from "@/lib/platform";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -101,6 +102,10 @@ export default function LiveScan() {
   const lastUpcRef = useRef<string | null>(null);
   const pulseRef = useRef(0);
   const blockedRef = useRef(false);
+  const awaitingBackRef = useRef<string | null>(null);
+  const [awaitingBack, setAwaitingBack] = useState<string | null>(null);
+  const tilesRef = useRef<LiveTile[]>([]);
+  tilesRef.current = tiles;
   const settingsRef = useRef({ lang, game, auto, hardPaused, scanKind, mode });
   settingsRef.current = { lang, game, auto, hardPaused, scanKind, mode };
   blockedRef.current = !!openId || reviewOpen || helpOpen || gameOpen || modeOpen || perm !== "live";
@@ -236,6 +241,29 @@ export default function LiveScan() {
   /* ------------------------------ capture → price-check ------------------------------ */
   const sendCard = useCallback(async (card: HTMLCanvasElement, skipDup = false) => {
     if (!userId || busyRef.current) return;
+    // Collection / insight: the shot right after a front is the back of that card.
+    const backFor = awaitingBackRef.current;
+    if (backFor && settingsRef.current.mode !== "price") {
+      busyRef.current = true; capturingRef.current = true;
+      try {
+        const b: Blob | null = await new Promise(res => card.toBlob(res, "image/jpeg", LIVE.JPEG_QUALITY));
+        if (!b) throw new Error("no image");
+        const backPath = await uploadBackPhoto(userId, b, "back.jpg");
+        awaitingBackRef.current = null;
+        setAwaitingBack(null);
+        setTiles(prev => prev.map(t => (t.id === backFor ? { ...t, backPath } : t)));
+        feedback();
+        setPill({ state: "capturing", text: "Back saved – next card", progress: 0 });
+      } catch {
+        setPill({ state: "searching", text: "Couldn't save the back – try again", progress: 0, error: true });
+      } finally {
+        busyRef.current = false; capturingRef.current = false;
+        steadyRef.current = null; firstSeenRef.current = 0;
+        sc.resultUntil.current = performance.now() + LIVE.RESULT_MS;
+        sc.setPhase("result");
+      }
+      return;
+    }
     const hash = canvasHash(card);
     void skipDup; // the cooldown (not this function) decides whether a card is new
     busyRef.current = true;
@@ -282,6 +310,10 @@ export default function LiveScan() {
       const ms = Math.round(performance.now() - seenAt);
       setMetrics(m => ({ ...m, lastMs: ms }));
       console.log(`[live] card→price ${ms}ms server=${data.latencyMs}ms match=${sel?.name ?? "none"}`);
+      if (settingsRef.current.mode !== "price" && data.priceCheckId) {
+        awaitingBackRef.current = id; setAwaitingBack(id);
+        setPill({ state: "capturing", text: sel ? `Found – ${sel.name}. Flip it – scan the back` : "Flip it – scan the back", progress: 0 });
+      } else
       setPill({ state: "capturing", text: sel ? `Found – ${sel.name}` : "No match – tap the card below", progress: 0 });
       sc.resultUntil.current = performance.now() + LIVE.RESULT_MS;
       sc.setPhase("result");
@@ -634,7 +666,13 @@ export default function LiveScan() {
 
   const saveOne = useCallback(async (id: string): Promise<string> => {
     const purpose = settingsRef.current.mode === "insight" ? "insight" : "collection";
-    const { data, error } = await supabase.functions.invoke("price-check-save", { body: { priceCheckId: id, scanPurpose: purpose } });
+    const backImagePath = tilesRef.current.find(t => t.id === id)?.backPath;
+    if (!backImagePath) {
+      // Ask for the back in the camera, then save.
+      awaitingBackRef.current = id; setAwaitingBack(id);
+      throw new Error("Scan the back of this card first – flip it and hold it in the frame.");
+    }
+    const { data, error } = await supabase.functions.invoke("price-check-save", { body: { priceCheckId: id, scanPurpose: purpose, backImagePath } });
     let cardId: string | undefined = data?.cardId;
     if (error) { const { body } = await statusOf(error); cardId = body?.cardId; }
     if (!cardId) throw new Error(data?.error || "Could not save");
@@ -658,7 +696,7 @@ export default function LiveScan() {
     if (!openTile) return;
     setSheetBusy("save");
     try { await saveOne(openTile.id); toast({ title: mode === "insight" ? "Saved to Insights" : "Added to your collection", description: "Free · price only" }); }
-    catch (e) { toast({ title: "Couldn't save", description: (e as Error).message, variant: "destructive" }); }
+    catch (e) { if (!openTile.backPath) setOpenId(null); toast({ title: "Couldn't save", description: (e as Error).message, variant: "destructive" }); }
     finally { setSheetBusy(null); }
   };
 
@@ -747,6 +785,12 @@ export default function LiveScan() {
         <button type="button" aria-label="Close scanner" onClick={close} className="cam-glass rounded-full p-2"><X className="h-5 w-5" /></button>
       </div>
 
+      {awaitingBack && mode !== "price" && (
+        <div role="status" className="absolute inset-x-4 top-16 z-20 flex items-center justify-between gap-3 rounded-2xl cam-glass px-4 py-2 text-sm" style={{ marginTop: "env(safe-area-inset-top)" }}>
+          <span className="font-medium">Flip the card – scan the back to add it</span>
+          <button type="button" className="underline" onClick={() => { awaitingBackRef.current = null; setAwaitingBack(null); }}>Skip</button>
+        </div>
+      )}
       {isAdmin && debugOn && (
         <div data-testid="live-debug" className="absolute left-3 top-14 z-10 rounded-md cam-glass px-2 py-1 font-mono text-[10px] leading-tight" style={{ marginTop: "env(safe-area-inset-top)" }}>
           <div>auto {playing ? "ON" : "off"}{hardPaused ? " (limit)" : ""} · state {sc.phase}</div>
@@ -877,7 +921,7 @@ export default function LiveScan() {
           <div className="mx-auto w-full max-w-md px-4 pb-8">
             <DrawerTitle className="py-3 font-display text-lg">What happens when you save?</DrawerTitle>
             {(["price", "collection", "insight"] as ScanMode[]).map(m => (
-              <button key={m} type="button" onClick={() => { setMode(m); lsSet(LS.mode, m); setModeOpen(false); }}
+              <button key={m} type="button" onClick={() => { setMode(m); lsSet(LS.mode, m); setModeOpen(false); if (m === "price") { awaitingBackRef.current = null; setAwaitingBack(null); } }}
                 className={`mb-2 flex w-full items-center justify-between rounded-xl border px-4 py-3 text-left ${m === mode ? "border-primary bg-primary/10" : "border-border"}`}>
                 <span>
                   <span className="block font-semibold">{MODE_LABEL[m]}</span>

@@ -4,7 +4,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { z } from "npm:zod@3";
-import { PRICE_ONLY_UPGRADE_CREDITS, FREE_SCANS_PER_HOUR, PRO_SCANS_PER_HOUR, billingFor, isProAccess } from "./rules.ts";
+import { PRICE_ONLY_UPGRADE_CREDITS, FREE_SCANS_PER_HOUR, PRO_SCANS_PER_HOUR, billingFor, isProAccess, hasBothSides } from "./rules.ts";
 
 const json = (b: unknown, status = 200) =>
   new Response(JSON.stringify(b), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -43,7 +43,7 @@ Deno.serve(async (req) => {
     const supabaseAdmin = createClient(supabaseUrl, serviceKey);
     const { data: card, error: cardErr } = await supabaseAdmin
       .from("cards")
-      .select("id, user_id, image_url, category, analysis_depth, analysis_status, analysis_started_at, card_name, card_set, card_number, variant, pricecharting_id")
+      .select("id, user_id, image_url, back_image_url, category, analysis_depth, analysis_status, analysis_started_at, card_name, card_set, card_number, variant, pricecharting_id")
       .eq("id", cardId)
       .maybeSingle();
     if (cardErr || !card) {
@@ -62,6 +62,8 @@ Deno.serve(async (req) => {
       });
     }
 
+    if (!hasBothSides(card as any)) return json({ error: "Add front and back photos to grade this card", needsBack: true }, 400);
+
     // Generate a fresh signed URL from the stored path.
     let signedUrl: string;
     const imagePath = String(card.image_url);
@@ -79,6 +81,11 @@ Deno.serve(async (req) => {
       }
       signedUrl = signed.signedUrl;
     }
+
+    const backPath = String(card.back_image_url);
+    const backSignedUrl = backPath.startsWith("http") ? backPath
+      : (await supabaseAdmin.storage.from("card-images").createSignedUrl(backPath, 3600)).data?.signedUrl ?? null;
+    if (!backSignedUrl) return json({ error: "Could not access the back photo" }, 500);
 
     const billing = billingFor(card as any);
     if (billing === "busy") return json({ error: "Analysis is already running for this card" }, 409);
@@ -133,7 +140,7 @@ Deno.serve(async (req) => {
         method: "POST",
         headers: { Authorization: `Bearer ${serviceKey}`, "Content-Type": "application/json" },
         body: JSON.stringify({
-          cardId, images: [{ label: "Front", url: signedUrl }],
+          cardId, images: [{ label: "Front", url: signedUrl }, ...(backSignedUrl ? [{ label: "Back", url: backSignedUrl }] : [])],
           category: card.category || "Trading Card", fastScan: false,
           identityHint: ladderMatch, pricechartingId: isUpgrade ? card.pricecharting_id : undefined,
         }),

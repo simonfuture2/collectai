@@ -23,3 +23,7 @@ export function billingFor(
 
 export const isProAccess = (c: { plan?: string | null; beta_access_until?: string | null } | null, now = Date.now()) =>
   c?.plan === "pro" || (!!c?.beta_access_until && Date.parse(c.beta_access_until) > now);
+
+/** Grading / full analysis only runs on the original front and back photos. */
+export const hasBothSides = (c: { image_url?: string | null; back_image_url?: string | null }) =>
+  !!c.image_url && !!c.back_image_url;

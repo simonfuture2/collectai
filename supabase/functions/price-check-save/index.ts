@@ -4,7 +4,7 @@ import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { z } from "npm:zod@3";
 import { priceOnlyCardRow, type SavedCandidate } from "./rules.ts";
 
-const Body = z.object({ priceCheckId: z.string().uuid(), folderId: z.string().uuid().optional(), scanPurpose: z.enum(["collection", "insight"]).optional() });
+const Body = z.object({ priceCheckId: z.string().uuid(), folderId: z.string().uuid().optional(), scanPurpose: z.enum(["collection", "insight"]).optional(), backImagePath: z.string().min(3).max(500).optional() });
 const json = (b: unknown, status = 200) =>
   new Response(JSON.stringify(b), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
@@ -21,7 +21,10 @@ Deno.serve(async (req) => {
 
     const parsed = Body.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return json({ error: parsed.error.flatten().fieldErrors }, 400);
-    const { priceCheckId, folderId, scanPurpose } = parsed.data;
+    const { priceCheckId, folderId, scanPurpose, backImagePath } = parsed.data;
+    // Cards saved to a collection need a back photo, and it must be the user's own upload.
+    if (!backImagePath) return json({ error: "Add a photo of the back of the card first", needsBack: true }, 400);
+    if (!backImagePath.startsWith(`${userId}/`) || backImagePath.includes("..")) return json({ error: "Invalid back photo" }, 400);
     const admin = createClient(url, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
     const { data: check } = await admin.from("price_checks")
@@ -46,13 +49,16 @@ Deno.serve(async (req) => {
       const selected = list.find(c => Number(c.productId) === Number(check.selected_product_id)) ?? list[0] ?? null;
       const ident = (check.identification as any) ?? {};
       const reading = ident.best ?? ident ?? {};
-      const row = priceOnlyCardRow(userId, check.image_path, selected, reading, new Date().toISOString(), scanPurpose ?? "collection");
+      const row: Record<string, unknown> = priceOnlyCardRow(userId, check.image_path, selected, reading, new Date().toISOString(), scanPurpose ?? "collection");
+      row.back_image_url = backImagePath;
       const { data: card, error } = await admin.from("cards").insert(row).select("id").single();
       if (error) throw error;
       cardId = card.id;
       duplicate = false;
     }
 
+    if (duplicate) await admin.from("cards").update({ back_image_url: backImagePath }).eq("id", cardId).is("back_image_url", null);
+    await admin.from("price_checks").update({ back_image_path: backImagePath }).eq("id", check.id);
     if (folderId) await admin.from("card_folders").upsert({ card_id: cardId, folder_id: folderId }, { onConflict: "card_id,folder_id", ignoreDuplicates: true });
     await admin.from("price_checks").update({ added_card_id: cardId }).eq("id", check.id).is("added_card_id", null);
     return json({ cardId, duplicate });
