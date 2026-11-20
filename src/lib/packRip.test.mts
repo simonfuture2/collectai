@@ -21,3 +21,8 @@ test("saving a rip keeps storage paths, never temporary viewing URLs", () => {
   const saved = storedPulls([pull(1, 4)]) as Record<string, unknown>[];
   assert.equal(saved[0].imagePath, "user/photo.jpg"); assert.equal("imagePreview" in saved[0], false);
 });
+import { canAddPull } from "./packRip.ts";
+test("a pack hit needs a back photo before it can be added", () => {
+  assert.equal(canAddPull({ ...pull(1, 4.25), backPath: null }), false);
+  assert.equal(canAddPull({ ...pull(1, 4.25), backPath: "u/b.jpg" }), true);
+});

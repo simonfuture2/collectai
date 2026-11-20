@@ -13,7 +13,8 @@ import SEO from "@/components/SEO";
 import UpgradeModal from "@/components/UpgradeModal";
 import { usePriceCheckAccess } from "@/hooks/use-price-check-access";
 import { useCredits } from "@/hooks/use-credits";
-import { chaseHit, packSummary, priceOnlyCard, pullValue, sortedPulls, storedPulls, type PackPull } from "@/lib/packRip";
+import { takeBackPhoto } from "@/lib/backPhoto";
+import { canAddPull, chaseHit, packSummary, priceOnlyCard, pullValue, sortedPulls, storedPulls, type PackPull } from "@/lib/packRip";
 import type { User } from "@supabase/supabase-js";
 const usd = (n: number) => n.toLocaleString("en-US", { style: "currency", currency: "USD" });
 const message = (e: unknown) => e instanceof Error ? e.message : "Please try again.";
@@ -111,7 +112,11 @@ const PackRip = () => {
   };
   const addPull = async (p: PackPull) => {
     if (!user) throw new Error("Please sign in.");
-    if (p.cardId) return p;
+    if (!p.backPath) throw new Error(`Add a back photo for ${p.cardName} first.`);
+    if (p.cardId) {
+      await supabase.from("cards").update({ back_image_url: p.backPath }).eq("id", p.cardId).eq("user_id", user.id).is("back_image_url", null);
+      return p;
+    }
     const { data: existing, error: lookupError } = await supabase.from("cards").select("id").eq("user_id", user.id).eq("image_url", p.imagePath).maybeSingle();
     if (lookupError) throw lookupError;
     const cardId = existing?.id ?? crypto.randomUUID();
@@ -124,22 +129,33 @@ const PackRip = () => {
   const addAll = async () => {
     if (lock.current) return; lock.current = true; setBusy("all");
     let next = [...pulls];
+    let skipped = 0;
     try {
       for (let i = 0; i < next.length; i++) {
         if (!next[i].selected || next[i].cardId) continue;
+        if (!canAddPull(next[i])) { skipped++; continue; }
         next[i] = await addPull(next[i]);
         await persist(next); setPulls([...next]);
       }
-      toast({ title: "Hits added to your collection", description: "Free · price-only cards" });
+      toast(skipped
+        ? { title: "Some hits still need a back photo", description: `${skipped} not added yet. Tap "Add back photo" on each one, then add again.` }
+        : { title: "Hits added to your collection", description: "Free · price-only cards" });
     } catch (e) { toast({ title: "Could not add every hit", description: message(e), variant: "destructive" }); }
     finally { lock.current = false; setBusy(null); }
   };
   const fullAnalysis = async (p: PackPull) => {
     if (lock.current) return;
     if (!isPro && credits < 1) { setShowUpgrade(true); return; }
+    let withBack = p;
+    if (!p.backPath) {
+      // Open the camera first, while the tap still counts.
+      const backPath = user ? await takeBackPhoto(user.id) : null;
+      if (!backPath) { toast({ title: "Add the back of the card", description: "Grading needs a front and back photo." }); return; }
+      withBack = { ...p, backPath };
+    }
     lock.current = true; setBusy(p.priceCheckId);
     try {
-      const saved = await addPull(p);
+      const saved = await addPull(withBack);
       let next = pulls.map(o => o.priceCheckId === p.priceCheckId ? saved : o);
       await persist(next); setPulls(next);
       const { data, error } = await supabase.functions.invoke("reanalyze-card", { body: { cardId: saved.cardId, priceOnlyUpgrade: true } });
@@ -149,6 +165,15 @@ const PackRip = () => {
       toast({ title: "Full analysis started", description: "View progress in your collection." });
     } catch (e) { toast({ title: "Analysis could not start", description: message(e), variant: "destructive" }); }
     finally { lock.current = false; setBusy(null); }
+  };
+  const addBack = async (p: PackPull) => {
+    if (!user || lock.current) return;
+    try {
+      const backPath = await takeBackPhoto(user.id);
+      if (!backPath) return;
+      const next = pulls.map(o => o.priceCheckId === p.priceCheckId ? { ...o, backPath } : o);
+      await persist(next); setPulls(next);
+    } catch (e) { toast({ title: "Couldn't save the back photo", description: message(e), variant: "destructive" }); }
   };
   const remove = async (p: PackPull) => {
     if (lock.current) return; lock.current = true; setBusy(p.priceCheckId);
@@ -205,7 +230,9 @@ const PackRip = () => {
             </Link>
             {chaseHit(p, chase) && <span className="inline-flex items-center gap-1 text-xs font-semibold text-primary mt-1"><Sparkles className="w-3 h-3" />Chase hit</span>}
             {p.cardId && <p className="text-xs text-muted-foreground mt-1">In collection</p>}
-            <Button variant="outline" size="sm" className="mt-3 w-full px-1 text-xs" disabled={pending || !p.selected || p.fullAnalysis} onClick={() => fullAnalysis(p)}>
+            {!p.backPath && <Button size="sm" className="mt-3 w-full px-1 text-xs" disabled={pending} onClick={() => addBack(p)}>Add back photo</Button>}
+            {p.backPath && !p.cardId && <p className="text-xs text-muted-foreground mt-1">Back photo added</p>}
+            <Button variant="outline" size="sm" className="mt-2 w-full px-1 text-xs" disabled={pending || !p.selected || p.fullAnalysis} onClick={() => fullAnalysis(p)}>
               {busy === p.priceCheckId ? <Loader2 className="w-4 h-4 animate-spin" /> : p.fullAnalysis ? "Analysis requested" : `Full analysis · ${isPro ? "Free with Pro" : "1 credit"}`}
             </Button>
           </article>)}
